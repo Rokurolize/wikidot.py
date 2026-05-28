@@ -3,6 +3,7 @@
 from typing import Any
 from unittest.mock import MagicMock, create_autospec, patch
 
+import httpx
 import pytest
 from pytest_httpx import HTTPXMock
 
@@ -96,6 +97,20 @@ class TestSitePageAccessor:
         assert page.name == "new-page"
         assert page.category == "_default"
         assert page.id == 12345
+
+    def test_get_returns_none_when_direct_page_id_probe_is_404(self, mock_site_no_http: Site) -> None:
+        """ListPagesにも直接URLにもないページはNoneを返す"""
+        request = httpx.Request("GET", "https://test-site.wikidot.com/missing")
+        response = httpx.Response(404, request=request)
+        not_found = httpx.HTTPStatusError("not found", request=request, response=response)
+
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])),
+            patch.object(PageCollection, "_acquire_page_ids", side_effect=not_found),
+        ):
+            page = mock_site_no_http.page.get("missing", raise_when_not_found=False)
+
+        assert page is None
 
 
 class TestSiteFromUnixName:

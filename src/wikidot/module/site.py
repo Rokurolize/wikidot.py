@@ -151,6 +151,10 @@ class SitePageAccessor:
         )
         try:
             _ = page.id
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return None
+            raise
         except exceptions.UnexpectedException:
             return None
         return page
