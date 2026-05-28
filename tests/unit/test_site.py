@@ -14,6 +14,7 @@ from wikidot.common.exceptions import (
     WikidotStatusCodeException,
 )
 from wikidot.module.client import Client
+from wikidot.module.page import PageCollection
 from wikidot.module.site import Site
 
 
@@ -73,6 +74,28 @@ class TestSiteDataclass:
         assert hasattr(mock_site_no_http, "pages")
         assert hasattr(mock_site_no_http, "page")
         assert hasattr(mock_site_no_http, "forum")
+
+
+class TestSitePageAccessor:
+    """Site.pageアクセサのテスト"""
+
+    def test_get_falls_back_to_direct_page_id_when_listpages_is_stale(self, mock_site_no_http: Site) -> None:
+        """ListPagesにまだ出ないページは直接URLのpageIdで取得する"""
+
+        def acquire_ids(_site: Site, pages: list) -> list:
+            pages[0].id = 12345
+            return pages
+
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])),
+            patch.object(PageCollection, "_acquire_page_ids", side_effect=acquire_ids),
+        ):
+            page = mock_site_no_http.page.get("new-page")
+
+        assert page.fullname == "new-page"
+        assert page.name == "new-page"
+        assert page.category == "_default"
+        assert page.id == 12345
 
 
 class TestSiteFromUnixName:

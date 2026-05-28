@@ -112,10 +112,48 @@ class SitePageAccessor:
         """
         res = PageCollection.search_pages(self.site, SearchPagesQuery(fullname=fullname))
         if len(res) == 0:
-            if raise_when_not_found:
-                raise exceptions.NotFoundException(f"Page is not found: {fullname}")
-            return None
+            page = self._get_by_direct_page_id(fullname)
+            if page is None:
+                if raise_when_not_found:
+                    raise exceptions.NotFoundException(f"Page is not found: {fullname}")
+                return None
+            return page
         return res[0]
+
+    def _get_by_direct_page_id(self, fullname: str) -> Optional["Page"]:
+        if ":" in fullname:
+            category, name = fullname.split(":", 1)
+        else:
+            category, name = "_default", fullname
+
+        now = datetime.now()
+        page = Page(
+            site=self.site,
+            fullname=fullname,
+            name=name,
+            category=category,
+            title="",
+            children_count=0,
+            comments_count=0,
+            size=0,
+            rating=0,
+            votes_count=0,
+            rating_percent=None,
+            revisions_count=0,
+            parent_fullname=None,
+            tags=[],
+            created_by=getattr(self.site.client, "me", None),
+            created_at=now,
+            updated_by=getattr(self.site.client, "me", None),
+            updated_at=now,
+            commented_by=None,
+            commented_at=None,
+        )
+        try:
+            _ = page.id
+        except exceptions.UnexpectedException:
+            return None
+        return page
 
     def create(
         self,
