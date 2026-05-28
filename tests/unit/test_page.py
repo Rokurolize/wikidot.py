@@ -537,6 +537,45 @@ class TestPageCreateOrEdit:
         )
         assert page.fullname == "scp-001"
 
+    def test_create_new_page_returns_saved_page_when_search_is_stale(
+        self,
+        mock_site_no_http: Site,
+        page_pageedit_success: dict[str, Any],
+        page_savepage_success: dict[str, Any],
+        page_listpages_empty: dict[str, Any],
+    ) -> None:
+        """保存直後のListPagesに新規ページがまだ出なくても作成結果を返す"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_success
+
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = page_savepage_success
+
+        mock_search_response = MagicMock()
+        mock_search_response.json.return_value = page_listpages_empty
+
+        mock_site_no_http.amc_request = MagicMock(
+            side_effect=[
+                [mock_lock_response],
+                [mock_save_response],
+                [mock_search_response],
+            ]
+        )
+
+        page = Page.create_or_edit(
+            mock_site_no_http,
+            "new-page",
+            title="New Page Title",
+            source="Page content",
+        )
+
+        assert page.fullname == "new-page"
+        assert page.title == "New Page Title"
+        assert page.source.wiki_text == "Page content"
+
     def test_edit_locked_page(self, mock_site_no_http: Site, page_pageedit_locked: dict[str, Any]) -> None:
         """ロック済みページの編集で例外"""
         mock_site_no_http.client.is_logged_in = True

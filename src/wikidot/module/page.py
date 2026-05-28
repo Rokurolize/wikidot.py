@@ -1449,9 +1449,41 @@ class Page:
 
         res = PageCollection.search_pages(site, SearchPagesQuery(fullname=fullname))
         if len(res) == 0:
-            raise exceptions.NotFoundException(f"Page creation failed: {fullname}")
+            if ":" in fullname:
+                category, name = fullname.split(":", 1)
+            else:
+                category, name = "_default", fullname
 
-        return res[0]
+            now = datetime.now()
+            page = Page(
+                site=site,
+                fullname=fullname,
+                name=name,
+                category=category,
+                title=title,
+                children_count=0,
+                comments_count=0,
+                size=len(source.encode("utf-8")),
+                rating=0,
+                votes_count=0,
+                rating_percent=None,
+                revisions_count=1,
+                parent_fullname=None,
+                tags=[],
+                created_by=getattr(site.client, "me", None),
+                created_at=now,
+                updated_by=getattr(site.client, "me", None),
+                updated_at=now,
+                commented_by=None,
+                commented_at=None,
+            )
+        else:
+            page = res[0]
+
+        if page_id is not None or title:
+            page.title = title
+        page.source = PageSource(page, source)
+        return page
 
     def edit(
         self,
