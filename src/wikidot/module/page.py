@@ -684,15 +684,16 @@ class PageCollection(list["Page"]):
         NoElementException
             When source elements are not found
         """
-        if len(pages) == 0:
+        target_pages = [page for page in pages if page._source is None]
+        if len(target_pages) == 0:
             return pages
 
-        PageCollection._acquire_page_ids(site, pages)
+        PageCollection._acquire_page_ids(site, target_pages)
         responses = site.amc_request_with_retry(
-            [{"moduleName": "viewsource/ViewSourceModule", "page_id": page.id} for page in pages]
+            [{"moduleName": "viewsource/ViewSourceModule", "page_id": page.id} for page in target_pages]
         )
 
-        for page, response in zip(pages, responses, strict=True):
+        for page, response in zip(target_pages, responses, strict=True):
             if response is None:
                 continue
             body = response.json()["body"]

@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
 from wikidot.module.page import Page, PageCollection, SearchPagesQuery
+from wikidot.module.page_source import PageSource
 
 if TYPE_CHECKING:
     from wikidot.module.site import Site
@@ -456,6 +457,30 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request.assert_not_called()
         assert mock_page_with_id._source is not None
         assert second_page._source is None
+
+    def test_acquire_sources_skips_already_acquired_pages(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
+    ) -> None:
+        """取得済みsourceがあるページは再取得せず未取得ページだけ取得する"""
+        second_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        second_page.id = 222
+        mock_page_with_id._source = PageSource(mock_page_with_id, "cached content")
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, second_page])
+
+        def retry_source_requests(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock, ...]:
+            return tuple(self._json_response(page_viewsource) for _ in request_bodies)
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=retry_source_requests)
+
+        collection.get_page_sources()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [222]
+        assert mock_page_with_id._source is not None
+        assert mock_page_with_id._source.wiki_text == "cached content"
+        assert second_page._source is not None
 
     def test_acquire_revisions_batches_missing_page_ids(
         self,
