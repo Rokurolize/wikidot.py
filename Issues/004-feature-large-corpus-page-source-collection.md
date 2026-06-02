@@ -65,4 +65,4 @@ wikidot.py already exposes the core mechanisms needed for corpus collection. Ite
 
 ## Additional Information
 
-The small local PR in [002-pr-batch-source-page-id-lookups.md](002-pr-batch-source-page-id-lookups.md) is an immediate performance improvement for this feature area, but this issue remains broader and should be designed separately.
+The small local PR drafts in [002-pr-batch-source-page-id-lookups.md](002-pr-batch-source-page-id-lookups.md) and [005-pr-bound-listpages-pagination-by-limit.md](005-pr-bound-listpages-pagination-by-limit.md) are immediate performance improvements for this feature area, but this issue remains broader and should be designed separately.
