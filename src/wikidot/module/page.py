@@ -688,11 +688,13 @@ class PageCollection(list["Page"]):
             return pages
 
         PageCollection._acquire_page_ids(site, pages)
-        responses = site.amc_request(
+        responses = site.amc_request_with_retry(
             [{"moduleName": "viewsource/ViewSourceModule", "page_id": page.id} for page in pages]
         )
 
         for page, response in zip(pages, responses, strict=True):
+            if response is None:
+                continue
             body = response.json()["body"]
             # nbspをスペースに置換
             body = body.replace("&nbsp;", " ")

@@ -404,9 +404,12 @@ class TestPageCollectionAcquire:
 
         mock_response = MagicMock()
         mock_response.json.return_value = page_viewsource
-        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         collection.get_page_sources()
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_called_once()
         assert mock_page_with_id._source is not None
         # フィクスチャの内容に合わせて検証
         assert "page content" in mock_page_with_id._source.wiki_text
@@ -427,13 +430,32 @@ class TestPageCollectionAcquire:
         source_responses = []
         for _ in collection:
             source_responses.append(self._json_response(page_viewsource))
-        mock_site_no_http.amc_request = MagicMock(return_value=source_responses)
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=tuple(source_responses))
 
         collection.get_page_sources()
 
         self._assert_batched_page_id_request(request)
-        request_bodies = mock_site_no_http.amc_request.call_args.args[0]
+        mock_site_no_http.amc_request.assert_not_called()
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
         assert [body["page_id"] for body in request_bodies] == [111, 222]
+
+    def test_acquire_sources_skips_failed_retry_response(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
+    ) -> None:
+        """source取得の一部失敗は成功ページを保持し失敗ページを未取得にする"""
+        second_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        second_page.id = 222
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, second_page])
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(page_viewsource), None))
+
+        collection.get_page_sources()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._source is not None
+        assert second_page._source is None
 
     def test_acquire_revisions_batches_missing_page_ids(
         self,
