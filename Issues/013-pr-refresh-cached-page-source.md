@@ -62,4 +62,4 @@ Page save workflows should be able to verify the saved source without reimplemen
 
 ## Additional Notes
 
-This is a small API slice toward the high-level browser-free publisher. It deliberately does not decide source normalization, save-result structure, or retry-after-save visibility polling; those remain in the broader feature draft.
+This is a small API slice toward the high-level browser-free publisher. It deliberately does not decide save-result structure or retry-after-save visibility polling; those remain in the broader feature draft. The follow-up source fidelity fix is drafted separately in [014-pr-preserve-viewsource-text.md](014-pr-preserve-viewsource-text.md).
