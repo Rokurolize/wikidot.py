@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
 
+import httpx
 import pytest
 from bs4 import BeautifulSoup
 
@@ -311,6 +312,60 @@ class TestPageCollectionAcquire:
         assert mock_page_with_id._source is not None
         # フィクスチャの内容に合わせて検証
         assert "page content" in mock_page_with_id._source.wiki_text
+
+    def test_acquire_sources_batches_missing_page_ids(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+        page_viewsource: dict[str, Any],
+    ) -> None:
+        """ID未取得ページのsource取得ではpage_id取得をまとめて行う"""
+        second_page = Page(
+            site=mock_site_no_http,
+            fullname="other-page",
+            name="other-page",
+            category="_default",
+            title="Other Page",
+            children_count=0,
+            comments_count=0,
+            size=1000,
+            rating=10,
+            votes_count=5,
+            rating_percent=0.0,
+            revisions_count=3,
+            parent_fullname=None,
+            tags=["tag1"],
+            created_by=mock_page_no_http.created_by,
+            created_at=mock_page_no_http.created_at,
+            updated_by=mock_page_no_http.updated_by,
+            updated_at=mock_page_no_http.updated_at,
+            commented_by=None,
+            commented_at=None,
+        )
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http, second_page])
+
+        first_id_response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 111;")
+        second_id_response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 222;")
+        request = MagicMock(return_value=[first_id_response, second_id_response])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        source_responses = []
+        for _ in collection:
+            response = MagicMock()
+            response.json.return_value = page_viewsource
+            source_responses.append(response)
+        mock_site_no_http.amc_request = MagicMock(return_value=source_responses)
+
+        collection.get_page_sources()
+
+        request.assert_called_once()
+        assert request.call_args.args[2] == [
+            "https://test-site.wikidot.com/test-page/norender/true/noredirect/true",
+            "https://test-site.wikidot.com/other-page/norender/true/noredirect/true",
+        ]
+        request_bodies = mock_site_no_http.amc_request.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [111, 222]
 
     def test_acquire_revisions_success(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_revisionlist: dict[str, Any]

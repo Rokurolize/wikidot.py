@@ -671,6 +671,7 @@ class PageCollection(list["Page"]):
         if len(pages) == 0:
             return pages
 
+        PageCollection._acquire_page_ids(site, pages)
         responses = site.amc_request(
             [{"moduleName": "viewsource/ViewSourceModule", "page_id": page.id} for page in pages]
         )
