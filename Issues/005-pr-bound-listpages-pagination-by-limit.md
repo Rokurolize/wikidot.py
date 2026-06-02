@@ -31,11 +31,14 @@ Drafted from local rollout evidence; no upstream issue filed yet.
 
 ## Testing
 
-Local implementation commit: `de3c6c5 perf(page): bound listpages pagination by limit`
+Local commits:
 
-- [x] `uv run --extra test pytest tests/unit/test_page.py::TestPageCollectionSearchPages::test_search_pages_limit_within_first_page_skips_additional_pager_requests tests/unit/test_page.py::TestPageCollectionSearchPages::test_search_pages_limit_caps_additional_pager_requests -q`
-- [x] `uv run --extra test pytest tests/unit/test_page.py -q` passed with 61 tests.
-- [x] `uv run --extra test pytest tests/unit -q` passed with 520 tests.
+- `de3c6c5 perf(page): bound listpages pagination by limit`
+- `3be148e test(page): cover zero listpages limit`
+
+- [x] `uv run --extra test pytest tests/unit/test_page.py::TestPageCollectionSearchPages::test_search_pages_limit_within_first_page_skips_additional_pager_requests tests/unit/test_page.py::TestPageCollectionSearchPages::test_search_pages_zero_limit_returns_empty_without_request tests/unit/test_page.py::TestPageCollectionSearchPages::test_search_pages_limit_caps_additional_pager_requests -q`
+- [x] `uv run --extra test pytest tests/unit/test_page.py -q` passed with 62 tests.
+- [x] `uv run --extra test pytest tests/unit -q` passed with 521 tests.
 - [x] `uv run --extra lint ruff check src tests`
 - [x] `uv run --extra format ruff format --check src tests`
 - [x] `uv run --extra lint mypy src tests --install-types --non-interactive`
