@@ -14,12 +14,13 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [008-pr-skip-cached-source-fetches.md](008-pr-skip-cached-source-fetches.md): upstream PR draft for the committed cache-aware source-fetch optimization.
 - [009-pr-skip-cached-page-detail-fetches.md](009-pr-skip-cached-page-detail-fetches.md): upstream PR draft for the committed cache-aware revision, vote, and file detail optimization.
 - [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md): upstream PR draft for the committed batched file-fetch retry improvement.
+- [011-pr-robust-meta-tag-parsing.md](011-pr-robust-meta-tag-parsing.md): upstream PR draft for the committed robust meta-tag parsing improvement.
 
 ## Local Evidence Index
 
 - Thread workspace ledger: `/home/roku/codex-thread-workspaces/019e8a3a-20fd-7113-975d-8c92336695cd/artifacts/rollout_wikidot_ledger.md`
 - Focused practical evidence scan: `/home/roku/codex-thread-workspaces/019e8a3a-20fd-7113-975d-8c92336695cd/artifacts/rollout_lines_practical_evidence.txt`
 - Local implementation branch: `codex/research-019e8a3a`
-- Local implementation commits: `41c1639 fix: harden wikidot parsing and request behavior`, `e188565 perf(page): batch source page id lookups`, `2021378 perf(page): batch page id lookups for page details`, `de3c6c5 perf(page): bound listpages pagination by limit`, `3be148e test(page): cover zero listpages limit`, `4964296 fix(page): retry batched source fetches`, `6f41847 perf(page): batch meta tag updates`, `4e7f54b perf(page): skip cached source fetches`, `e7e9084 fix(page): preserve fallback edit page id`, `c505a11 perf(page): skip cached detail fetches`, `b5cd8ce fix(page): retry batched file fetches`
+- Local implementation commits: `41c1639 fix: harden wikidot parsing and request behavior`, `e188565 perf(page): batch source page id lookups`, `2021378 perf(page): batch page id lookups for page details`, `de3c6c5 perf(page): bound listpages pagination by limit`, `3be148e test(page): cover zero listpages limit`, `4964296 fix(page): retry batched source fetches`, `6f41847 perf(page): batch meta tag updates`, `4e7f54b perf(page): skip cached source fetches`, `e7e9084 fix(page): preserve fallback edit page id`, `c505a11 perf(page): skip cached detail fetches`, `b5cd8ce fix(page): retry batched file fetches`, `3a4e96e fix(page): parse meta tags with html parser`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
