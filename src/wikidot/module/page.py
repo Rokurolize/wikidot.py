@@ -522,6 +522,9 @@ class PageCollection(list["Page"]):
         """
         if query is None:
             query = SearchPagesQuery()
+        if query.limit is not None and query.limit <= 0:
+            return PageCollection(site, [])
+
         # 初回実行
         query_dict = query.as_dict()
         query_dict["moduleName"] = "list/ListPagesModule"
@@ -564,17 +567,30 @@ class PageCollection(list["Page"]):
         if total > 1:
             request_bodies = []
             base_offset = query.offset or 0
-            for i in range(1, total):
+            per_page = query.perPage or PageConstants.DEFAULT_PER_PAGE
+            page_count = total
+            if query.limit is not None:
+                remaining_limit = query.limit - per_page
+                page_count = 1
+                if remaining_limit > 0:
+                    page_count += (remaining_limit + per_page - 1) // per_page
+                page_count = min(total, page_count)
+
+            for i in range(1, page_count):
                 _query_dict = query_dict.copy()
-                _query_dict["offset"] = base_offset + i * (query.perPage or PageConstants.DEFAULT_PER_PAGE)
+                _query_dict["offset"] = base_offset + i * per_page
                 request_bodies.append(_query_dict)
 
-            responses = site.amc_request(request_bodies)
-            html_bodies.extend([BeautifulSoup(response.json()["body"], "lxml") for response in responses])
+            if request_bodies:
+                responses = site.amc_request(request_bodies)
+                html_bodies.extend([BeautifulSoup(response.json()["body"], "lxml") for response in responses])
 
         pages: list[Page] = []
         for html_body in html_bodies:
             pages.extend(PageCollection._parse(site, html_body))
+
+        if query.limit is not None:
+            pages = pages[: query.limit]
 
         return PageCollection(site, pages)
 

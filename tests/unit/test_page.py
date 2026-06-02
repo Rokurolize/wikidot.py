@@ -294,6 +294,48 @@ class TestPageCollectionSearchPages:
         second_page_body = mock_site_no_http.amc_request.call_args_list[1].args[0][0]
         assert second_page_body["offset"] == 600
 
+    def test_search_pages_limit_within_first_page_skips_additional_pager_requests(
+        self, mock_site_no_http: Site, page_listpages_multiple: dict[str, Any]
+    ) -> None:
+        """limitが1ページ目で満たされる場合は追加ページを取得しない"""
+        response = MagicMock()
+        response.json.return_value = {
+            **page_listpages_multiple,
+            "body": page_listpages_multiple["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target"><a>2</a></span></div>',
+        }
+        mock_site_no_http.amc_request = MagicMock(return_value=[response])
+
+        pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(limit=1, perPage=2))
+
+        assert len(pages) == 1
+        assert pages[0].fullname == "scp-001"
+        mock_site_no_http.amc_request.assert_called_once()
+
+    def test_search_pages_limit_caps_additional_pager_requests(
+        self, mock_site_no_http: Site, page_listpages_multiple: dict[str, Any]
+    ) -> None:
+        """limitに必要なページ数だけ追加ページを取得する"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            **page_listpages_multiple,
+            "body": page_listpages_multiple["body"]
+            + (
+                '<div class="pager"><span class="target">1</span><span class="target"><a>2</a></span>'
+                '<span class="target"><a>3</a></span></div>'
+            ),
+        }
+        second_response = MagicMock()
+        second_response.json.return_value = page_listpages_multiple
+        mock_site_no_http.amc_request = MagicMock(side_effect=[[first_response], [second_response]])
+
+        pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(limit=3, perPage=2))
+
+        assert len(pages) == 3
+        second_call_bodies = mock_site_no_http.amc_request.call_args_list[1].args[0]
+        assert len(second_call_bodies) == 1
+        assert second_call_bodies[0]["offset"] == 2
+
 
 class TestPageCollectionAcquire:
     """PageCollection._acquire_*メソッドのテスト"""
