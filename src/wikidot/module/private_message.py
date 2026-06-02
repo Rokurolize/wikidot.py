@@ -5,6 +5,7 @@ This module provides classes and functionality related to Wikidot private messag
 It enables operations such as sending messages, retrieving inbox/sent box, and viewing messages.
 """
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
@@ -124,7 +125,12 @@ class PrivateMessageCollection(list["PrivateMessage"]):
 
             html = BeautifulSoup(response.json()["body"], "lxml")
 
-            sender, recipient = html.select("div.pmessage div.header span.printuser")
+            user_elements = html.select("div.pmessage div.header span.printuser")
+            if len(user_elements) != 2:
+                raise exceptions.NoElementException(
+                    f"Expected sender and recipient elements for message: {message_ids[index]}"
+                )
+            sender, recipient = user_elements
 
             subject_element = html.select_one("div.pmessage div.header span.subject")
             body_element = html.select_one("div.pmessage div.body")
@@ -177,7 +183,12 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         # pagerの最後から2番目の要素を取得
         # pageが存在しない場合は1ページのみ
         pager: ResultSet[Tag] = html.select("div.pager span.target")
-        max_page: int = int(pager[-2].get_text()) if len(pager) > 2 else 1
+        max_page = 1
+        for pager_target in reversed(pager):
+            page_text = pager_target.get_text(strip=True)
+            if page_text.isdigit():
+                max_page = int(page_text)
+                break
 
         if max_page > 1:
             # メッセージ取得
@@ -190,8 +201,16 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         message_ids = []
         for response in responses:
             html = BeautifulSoup(response.json()["body"], "lxml")
-            # tr.messageのdata-href末尾の数字を取得
-            message_ids.extend([int(str(tr["data-href"]).split("/")[-1]) for tr in html.select("tr.message")])
+            for message_row in html.select("tr.message"):
+                data_href = message_row.get("data-href")
+                if data_href is None:
+                    raise exceptions.NoElementException("Message data-href attribute is not found")
+
+                message_id_match = re.search(r"(\d+)(?:[/?#].*)?$", str(data_href))
+                if message_id_match is None:
+                    raise exceptions.NoElementException(f"Message ID is not found in data-href: {data_href}")
+
+                message_ids.append(int(message_id_match.group(1)))
 
         return PrivateMessageCollection.from_ids(client, message_ids)
 

@@ -1,5 +1,7 @@
 """StringUtilのユニットテスト"""
 
+import pytest
+
 from wikidot.util.stringutil import StringUtil
 
 
@@ -103,3 +105,21 @@ class TestStringUtilToUnix:
         assert StringUtil.to_unix("_-test") == "_test"
         # 先頭-は削除、_も-に変換されて削除される
         assert StringUtil.to_unix("-_test") == "test"
+
+
+class TestStringUtilValidateSiteUnixName:
+    """StringUtil.validate_site_unix_name()のテスト"""
+
+    @pytest.mark.parametrize("site_name", ["www", "test-site", "abc123", "example-site"])
+    def test_valid_site_names(self, site_name: str):
+        """有効なWikidotサイト名は許可する"""
+        StringUtil.validate_site_unix_name(site_name)
+
+    @pytest.mark.parametrize(
+        "site_name",
+        ["", "-bad", "bad-", "Bad", "foo/bar", "foo?x=", "127.0.0.1:8000#", "evil.com#"],
+    )
+    def test_invalid_site_names(self, site_name: str):
+        """ホスト構造を壊せる文字を含むサイト名は拒否する"""
+        with pytest.raises(ValueError, match="Invalid Wikidot site UNIX name"):
+            StringUtil.validate_site_unix_name(site_name)

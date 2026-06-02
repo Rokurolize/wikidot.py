@@ -65,6 +65,9 @@ class SiteMember:
 
         for row in html.select("table tr"):
             tds = row.select("td")
+            if not tds:
+                continue
+
             user_elem = tds[0].select_one(".printuser")
 
             if user_elem is None:
@@ -137,7 +140,12 @@ class SiteMember:
         if pager is None:
             return members
 
-        last_page = int(pager.select("a")[-2].text)
+        last_page = 1
+        for link in reversed(pager.select("a")):
+            page_text = link.get_text(strip=True)
+            if page_text.isdigit():
+                last_page = int(page_text)
+                break
         if last_page == 1:
             return members
 
@@ -188,6 +196,8 @@ class SiteMember:
             "removeAdmin",
         ]:
             raise ValueError("Invalid event")
+
+        self.site.client.login_check()
 
         try:
             self.site.amc_request(

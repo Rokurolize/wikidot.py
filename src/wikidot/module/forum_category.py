@@ -279,7 +279,7 @@ class ForumCategory:
         )[0].json()
 
         # responseからthreadIdを取得
-        if "threadId" not in response and isinstance(response["threadId"], int):
+        if not isinstance(response.get("threadId"), int):
             raise NoElementException("Thread ID is not found.")
 
         thread_id: int = response["threadId"]

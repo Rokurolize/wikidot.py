@@ -160,3 +160,24 @@ class TestForumCategoryCreateThread:
 
         assert thread.id == 3001
         assert thread.category == mock_forum_category_no_http
+
+    @pytest.mark.parametrize("response_body", [{}, {"threadId": "3001"}])
+    def test_create_thread_missing_or_invalid_thread_id_raises(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        response_body: dict[str, Any],
+    ) -> None:
+        """threadId欠損または型不正はNoElementException"""
+        mock_forum_category_no_http.site.client.is_logged_in = True
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+
+        create_response = MagicMock()
+        create_response.json.return_value = response_body
+        mock_forum_category_no_http.site.amc_request = MagicMock(return_value=[create_response])
+
+        with pytest.raises(exceptions.NoElementException, match="Thread ID"):
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )

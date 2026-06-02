@@ -111,6 +111,16 @@ class TestPageFileCollectionParseSize:
         result = PageFileCollection._parse_size("1.5 kB")
         assert result == 1500
 
+    def test_parse_uppercase_kilobytes(self):
+        """大文字KB表記のパース"""
+        result = PageFileCollection._parse_size("1.5 KB")
+        assert result == 1500
+
+    def test_parse_singular_byte(self):
+        """単数Byte表記のパース"""
+        result = PageFileCollection._parse_size("1 Byte")
+        assert result == 1
+
     def test_parse_megabytes(self):
         """メガバイト単位のパース"""
         result = PageFileCollection._parse_size("2 MB")
@@ -167,6 +177,69 @@ class TestPageFileCollectionAcquire:
         assert collection[0].mime_type == "image/png"
         assert collection[0].size == 1500
         assert "test.wikidot.com" in collection[0].url
+
+    def test_acquire_preserves_absolute_file_url(self):
+        """絶対URLの添付ファイルhrefを壊さない"""
+        page = MagicMock()
+        page.id = 12345
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        page.site = site
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-100">
+                            <td><a href="https://cdn.example.com/file.txt">file.txt</a></td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>1 KB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        site.amc_request.return_value = [response]
+
+        collection = PageFileCollection.acquire(page)
+
+        assert collection[0].url == "https://cdn.example.com/file.txt"
+
+    def test_acquire_skips_malformed_file_row_id(self):
+        """不正なfile-row IDはパース対象から除外する"""
+        page = MagicMock()
+        page.id = 12345
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        page.site = site
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-not-a-number">
+                            <td><a href="/local--files/test-page/bad.txt">bad.txt</a></td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>1 KB</td>
+                        </tr>
+                        <tr id="file-row-101">
+                            <td><a href="/local--files/test-page/good.txt">good.txt</a></td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>1 KB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        site.amc_request.return_value = [response]
+
+        collection = PageFileCollection.acquire(page)
+
+        assert len(collection) == 1
+        assert collection[0].id == 101
+        assert collection[0].name == "good.txt"
 
     def test_acquire_empty(self):
         """ファイルなしの場合"""

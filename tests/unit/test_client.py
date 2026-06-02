@@ -60,6 +60,22 @@ class TestClient:
 
             mock_logout.assert_called_once()
 
+    def test_context_manager_clears_cached_identity_on_exit(self):
+        """with文終了時にログイン状態とユーザーキャッシュをクリアする"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.HTTPAuthentication.logout"),
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+        ):
+            mock_from_name.return_value = MagicMock()
+            with Client(username="test-user", password="test-password") as client:
+                assert client.me is not None
+
+            assert client.is_logged_in is False
+            assert client.username is None
+            assert client.me is None
+
     def test_login_check_raises_when_not_logged_in(self):
         """未ログイン時にlogin_checkが例外を送出する"""
         with patch("wikidot.module.client.AjaxModuleConnectorClient"):
@@ -106,6 +122,9 @@ class TestClient:
             client = Client(username="test-user", password="test-password")
             client.close()
             mock_logout.assert_called_once()
+            assert client.is_logged_in is False
+            assert client.username is None
+            assert client.me is None
 
     def test_accessors_are_initialized(self):
         """各アクセサが初期化される"""

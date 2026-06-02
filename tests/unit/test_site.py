@@ -80,6 +80,24 @@ class TestSiteDataclass:
 class TestSitePageAccessor:
     """Site.pageアクセサのテスト"""
 
+    def test_get_falls_back_to_default_category_name(
+        self,
+        mock_site_no_http: Site,
+        mock_page_no_http,
+    ) -> None:
+        """fullname APIではなく_default/name検索でページを取得する"""
+        with patch.object(
+            PageCollection,
+            "search_pages",
+            return_value=PageCollection(mock_site_no_http, [mock_page_no_http]),
+        ) as mock_search:
+            page = mock_site_no_http.page.get("test-page")
+
+        assert page is mock_page_no_http
+        query = mock_search.call_args_list[0].args[1]
+        assert query.category == "_default"
+        assert query.name == "test-page"
+
     def test_get_falls_back_to_direct_page_id_when_listpages_is_stale(self, mock_site_no_http: Site) -> None:
         """ListPagesにまだ出ないページは直接URLのpageIdで取得する"""
 
@@ -93,6 +111,7 @@ class TestSitePageAccessor:
         ):
             page = mock_site_no_http.page.get("new-page")
 
+        assert page is not None
         assert page.fullname == "new-page"
         assert page.name == "new-page"
         assert page.category == "_default"
@@ -111,6 +130,41 @@ class TestSitePageAccessor:
             page = mock_site_no_http.page.get("missing", raise_when_not_found=False)
 
         assert page is None
+
+    def test_create_force_edit_updates_existing_page(self, mock_site_no_http: Site) -> None:
+        """force_edit=Trueでは既存ページを編集する"""
+        existing_page = MagicMock()
+        existing_page.edit.return_value = existing_page
+        login_check = MagicMock()
+        mock_site_no_http.client.login_check = login_check
+        mock_site_no_http.page.get = MagicMock(return_value=existing_page)
+
+        page = mock_site_no_http.page.create(
+            "test-page",
+            title="Updated Title",
+            source="Updated source",
+            comment="Overwrite",
+            force_edit=True,
+        )
+
+        assert page is existing_page
+        login_check.assert_called_once()
+        existing_page.edit.assert_called_once_with(
+            title="Updated Title",
+            source="Updated source",
+            comment="Overwrite",
+            force_edit=True,
+        )
+
+    def test_create_not_logged_in_raises_before_lookup(self, mock_site_no_http: Site) -> None:
+        """未ログイン時はforce_editでもページ検索前に拒否する"""
+        mock_site_no_http.client.login_check = MagicMock(side_effect=LoginRequiredException("Login required"))
+        mock_site_no_http.page.get = MagicMock()
+
+        with pytest.raises(LoginRequiredException):
+            mock_site_no_http.page.create("test-page", force_edit=True)
+
+        mock_site_no_http.page.get.assert_not_called()
 
 
 class TestSiteFromUnixName:
@@ -181,6 +235,15 @@ class TestSiteFromUnixName:
 
         with pytest.raises(NotFoundException):
             Site.from_unix_name(mock_client_no_http, "nonexistent")
+
+    def test_from_unix_name_invalid_name_rejected_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
+    ) -> None:
+        """ホストを逸脱し得るunix_nameはリクエスト前に拒否する"""
+        with pytest.raises(ValueError, match="Invalid Wikidot site UNIX name"):
+            Site.from_unix_name(mock_client_no_http, "127.0.0.1:8000#")
+
+        assert httpx_mock.get_requests() == []
 
     def test_from_unix_name_missing_site_id(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
         """siteIdがない場合はUnexpectedException"""
@@ -596,3 +659,50 @@ class TestSiteGetRecentChanges:
 
             assert len(changes) == 1
             assert changes[0].page_fullname == "test:test-page"
+
+    def test_get_recent_changes_zero_limit_returns_empty(self) -> None:
+        """limit=0ではリクエストせず空リストを返す"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        changes = site.get_recent_changes(limit=0)
+
+        assert changes == []
+        mock_client.amc_client.request.assert_not_called()
+
+    def test_get_recent_changes_ignores_non_numeric_pager_links(self, site_changes: dict[str, Any]) -> None:
+        """数値ページがないpagerでは単一ページとして扱う"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            **site_changes,
+            "body": site_changes["body"].replace(
+                '<div class="pager"><span class="pager-no">ページ 1</span><span class="current">1</span></div>',
+                '<div class="pager"><a href="#">next</a></div>',
+            ),
+        }
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            changes = site.get_recent_changes()
+
+        assert len(changes) == 2
+        mock_client.amc_client.request.assert_called_once()

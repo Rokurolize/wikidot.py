@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from bs4 import BeautifulSoup
 
-from wikidot.common.exceptions import TargetErrorException, WikidotStatusCodeException
+from wikidot.common.exceptions import LoginRequiredException, TargetErrorException, WikidotStatusCodeException
 from wikidot.module.site_member import SiteMember
 
 
@@ -122,6 +122,34 @@ class TestSiteMemberParse:
 
             assert len(members) == 1
 
+    def test_parse_skips_header_rows_without_tds(self):
+        """thだけのヘッダ行はスキップ"""
+        html = BeautifulSoup(
+            """
+            <table>
+                <tr>
+                    <th>User</th>
+                    <th>Joined</th>
+                </tr>
+                <tr>
+                    <td><span class="printuser">
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">Test User</a>
+                    </span></td>
+                </tr>
+            </table>
+            """,
+            "lxml",
+        )
+        site = MagicMock()
+        mock_user = MagicMock()
+
+        with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = mock_user
+
+            members = SiteMember._parse(site, html)
+
+            assert len(members) == 1
+
 
 class TestSiteMemberGet:
     """SiteMember.getのテスト"""
@@ -195,6 +223,32 @@ class TestSiteMemberGet:
 
             assert len(members) == 2
             assert site.amc_request.call_count == 2
+
+    def test_get_members_ignores_non_numeric_pager_links(self):
+        """数値ページがないpagerでは単一ページとして扱う"""
+        site = MagicMock()
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <table>
+                    <tr>
+                        <td><span class="printuser">
+                            <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                        </span></td>
+                    </tr>
+                </table>
+                <div class="pager"><a href="#">next</a></div>
+            """
+        }
+        site.amc_request.return_value = [response]
+
+        with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            members = SiteMember.get(site, "")
+
+            assert len(members) == 1
+            site.amc_request.assert_called_once()
 
     def test_get_admins_group(self):
         """管理者グループ取得"""
@@ -349,6 +403,19 @@ class TestSiteMemberChangeGroup:
 
         with pytest.raises(ValueError, match="Invalid event"):
             member._change_group("invalidEvent")
+
+    def test_change_group_not_logged_in_raises_before_request(self):
+        """未ログイン時は権限変更リクエストを送らない"""
+        site = MagicMock()
+        site.client.login_check.side_effect = LoginRequiredException("Login required")
+        user = MagicMock()
+        user.id = 12345
+        member = SiteMember(site=site, user=user, joined_at=None)
+
+        with pytest.raises(LoginRequiredException):
+            member.to_moderator()
+
+        site.amc_request.assert_not_called()
 
     def test_change_group_other_error_reraises(self):
         """その他のエラーは再送出"""

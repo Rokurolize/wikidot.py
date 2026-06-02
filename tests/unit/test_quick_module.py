@@ -50,6 +50,18 @@ class TestQuickModuleRequest:
             assert "q=test" in call_url
             assert result == quickmodule_member_lookup
 
+    def test_request_url_encodes_query(self, quickmodule_member_lookup: dict[str, Any]):
+        """クエリ文字列をURLエンコードする"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = quickmodule_member_lookup
+
+        with patch("httpx.get", return_value=mock_response) as mock_get:
+            QuickModule._request("MemberLookupQModule", 123456, "a b&role=admin")
+
+            call_url = mock_get.call_args[0][0]
+            assert "q=a+b%26role%3Dadmin" in call_url
+
     def test_request_user_lookup(self, quickmodule_user_lookup: dict[str, Any]):
         """UserLookupQModuleリクエスト"""
         mock_response = MagicMock()

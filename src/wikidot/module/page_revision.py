@@ -5,6 +5,7 @@ This module provides classes and functions related to Wikidot page edit history 
 It enables operations such as retrieving revisions, getting source code, and displaying HTML.
 """
 
+import re
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime
@@ -48,7 +49,12 @@ class PageRevisionCollection(list["PageRevision"]):
             List of revisions to store
         """
         super().__init__(revisions or [])
-        self.page = page or self[0].page if len(self) > 0 else None
+        if page is not None:
+            self.page = page
+        elif len(self) > 0:
+            self.page = self[0].page
+        else:
+            self.page = None
 
     def __iter__(self) -> Iterator["PageRevision"]:
         """
@@ -205,13 +211,16 @@ class PageRevisionCollection(list["PageRevision"]):
 
         def process_html_response(revision: "PageRevision", response: httpx.Response, page: "Page") -> None:
             body = response.json()["body"]
-            # onclick="document.getElementById('page-version-info').style.display='none'">(.*?)</a>\n\t</div>\n\n\n\n
-            # 以降をソースとして取得
-            source = body.split(
-                "onclick=\"document.getElementById('page-version-info').style.display='none'\">",
-                maxsplit=1,
-            )[1]
-            source = source.split("</a>\n\t</div>\n\n\n\n", maxsplit=1)[1]
+            marker = "onclick=\"document.getElementById('page-version-info').style.display='none'\">"
+            _, separator, source = body.partition(marker)
+            if separator:
+                _, close_separator, source = source.partition("</a>")
+                if close_separator:
+                    source = re.sub(r"^\s*</div>\s*", "", source, count=1)
+                else:
+                    source = body
+            else:
+                source = body
             revision._html = source
 
         return PageRevisionCollection._generic_acquire(

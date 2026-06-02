@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 
-from wikidot.common.exceptions import ForbiddenException, LoginRequiredException
+from wikidot.common.exceptions import ForbiddenException, LoginRequiredException, NoElementException
 from wikidot.module.client import Client
 from wikidot.module.private_message import (
     PrivateMessage,
@@ -126,6 +126,63 @@ class TestPrivateMessageCollection:
 
         with pytest.raises(ForbiddenException):
             PrivateMessageCollection.from_ids(mock_client, [1])
+
+    def test_from_ids_missing_sender_or_recipient_raises(self, mock_client):
+        """送受信者要素が欠けたメッセージ詳細はNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="subject">Test Subject</span>
+                </div>
+                <div class="body">Test Body</div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(NoElementException, match="sender and recipient"):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
+    def test_acquire_missing_message_href_raises(self, mock_client):
+        """メッセージ行のdata-href欠損はNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": '<table><tr class="message"></tr></table>'}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(NoElementException, match="data-href"):
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+    def test_acquire_malformed_message_href_raises(self, mock_client):
+        """メッセージ行のdata-hrefにIDがなければNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": '<table><tr class="message" data-href="/account/messages/view"></tr></table>'
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(NoElementException, match="Message ID"):
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+    def test_acquire_ignores_non_numeric_pager_targets(self, mock_client):
+        """数値ページがないpagerでは単一ページとして扱う"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pager"><span class="target">next</span></div>
+            <table><tr class="message" data-href="/account/messages/view/123"></tr></table>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with patch.object(
+            PrivateMessageCollection, "from_ids", return_value=PrivateMessageCollection([])
+        ) as mock_from_ids:
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+        mock_from_ids.assert_called_once_with(mock_client, [123])
 
 
 class TestPrivateMessageInbox:

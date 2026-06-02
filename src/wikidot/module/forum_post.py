@@ -84,6 +84,16 @@ class ForumPostCollection(list["ForumPost"]):
         return None
 
     @staticmethod
+    def _last_page_from_pager(pager: Tag) -> int:
+        last_page = 1
+        for pager_target in reversed(pager.select("span.target")):
+            page_text = pager_target.get_text(strip=True)
+            if page_text.isdigit():
+                last_page = int(page_text)
+                break
+        return last_page
+
+    @staticmethod
     def _parse(thread: "ForumThread", html: BeautifulSoup) -> list["ForumPost"]:
         """
         Parse post list from HTML
@@ -236,11 +246,7 @@ class ForumPostCollection(list["ForumPost"]):
         if pager is None:
             return ForumPostCollection(thread=thread, posts=posts)
 
-        pager_targets = pager.select("span.target")
-        if len(pager_targets) < 2:
-            return ForumPostCollection(thread=thread, posts=posts)
-
-        last_page = int(pager_targets[-2].get_text().strip())
+        last_page = ForumPostCollection._last_page_from_pager(pager)
         if last_page <= 1:
             return ForumPostCollection(thread=thread, posts=posts)
 
@@ -323,11 +329,7 @@ class ForumPostCollection(list["ForumPost"]):
             if pager is None:
                 continue
 
-            pager_targets = pager.select("span.target")
-            if len(pager_targets) < 2:
-                continue
-
-            last_page = int(pager_targets[-2].get_text().strip())
+            last_page = ForumPostCollection._last_page_from_pager(pager)
             if last_page <= 1:
                 continue
 
@@ -553,8 +555,6 @@ class ForumPost:
         if self._source is None:
             raise NoElementException("Source textarea is not found.")
 
-        # self._source is guaranteed to be str here (either from cache or just fetched)
-        assert self._source is not None
         return self._source
 
     def edit(self, source: str, title: str | None = None) -> "ForumPost":

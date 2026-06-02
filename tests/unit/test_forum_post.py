@@ -136,6 +136,20 @@ class TestForumPostCollectionAcquireAll:
         # 最初のページで2件 + 2ページ目で2件 = 4件
         assert len(collection) == 4
 
+    def test_acquire_all_ignores_non_numeric_pager_targets(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """数値ページがないpagerでは単一ページとして扱う"""
+        body_with_pager = forum_posts_in_thread["body"] + '<div class="pager"><span class="target">next</span></div>'
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+        mock_forum_thread_no_http.site.amc_request = MagicMock(return_value=[first_response])
+
+        collection = ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        assert len(collection) == 2
+        mock_forum_thread_no_http.site.amc_request.assert_called_once()
+
 
 class TestForumPostCollectionGetSources:
     """ForumPostCollection.get_post_sourcesのテスト"""

@@ -5,9 +5,11 @@ This module provides classes and functions related to files attached
 to Wikidot site pages. It enables operations such as retrieving file information.
 """
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
@@ -111,16 +113,24 @@ class PageFileCollection(list["PageFile"]):
         int
             Size in bytes
         """
-        size_text = size_text.strip()
-        if "Bytes" in size_text:
-            return int(float(size_text.replace("Bytes", "").strip()))
-        elif "kB" in size_text:
-            return int(float(size_text.replace("kB", "").strip()) * 1000)
-        elif "MB" in size_text:
-            return int(float(size_text.replace("MB", "").strip()) * 1000000)
-        elif "GB" in size_text:
-            return int(float(size_text.replace("GB", "").strip()) * 1000000000)
-        return 0
+        size_match = re.fullmatch(r"\s*([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)\s*", size_text)
+        if size_match is None:
+            return 0
+
+        value = float(size_match.group(1))
+        unit = size_match.group(2).lower()
+        multipliers = {
+            "b": 1,
+            "byte": 1,
+            "bytes": 1,
+            "kb": 1000,
+            "mb": 1000000,
+            "gb": 1000000000,
+        }
+        multiplier = multipliers.get(unit)
+        if multiplier is None:
+            return 0
+        return int(value * multiplier)
 
     @staticmethod
     def _parse_from_html(page: "Page", html: BeautifulSoup) -> list["PageFile"]:
@@ -152,7 +162,10 @@ class PageFileCollection(list["PageFile"]):
             if row_id is None:
                 continue
 
-            file_id = int(str(row_id).removeprefix("file-row-"))
+            file_id_text = str(row_id).removeprefix("file-row-")
+            if not file_id_text.isdigit():
+                continue
+            file_id = int(file_id_text)
             tds = row.select("td")
             if len(tds) < 3:
                 continue
@@ -163,7 +176,7 @@ class PageFileCollection(list["PageFile"]):
 
             name = link_elem.get_text().strip()
             href = link_elem.get("href", "")
-            url = f"{page.site.url}{href}"
+            url = urljoin(f"{page.site.url}/", str(href))
 
             mime_elem = tds[1].select_one("span")
             mime_type = str(mime_elem.get("title", "")) if mime_elem else ""

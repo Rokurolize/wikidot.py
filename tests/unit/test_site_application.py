@@ -7,6 +7,7 @@ import pytest
 from wikidot.common.exceptions import (
     ForbiddenException,
     LoginRequiredException,
+    NoElementException,
     NotFoundException,
     UnexpectedException,
     WikidotStatusCodeException,
@@ -93,6 +94,39 @@ class TestSiteApplicationAcquireAll:
             assert applications[0].user == mock_user
             assert applications[0].text == "I want to join this wiki"
 
+    def test_acquire_all_ignores_unrelated_tables(self):
+        """申請と無関係なtableを誤って数えない"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <table><tr><td>Unrelated table</td></tr></table>
+                <div>
+                    <h3><span class="printuser">
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                    </span></h3>
+                    <table>
+                        <tr>
+                            <td>Label</td>
+                            <td>I want to join this wiki</td>
+                        </tr>
+                    </table>
+                </div>
+            """
+        }
+        site.amc_request.return_value = [response]
+
+        with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            applications = SiteApplication.acquire_all(site)
+
+            assert len(applications) == 1
+            assert applications[0].text == "I want to join this wiki"
+
     def test_acquire_all_empty(self):
         """申請なしの場合"""
         mock_client = create_mock_client(is_logged_in=True)
@@ -157,6 +191,28 @@ class TestSiteApplicationAcquireAll:
         site.amc_request.return_value = [response]
 
         with pytest.raises(UnexpectedException, match="Length"):
+            SiteApplication.acquire_all(site)
+
+    def test_acquire_all_missing_text_cell(self):
+        """申請本文セルがない場合NoElementException"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <div>
+                    <h3><span class="printuser">
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                    </span></h3>
+                    <table><tr><td>Label only</td></tr></table>
+                </div>
+            """
+        }
+        site.amc_request.return_value = [response]
+
+        with pytest.raises(NoElementException, match="text cell"):
             SiteApplication.acquire_all(site)
 
 

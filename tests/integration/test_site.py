@@ -6,6 +6,8 @@ import pytest
 
 from wikidot.common.exceptions import NotFoundException
 
+from .conftest import TEST_EXISTING_PAGE_FULLNAME, TEST_SITE_UNIX_NAME
+
 
 class TestSiteGet:
     """サイト取得テスト"""
@@ -13,7 +15,7 @@ class TestSiteGet:
     def test_site_get(self, site):
         """サイト取得"""
         assert site is not None
-        assert site.unix_name == "ukwhatn-ci"
+        assert site.unix_name == TEST_SITE_UNIX_NAME
         assert site.id > 0
 
     def test_site_has_title(self, site):
@@ -26,10 +28,10 @@ class TestPageGet:
     """ページ取得テスト"""
 
     def test_get_existing_page(self, site):
-        """既存ページ取得（startページ）"""
-        page = site.page.get("start")
+        """既存ページ取得"""
+        page = site.page.get(TEST_EXISTING_PAGE_FULLNAME)
         assert page is not None
-        assert page.fullname == "start"
+        assert page.fullname == TEST_EXISTING_PAGE_FULLNAME
 
     def test_get_nonexistent_page(self, site):
         """存在しないページ取得"""
@@ -38,7 +40,7 @@ class TestPageGet:
 
     def test_page_has_properties(self, site):
         """ページにプロパティがある"""
-        page = site.page.get("start")
+        page = site.page.get(TEST_EXISTING_PAGE_FULLNAME)
         assert page is not None
 
         # 基本プロパティ

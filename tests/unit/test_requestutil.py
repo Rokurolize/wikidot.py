@@ -36,6 +36,36 @@ class TestRequestUtilGet:
         assert all(isinstance(r, httpx.Response) for r in results)
         assert all(r.status_code == 200 for r in results)
 
+    def test_get_sends_client_headers(self, httpx_mock):
+        """Wikidot宛てGET時にクライアントのCookieヘッダを送る"""
+        httpx_mock.add_response(url="https://test.wikidot.com/test", status_code=200)
+
+        mock_client = MagicMock()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(
+            attempt_limit=3,
+            retry_interval=0.01,
+        )
+        mock_client.amc_client.header.get_header.return_value = {"Cookie": "WIKIDOT_SESSION_ID=abc;"}
+
+        RequestUtil.request(mock_client, "GET", ["https://test.wikidot.com/test"])
+
+        assert httpx_mock.get_requests()[0].headers["Cookie"] == "WIKIDOT_SESSION_ID=abc;"
+
+    def test_get_does_not_send_client_headers_to_non_wikidot(self, httpx_mock):
+        """非Wikidot宛てGETではセッションCookieを送らない"""
+        httpx_mock.add_response(url="https://example.com/test", status_code=200)
+
+        mock_client = MagicMock()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(
+            attempt_limit=3,
+            retry_interval=0.01,
+        )
+        mock_client.amc_client.header.get_header.return_value = {"Cookie": "WIKIDOT_SESSION_ID=abc;"}
+
+        RequestUtil.request(mock_client, "GET", ["https://example.com/test"])
+
+        assert "Cookie" not in httpx_mock.get_requests()[0].headers
+
     def test_get_retry_on_5xx(self, httpx_mock):
         """GET 5xxエラー後リトライ成功"""
         httpx_mock.add_response(url="https://example.com/test", status_code=500)
@@ -137,6 +167,36 @@ class TestRequestUtilPost:
 
         assert len(results) == 1
         assert results[0].status_code == 200
+
+    def test_post_sends_client_headers(self, httpx_mock):
+        """Wikidot宛てPOST時にクライアントのCookieヘッダを送る"""
+        httpx_mock.add_response(url="https://test.wikidot.com/test", status_code=200, method="POST")
+
+        mock_client = MagicMock()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(
+            attempt_limit=3,
+            retry_interval=0.01,
+        )
+        mock_client.amc_client.header.get_header.return_value = {"Cookie": "WIKIDOT_SESSION_ID=abc;"}
+
+        RequestUtil.request(mock_client, "POST", ["https://test.wikidot.com/test"])
+
+        assert httpx_mock.get_requests()[0].headers["Cookie"] == "WIKIDOT_SESSION_ID=abc;"
+
+    def test_post_does_not_send_client_headers_to_non_wikidot(self, httpx_mock):
+        """非Wikidot宛てPOSTではセッションCookieを送らない"""
+        httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
+
+        mock_client = MagicMock()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(
+            attempt_limit=3,
+            retry_interval=0.01,
+        )
+        mock_client.amc_client.header.get_header.return_value = {"Cookie": "WIKIDOT_SESSION_ID=abc;"}
+
+        RequestUtil.request(mock_client, "POST", ["https://example.com/test"])
+
+        assert "Cookie" not in httpx_mock.get_requests()[0].headers
 
     def test_post_retry_on_5xx(self, httpx_mock):
         """POST 5xxエラー後リトライ成功"""

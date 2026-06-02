@@ -314,6 +314,7 @@ class Client:
             finally:
                 self.is_logged_in = False
                 self.username = None
+                self.me = None
 
     def __str__(self) -> str:
         """
@@ -367,3 +368,4 @@ class Client:
             finally:
                 self.is_logged_in = False
                 self.username = None
+                self.me = None

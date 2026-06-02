@@ -4,9 +4,19 @@ from __future__ import annotations
 
 import contextlib
 
+import httpx
 import pytest
+from bs4 import BeautifulSoup
 
-from .conftest import generate_page_name
+from .conftest import generate_page_name, wait_for_condition
+
+
+def fetch_page_document_title(url: str) -> str:
+    response = httpx.get(url, follow_redirects=True, timeout=20.0)
+    response.raise_for_status()
+    title_element = BeautifulSoup(response.text, "lxml").title
+    assert title_element is not None
+    return title_element.get_text(strip=True)
 
 
 class TestPageLifecycle:
@@ -93,11 +103,23 @@ class TestPageLifecycle:
             comment="Test edit",
         )
 
-        # 再取得して確認
-        updated_page = self.site.page.get(self.page_name)
+        # ListPagesModule can keep stale title metadata briefly; source and
+        # rendered HTML reflect the saved edit more reliably.
+        updated_page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: page.source.wiki_text == "Updated content.",
+            max_retries=10,
+            interval=2.0,
+        )
         assert updated_page is not None
-        assert updated_page.title == "Updated Test Page"
         assert updated_page.source.wiki_text == "Updated content."
+        document_title = wait_for_condition(
+            lambda: fetch_page_document_title(updated_page.get_url()),
+            lambda title: title.startswith("Updated Test Page"),
+            max_retries=10,
+            interval=2.0,
+        )
+        assert document_title.startswith("Updated Test Page")
 
     def test_5_page_delete(self):
         """5. ページ削除"""

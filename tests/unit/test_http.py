@@ -177,6 +177,21 @@ class TestSyncGetWithRetry:
 
         assert response.status_code == 404
 
+    def test_raise_for_status_false_retries_5xx(self, httpx_mock):
+        """raise_for_status=Falseでも5xxはリトライする"""
+        httpx_mock.add_response(url="https://example.com/test", status_code=500)
+        httpx_mock.add_response(url="https://example.com/test", status_code=200)
+
+        response = sync_get_with_retry(
+            "https://example.com/test",
+            attempt_limit=3,
+            retry_interval=0.01,
+            raise_for_status=False,
+        )
+
+        assert response.status_code == 200
+        assert len(httpx_mock.get_requests()) == 2
+
 
 class TestSyncPostWithRetry:
     """sync_post_with_retry関数のテスト"""
@@ -249,6 +264,22 @@ class TestSyncPostWithRetry:
         )
 
         assert response.status_code == 400
+
+    def test_raise_for_status_false_retries_5xx(self, httpx_mock):
+        """raise_for_status=Falseでも5xxはリトライする"""
+        httpx_mock.add_response(url="https://example.com/test", status_code=500, method="POST")
+        httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
+
+        response = sync_post_with_retry(
+            "https://example.com/test",
+            data={"key": "value"},
+            attempt_limit=3,
+            retry_interval=0.01,
+            raise_for_status=False,
+        )
+
+        assert response.status_code == 200
+        assert len(httpx_mock.get_requests()) == 2
 
 
 class TestAsyncGetWithRetry:

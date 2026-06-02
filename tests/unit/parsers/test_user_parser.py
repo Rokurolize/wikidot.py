@@ -40,6 +40,18 @@ class TestUserParserRegularUser:
         assert result.id == 99999
         assert result.name == "another-user"
 
+    def test_parse_https_user_url(self, mock_client_no_http: MagicMock) -> None:
+        """httpsのuser:info URLからunix nameを抽出できる"""
+        html = '<span class="printuser"><a href="https://www.wikidot.com/user:info/secure-user" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">secure-user</a></span>'
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        result = user_parse(mock_client_no_http, elem)
+
+        assert isinstance(result, User)
+        assert result.unix_name == "secure-user"
+
 
 class TestUserParserDeletedUser:
     """削除済みユーザーのパーステスト"""
@@ -63,10 +75,10 @@ class TestUserParserDeletedUser:
         elem = soup.select_one("span.printuser")
         assert elem is not None
 
-        # data-idがない場合はKeyErrorが発生するため、テストでは確認できない
-        # 実際のコードでは data-id が必須
-        with pytest.raises(KeyError):
-            user_parse(mock_client_no_http, elem)
+        result = user_parse(mock_client_no_http, elem)
+
+        assert isinstance(result, DeletedUser)
+        assert result.id == 0
 
 
 class TestUserParserAnonymousUser:
@@ -114,6 +126,18 @@ class TestUserParserGuestUser:
         assert result.avatar_url is not None
         assert "gravatar.com" in result.avatar_url
 
+    def test_parse_guest_user_without_text(self, mock_client_no_http: MagicMock) -> None:
+        """表示名が空のゲストユーザーでも例外にしない"""
+        html = '<span class="printuser"><img src="https://www.gravatar.com/avatar/abc123" /></span>'
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        result = user_parse(mock_client_no_http, elem)
+
+        assert isinstance(result, GuestUser)
+        assert result.name == ""
+
 
 class TestUserParserWikidotUser:
     """Wikidotシステムユーザーのパーステスト"""
@@ -134,14 +158,13 @@ class TestUserParserEdgeCases:
     """エッジケースのテスト"""
 
     def test_parse_no_link_element_raises(self, mock_client_no_http: MagicMock) -> None:
-        """リンク要素がない場合はIndexErrorを発生させる"""
+        """リンク要素がない場合はValueErrorを発生させる"""
         html = '<span class="printuser">No links here</span>'
         soup = BeautifulSoup(html, "lxml")
         elem = soup.select_one("span.printuser")
         assert elem is not None
 
-        # テキストが"Wikidot"でない場合、find_all("a")[-1]が空リストに対して実行されIndexErrorになる
-        with pytest.raises(IndexError):
+        with pytest.raises(ValueError, match="link element"):
             user_parse(mock_client_no_http, elem)
 
     def test_parse_user_with_special_characters_in_name(self, mock_client_no_http: MagicMock) -> None:
@@ -156,3 +179,22 @@ class TestUserParserEdgeCases:
         assert isinstance(result, User)
         assert result.name == "user_name_123"
         assert result.unix_name == "user-name-123"
+
+    def test_parse_user_with_img_without_src(self, mock_client_no_http: MagicMock) -> None:
+        """srcなしimgを含む通常ユーザーをパースできる"""
+        html = """
+        <span class="printuser">
+            <a href="http://www.wikidot.com/user:info/test-user" onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">
+                <img class="small" alt="test-user" />
+            </a>
+            <a href="http://www.wikidot.com/user:info/test-user" onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test-user</a>
+        </span>
+        """
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        result = user_parse(mock_client_no_http, elem)
+
+        assert isinstance(result, User)
+        assert result.id == 12345

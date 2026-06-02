@@ -8,7 +8,7 @@ It enables operations such as retrieving, accepting, and declining applications.
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ..common import exceptions
 from ..common.decorators import login_required
@@ -88,18 +88,27 @@ class SiteApplication:
 
         applications = []
 
-        user_elements = html.select("h3 span.printuser")
-        text_wrapper_elements = html.select("table")
+        application_headers = [header for header in html.select("h3") if header.select_one("span.printuser")]
+        used_text_tables: set[int] = set()
 
-        if len(user_elements) != len(text_wrapper_elements):
-            raise exceptions.UnexpectedException("Length of user_elements and text_wrapper_elements are different")
+        for header in application_headers:
+            user_element = header.select_one("span.printuser")
+            if user_element is None:
+                continue
 
-        for i in range(len(user_elements)):
-            user_element = user_elements[i]
-            text_wrapper_element = text_wrapper_elements[i]
+            text_wrapper_element = header.find_next_sibling("table")
+            if not isinstance(text_wrapper_element, Tag):
+                raise exceptions.NoElementException("Application text table is not found")
+            if id(text_wrapper_element) in used_text_tables:
+                raise exceptions.UnexpectedException("Length of application users and text tables are different")
+            used_text_tables.add(id(text_wrapper_element))
+
+            text_cells = text_wrapper_element.select("td")
+            if len(text_cells) < 2:
+                raise exceptions.NoElementException("Application text cell is not found")
 
             user = user_parser(site.client, user_element)
-            text = text_wrapper_element.select("td")[1].text.strip()
+            text = text_cells[1].text.strip()
 
             applications.append(SiteApplication(site, user, text))
 

@@ -1,3 +1,4 @@
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
@@ -83,7 +84,10 @@ class UserCollection(list["AbstractUser"]):
             user_id_elem = html.select_one("a.btn.btn-default.btn-xs")
             if user_id_elem is None:
                 raise NoElementException("User ID element not found")
-            user_id = int(str(user_id_elem["href"]).split("/")[-1])
+            user_id_match = re.search(r"(?:/new/|userkarma\.php/)(\d+)(?:[/?#].*)?$", str(user_id_elem.get("href", "")))
+            if user_id_match is None:
+                raise NoElementException("User ID is not found")
+            user_id = int(user_id_match.group(1))
 
             # name取得
             name_elem = html.select_one("h1.profile-title")

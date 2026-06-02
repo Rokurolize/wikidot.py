@@ -178,6 +178,15 @@ def sync_get_with_retry(
             )
             if raise_for_status:
                 response.raise_for_status()
+            elif _is_retryable_status(response.status_code) and attempt < attempt_limit - 1:
+                backoff = calculate_backoff(
+                    attempt + 1,
+                    retry_interval,
+                    backoff_factor,
+                    max_backoff,
+                )
+                time.sleep(backoff)
+                continue
             return response
         except httpx.HTTPStatusError as e:
             # Don't retry 4xx errors - they are client errors that won't change on retry
@@ -264,6 +273,15 @@ def sync_post_with_retry(
             )
             if raise_for_status:
                 response.raise_for_status()
+            elif _is_retryable_status(response.status_code) and attempt < attempt_limit - 1:
+                backoff = calculate_backoff(
+                    attempt + 1,
+                    retry_interval,
+                    backoff_factor,
+                    max_backoff,
+                )
+                time.sleep(backoff)
+                continue
             return response
         except httpx.HTTPStatusError as e:
             # Don't retry 4xx errors - they are client errors that won't change on retry

@@ -194,7 +194,9 @@ class ForumThreadCollection(list["ForumThread"]):
         bc_elem = html.select_one("div.forum-breadcrumbs")
         if bc_elem is None:
             raise NoElementException("Breadcrumbs element is not found.")
-        title = bc_elem.contents[-1].text.strip().removeprefix("» ")
+        title = bc_elem.get_text(" ", strip=True).split("»")[-1].strip()
+        if not title:
+            raise NoElementException("Thread title is not found.")
 
         # description取得処理
         description_block_elem = html.select_one("div.description-block")
@@ -294,14 +296,19 @@ class ForumThreadCollection(list["ForumThread"]):
         first_body = first_response.json()["body"]
         first_html = BeautifulSoup(first_body, "lxml")
 
-        threads.extend(ForumThreadCollection._parse_list_in_category(category.site, first_html))
+        threads.extend(ForumThreadCollection._parse_list_in_category(category.site, first_html, category))
 
         # pager検索
         pager = first_html.select_one("div.pager")
         if pager is None:
             return ForumThreadCollection(site=category.site, threads=threads)
 
-        last_page = int(pager.select("a")[-2].text)
+        last_page = 1
+        for link in reversed(pager.select("a")):
+            page_text = link.get_text(strip=True)
+            if page_text.isdigit():
+                last_page = int(page_text)
+                break
         if last_page == 1:
             return ForumThreadCollection(site=category.site, threads=threads)
 

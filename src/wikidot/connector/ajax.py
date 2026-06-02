@@ -24,6 +24,7 @@ from ..common.exceptions import (
 )
 from ..util.async_helper import run_coroutine
 from ..util.http import sync_get_with_retry
+from ..util.stringutil import StringUtil
 
 
 class AjaxRequestHeader:
@@ -88,7 +89,7 @@ class AjaxRequestHeader:
         name : str
             Name of the cookie to delete
         """
-        del self.cookie[name]
+        self.cookie.pop(name, None)
         return
 
     def get_header(self) -> dict:
@@ -223,6 +224,7 @@ class AjaxModuleConnectorClient:
             Communication settings. Default values are used if None
         """
         self.site_name: str = site_name if site_name is not None else "www"
+        StringUtil.validate_site_unix_name(self.site_name)
         self.config: AjaxModuleConnectorConfig = config if config is not None else AjaxModuleConnectorConfig()
 
         # Check SSL support
@@ -334,10 +336,12 @@ class AjaxModuleConnectorClient:
 
         site_name = site_name if site_name is not None else self.site_name
         site_ssl_supported = site_ssl_supported if site_ssl_supported is not None else self.ssl_supported
+        StringUtil.validate_site_unix_name(site_name)
 
         async def _request(_body: dict[str, Any], client: httpx.AsyncClient) -> httpx.Response:
             retry_count = 0
             response: httpx.Response | None = None
+            request_body = {**_body, "wikidot_token7": 123456}
 
             while True:
                 # Execute request
@@ -348,12 +352,11 @@ class AjaxModuleConnectorClient:
                             f"http{'s' if site_ssl_supported else ''}://{site_name}.wikidot.com/"
                             f"ajax-module-connector.php"
                         )
-                        _body["wikidot_token7"] = 123456
-                        wd_logger.debug(f"Ajax Request: {url} -> {_mask_sensitive_data(_body)}")
+                        wd_logger.debug(f"Ajax Request: {url} -> {_mask_sensitive_data(request_body)}")
                         response = await client.post(
                             url,
                             headers=self.header.get_header(),
-                            data=_body,
+                            data=request_body,
                             timeout=self.config.request_timeout,
                         )
                         response.raise_for_status()
@@ -365,7 +368,7 @@ class AjaxModuleConnectorClient:
                     # Raise exception if retry limit reached
                     if retry_count >= self.config.attempt_limit:
                         error_detail = str(response.status_code) if response is not None else str(e)
-                        wd_logger.error(f"AMC request failed: {error_detail} -> {_mask_sensitive_data(_body)}")
+                        wd_logger.error(f"AMC request failed: {error_detail} -> {_mask_sensitive_data(request_body)}")
                         raise AMCHttpStatusCodeException(
                             f"AMC request failed: {error_detail}",
                             response.status_code if response is not None else 999,
@@ -381,7 +384,7 @@ class AjaxModuleConnectorClient:
                     error_info = str(response.status_code) if response is not None else str(e)
                     wd_logger.info(
                         f"AMC request error: {error_info} "
-                        f"(retry: {retry_count}, backoff: {backoff:.2f}s) -> {_mask_sensitive_data(_body)}"
+                        f"(retry: {retry_count}, backoff: {backoff:.2f}s) -> {_mask_sensitive_data(request_body)}"
                     )
                     await asyncio.sleep(backoff)
                     continue
@@ -394,7 +397,7 @@ class AjaxModuleConnectorClient:
                     retry_count += 1
                     if retry_count >= self.config.attempt_limit:
                         wd_logger.error(
-                            f'AMC is respond non-json data: "{response.text}" -> {_mask_sensitive_data(_body)}'
+                            f'AMC is respond non-json data: "{response.text}" -> {_mask_sensitive_data(request_body)}'
                         )
                         raise ResponseDataException(f'AMC is respond non-json data: "{response.text}"') from None
 
@@ -408,11 +411,32 @@ class AjaxModuleConnectorClient:
                     await asyncio.sleep(backoff)
                     continue
 
+                if not isinstance(_response_body, dict):
+                    retry_count += 1
+                    if retry_count >= self.config.attempt_limit:
+                        wd_logger.error(
+                            f"AMC responded with invalid JSON data: {_response_body!r} -> "
+                            f"{_mask_sensitive_data(request_body)}"
+                        )
+                        raise ResponseDataException(f"AMC responded with invalid JSON data: {_response_body!r}")
+
+                    backoff = _calculate_backoff(
+                        retry_count,
+                        self.config.retry_interval,
+                        self.config.backoff_factor,
+                        self.config.max_backoff,
+                    )
+                    wd_logger.info(
+                        f"AMC responded with invalid JSON data (retry: {retry_count}, backoff: {backoff:.2f}s)"
+                    )
+                    await asyncio.sleep(backoff)
+                    continue
+
                 # Retry if response is empty
                 if _response_body is None or len(_response_body) == 0:
                     retry_count += 1
                     if retry_count >= self.config.attempt_limit:
-                        wd_logger.error(f"AMC is respond empty data -> {_mask_sensitive_data(_body)}")
+                        wd_logger.error(f"AMC is respond empty data -> {_mask_sensitive_data(request_body)}")
                         raise ResponseDataException("AMC is respond empty data")
 
                     backoff = _calculate_backoff(
@@ -449,17 +473,20 @@ class AjaxModuleConnectorClient:
 
                     elif _response_body["status"] == "no_permission":
                         target_str = "unknown"
-                        if "moduleName" in _body:
-                            target_str = f"moduleName: {_body['moduleName']}"
-                        elif "action" in _body:
-                            target_str = f"action: {_body['action']}/{_body['event'] if 'event' in _body else ''}"
+                        if "moduleName" in request_body:
+                            target_str = f"moduleName: {request_body['moduleName']}"
+                        elif "action" in request_body:
+                            target_str = (
+                                f"action: {request_body['action']}/"
+                                f"{request_body['event'] if 'event' in request_body else ''}"
+                            )
                         raise ForbiddenException(f"Your account has no permission to perform this action: {target_str}")
 
                     # Treat as error if status is not ok for other cases
                     elif _response_body["status"] != "ok":
                         wd_logger.error(
                             f'AMC is respond error status: "{_response_body["status"]}" -> '
-                            f"{_mask_sensitive_data(_body)}"
+                            f"{_mask_sensitive_data(request_body)}"
                         )
                         raise WikidotStatusCodeException(
                             f'AMC is respond error status: "{_response_body["status"]}"',

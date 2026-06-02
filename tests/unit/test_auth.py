@@ -10,6 +10,7 @@ import httpx
 import pytest
 
 from wikidot.common.exceptions import SessionCreateException
+from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.module.auth import HTTPAuthentication
 
 
@@ -50,6 +51,7 @@ class TestHTTPAuthentication:
         """ログイン失敗（HTTPエラー）"""
         mock_client = MagicMock()
         mock_client.amc_client.header.get_header.return_value = {}
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(retry_interval=0)
 
         mock_response = MagicMock()
         mock_response.status_code = httpx.codes.INTERNAL_SERVER_ERROR

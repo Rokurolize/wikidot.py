@@ -16,13 +16,29 @@ T = TypeVar("T")
 # 統合テストは環境変数が設定されている場合のみ実行
 WIKIDOT_USERNAME = os.environ.get("WIKIDOT_USERNAME")
 WIKIDOT_PASSWORD = os.environ.get("WIKIDOT_PASSWORD")
-TEST_SITE_UNIX_NAME = "ukwhatn-ci"
+TEST_SITE_UNIX_NAME = os.environ.get("WIKIDOT_TEST_SITE_UNIX_NAME")
+TEST_EXISTING_PAGE_FULLNAME = os.environ.get("WIKIDOT_TEST_EXISTING_PAGE_FULLNAME", "integration-start")
 
 # 認証情報が未設定の場合はスキップ
 pytestmark = pytest.mark.skipif(
-    not WIKIDOT_USERNAME or not WIKIDOT_PASSWORD,
-    reason="WIKIDOT_USERNAME and WIKIDOT_PASSWORD environment variables are required",
+    not WIKIDOT_USERNAME or not WIKIDOT_PASSWORD or not TEST_SITE_UNIX_NAME,
+    reason=("WIKIDOT_USERNAME, WIKIDOT_PASSWORD, and WIKIDOT_TEST_SITE_UNIX_NAME environment variables are required"),
 )
+
+
+def pytest_collection_modifyitems(config, items):
+    if WIKIDOT_USERNAME and WIKIDOT_PASSWORD and TEST_SITE_UNIX_NAME:
+        return
+
+    skip_marker = pytest.mark.skip(
+        reason=(
+            "WIKIDOT_USERNAME, WIKIDOT_PASSWORD, and WIKIDOT_TEST_SITE_UNIX_NAME environment variables are required"
+        )
+    )
+    for item in items:
+        item_path = str(item.path).replace("\\", "/")
+        if "/tests/integration/" in item_path:
+            item.add_marker(skip_marker)
 
 
 def generate_page_name(prefix: str = "test") -> str:
@@ -63,7 +79,26 @@ def client(credentials: dict[str, str]):
 @pytest.fixture(scope="session")
 def site(client):
     """テストサイト（セッション全体で共有）"""
-    return client.site.get(TEST_SITE_UNIX_NAME)
+    assert TEST_SITE_UNIX_NAME is not None
+    _site = client.site.get(TEST_SITE_UNIX_NAME)
+    if _site.page.get(TEST_EXISTING_PAGE_FULLNAME, raise_when_not_found=False) is None:
+        try:
+            _site.page.create(
+                fullname=TEST_EXISTING_PAGE_FULLNAME,
+                title="Integration Start",
+                source="Existing page for wikidot.py integration tests.",
+                comment="Create integration test existing page",
+            )
+        except Exception as exc:
+            if exc.__class__.__name__ != "NotFoundException":
+                raise
+        wait_for_condition(
+            lambda: _site.page.get(TEST_EXISTING_PAGE_FULLNAME, raise_when_not_found=False),
+            lambda page: page is not None,
+            max_retries=10,
+            interval=2.0,
+        )
+    return _site
 
 
 @pytest.fixture

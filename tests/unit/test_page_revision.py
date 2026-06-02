@@ -58,6 +58,12 @@ class TestPageRevisionCollection:
         assert len(collection) == 1
         assert collection.page == mock_page
 
+    def test_init_with_page_and_empty_revisions(self, mock_page):
+        """空のリビジョンリストでも指定したページを保持する"""
+        collection = PageRevisionCollection(page=mock_page, revisions=[])
+        assert len(collection) == 0
+        assert collection.page == mock_page
+
     def test_init_infers_page_from_revision(self, sample_revision):
         """リビジョンからページを推測"""
         collection = PageRevisionCollection(revisions=[sample_revision])
@@ -133,6 +139,31 @@ class TestPageRevisionCollection:
         assert result == collection
         assert sample_revision._html is not None
         assert "<p>Test HTML content</p>" in sample_revision._html
+
+    def test_get_htmls_tolerates_separator_whitespace(self, mock_page, sample_revision):
+        """閉じるリンク後の空白差があってもHTMLを取得できる"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": "onclick=\"document.getElementById('page-version-info').style.display='none'\">close</a>\n"
+            "   </div>\n<p>Test HTML content</p>"
+        }
+        mock_page.site.amc_request.return_value = [mock_response]
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+        collection.get_htmls()
+
+        assert sample_revision._html == "<p>Test HTML content</p>"
+
+    def test_get_htmls_without_separator_uses_body(self, mock_page, sample_revision):
+        """区切りリンクがない場合はbody全体をHTMLとして保持する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "<p>Direct HTML content</p>"}
+        mock_page.site.amc_request.return_value = [mock_response]
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+        collection.get_htmls()
+
+        assert sample_revision._html == "<p>Direct HTML content</p>"
 
     def test_get_htmls_skips_already_acquired(self, mock_page, sample_revision):
         """既に取得済みのHTMLはスキップ"""

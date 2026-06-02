@@ -1,6 +1,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, TypeVar
+from urllib.parse import urlencode
 
 import httpx
 
@@ -68,8 +69,9 @@ class QuickModule:
         ]:
             raise ValueError("Invalid module name")
 
-        url = f"https://www.wikidot.com/quickmodule.php?module={module_name}&s={site_id}&q={query}"
-        response = sync_get_with_retry(url, timeout=300, raise_for_status=False)
+        params = urlencode({"module": module_name, "s": site_id, "q": query})
+        url = f"https://www.wikidot.com/quickmodule.php?{params}"
+        response = sync_get_with_retry(url, timeout=300, attempt_limit=1, raise_for_status=False)
         if response.status_code == httpx.codes.INTERNAL_SERVER_ERROR:
             raise ValueError("Site is not found")
         return response.json()

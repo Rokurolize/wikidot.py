@@ -1,5 +1,6 @@
 import asyncio
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 import httpx
 
@@ -36,13 +37,42 @@ class RequestUtil:
         """
         config = client.amc_client.config
         semaphore = asyncio.Semaphore(config.semaphore_limit)
+        method = method.upper()
+
+        def _get_headers() -> dict[str, str] | None:
+            header = getattr(client.amc_client, "header", None)
+            get_header = getattr(header, "get_header", None)
+            if not callable(get_header):
+                return None
+
+            headers = get_header()
+            if not isinstance(headers, dict):
+                return None
+
+            return {str(k): str(v) for k, v in headers.items()}
+
+        request_headers = _get_headers()
+
+        def _get_headers_for_url(url: str) -> dict[str, str] | None:
+            if request_headers is None:
+                return None
+
+            hostname = urlparse(url).hostname
+            if hostname is None:
+                return None
+
+            hostname = hostname.lower().rstrip(".")
+            if hostname == "wikidot.com" or hostname.endswith(".wikidot.com"):
+                return request_headers
+
+            return None
 
         async def _get(url: str) -> httpx.Response:
             async with semaphore:
                 for attempt in range(config.attempt_limit):
                     try:
                         async with httpx.AsyncClient(timeout=config.request_timeout) as _client:
-                            response = await _client.get(url)
+                            response = await _client.get(url, headers=_get_headers_for_url(url))
                             response.raise_for_status()
                             return response
                     except httpx.HTTPStatusError as e:
@@ -75,7 +105,7 @@ class RequestUtil:
                 for attempt in range(config.attempt_limit):
                     try:
                         async with httpx.AsyncClient(timeout=config.request_timeout) as _client:
-                            response = await _client.post(url)
+                            response = await _client.post(url, headers=_get_headers_for_url(url))
                             response.raise_for_status()
                             return response
                     except httpx.HTTPStatusError as e:

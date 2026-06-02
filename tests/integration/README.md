@@ -2,7 +2,7 @@
 
 ## 概要
 
-このディレクトリには、実際のWikidotサーバー（ukwhatn-ci.wikidot.com）に対する統合テストが含まれています。
+このディレクトリには、実際のWikidotサーバーに対する統合テストが含まれています。
 
 ## 環境設定
 
@@ -11,12 +11,15 @@
 ```bash
 export WIKIDOT_USERNAME=your_username
 export WIKIDOT_PASSWORD=your_password
+export WIKIDOT_TEST_SITE_UNIX_NAME=your-test-site
+export WIKIDOT_TEST_EXISTING_PAGE_FULLNAME=integration-start
 ```
 
 ### テストサイト
 
-- サイト名: `ukwhatn-ci.wikidot.com`
-- 要件: テストアカウントがサイトのメンバーであること
+- テストサイト名: `WIKIDOT_TEST_SITE_UNIX_NAME` で指定（例: `your-test-site`）
+- 既定の既存ページ名: `integration-start`
+- 要件: テストアカウントがサイトのメンバーであり、ページ作成/編集/削除ができること
 
 ## テスト実行
 
@@ -78,7 +81,7 @@ pytest tests/integration/test_page_lifecycle.py -v
 
 ## 注意事項
 
-- 環境変数が未設定の場合、統合テストは自動的にスキップされます
+- `WIKIDOT_USERNAME`、`WIKIDOT_PASSWORD`、`WIKIDOT_TEST_SITE_UNIX_NAME` が未設定の場合、統合テストは自動的にスキップされます
 - テストは各ファイル内で順次実行されます（テスト間に依存関係がある場合があるため）
 - APIレート制限に注意してください
 - テスト実行後、クリーンアップに失敗したページが残る場合があります

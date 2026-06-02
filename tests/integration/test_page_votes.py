@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+from .conftest import TEST_EXISTING_PAGE_FULLNAME
+
 
 class TestPageVotes:
     """ページ投票操作テスト"""
 
     def test_1_get_votes_from_existing_page(self, site):
         """1. 既存ページの投票情報取得"""
-        # startページの投票情報を取得
-        page = site.page.get("start")
+        page = site.page.get(TEST_EXISTING_PAGE_FULLNAME)
         assert page is not None
 
         votes = page.votes
@@ -19,7 +20,7 @@ class TestPageVotes:
 
     def test_2_votes_properties(self, site):
         """2. 投票プロパティ確認"""
-        page = site.page.get("start")
+        page = site.page.get(TEST_EXISTING_PAGE_FULLNAME)
         assert page is not None
 
         votes = page.votes

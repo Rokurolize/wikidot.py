@@ -4,6 +4,8 @@ from .table import char_table
 
 
 class StringUtil:
+    SITE_UNIX_NAME_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
+
     @staticmethod
     def to_unix(target_str: str) -> str:
         """Convert a string to Unix format
@@ -46,3 +48,9 @@ class StringUtil:
         target_str = re.sub(r":$", "", target_str)
 
         return target_str
+
+    @staticmethod
+    def validate_site_unix_name(site_name: str) -> None:
+        """Validate a Wikidot site UNIX name before interpolating it into a host."""
+        if not StringUtil.SITE_UNIX_NAME_PATTERN.fullmatch(site_name):
+            raise ValueError(f"Invalid Wikidot site UNIX name: {site_name!r}")

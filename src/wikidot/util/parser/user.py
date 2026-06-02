@@ -1,3 +1,4 @@
+import re
 from typing import TYPE_CHECKING
 
 import bs4
@@ -8,7 +9,7 @@ if TYPE_CHECKING:
     from wikidot.module.client import Client
 
 
-def user_parse(client: "Client", elem: bs4.Tag) -> user.AbstractUser:
+def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
     """Parse a printuser element and return a user object
 
     Parameters
@@ -25,16 +26,16 @@ def user_parse(client: "Client", elem: bs4.Tag) -> user.AbstractUser:
         One of User | DeletedUser | AnonymousUser | GuestUser | WikidotUser
     """
 
-    if ("class" in elem.attrs and "deleted" in elem["class"]) or (
-        isinstance(elem, str) and elem.strip() == "(user deleted)"
-    ):
-        if isinstance(elem, str):
-            return user.DeletedUser(client=client, id=0)
-        else:
-            return user.DeletedUser(client=client, id=int(str(elem["data-id"])))
+    if isinstance(elem, str):
+        if elem.strip() != "(user deleted)":
+            raise ValueError("elem must be bs4.Tag except DeletedUser")
+        return user.DeletedUser(client=client, id=0)
 
     if not isinstance(elem, bs4.Tag):
         raise ValueError("elem must be bs4.Tag except DeletedUser")
+
+    if "deleted" in elem.get("class", []):
+        return user.DeletedUser(client=client, id=int(str(elem.get("data-id", 0))))
 
     if "class" in elem.attrs and "anonymous" in elem["class"]:
         ip_elem = elem.find("span", class_="ip")
@@ -45,26 +46,34 @@ def user_parse(client: "Client", elem: bs4.Tag) -> user.AbstractUser:
 
     # Gravatar URLを持つ場合はGuestUserとする
     img_elem = elem.find("img")
-    if isinstance(img_elem, bs4.Tag) and "gravatar.com" in img_elem["src"]:
-        avatar_url = img_elem["src"]
-        guest_name = elem.get_text().strip().split(" ")[0]
+    img_src = img_elem.get("src") if isinstance(img_elem, bs4.Tag) else None
+    if isinstance(img_src, str) and "gravatar.com" in img_src:
+        avatar_url = img_src
+        guest_name = elem.get_text(strip=True).split(" ", maxsplit=1)[0]
         return user.GuestUser(
             client=client,
             name=guest_name,
             avatar_url=str(avatar_url) if avatar_url else None,
         )
 
-    if elem.get_text() == "Wikidot":
+    if elem.get_text(strip=True) == "Wikidot":
         return user.WikidotUser(client=client)
 
-    _user = elem.find_all("a")[-1]
+    user_links = elem.find_all("a")
+    if not user_links:
+        raise ValueError("link element is not found")
+
+    _user = user_links[-1]
     if not isinstance(_user, bs4.Tag):
         raise ValueError("link element is not found")
     user_name = _user.get_text()
-    user_unix = str(_user.get("href")).replace("http://www.wikidot.com/user:info/", "")
-    user_id = int(
-        str(_user.get("onclick")).replace("WIKIDOT.page.listeners.userInfo(", "").replace("); return false;", "")
-    )
+    href = str(_user.get("href", ""))
+    user_unix_match = re.search(r"(?:https?://www\.wikidot\.com)?/user:info/([^?#]+)", href)
+    user_unix = user_unix_match.group(1) if user_unix_match is not None else href
+    user_id_match = re.search(r"userInfo\((\d+)\)", str(_user.get("onclick", "")))
+    if user_id_match is None:
+        raise ValueError("user id is not found")
+    user_id = int(user_id_match.group(1))
 
     return user.User(
         client=client,

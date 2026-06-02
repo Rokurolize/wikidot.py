@@ -1,6 +1,9 @@
 """SearchPagesQueryのユニットテスト"""
 
+from unittest.mock import MagicMock
+
 from wikidot.module.page import SearchPagesQuery
+from wikidot.module.user import User
 
 
 class TestSearchPagesQueryInit:
@@ -94,6 +97,19 @@ class TestSearchPagesQueryAsDict:
         query = SearchPagesQuery(tags="scp euclid")
         result = query.as_dict()
         assert result["tags"] == "scp euclid"
+
+    def test_as_dict_created_by_user_conversion(self):
+        """created_byのUserオブジェクトがユーザーUNIX名に変換されるテスト"""
+        user = User(
+            client=MagicMock(),
+            id=12345,
+            name="Test User",
+            unix_name="test-user",
+            avatar_url="https://www.wikidot.com/avatar.php?userid=12345",
+        )
+        query = SearchPagesQuery(created_by=user)
+        result = query.as_dict()
+        assert result["created_by"] == "test-user"
 
     def test_as_dict_excludes_none_values(self):
         """None値が除外されるテスト"""

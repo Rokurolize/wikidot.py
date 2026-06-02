@@ -266,6 +266,8 @@ class SearchPagesQuery:
         Convert query parameters to dictionary format
 
         If tags are in list format, converts them to a space-separated string.
+        If created_by is a User object, converts it to the user's Wikidot
+        unix name because ListPagesModule expects a scalar form field.
 
         Returns
         -------
@@ -276,6 +278,11 @@ class SearchPagesQuery:
 
         if "tags" in res and isinstance(res["tags"], list):
             res["tags"] = " ".join(res["tags"])
+        if "created_by" in res and not isinstance(res["created_by"], str):
+            user_name = getattr(res["created_by"], "unix_name", None) or getattr(res["created_by"], "name", None)
+            if not isinstance(user_name, str) or user_name == "":
+                raise ValueError("created_by user must have a name or unix_name")
+            res["created_by"] = user_name
         return res
 
 
@@ -336,6 +343,49 @@ class PageCollection(list["Page"]):
             if page.fullname == fullname:
                 return page
         return None
+
+    @staticmethod
+    def _split_fullname(fullname: str) -> tuple[str, str]:
+        if ":" in fullname:
+            category, name = fullname.split(":", 1)
+            return category, name
+        return "_default", fullname
+
+    @staticmethod
+    def get_by_fullname(site: "Site", fullname: str) -> Optional["Page"]:
+        """
+        Get a page by fullname.
+
+        Some Wikidot sites do not return default-category pages when
+        ListPagesModule is queried with ``fullname``. Prefer the equivalent
+        category/name query while keeping the public API based on fullnames.
+        """
+        category, name = PageCollection._split_fullname(fullname)
+        pages = PageCollection.search_pages(site, SearchPagesQuery(category=category, name=name))
+        if len(pages) > 0:
+            return pages.find(fullname) or pages[0]
+
+        pages = PageCollection.search_pages(site, SearchPagesQuery(fullname=fullname))
+        if len(pages) > 0:
+            return pages.find(fullname) or pages[0]
+
+        return None
+
+    @staticmethod
+    def _current_user_or_placeholder(site: "Site") -> "User":
+        from .user import User
+
+        current_user = getattr(site.client, "me", None)
+        if isinstance(current_user, User):
+            return current_user
+
+        username = getattr(site.client, "username", None)
+        return User(
+            client=site.client,
+            name=username if isinstance(username, str) else None,
+            unix_name=None,
+            avatar_url=None,
+        )
 
     @staticmethod
     def _parse(site: "Site", html_body: BeautifulSoup) -> "PageCollection":
@@ -400,7 +450,7 @@ class PageCollection(list["Page"]):
                 elif key in ["tags", "_tags"]:
                     value = value_element.text.split()
 
-                elif key in ["rating_votes", "comments", "size", "revisions"]:
+                elif key in ["rating_votes", "comments", "size", "children", "revisions"]:
                     value = int(value_element.text.strip())
 
                 elif key in ["rating"]:
@@ -411,7 +461,7 @@ class PageCollection(list["Page"]):
 
                 elif key in ["rating_percent"]:
                     if is_5star_rating:
-                        value = float(value_element.text.strip()) / 100
+                        value = float(value_element.text.strip().removesuffix("%")) / 100
                     else:
                         value = None
 
@@ -504,18 +554,19 @@ class PageCollection(list["Page"]):
         html_bodies = [first_page_html_body]
         # pagerが存在する
         if first_page_html_body.select_one("div.pager") is not None:
-            # span.target[-2] > a から最大ページ数を取得
-            last_pager_element = first_page_html_body.select("div.pager span.target")[-2]
-            last_pager_link_element = last_pager_element.select_one("a")
-            if last_pager_link_element is None:
-                raise exceptions.NoElementException("Cannot find last pager link")
-            total = int(last_pager_link_element.text.strip())
+            for pager_target in reversed(first_page_html_body.select("div.pager span.target")):
+                pager_link = pager_target.select_one("a")
+                page_text = (pager_link or pager_target).get_text(strip=True)
+                if page_text.isdigit():
+                    total = int(page_text)
+                    break
 
         if total > 1:
             request_bodies = []
+            base_offset = query.offset or 0
             for i in range(1, total):
                 _query_dict = query_dict.copy()
-                _query_dict["offset"] = i * (query.perPage or PageConstants.DEFAULT_PER_PAGE)
+                _query_dict["offset"] = base_offset + i * (query.perPage or PageConstants.DEFAULT_PER_PAGE)
                 request_bodies.append(_query_dict)
 
             responses = site.amc_request(request_bodies)
@@ -701,6 +752,10 @@ class PageCollection(list["Page"]):
                 rev_id = int(str(rev_element["id"]).removeprefix("revision-row-"))
 
                 tds = rev_element.select("td")
+                if len(tds) < 7:
+                    raise exceptions.NoElementException(
+                        f"Cannot find revision cells for page: {page.fullname}, revision: {rev_id}"
+                    )
                 rev_no = int(tds[0].text.strip().removesuffix("."))
                 created_by_elem = tds[4].select_one("span.printuser")
                 if created_by_elem is None:
@@ -1447,13 +1502,9 @@ class Page:
                 f"Failed to create or edit page: {fullname}", response.json()["status"]
             )
 
-        res = PageCollection.search_pages(site, SearchPagesQuery(fullname=fullname))
-        if len(res) == 0:
-            if ":" in fullname:
-                category, name = fullname.split(":", 1)
-            else:
-                category, name = "_default", fullname
-
+        page = PageCollection.get_by_fullname(site, fullname)
+        if page is None:
+            category, name = PageCollection._split_fullname(fullname)
             now = datetime.now()
             page = Page(
                 site=site,
@@ -1466,19 +1517,17 @@ class Page:
                 size=len(source.encode("utf-8")),
                 rating=0,
                 votes_count=0,
-                rating_percent=None,
+                rating_percent=0.0,
                 revisions_count=1,
                 parent_fullname=None,
                 tags=[],
-                created_by=getattr(site.client, "me", None),
+                created_by=PageCollection._current_user_or_placeholder(site),
                 created_at=now,
-                updated_by=getattr(site.client, "me", None),
+                updated_by=PageCollection._current_user_or_placeholder(site),
                 updated_at=now,
                 commented_by=None,
                 commented_at=None,
             )
-        else:
-            page = res[0]
 
         if page_id is not None or title:
             page.title = title
@@ -1518,9 +1567,12 @@ class Page:
         Same as above (same as create_or_edit method)
         """
         # Noneならそのままにする
-        title = title or self.title
-        source = source or self.source.wiki_text
-        comment = comment or ""
+        if title is None:
+            title = self.title
+        if source is None:
+            source = self.source.wiki_text
+        if comment is None:
+            comment = ""
 
         return Page.create_or_edit(
             self.site,
@@ -1668,9 +1720,14 @@ class Page:
         ------
         LoginRequiredException
             When not logged in
+        ValueError
+            When value is not 1 or -1
         WikidotStatusCodeException
             When voting fails
         """
+        if value not in (1, -1):
+            raise ValueError("Vote value must be 1 or -1")
+
         self.site.client.login_check()
         response = self.site.amc_request(
             [

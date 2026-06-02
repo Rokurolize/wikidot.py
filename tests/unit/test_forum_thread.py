@@ -108,6 +108,18 @@ class TestForumThreadCollectionParseThreadPage:
         assert thread.description == "Test thread description"
         assert thread.post_count == 5
 
+    def test_parse_empty_breadcrumb_title_raises(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """パンくずにタイトルがない場合NoElementException"""
+        html = BeautifulSoup(forum_thread_detail["body"], "lxml")
+        breadcrumb = html.select_one("div.forum-breadcrumbs")
+        assert breadcrumb is not None
+        breadcrumb.clear()
+
+        with pytest.raises(exceptions.NoElementException, match="Thread title"):
+            ForumThreadCollection._parse_thread_page(mock_site_no_http, html)
+
 
 class TestForumThreadCollectionAcquireAll:
     """ForumThreadCollection.acquire_all_in_categoryのテスト"""
@@ -122,6 +134,7 @@ class TestForumThreadCollectionAcquireAll:
 
         collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
         assert len(collection) == 2
+        assert all(thread.category == mock_forum_category_no_http for thread in collection)
 
     def test_acquire_all_pagination(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
@@ -140,6 +153,23 @@ class TestForumThreadCollectionAcquireAll:
         collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
         # 最初のページで2件 + 2ページ目で2件 = 4件
         assert len(collection) == 4
+        assert all(thread.category == mock_forum_category_no_http for thread in collection)
+
+    def test_acquire_all_ignores_non_numeric_pager_links(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """数値ページがないpagerでは単一ページとして扱う"""
+        first_response = MagicMock()
+        body_with_pager = forum_threads_in_category["body"] + '<div class="pager"><a>next</a></div>'
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+
+        mock_forum_category_no_http.site.amc_request = MagicMock(return_value=[first_response])
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock()
+
+        collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        assert len(collection) == 2
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_not_called()
 
 
 class TestForumThreadCollectionAcquireFromIds:

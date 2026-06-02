@@ -58,6 +58,14 @@ class TestAjaxRequestHeader:
 
         assert "to_delete" not in header.cookie
 
+    def test_delete_missing_cookie_is_noop(self) -> None:
+        """存在しないCookie削除は例外にしない"""
+        header = AjaxRequestHeader()
+
+        header.delete_cookie("missing")
+
+        assert header.cookie == {"wikidot_token7": 123456}
+
     def test_get_header(self) -> None:
         """HTTPヘッダ辞書を取得できる"""
         header = AjaxRequestHeader()
@@ -146,6 +154,13 @@ class TestAjaxModuleConnectorClientInit:
         with pytest.raises(NotFoundException):
             AjaxModuleConnectorClient(site_name="nonexistent")
 
+    def test_invalid_site_name_rejected_before_request(self, httpx_mock: HTTPXMock) -> None:
+        """ホストを逸脱し得るsite_nameはリクエスト前に拒否する"""
+        with pytest.raises(ValueError, match="Invalid Wikidot site UNIX name"):
+            AjaxModuleConnectorClient(site_name="127.0.0.1:8000#")
+
+        assert httpx_mock.get_requests() == []
+
 
 class TestAjaxModuleConnectorClientRequest:
     """AjaxModuleConnectorClient.requestのテスト"""
@@ -162,6 +177,29 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert len(responses) == 1
         assert responses[0].json()["status"] == "ok"
+
+    def test_request_invalid_override_site_name_rejected(self, httpx_mock: HTTPXMock) -> None:
+        """request時のsite_name上書きもリクエスト前に検証する"""
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        with pytest.raises(ValueError, match="Invalid Wikidot site UNIX name"):
+            client.request([{"moduleName": "TestModule"}], site_name="127.0.0.1:8000#")
+
+        assert httpx_mock.get_requests() == []
+
+    def test_request_does_not_mutate_body(self, httpx_mock: HTTPXMock) -> None:
+        """AMCトークン追加で呼び出し元のbodyを変更しない"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+        )
+
+        body = {"moduleName": "TestModule"}
+        client = AjaxModuleConnectorClient(site_name="www")
+        client.request([body])
+
+        assert body == {"moduleName": "TestModule"}
+        assert b"wikidot_token7=123456" in httpx_mock.get_requests()[0].content
 
     def test_multiple_requests(self, httpx_mock: HTTPXMock) -> None:
         """複数リクエストを並行処理"""
@@ -295,6 +333,38 @@ class TestAjaxModuleConnectorClientRequest:
         httpx_mock.add_response(
             url="https://www.wikidot.com/ajax-module-connector.php",
             text="not a json",
+        )
+
+        config = AjaxModuleConnectorConfig(attempt_limit=2, retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(ResponseDataException):
+            client.request([{"moduleName": "Test"}])
+
+    def test_retry_on_non_dict_json_response(self, httpx_mock: HTTPXMock) -> None:
+        """辞書ではないJSONレスポンスでリトライ"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json=["not", "an", "object"],
+        )
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+        )
+
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+        responses = client.request([{"moduleName": "Test"}])
+
+        assert len(httpx_mock.get_requests()) == 2
+        assert responses[0].json()["status"] == "ok"
+
+    @pytest.mark.httpx_mock(can_send_already_matched_responses=True)
+    def test_non_dict_json_response_max_retry(self, httpx_mock: HTTPXMock) -> None:
+        """辞書ではないJSONレスポンスでリトライ上限超過"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json=["not", "an", "object"],
         )
 
         config = AjaxModuleConnectorConfig(attempt_limit=2, retry_interval=0)

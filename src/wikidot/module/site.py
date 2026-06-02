@@ -19,6 +19,7 @@ from ..util.http import sync_get_with_retry
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 from ..util.quick_module import QMCUser, QuickModule
+from ..util.stringutil import StringUtil
 from .forum_category import ForumCategoryCollection
 from .forum_thread import ForumThread, ForumThreadCollection
 from .page import Page, PageCollection, SearchPagesQuery, SearchPagesQueryParams
@@ -110,15 +111,14 @@ class SitePageAccessor:
         NotFoundException
             When raise_when_not_found is True and the page is not found
         """
-        res = PageCollection.search_pages(self.site, SearchPagesQuery(fullname=fullname))
-        if len(res) == 0:
+        page = PageCollection.get_by_fullname(self.site, fullname)
+        if page is None:
             page = self._get_by_direct_page_id(fullname)
-            if page is None:
-                if raise_when_not_found:
-                    raise exceptions.NotFoundException(f"Page is not found: {fullname}")
-                return None
-            return page
-        return res[0]
+        if page is None:
+            if raise_when_not_found:
+                raise exceptions.NotFoundException(f"Page is not found: {fullname}")
+            return None
+        return page
 
     def _get_by_direct_page_id(self, fullname: str) -> Optional["Page"]:
         if ":" in fullname:
@@ -138,13 +138,13 @@ class SitePageAccessor:
             size=0,
             rating=0,
             votes_count=0,
-            rating_percent=None,
+            rating_percent=0.0,
             revisions_count=0,
             parent_fullname=None,
             tags=[],
-            created_by=getattr(self.site.client, "me", None),
+            created_by=PageCollection._current_user_or_placeholder(self.site),
             created_at=now,
-            updated_by=getattr(self.site.client, "me", None),
+            updated_by=PageCollection._current_user_or_placeholder(self.site),
             updated_at=now,
             commented_by=None,
             commented_at=None,
@@ -193,6 +193,13 @@ class SitePageAccessor:
         TargetErrorException
             When the page already exists and force_edit is False
         """
+        self.site.client.login_check()
+
+        if force_edit:
+            existing_page = self.get(fullname, raise_when_not_found=False)
+            if existing_page is not None:
+                return existing_page.edit(title=title, source=source, comment=comment, force_edit=True)
+
         return Page.create_or_edit(
             site=self.site,
             fullname=fullname,
@@ -377,6 +384,8 @@ class Site:
         UnexpectedException
             When an error occurs during site information parsing
         """
+        StringUtil.validate_site_unix_name(unix_name)
+
         # サイト情報を取得
         # リダイレクトには従う、リトライ付き
         config = client.amc_client.config
@@ -747,6 +756,9 @@ class Site:
         """
         from ..common.exceptions import NoElementException
 
+        if limit is not None and limit <= 0:
+            return []
+
         changes: list[SiteChange] = []
         per_page = min(limit, 1000) if limit is not None else 1000
         page_no = 1
@@ -825,11 +837,12 @@ class Site:
             if pager is None:
                 break
 
-            pager_links = pager.select("a")
-            if len(pager_links) < 2:
-                break
-
-            last_page = int(pager_links[-2].get_text().strip())
+            last_page = 1
+            for pager_link in reversed(pager.select("a")):
+                page_text = pager_link.get_text(strip=True)
+                if page_text.isdigit():
+                    last_page = int(page_text)
+                    break
             if page_no >= last_page:
                 break
 

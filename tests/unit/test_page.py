@@ -160,6 +160,8 @@ class TestPageCollectionParse:
         assert len(pages) == 2
         assert pages[0].fullname == "scp-001"
         assert pages[1].fullname == "scp-002"
+        assert pages[1].children_count == 1
+        assert isinstance(pages[1].children_count, int)
 
     def test_parse_empty_result(self, mock_site_no_http: Site, page_listpages_empty: dict[str, Any]) -> None:
         """空結果をパースできる"""
@@ -175,6 +177,22 @@ class TestPageCollectionParse:
         # Note: rating_percent is None for non-5star rating (no span.page-rate-list-pages-start)
         assert pages[0].rating == 75
         assert pages[0].votes_count == 10
+
+    def test_parse_with_5star_rating_percent(
+        self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any]
+    ) -> None:
+        """5-star rating_percentの%付き値をパースする"""
+        body = page_listpages_pm_rating["body"].replace(
+            '<span class="set rating"><span class="name">rating</span> <span class="value">75</span></span>',
+            '<span class="set rating"><span class="page-rate-list-pages-start"></span>'
+            '<span class="name">rating</span> <span class="value">4.0</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        pages = PageCollection._parse(mock_site_no_http, html_body)
+
+        assert pages[0].rating == 4.0
+        assert pages[0].rating_percent == 0.75
 
     def test_parse_missing_optional_fields(
         self, mock_site_no_http: Site, page_listpages_missing_fields: dict[str, Any]
@@ -240,6 +258,41 @@ class TestPageCollectionSearchPages:
         pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
         assert len(pages) == 0
 
+    def test_search_pages_ignores_pager_without_numeric_targets(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """数値ページがないpagerでは単一ページとして扱う"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            **page_listpages_single,
+            "body": page_listpages_single["body"] + '<div class="pager"><span class="target">next</span></div>',
+        }
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+
+        pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        assert len(pages) == 1
+        mock_site_no_http.amc_request.assert_called_once()
+
+    def test_search_pages_pagination_preserves_query_offset(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """ページネーション時に初期offsetから続くページを取得する"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            **page_listpages_single,
+            "body": page_listpages_single["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target"><a>2</a></span></div>',
+        }
+        second_response = MagicMock()
+        second_response.json.return_value = page_listpages_single
+        mock_site_no_http.amc_request = MagicMock(side_effect=[[first_response], [second_response]])
+
+        PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500, perPage=100))
+
+        second_page_body = mock_site_no_http.amc_request.call_args_list[1].args[0][0]
+        assert second_page_body["offset"] == 600
+
 
 class TestPageCollectionAcquire:
     """PageCollection._acquire_*メソッドのテスト"""
@@ -273,6 +326,23 @@ class TestPageCollectionAcquire:
         assert mock_page_with_id._revisions is not None
         # フィクスチャには3つのリビジョン
         assert len(mock_page_with_id._revisions) == 3
+
+    def test_acquire_revisions_missing_cells_raises(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+    ) -> None:
+        """履歴行の列が足りない場合はNoElementException"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": '<table class="page-history"><tr id="revision-row-1"><td>1.</td></tr></table>'
+        }
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+
+        with pytest.raises(exceptions.NoElementException, match="revision cells"):
+            collection.get_page_revisions()
 
     def test_acquire_votes_success(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_whorated: dict[str, Any]
@@ -474,6 +544,15 @@ class TestPageWriteMethods:
         new_rating = mock_page_with_id.vote(-1)
         assert new_rating == 9
 
+    def test_vote_invalid_value_raises(self, mock_page_with_id: Page) -> None:
+        """1/-1以外の投票値は送信前に拒否する"""
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="Vote value must be 1 or -1"):
+            mock_page_with_id.vote(0)
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+
     def test_vote_not_logged_in(self, mock_page_with_id: Page) -> None:
         """ログインしていない場合に例外"""
         mock_page_with_id.site.client.is_logged_in = False
@@ -536,6 +615,8 @@ class TestPageCreateOrEdit:
             source="Page content",
         )
         assert page.fullname == "scp-001"
+        assert page.title == "New Page Title"
+        assert page.source.wiki_text == "Page content"
 
     def test_create_new_page_returns_saved_page_when_search_is_stale(
         self,
@@ -561,6 +642,7 @@ class TestPageCreateOrEdit:
             side_effect=[
                 [mock_lock_response],
                 [mock_save_response],
+                [mock_search_response],
                 [mock_search_response],
             ]
         )
@@ -676,6 +758,8 @@ class TestPageEdit:
 
         page = mock_page_with_id.edit(title="Updated Title")
         assert page is not None
+        assert page.title == "Updated Title"
+        assert "page content" in page.source.wiki_text
 
     def test_edit_force_unlock(
         self,
@@ -712,3 +796,37 @@ class TestPageEdit:
         call_args_list = mock_page_with_id.site.amc_request.call_args_list
         lock_call = call_args_list[0]  # 1回目がロック取得
         assert lock_call[0][0][0].get("force_lock") == "yes"
+
+    def test_edit_allows_empty_source(
+        self,
+        mock_page_with_id: Page,
+        page_pageedit_existing: dict[str, Any],
+        page_savepage_success: dict[str, Any],
+        page_listpages_single: dict[str, Any],
+    ) -> None:
+        """空文字sourceを現在sourceで上書きしない"""
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_existing
+
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = page_savepage_success
+
+        mock_search_response = MagicMock()
+        mock_search_response.json.return_value = page_listpages_single
+
+        mock_page_with_id.site.amc_request = MagicMock(
+            side_effect=[
+                [mock_lock_response],
+                [mock_save_response],
+                [mock_search_response],
+            ]
+        )
+
+        mock_page_with_id.edit(source="")
+
+        call_args_list = mock_page_with_id.site.amc_request.call_args_list
+        save_body = call_args_list[1][0][0][0]
+        assert save_body["source"] == ""

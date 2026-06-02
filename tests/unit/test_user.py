@@ -200,6 +200,33 @@ class TestUserCollection:
         assert len(result) == 1
         assert result[0].name == "exists"
 
+    def test_from_names_extracts_id_from_href_with_query(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
+    ) -> None:
+        """クエリ付きID URLからユーザーIDを抽出できる"""
+        html = """
+        <!DOCTYPE html>
+        <html>
+        <body>
+        <div id="user-info">
+            <h1 class="profile-title">user-query</h1>
+            <a class="btn btn-default btn-xs" href="http://www.wikidot.com/userkarma.php/444?tab=karma">
+                Karma
+            </a>
+        </div>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/user:info/user-query",
+            text=html,
+        )
+
+        result = UserCollection.from_names(mock_client_no_http, ["user-query"])
+
+        assert len(result) == 1
+        assert result[0].id == 444
+
     def test_from_names_missing_id_element(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
         """ID要素がない場合NoElementException"""
         html = """
@@ -223,6 +250,29 @@ class TestUserCollection:
             UserCollection.from_names(mock_client_no_http, ["bad"])
 
         assert "ID" in str(exc_info.value)
+
+    def test_from_names_malformed_id_href_raises(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+        """IDを含まないhrefはNoElementException"""
+        html = """
+        <!DOCTYPE html>
+        <html>
+        <body>
+        <div id="user-info">
+            <h1 class="profile-title">bad</h1>
+            <a class="btn btn-default btn-xs" href="http://www.wikidot.com/userkarma.php/not-a-number">
+                Karma
+            </a>
+        </div>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/user:info/bad",
+            text=html,
+        )
+
+        with pytest.raises(NoElementException, match="User ID"):
+            UserCollection.from_names(mock_client_no_http, ["bad"])
 
     def test_from_names_missing_name_element(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
         """名前要素がない場合NoElementException"""
