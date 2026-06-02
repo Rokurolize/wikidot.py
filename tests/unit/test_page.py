@@ -312,6 +312,15 @@ class TestPageCollectionSearchPages:
         assert pages[0].fullname == "scp-001"
         mock_site_no_http.amc_request.assert_called_once()
 
+    def test_search_pages_zero_limit_returns_empty_without_request(self, mock_site_no_http: Site) -> None:
+        """limit=0ではリクエストせず空のコレクションを返す"""
+        mock_site_no_http.amc_request = MagicMock()
+
+        pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(limit=0))
+
+        assert len(pages) == 0
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_search_pages_limit_caps_additional_pager_requests(
         self, mock_site_no_http: Site, page_listpages_multiple: dict[str, Any]
     ) -> None:
