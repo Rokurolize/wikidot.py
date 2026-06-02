@@ -298,6 +298,53 @@ class TestPageCollectionSearchPages:
 class TestPageCollectionAcquire:
     """PageCollection._acquire_*メソッドのテスト"""
 
+    @staticmethod
+    def _other_page(mock_site_no_http: Site, mock_page_no_http: Page) -> Page:
+        return Page(
+            site=mock_site_no_http,
+            fullname="other-page",
+            name="other-page",
+            category="_default",
+            title="Other Page",
+            children_count=0,
+            comments_count=0,
+            size=1000,
+            rating=10,
+            votes_count=5,
+            rating_percent=0.0,
+            revisions_count=3,
+            parent_fullname=None,
+            tags=["tag1"],
+            created_by=mock_page_no_http.created_by,
+            created_at=mock_page_no_http.created_at,
+            updated_by=mock_page_no_http.updated_by,
+            updated_at=mock_page_no_http.updated_at,
+            commented_by=None,
+            commented_at=None,
+        )
+
+    @staticmethod
+    def _patch_batched_page_id_request(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
+        first_id_response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 111;")
+        second_id_response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 222;")
+        request = MagicMock(return_value=[first_id_response, second_id_response])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+        return request
+
+    @staticmethod
+    def _assert_batched_page_id_request(request: MagicMock) -> None:
+        request.assert_called_once()
+        assert request.call_args.args[2] == [
+            "https://test-site.wikidot.com/test-page/norender/true/noredirect/true",
+            "https://test-site.wikidot.com/other-page/norender/true/noredirect/true",
+        ]
+
+    @staticmethod
+    def _json_response(body: dict[str, Any]) -> MagicMock:
+        response = MagicMock()
+        response.json.return_value = body
+        return response
+
     def test_acquire_sources_success(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:
@@ -321,50 +368,41 @@ class TestPageCollectionAcquire:
         page_viewsource: dict[str, Any],
     ) -> None:
         """ID未取得ページのsource取得ではpage_id取得をまとめて行う"""
-        second_page = Page(
-            site=mock_site_no_http,
-            fullname="other-page",
-            name="other-page",
-            category="_default",
-            title="Other Page",
-            children_count=0,
-            comments_count=0,
-            size=1000,
-            rating=10,
-            votes_count=5,
-            rating_percent=0.0,
-            revisions_count=3,
-            parent_fullname=None,
-            tags=["tag1"],
-            created_by=mock_page_no_http.created_by,
-            created_at=mock_page_no_http.created_at,
-            updated_by=mock_page_no_http.updated_by,
-            updated_at=mock_page_no_http.updated_at,
-            commented_by=None,
-            commented_at=None,
-        )
+        second_page = self._other_page(mock_site_no_http, mock_page_no_http)
         collection = PageCollection(mock_site_no_http, [mock_page_no_http, second_page])
 
-        first_id_response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 111;")
-        second_id_response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 222;")
-        request = MagicMock(return_value=[first_id_response, second_id_response])
-        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+        request = self._patch_batched_page_id_request(monkeypatch)
 
         source_responses = []
         for _ in collection:
-            response = MagicMock()
-            response.json.return_value = page_viewsource
-            source_responses.append(response)
+            source_responses.append(self._json_response(page_viewsource))
         mock_site_no_http.amc_request = MagicMock(return_value=source_responses)
 
         collection.get_page_sources()
 
-        request.assert_called_once()
-        assert request.call_args.args[2] == [
-            "https://test-site.wikidot.com/test-page/norender/true/noredirect/true",
-            "https://test-site.wikidot.com/other-page/norender/true/noredirect/true",
-        ]
+        self._assert_batched_page_id_request(request)
         request_bodies = mock_site_no_http.amc_request.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [111, 222]
+
+    def test_acquire_revisions_batches_missing_page_ids(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+        page_revisionlist: dict[str, Any],
+    ) -> None:
+        """ID未取得ページのrevision取得ではpage_id取得をまとめて行う"""
+        second_page = self._other_page(mock_site_no_http, mock_page_no_http)
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http, second_page])
+        request = self._patch_batched_page_id_request(monkeypatch)
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=tuple(self._json_response(page_revisionlist) for _ in collection)
+        )
+
+        collection.get_page_revisions()
+
+        self._assert_batched_page_id_request(request)
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
         assert [body["page_id"] for body in request_bodies] == [111, 222]
 
     def test_acquire_revisions_success(
@@ -411,6 +449,47 @@ class TestPageCollectionAcquire:
 
         collection.get_page_votes()
         assert mock_page_with_id._votes is not None
+
+    def test_acquire_votes_batches_missing_page_ids(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+        page_whorated: dict[str, Any],
+    ) -> None:
+        """ID未取得ページのvote取得ではpage_id取得をまとめて行う"""
+        second_page = self._other_page(mock_site_no_http, mock_page_no_http)
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http, second_page])
+        request = self._patch_batched_page_id_request(monkeypatch)
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=tuple(self._json_response(page_whorated) for _ in collection)
+        )
+
+        collection.get_page_votes()
+
+        self._assert_batched_page_id_request(request)
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
+        assert [body["pageId"] for body in request_bodies] == [111, 222]
+
+    def test_acquire_files_batches_missing_page_ids(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+    ) -> None:
+        """ID未取得ページのfile取得ではpage_id取得をまとめて行う"""
+        second_page = self._other_page(mock_site_no_http, mock_page_no_http)
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http, second_page])
+        request = self._patch_batched_page_id_request(monkeypatch)
+        mock_site_no_http.amc_request = MagicMock(
+            return_value=tuple(self._json_response({"body": "<div>No files</div>"}) for _ in collection)
+        )
+
+        collection.get_page_files()
+
+        self._assert_batched_page_id_request(request)
+        request_bodies = mock_site_no_http.amc_request.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [111, 222]
 
 
 # ============================================================

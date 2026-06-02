@@ -731,6 +731,8 @@ class PageCollection(list["Page"]):
         if len(pages) == 0:
             return pages
 
+        PageCollection._acquire_page_ids(site, pages)
+
         responses = site.amc_request_with_retry(
             [
                 {
@@ -829,6 +831,8 @@ class PageCollection(list["Page"]):
         if len(pages) == 0:
             return pages
 
+        PageCollection._acquire_page_ids(site, pages)
+
         responses = site.amc_request_with_retry(
             [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": page.id} for page in pages]
         )
@@ -895,6 +899,8 @@ class PageCollection(list["Page"]):
         """
         if len(pages) == 0:
             return pages
+
+        PageCollection._acquire_page_ids(site, pages)
 
         from .page_file import PageFileCollection
 
