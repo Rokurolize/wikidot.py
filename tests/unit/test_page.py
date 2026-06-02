@@ -518,6 +518,28 @@ class TestPageCollectionAcquire:
         # フィクスチャには3つのリビジョン
         assert len(mock_page_with_id._revisions) == 3
 
+    def test_acquire_revisions_skips_already_acquired_pages(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_revisionlist: dict[str, Any]
+    ) -> None:
+        """取得済みrevisionがあるページは再取得せず未取得ページだけ取得する"""
+        second_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        second_page.id = 222
+        cached_revisions = MagicMock()
+        mock_page_with_id._revisions = cached_revisions
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, second_page])
+
+        def retry_revision_requests(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock, ...]:
+            return tuple(self._json_response(page_revisionlist) for _ in request_bodies)
+
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=retry_revision_requests)
+
+        collection.get_page_revisions()
+
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [222]
+        assert mock_page_with_id._revisions is cached_revisions
+        assert second_page._revisions is not None
+
     def test_acquire_revisions_missing_cells_raises(
         self,
         mock_site_no_http: Site,
@@ -569,6 +591,28 @@ class TestPageCollectionAcquire:
         request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
         assert [body["pageId"] for body in request_bodies] == [111, 222]
 
+    def test_acquire_votes_skips_already_acquired_pages(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_whorated: dict[str, Any]
+    ) -> None:
+        """取得済みvoteがあるページは再取得せず未取得ページだけ取得する"""
+        second_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        second_page.id = 222
+        cached_votes = MagicMock()
+        mock_page_with_id._votes = cached_votes
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, second_page])
+
+        def retry_vote_requests(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock, ...]:
+            return tuple(self._json_response(page_whorated) for _ in request_bodies)
+
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=retry_vote_requests)
+
+        collection.get_page_votes()
+
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
+        assert [body["pageId"] for body in request_bodies] == [222]
+        assert mock_page_with_id._votes is cached_votes
+        assert second_page._votes is not None
+
     def test_acquire_files_batches_missing_page_ids(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -588,6 +632,26 @@ class TestPageCollectionAcquire:
         self._assert_batched_page_id_request(request)
         request_bodies = mock_site_no_http.amc_request.call_args.args[0]
         assert [body["page_id"] for body in request_bodies] == [111, 222]
+
+    def test_acquire_files_skips_already_acquired_pages(self, mock_site_no_http: Site, mock_page_with_id: Page) -> None:
+        """取得済みfileがあるページは再取得せず未取得ページだけ取得する"""
+        second_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        second_page.id = 222
+        cached_files = MagicMock()
+        mock_page_with_id._files = cached_files
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, second_page])
+
+        def file_requests(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock, ...]:
+            return tuple(self._json_response({"body": "<div>No files</div>"}) for _ in request_bodies)
+
+        mock_site_no_http.amc_request = MagicMock(side_effect=file_requests)
+
+        collection.get_page_files()
+
+        request_bodies = mock_site_no_http.amc_request.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [222]
+        assert mock_page_with_id._files is cached_files
+        assert second_page._files is not None
 
 
 # ============================================================

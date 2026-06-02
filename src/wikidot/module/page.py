@@ -747,10 +747,11 @@ class PageCollection(list["Page"]):
         NoElementException
             When required elements are not found
         """
-        if len(pages) == 0:
+        target_pages = [page for page in pages if page._revisions is None]
+        if len(target_pages) == 0:
             return pages
 
-        PageCollection._acquire_page_ids(site, pages)
+        PageCollection._acquire_page_ids(site, target_pages)
 
         responses = site.amc_request_with_retry(
             [
@@ -760,11 +761,11 @@ class PageCollection(list["Page"]):
                     "options": {"all": True},
                     "perpage": 100000000,  # pagerを使わずに全て取得
                 }
-                for page in pages
+                for page in target_pages
             ]
         )
 
-        for page, response in zip(pages, responses, strict=True):
+        for page, response in zip(target_pages, responses, strict=True):
             if response is None:
                 continue
             body = response.json()["body"]
@@ -847,16 +848,17 @@ class PageCollection(list["Page"]):
         UnexpectedException
             When the number of user elements and vote value elements do not match
         """
-        if len(pages) == 0:
+        target_pages = [page for page in pages if page._votes is None]
+        if len(target_pages) == 0:
             return pages
 
-        PageCollection._acquire_page_ids(site, pages)
+        PageCollection._acquire_page_ids(site, target_pages)
 
         responses = site.amc_request_with_retry(
-            [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": page.id} for page in pages]
+            [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": page.id} for page in target_pages]
         )
 
-        for page, response in zip(pages, responses, strict=True):
+        for page, response in zip(target_pages, responses, strict=True):
             if response is None:
                 continue
             body = response.json()["body"]
@@ -916,16 +918,19 @@ class PageCollection(list["Page"]):
         list[Page]
             List of pages with updated file information
         """
-        if len(pages) == 0:
+        target_pages = [page for page in pages if page._files is None]
+        if len(target_pages) == 0:
             return pages
 
-        PageCollection._acquire_page_ids(site, pages)
+        PageCollection._acquire_page_ids(site, target_pages)
 
         from .page_file import PageFileCollection
 
-        responses = site.amc_request([{"moduleName": "files/PageFilesModule", "page_id": page.id} for page in pages])
+        responses = site.amc_request(
+            [{"moduleName": "files/PageFilesModule", "page_id": page.id} for page in target_pages]
+        )
 
-        for page, response in zip(pages, responses, strict=True):
+        for page, response in zip(target_pages, responses, strict=True):
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
             files = PageFileCollection._parse_from_html(page, html)
