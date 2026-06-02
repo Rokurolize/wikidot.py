@@ -698,6 +698,25 @@ class TestPageProperties:
         source = mock_page_with_id.source
         assert "page content" in source.wiki_text
 
+    def test_refresh_source_forces_remote_source_fetch(
+        self, mock_page_with_id: Page, page_viewsource: dict[str, Any]
+    ) -> None:
+        """キャッシュ済みsourceがあっても明示的に再取得できる"""
+        mock_page_with_id._source = PageSource(mock_page_with_id, "cached source")
+        mock_response = MagicMock()
+        mock_response.json.return_value = page_viewsource
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        source = mock_page_with_id.refresh_source()
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "viewsource/ViewSourceModule", "page_id": 12345}]
+        )
+        assert source == mock_page_with_id.source
+        assert "page content" in source.wiki_text
+
     def test_revisions_property(self, mock_page_with_id: Page, page_revisionlist: dict[str, Any]) -> None:
         """リビジョンプロパティが正しく動作する"""
         mock_response = MagicMock()

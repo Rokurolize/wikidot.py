@@ -1152,6 +1152,28 @@ class Page:
         """
         self._source = value
 
+    def refresh_source(self) -> PageSource:
+        """
+        Force retrieval of the current remote source code
+
+        Returns
+        -------
+        PageSource
+            Freshly retrieved source code object of the page
+
+        Raises
+        ------
+        NotFoundException
+            When the page source is not found
+        """
+        self._source = None
+        PageCollection(self.site, [self]).get_page_sources()
+
+        if self._source is None:
+            raise exceptions.NotFoundException("Cannot find page source")
+
+        return self._source
+
     @property
     def revisions(self) -> PageRevisionCollection:
         """
