@@ -5,7 +5,7 @@ This module provides classes and functions related to Wikidot page source code (
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .page import Page
@@ -29,3 +29,14 @@ class PageSource:
 
     page: "Page"
     wiki_text: str
+
+
+def extract_page_source_text(source_element: Any) -> str:
+    """
+    Extract Wikidot markup from a page-source element.
+
+    Wikidot wraps each displayed source line with one leading tab. Remove that
+    wrapper tab per line while preserving the source text's own blank lines.
+    """
+    text = source_element.get_text().removeprefix("\n").removesuffix("\n")
+    return "\n".join(line.removeprefix("\t") for line in text.split("\n"))

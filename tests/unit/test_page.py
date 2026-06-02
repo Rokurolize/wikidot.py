@@ -415,6 +415,21 @@ class TestPageCollectionAcquire:
         # フィクスチャの内容に合わせて検証
         assert "page content" in mock_page_with_id._source.wiki_text
 
+    def test_acquire_sources_preserves_multiline_source_text(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        """ViewSourceModuleの折り返しタブを複数行で正しく除去する"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        body = {"body": '<div class="page-source">\n\t+ Source from viewsource\n\t\n\tFoundation line.\n</div>'}
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(body),))
+
+        collection.get_page_sources()
+
+        assert mock_page_with_id._source is not None
+        assert mock_page_with_id._source.wiki_text == "+ Source from viewsource\n\nFoundation line."
+
     def test_acquire_sources_batches_missing_page_ids(
         self,
         monkeypatch: pytest.MonkeyPatch,

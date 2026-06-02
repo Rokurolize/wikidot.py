@@ -19,7 +19,7 @@ from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 from ..util.requestutil import RequestUtil
 from .page_revision import PageRevision, PageRevisionCollection
-from .page_source import PageSource
+from .page_source import PageSource, extract_page_source_text
 from .page_votes import PageVote, PageVoteCollection
 
 if TYPE_CHECKING:
@@ -713,7 +713,7 @@ class PageCollection(list["Page"]):
                 raise exceptions.NoElementException(
                     f"Cannot find source element for page: {page.fullname} (id={page.id})"
                 )
-            source = source_element.get_text().strip().removeprefix("\t")
+            source = extract_page_source_text(source_element)
             page.source = PageSource(page, source)
         return pages
 

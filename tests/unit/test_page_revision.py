@@ -108,6 +108,20 @@ class TestPageRevisionCollection:
         assert sample_revision._source is not None
         assert sample_revision._source.wiki_text == "Test wiki text"
 
+    def test_get_sources_preserves_multiline_source_text(self, mock_page, sample_revision):
+        """ViewSourceModuleの折り返しタブを複数行で正しく除去する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": '<div class="page-source">\n\t+ Source from revision\n\t\n\tFoundation line.\n</div>'
+        }
+        mock_page.site.amc_request.return_value = [mock_response]
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+        collection.get_sources()
+
+        assert sample_revision._source is not None
+        assert sample_revision._source.wiki_text == "+ Source from revision\n\nFoundation line."
+
     def test_get_sources_skips_already_acquired(self, mock_page, sample_revision):
         """既に取得済みのソースはスキップ"""
         sample_revision._source = MagicMock()

@@ -15,7 +15,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from ..common.exceptions import NoElementException
-from .page_source import PageSource
+from .page_source import PageSource, extract_page_source_text
 
 if TYPE_CHECKING:
     from .page import Page
@@ -164,7 +164,7 @@ class PageRevisionCollection(list["PageRevision"]):
                 raise NoElementException("Wiki text element not found")
             revision.source = PageSource(
                 page=page,
-                wiki_text=wiki_text_elem.get_text().strip(),
+                wiki_text=extract_page_source_text(wiki_text_elem),
             )
 
         return PageRevisionCollection._generic_acquire(
