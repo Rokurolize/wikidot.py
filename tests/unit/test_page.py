@@ -782,6 +782,52 @@ class TestPageWriteMethods:
         assert new_rating == 10
         assert mock_page_with_id.rating == 10
 
+    def test_metas_setter_batches_changes(self, mock_page_with_id: Page) -> None:
+        """metaタグの削除・追加・更新は1つのAMCバッチで送信する"""
+        mock_page_with_id._metas = {
+            "remove": "old",
+            "keep": "same",
+            "change": "old",
+        }
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        mock_page_with_id.metas = {
+            "keep": "same",
+            "add": "new",
+            "change": "new",
+        }
+
+        mock_page_with_id.site.amc_request.assert_called_once()
+        mock_page_with_id.site.client.login_check.assert_called_once()
+        request_bodies = mock_page_with_id.site.amc_request.call_args.args[0]
+        assert request_bodies == [
+            {
+                "metaName": "remove",
+                "action": "WikiPageAction",
+                "event": "deleteMetaTag",
+                "pageId": 12345,
+                "moduleName": "edit/EditMetaModule",
+            },
+            {
+                "metaName": "add",
+                "metaContent": "new",
+                "action": "WikiPageAction",
+                "event": "saveMetaTag",
+                "pageId": 12345,
+                "moduleName": "edit/EditMetaModule",
+            },
+            {
+                "metaName": "change",
+                "metaContent": "new",
+                "action": "WikiPageAction",
+                "event": "saveMetaTag",
+                "pageId": 12345,
+                "moduleName": "edit/EditMetaModule",
+            },
+        ]
+        assert mock_page_with_id._metas == {"keep": "same", "add": "new", "change": "new"}
+
 
 class TestPageCreateOrEdit:
     """Page.create_or_editのテスト"""

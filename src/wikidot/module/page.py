@@ -1373,46 +1373,44 @@ class Page:
         added_metas = {k: v for k, v in value.items() if k not in current_metas}
         updated_metas = {k: v for k, v in value.items() if k in current_metas and current_metas[k] != v}
 
+        request_bodies = []
         for name, _content in deleted_metas.items():
-            self.site.amc_request(
-                [
-                    {
-                        "metaName": name,
-                        "action": "WikiPageAction",
-                        "event": "deleteMetaTag",
-                        "pageId": self.id,
-                        "moduleName": "edit/EditMetaModule",
-                    }
-                ]
+            request_bodies.append(
+                {
+                    "metaName": name,
+                    "action": "WikiPageAction",
+                    "event": "deleteMetaTag",
+                    "pageId": self.id,
+                    "moduleName": "edit/EditMetaModule",
+                }
             )
 
         for name, content in added_metas.items():
-            self.site.amc_request(
-                [
-                    {
-                        "metaName": name,
-                        "metaContent": content,
-                        "action": "WikiPageAction",
-                        "event": "saveMetaTag",
-                        "pageId": self.id,
-                        "moduleName": "edit/EditMetaModule",
-                    }
-                ]
+            request_bodies.append(
+                {
+                    "metaName": name,
+                    "metaContent": content,
+                    "action": "WikiPageAction",
+                    "event": "saveMetaTag",
+                    "pageId": self.id,
+                    "moduleName": "edit/EditMetaModule",
+                }
             )
 
         for name, content in updated_metas.items():
-            self.site.amc_request(
-                [
-                    {
-                        "metaName": name,
-                        "metaContent": content,
-                        "action": "WikiPageAction",
-                        "event": "saveMetaTag",
-                        "pageId": self.id,
-                        "moduleName": "edit/EditMetaModule",
-                    }
-                ]
+            request_bodies.append(
+                {
+                    "metaName": name,
+                    "metaContent": content,
+                    "action": "WikiPageAction",
+                    "event": "saveMetaTag",
+                    "pageId": self.id,
+                    "moduleName": "edit/EditMetaModule",
+                }
             )
+
+        if request_bodies:
+            self.site.amc_request(request_bodies)
 
         self._metas = value
 
