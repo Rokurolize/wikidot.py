@@ -1,3 +1,4 @@
+import html as html_lib
 import re
 import sys
 from collections.abc import Iterator
@@ -1347,10 +1348,11 @@ class Page:
             # レスポンス解析
             body = response[0].json()["body"]
 
-            # <meta name="xxx" content="yyy"/> を正規表現で取得
+            # タグ境界だけを戻してからHTMLとして解析し、属性値は取得後に復号する
+            body = body.replace("&lt;", "<").replace("&gt;", ">").replace("&LT;", "<").replace("&GT;", ">")
             metas = {}
-            for meta in re.findall(r'&lt;meta name="([^"]+)" content="([^"]+)"/&gt;', body):
-                metas[meta[0]] = meta[1]
+            for meta in BeautifulSoup(body, "lxml").select("meta[name][content]"):
+                metas[html_lib.unescape(str(meta["name"]))] = html_lib.unescape(str(meta["content"]))
 
             self._metas = metas
 

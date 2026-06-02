@@ -889,6 +889,37 @@ class TestPageWriteMethods:
         assert new_rating == 10
         assert mock_page_with_id.rating == 10
 
+    def test_metas_getter_parses_decoded_flexible_markup(self, mock_page_with_id: Page) -> None:
+        """metaタグ取得はHTMLエンティティと属性順の揺れを扱える"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": (
+                '&lt;meta content="Tom &amp;amp; Jerry" name="description"/&gt;'
+                '&lt;meta name="empty" content=""/&gt;'
+                '&lt;meta name="quoted" content="a &quot;quote&quot;"/&gt;'
+                '<meta name="literal" content="literal &amp; value"/>'
+            )
+        }
+        mock_page_with_id._metas = None
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+
+        metas = mock_page_with_id.metas
+
+        assert metas == {
+            "description": "Tom & Jerry",
+            "empty": "",
+            "quoted": 'a "quote"',
+            "literal": "literal & value",
+        }
+        mock_page_with_id.site.amc_request.assert_called_once_with(
+            [
+                {
+                    "pageId": 12345,
+                    "moduleName": "edit/EditMetaModule",
+                }
+            ]
+        )
+
     def test_metas_setter_batches_changes(self, mock_page_with_id: Page) -> None:
         """metaタグの削除・追加・更新は1つのAMCバッチで送信する"""
         mock_page_with_id._metas = {
