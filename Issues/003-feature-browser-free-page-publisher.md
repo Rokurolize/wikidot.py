@@ -70,4 +70,4 @@ wikidot.py is useful as a browser-free client for Wikidot page operations. A hig
 
 ## Additional Information
 
-This should be filed as a feature issue before implementation. It is larger than the small batching PR in [002-pr-batch-source-page-id-lookups.md](002-pr-batch-source-page-id-lookups.md).
+This should be filed as a feature issue before implementation. It is larger than the small batching PRs in [002-pr-batch-source-page-id-lookups.md](002-pr-batch-source-page-id-lookups.md) and [007-pr-batch-meta-tag-updates.md](007-pr-batch-meta-tag-updates.md).
