@@ -936,6 +936,47 @@ class TestPageCreateOrEdit:
         assert page.title == "New Page Title"
         assert page.source.wiki_text == "Page content"
 
+    def test_edit_existing_page_stale_search_preserves_page_id(
+        self,
+        mock_site_no_http: Site,
+        page_pageedit_existing: dict[str, Any],
+        page_savepage_success: dict[str, Any],
+        page_listpages_empty: dict[str, Any],
+    ) -> None:
+        """既存ページ編集後の検索が古くても既知のpage_idを保持する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_existing
+
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = page_savepage_success
+
+        mock_search_response = MagicMock()
+        mock_search_response.json.return_value = page_listpages_empty
+
+        mock_site_no_http.amc_request = MagicMock(
+            side_effect=[
+                [mock_lock_response],
+                [mock_save_response],
+                [mock_search_response],
+                [mock_search_response],
+            ]
+        )
+
+        page = Page.create_or_edit(
+            mock_site_no_http,
+            "existing-page",
+            page_id=12345,
+            title="Updated Title",
+            source="Updated content",
+        )
+
+        assert page.fullname == "existing-page"
+        assert page._id == 12345
+        assert page.source.wiki_text == "Updated content"
+
     def test_edit_locked_page(self, mock_site_no_http: Site, page_pageedit_locked: dict[str, Any]) -> None:
         """ロック済みページの編集で例外"""
         mock_site_no_http.client.is_logged_in = True

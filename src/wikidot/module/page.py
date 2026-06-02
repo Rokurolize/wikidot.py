@@ -1551,6 +1551,7 @@ class Page:
                 updated_at=now,
                 commented_by=None,
                 commented_at=None,
+                _id=page_id,
             )
 
         if page_id is not None or title:
