@@ -64,3 +64,5 @@ Collection detail fetches should preserve cache semantics consistently across so
 ## Additional Notes
 
 This is an immediate performance and retry-ergonomics improvement for the broader large-corpus source collection feature draft in [004-feature-large-corpus-page-source-collection.md](004-feature-large-corpus-page-source-collection.md).
+
+The follow-up file retry draft in [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md) covers the remaining retry consistency gap for file detail acquisition.
