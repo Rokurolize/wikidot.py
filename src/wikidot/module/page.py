@@ -29,6 +29,13 @@ if TYPE_CHECKING:
     from .user import User
 
 
+class _UnsetParentType:
+    pass
+
+
+_UNSET_PARENT = _UnsetParentType()
+
+
 class PageConstants:
     """
     A class for centrally managing constants used in the page module
@@ -1378,12 +1385,20 @@ class Page:
             When setting meta tags fails
         """
         self.site.client.login_check()
+        request_bodies = self._meta_update_request_bodies(value)
+
+        if request_bodies:
+            self.site.amc_request(request_bodies)
+
+        self._metas = dict(value)
+
+    def _meta_update_request_bodies(self, value: dict[str, str]) -> list[dict[str, Any]]:
         current_metas = self.metas
         deleted_metas = {k: v for k, v in current_metas.items() if k not in value}
         added_metas = {k: v for k, v in value.items() if k not in current_metas}
         updated_metas = {k: v for k, v in value.items() if k in current_metas and current_metas[k] != v}
 
-        request_bodies = []
+        request_bodies: list[dict[str, Any]] = []
         for name, _content in deleted_metas.items():
             request_bodies.append(
                 {
@@ -1419,10 +1434,79 @@ class Page:
                 }
             )
 
+        return request_bodies
+
+    def set_metadata(
+        self,
+        *,
+        tags: list[str] | None = None,
+        parent_fullname: str | None | _UnsetParentType = _UNSET_PARENT,
+        metas: dict[str, str] | None = None,
+    ) -> "Page":
+        """
+        Set page tags, parent page, and meta tags in one AMC batch when possible
+
+        Parameters
+        ----------
+        tags : list[str] | None, default None
+            Tags to save. None leaves tags unchanged; an empty list clears tags.
+        parent_fullname : str | None, optional
+            Parent fullname to set. Passing None clears the parent. Omitting this argument leaves the parent unchanged.
+        metas : dict[str, str] | None, default None
+            Meta tags to save. None leaves meta tags unchanged; an empty dict deletes existing meta tags.
+
+        Returns
+        -------
+        Page
+            Self (for method chaining)
+
+        Raises
+        ------
+        LoginRequiredException
+            When not logged in
+        WikidotStatusCodeException
+            When setting metadata fails
+        """
+        self.site.client.login_check()
+
+        request_bodies: list[dict[str, Any]] = []
+        if tags is not None:
+            request_bodies.append(
+                {
+                    "tags": " ".join(tags),
+                    "action": "WikiPageAction",
+                    "event": "saveTags",
+                    "pageId": self.id,
+                    "moduleName": "Empty",
+                }
+            )
+
+        if parent_fullname is not _UNSET_PARENT:
+            parent_value = parent_fullname if isinstance(parent_fullname, str) else None
+            request_bodies.append(
+                {
+                    "action": "WikiPageAction",
+                    "event": "setParentPage",
+                    "moduleName": "Empty",
+                    "pageId": str(self.id),
+                    "parentName": parent_value or "",
+                }
+            )
+
+        if metas is not None:
+            request_bodies.extend(self._meta_update_request_bodies(metas))
+
         if request_bodies:
             self.site.amc_request(request_bodies)
 
-        self._metas = value
+        if tags is not None:
+            self.tags = list(tags)
+        if parent_fullname is not _UNSET_PARENT:
+            self.parent_fullname = parent_fullname if isinstance(parent_fullname, str) else None
+        if metas is not None:
+            self._metas = dict(metas)
+
+        return self
 
     @staticmethod
     def create_or_edit(

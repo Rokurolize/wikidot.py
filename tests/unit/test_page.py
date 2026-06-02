@@ -966,6 +966,96 @@ class TestPageWriteMethods:
         ]
         assert mock_page_with_id._metas == {"keep": "same", "add": "new", "change": "new"}
 
+    def test_set_metadata_batches_tags_parent_and_metas(self, mock_page_with_id: Page) -> None:
+        """タグ・親・metaタグ更新を1つのAMCバッチで送信する"""
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {
+            "remove": "old",
+            "keep": "same",
+            "change": "old",
+        }
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        result = mock_page_with_id.set_metadata(
+            tags=["tag-one", "tag-two"],
+            parent_fullname="new-parent",
+            metas={
+                "keep": "same",
+                "add": "new",
+                "change": "new",
+            },
+        )
+
+        assert result == mock_page_with_id
+        mock_page_with_id.site.client.login_check.assert_called_once()
+        mock_page_with_id.site.amc_request.assert_called_once()
+        request_bodies = mock_page_with_id.site.amc_request.call_args.args[0]
+        assert request_bodies == [
+            {
+                "tags": "tag-one tag-two",
+                "action": "WikiPageAction",
+                "event": "saveTags",
+                "pageId": 12345,
+                "moduleName": "Empty",
+            },
+            {
+                "action": "WikiPageAction",
+                "event": "setParentPage",
+                "moduleName": "Empty",
+                "pageId": "12345",
+                "parentName": "new-parent",
+            },
+            {
+                "metaName": "remove",
+                "action": "WikiPageAction",
+                "event": "deleteMetaTag",
+                "pageId": 12345,
+                "moduleName": "edit/EditMetaModule",
+            },
+            {
+                "metaName": "add",
+                "metaContent": "new",
+                "action": "WikiPageAction",
+                "event": "saveMetaTag",
+                "pageId": 12345,
+                "moduleName": "edit/EditMetaModule",
+            },
+            {
+                "metaName": "change",
+                "metaContent": "new",
+                "action": "WikiPageAction",
+                "event": "saveMetaTag",
+                "pageId": 12345,
+                "moduleName": "edit/EditMetaModule",
+            },
+        ]
+        assert mock_page_with_id.tags == ["tag-one", "tag-two"]
+        assert mock_page_with_id.parent_fullname == "new-parent"
+        assert mock_page_with_id._metas == {"keep": "same", "add": "new", "change": "new"}
+
+    def test_set_metadata_can_clear_parent(self, mock_page_with_id: Page) -> None:
+        """parent_fullname=Noneを明示すると親ページをクリアする"""
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        mock_page_with_id.set_metadata(parent_fullname=None)
+
+        mock_page_with_id.site.amc_request.assert_called_once_with(
+            [
+                {
+                    "action": "WikiPageAction",
+                    "event": "setParentPage",
+                    "moduleName": "Empty",
+                    "pageId": "12345",
+                    "parentName": "",
+                }
+            ]
+        )
+        assert mock_page_with_id.parent_fullname is None
+
 
 class TestPageCreateOrEdit:
     """Page.create_or_editのテスト"""
