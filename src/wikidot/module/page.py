@@ -926,11 +926,13 @@ class PageCollection(list["Page"]):
 
         from .page_file import PageFileCollection
 
-        responses = site.amc_request(
+        responses = site.amc_request_with_retry(
             [{"moduleName": "files/PageFilesModule", "page_id": page.id} for page in target_pages]
         )
 
         for page, response in zip(target_pages, responses, strict=True):
+            if response is None:
+                continue
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
             files = PageFileCollection._parse_from_html(page, html)

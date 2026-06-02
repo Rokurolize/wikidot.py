@@ -623,14 +623,14 @@ class TestPageCollectionAcquire:
         second_page = self._other_page(mock_site_no_http, mock_page_no_http)
         collection = PageCollection(mock_site_no_http, [mock_page_no_http, second_page])
         request = self._patch_batched_page_id_request(monkeypatch)
-        mock_site_no_http.amc_request = MagicMock(
+        mock_site_no_http.amc_request_with_retry = MagicMock(
             return_value=tuple(self._json_response({"body": "<div>No files</div>"}) for _ in collection)
         )
 
         collection.get_page_files()
 
         self._assert_batched_page_id_request(request)
-        request_bodies = mock_site_no_http.amc_request.call_args.args[0]
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
         assert [body["page_id"] for body in request_bodies] == [111, 222]
 
     def test_acquire_files_skips_already_acquired_pages(self, mock_site_no_http: Site, mock_page_with_id: Page) -> None:
@@ -644,14 +644,32 @@ class TestPageCollectionAcquire:
         def file_requests(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock, ...]:
             return tuple(self._json_response({"body": "<div>No files</div>"}) for _ in request_bodies)
 
-        mock_site_no_http.amc_request = MagicMock(side_effect=file_requests)
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=file_requests)
 
         collection.get_page_files()
 
-        request_bodies = mock_site_no_http.amc_request.call_args.args[0]
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
         assert [body["page_id"] for body in request_bodies] == [222]
         assert mock_page_with_id._files is cached_files
         assert second_page._files is not None
+
+    def test_acquire_files_skips_failed_retry_response(self, mock_site_no_http: Site, mock_page_with_id: Page) -> None:
+        """file取得の一部失敗は成功ページを保持し失敗ページを未取得にする"""
+        second_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        second_page.id = 222
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, second_page])
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._json_response({"body": "<div>No files</div>"}), None)
+        )
+
+        collection.get_page_files()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_called_once()
+        assert mock_page_with_id._files is not None
+        assert second_page._files is None
 
 
 # ============================================================
