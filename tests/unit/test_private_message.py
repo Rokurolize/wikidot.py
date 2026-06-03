@@ -151,6 +151,44 @@ class TestPrivateMessageCollection:
         assert len(result) == 1
         assert mock_client.amc_client.request.call_count == 2
 
+    def test_from_ids_deduplicates_duplicate_message_ids_preserving_order(self, mock_client):
+        """from_idsは重複IDの公開順序を保ったまま詳細リクエストを重複排除する"""
+
+        def message_response(subject: str) -> MagicMock:
+            mock_response = MagicMock()
+            mock_response.json.return_value = {
+                "body": f"""
+                <div class="pmessage">
+                    <div class="header">
+                        <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                        <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                        <span class="subject">{subject}</span>
+                        <span class="odate time_1234567890">01 Jan 2023 12:00</span>
+                    </div>
+                    <div class="body">Test Body</div>
+                </div>
+                """
+            }
+            return mock_response
+
+        mock_client.amc_client.request.return_value = [
+            message_response("First Subject"),
+            message_response("Second Subject"),
+        ]
+
+        with patch("wikidot.module.private_message.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+            with patch("wikidot.module.private_message.odate_parser") as mock_odate_parser:
+                mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
+
+                result = PrivateMessageCollection.from_ids(mock_client, [1, 1, 2])
+
+        requested_bodies = mock_client.amc_client.request.call_args[0][0]
+        assert [body["item"] for body in requested_bodies] == [1, 2]
+        assert [message.id for message in result] == [1, 1, 2]
+        assert [message.subject for message in result] == ["First Subject", "First Subject", "Second Subject"]
+        assert result[0] is not result[1]
+
     def test_from_ids_forbidden_error(self, mock_client):
         """from_idsでアクセス権限エラー"""
         from wikidot.common.exceptions import WikidotStatusCodeException

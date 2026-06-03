@@ -164,9 +164,17 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         ForbiddenException
             If no permission to access the message
         """
+        unique_message_ids: list[int] = []
+        seen_message_ids: set[int] = set()
+        for message_id in message_ids:
+            if message_id in seen_message_ids:
+                continue
+            seen_message_ids.add(message_id)
+            unique_message_ids.append(message_id)
+
         bodies = []
 
-        for message_id in message_ids:
+        for message_id in unique_message_ids:
             bodies.append(
                 {
                     "item": message_id,
@@ -176,26 +184,31 @@ class PrivateMessageCollection(list["PrivateMessage"]):
 
         responses = PrivateMessageCollection._amc_request_with_retry(client, bodies)
 
-        messages = []
+        responses_by_id: dict[int, Any] = {}
 
         for index, response in enumerate(responses):
+            message_id = unique_message_ids[index]
+
             if isinstance(response, exceptions.WikidotStatusCodeException):
                 if response.status_code == "no_message":
-                    raise exceptions.ForbiddenException(f"Failed to get message: {message_ids[index]}") from response
+                    raise exceptions.ForbiddenException(f"Failed to get message: {message_id}") from response
 
             if response is None:
-                raise exceptions.UnexpectedException(f"Cannot retrieve private message: {message_ids[index]}")
+                raise exceptions.UnexpectedException(f"Cannot retrieve private message: {message_id}")
 
             if isinstance(response, Exception):
                 raise response
 
+            responses_by_id[message_id] = response
+
+        messages = []
+        for message_id in message_ids:
+            response = responses_by_id[message_id]
             html = BeautifulSoup(response.json()["body"], "lxml")
 
             user_elements = html.select("div.pmessage div.header span.printuser")
             if len(user_elements) != 2:
-                raise exceptions.NoElementException(
-                    f"Expected sender and recipient elements for message: {message_ids[index]}"
-                )
+                raise exceptions.NoElementException(f"Expected sender and recipient elements for message: {message_id}")
             sender, recipient = user_elements
 
             subject_element = html.select_one("div.pmessage div.header span.subject")
@@ -205,7 +218,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             messages.append(
                 PrivateMessage(
                     client=client,
-                    id=message_ids[index],
+                    id=message_id,
                     sender=user_parser(client, sender),
                     recipient=user_parser(client, recipient),
                     subject=subject_element.get_text() if subject_element else "",
