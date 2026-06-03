@@ -128,6 +128,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [122-pr-verify-publish-source-before-metadata.md](122-pr-verify-publish-source-before-metadata.md): upstream PR draft for the committed publish source-verification side-effect ordering fix.
 - [123-pr-scope-forum-post-metadata-spans.md](123-pr-scope-forum-post-metadata-spans.md): upstream PR draft for the committed forum-post metadata span scoping fix.
 - [124-pr-scope-forum-post-edit-form-controls.md](124-pr-scope-forum-post-edit-form-controls.md): upstream PR draft for the committed forum-post edit-form control scoping fix.
+- [125-pr-reuse-cached-duplicate-forum-post-sources.md](125-pr-reuse-cached-duplicate-forum-post-sources.md): upstream PR draft for the committed cached duplicate forum-post source reuse fix.
 
 ## Local Evidence Index
 
@@ -163,5 +164,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 26: `e0b2999 fix(site): verify publish source before metadata`
 - Local implementation commits, continued 27: `19e1caa fix(forum_post): scope post metadata spans`
 - Local implementation commits, continued 28: `4714f4a fix(forum_post): scope edit form controls`
+- Local implementation commits, continued 29: `2ec41e9 perf(forum_post): reuse cached duplicate sources`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
