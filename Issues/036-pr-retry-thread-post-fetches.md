@@ -10,6 +10,8 @@ The fix routes direct single-thread reads through the retry-aware batched path a
 
 Drafted from the same forum inspection and retry area as [035-pr-retry-thread-detail-fetches.md](035-pr-retry-thread-detail-fetches.md), [034-pr-retry-category-thread-list-fetches.md](034-pr-retry-category-thread-list-fetches.md), [033-pr-retry-forum-category-list-fetches.md](033-pr-retry-forum-category-list-fetches.md), and [016-pr-retry-listpages-pagination.md](016-pr-retry-listpages-pagination.md). No upstream issue filed yet.
 
+Follow-up performance draft: [059-pr-deduplicate-thread-post-fetches.md](059-pr-deduplicate-thread-post-fetches.md) removes duplicate first-page post-list requests for repeated thread IDs while preserving this retry-aware read path and thread-ID keyed result shape.
+
 ## Changes
 
 - Make `ForumPostCollection.acquire_all_in_thread(...)` delegate to `ForumPostCollection.acquire_all_in_threads(...)` so direct post-list reads use the established retry-aware AMC helper.
