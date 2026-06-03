@@ -8,7 +8,7 @@ This fix groups uncached pages by first-seen `page.id` after page ID acquisition
 
 ## Related Issue
 
-Builds on [040-pr-page-revisions-exhausted-retry-error.md](040-pr-page-revisions-exhausted-retry-error.md), which hardened failed revision-list acquisition, and complements [061-pr-deduplicate-page-revision-fetches.md](061-pr-deduplicate-page-revision-fetches.md), which deduplicated page revision source/HTML fetches after revision lists are already present.
+Builds on [040-pr-page-revisions-exhausted-retry-error.md](040-pr-page-revisions-exhausted-retry-error.md), which hardened failed revision-list acquisition, and complements [061-pr-deduplicate-page-revision-fetches.md](061-pr-deduplicate-page-revision-fetches.md), which deduplicated page revision source/HTML fetches after revision lists are already present. It also aligns with adjacent page detail dedupe follow-ups [062-pr-deduplicate-page-source-fetches.md](062-pr-deduplicate-page-source-fetches.md), [064-pr-deduplicate-page-file-fetches.md](064-pr-deduplicate-page-file-fetches.md), and [065-pr-deduplicate-page-vote-fetches.md](065-pr-deduplicate-page-vote-fetches.md).
 
 No upstream issue was filed from this local workspace.
 

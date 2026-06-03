@@ -8,7 +8,7 @@ This fix groups uncached pages by first-seen `page.id` after page ID acquisition
 
 ## Related Issue
 
-Builds on [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md), [039-pr-page-files-exhausted-retry-error.md](039-pr-page-files-exhausted-retry-error.md), and [041-pr-retry-direct-page-file-acquire.md](041-pr-retry-direct-page-file-acquire.md), which hardened file-list acquisition and failure visibility. Complements [062-pr-deduplicate-page-source-fetches.md](062-pr-deduplicate-page-source-fetches.md) and [063-pr-deduplicate-page-revision-list-fetches.md](063-pr-deduplicate-page-revision-list-fetches.md), which remove the same duplicate-ID request shape from adjacent page detail paths.
+Builds on [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md), [039-pr-page-files-exhausted-retry-error.md](039-pr-page-files-exhausted-retry-error.md), and [041-pr-retry-direct-page-file-acquire.md](041-pr-retry-direct-page-file-acquire.md), which hardened file-list acquisition and failure visibility. Complements [062-pr-deduplicate-page-source-fetches.md](062-pr-deduplicate-page-source-fetches.md), [063-pr-deduplicate-page-revision-list-fetches.md](063-pr-deduplicate-page-revision-list-fetches.md), and [065-pr-deduplicate-page-vote-fetches.md](065-pr-deduplicate-page-vote-fetches.md), which remove the same duplicate-ID request shape from adjacent page detail paths.
 
 No upstream issue was filed from this local workspace.
 
@@ -75,4 +75,4 @@ Attached-file inspection is a read-heavy evidence surface for page review, publi
 
 ## Additional Notes
 
-This slice does not deduplicate unresolved page ID lookup requests, page source requests, vote requests, revision-list requests, or direct single-page `PageFileCollection.acquire(...)` calls. It only removes duplicate page file-list requests after each page already has a resolved page ID.
+This slice does not deduplicate unresolved page ID lookup requests, page source requests, revision-list requests, or direct single-page `PageFileCollection.acquire(...)` calls. The later follow-up [065-pr-deduplicate-page-vote-fetches.md](065-pr-deduplicate-page-vote-fetches.md) covers vote requests. This slice only removes duplicate page file-list requests after each page already has a resolved page ID.

@@ -8,7 +8,7 @@ This fix groups uncached pages by first-seen `page.id` after page ID acquisition
 
 ## Related Issue
 
-Builds on [006-pr-retry-batched-source-fetches.md](006-pr-retry-batched-source-fetches.md) and [051-pr-preserve-source-batch-successes.md](051-pr-preserve-source-batch-successes.md) by preserving retry-aware and partial-success source acquisition while avoiding duplicate source requests for repeated page IDs. It also complements the source iterator and fallback work in [004-feature-large-corpus-page-source-collection.md](004-feature-large-corpus-page-source-collection.md).
+Builds on [006-pr-retry-batched-source-fetches.md](006-pr-retry-batched-source-fetches.md) and [051-pr-preserve-source-batch-successes.md](051-pr-preserve-source-batch-successes.md) by preserving retry-aware and partial-success source acquisition while avoiding duplicate source requests for repeated page IDs. It also complements the source iterator and fallback work in [004-feature-large-corpus-page-source-collection.md](004-feature-large-corpus-page-source-collection.md), plus the adjacent page detail dedupe follow-ups [063-pr-deduplicate-page-revision-list-fetches.md](063-pr-deduplicate-page-revision-list-fetches.md), [064-pr-deduplicate-page-file-fetches.md](064-pr-deduplicate-page-file-fetches.md), and [065-pr-deduplicate-page-vote-fetches.md](065-pr-deduplicate-page-vote-fetches.md).
 
 No upstream issue was filed from this local workspace.
 
