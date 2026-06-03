@@ -431,6 +431,30 @@ class TestSitePageAccessor:
         saved_page.set_metadata.assert_not_called()
         saved_page.refresh_source.assert_called_once_with()
 
+    def test_publish_verifies_source_with_custom_normalizer(self, mock_site_no_http: Site) -> None:
+        """呼び出し側の正規化ルールで保存後ソースを検証できる"""
+        mock_site_no_http.client.login_check = MagicMock()
+        saved_page = MagicMock()
+        saved_page.id = 12345
+        saved_page.refresh_source.return_value.wiki_text = "\nSaved source\n"
+        existing_page = MagicMock()
+        existing_page.edit.return_value = saved_page
+        mock_site_no_http.page.get = MagicMock(return_value=existing_page)
+
+        def normalize_source(text: str) -> str:
+            return "\n".join(line.rstrip() for line in text.strip().splitlines())
+
+        result = mock_site_no_http.page.publish(
+            "test-page",
+            title="Updated Title",
+            source="Saved source   \n\n",
+            verify_source=True,
+            source_normalizer=normalize_source,
+        )
+
+        saved_page.refresh_source.assert_called_once_with()
+        assert result.source_matches is True
+
 
 class TestSiteFromUnixName:
     """Site.from_unix_name のテスト"""

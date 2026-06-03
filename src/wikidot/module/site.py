@@ -1,6 +1,6 @@
 import re
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast, overload
@@ -391,6 +391,7 @@ class SitePageAccessor:
         metas: dict[str, str] | None = None,
         force_edit: bool = False,
         verify_source: bool = False,
+        source_normalizer: Callable[[str], str] | None = None,
     ) -> PagePublishResult:
         """
         Create or edit a page, then optionally update metadata and verify saved source
@@ -415,6 +416,8 @@ class SitePageAccessor:
             Whether to forcibly release locks by other users.
         verify_source : bool, default False
             Whether to force a fresh ViewSourceModule fetch and compare it with the submitted source.
+        source_normalizer : Callable[[str], str] | None, default None
+            Optional function applied to both fetched and submitted source before verification.
 
         Returns
         -------
@@ -463,7 +466,12 @@ class SitePageAccessor:
 
         source_matches: bool | None = None
         if verify_source:
-            source_matches = page.refresh_source().wiki_text == source
+            fetched_source = page.refresh_source().wiki_text
+            expected_source = source
+            if source_normalizer is not None:
+                fetched_source = source_normalizer(fetched_source)
+                expected_source = source_normalizer(expected_source)
+            source_matches = fetched_source == expected_source
             if not source_matches:
                 raise exceptions.UnexpectedException(f"Saved source verification failed for page: {fullname}")
 
