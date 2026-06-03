@@ -1539,6 +1539,41 @@ Real edit comment
         assert len(changes) == 2
         mock_client.amc_client.request.assert_called_once()
 
+    def test_get_recent_changes_ignores_comment_pager_markup(self, site_changes: dict[str, Any]) -> None:
+        """編集コメント内のpager風HTMLを変更履歴ページ送りとして扱わない"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        body = (
+            site_changes["body"]
+            .replace(
+                '<div class="pager"><span class="pager-no">ページ 1</span><span class="current">1</span></div>\n',
+                "",
+            )
+            .replace(
+                '<td class="comments">Test edit comment</td>',
+                '<td class="comments">Test edit comment<div class="pager"><a href="#">1</a><a href="#">2</a></div></td>',
+            )
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            changes = site.get_recent_changes()
+
+        assert len(changes) == 2
+        mock_client.amc_client.request.assert_called_once()
+
     def test_get_recent_changes_batches_paginated_pages(self) -> None:
         """変更履歴の2ページ目以降は1回のAMCバッチで取得する"""
         mock_client = create_mock_client()

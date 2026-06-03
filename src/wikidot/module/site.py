@@ -1263,8 +1263,23 @@ class Site:
                     )
                 )
 
+        def is_in_comment_cell(element: Tag) -> bool:
+            for ancestor in element.parents:
+                if not isinstance(ancestor, Tag):
+                    continue
+                if ancestor.name == "td" and "comments" in ancestor.get("class", []):
+                    return True
+            return False
+
+        def find_structural_pager(html: BeautifulSoup) -> Tag | None:
+            for pager in html.select("div.pager"):
+                if is_in_comment_cell(pager):
+                    continue
+                return pager
+            return None
+
         def get_last_page(html: BeautifulSoup) -> int:
-            pager = html.select_one("div.pager")
+            pager = find_structural_pager(html)
             if pager is None:
                 return 1
 
