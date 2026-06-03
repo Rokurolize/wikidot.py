@@ -8,7 +8,7 @@ The fix routes file-fetch batches through `amc_request_with_retry(...)` and leav
 
 ## Related Issue
 
-Drafted from local rollout evidence; no upstream issue filed yet.
+Drafted from local rollout evidence; no upstream issue filed yet. The later follow-up [064-pr-deduplicate-page-file-fetches.md](064-pr-deduplicate-page-file-fetches.md) keeps this retry-aware path while removing duplicate file-list requests for repeated page IDs.
 
 ## Changes
 

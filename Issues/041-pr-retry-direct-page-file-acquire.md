@@ -8,7 +8,7 @@ The fix routes `PageFileCollection.acquire(page)` through `site.amc_request_with
 
 ## Related Issue
 
-Complements [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md), which made collection-level file fetches retry-aware, and [039-pr-page-files-exhausted-retry-error.md](039-pr-page-files-exhausted-retry-error.md), which made `Page.files` preserve failed acquisition visibility. No upstream issue filed yet.
+Complements [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md), which made collection-level file fetches retry-aware, [039-pr-page-files-exhausted-retry-error.md](039-pr-page-files-exhausted-retry-error.md), which made `Page.files` preserve failed acquisition visibility, and [064-pr-deduplicate-page-file-fetches.md](064-pr-deduplicate-page-file-fetches.md), which keeps collection-level behavior but avoids duplicate file-list requests for repeated page IDs. No upstream issue filed yet.
 
 ## Changes
 

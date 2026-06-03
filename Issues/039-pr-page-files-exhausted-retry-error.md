@@ -10,7 +10,7 @@ The fix removes the fallback and raises `NotFoundException("Cannot find page fil
 
 ## Related Issue
 
-Complements [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md), which made batched file fetches retry-aware and preserved failed pages as not acquired. Also aligns with [009-pr-skip-cached-page-detail-fetches.md](009-pr-skip-cached-page-detail-fetches.md), which treats cached detail state as an observable acquisition boundary. No upstream issue filed yet.
+Complements [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md), which made batched file fetches retry-aware and preserved failed pages as not acquired. Also aligns with [009-pr-skip-cached-page-detail-fetches.md](009-pr-skip-cached-page-detail-fetches.md), which treats cached detail state as an observable acquisition boundary, and [064-pr-deduplicate-page-file-fetches.md](064-pr-deduplicate-page-file-fetches.md), which preserves failed-page visibility while reducing duplicate file-list requests. No upstream issue filed yet.
 
 ## Changes
 
