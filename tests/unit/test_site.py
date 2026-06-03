@@ -80,6 +80,40 @@ class TestSiteDataclass:
 class TestSitePagesAccessor:
     """Site.pagesアクセサのテスト"""
 
+    @staticmethod
+    def _page(site: Site, fullname: str, page_id: int) -> Page:
+        category, name = fullname.split(":", 1) if ":" in fullname else ("_default", fullname)
+        page = Page(
+            site=site,
+            fullname=fullname,
+            name=name,
+            category=category,
+            title=fullname,
+            children_count=0,
+            comments_count=0,
+            size=0,
+            rating=0,
+            votes_count=0,
+            rating_percent=None,
+            revisions_count=0,
+            parent_fullname=None,
+            tags=[],
+            created_by=None,
+            created_at=None,
+            updated_by=None,
+            updated_at=None,
+            commented_by=None,
+            commented_at=None,
+        )
+        page.id = page_id
+        return page
+
+    @staticmethod
+    def _source_response(wiki_text: str) -> MagicMock:
+        response = MagicMock()
+        response.json.return_value = {"body": f'<div class="page-source">\n\t{wiki_text}\n</div>'}
+        return response
+
     def test_iter_search_fetches_bounded_offset_pages(self, mock_site_no_http: Site) -> None:
         """iter_searchはlimit内でoffsetを進めながらページを逐次取得する"""
         search_calls = []
@@ -123,6 +157,94 @@ class TestSitePagesAccessor:
         assert [query.offset for query in search_calls] == [10, 12, 14]
         assert [query.limit for query in search_calls] == [2, 2, 2]
         assert [query.parent for query in search_calls] == ["parent-page", "parent-page", "parent-page"]
+
+    def test_iter_sources_yields_sources_in_search_order(self, mock_site_no_http: Site) -> None:
+        """iter_sourcesは検索順を保ったままsourceを分割取得して結果を返す"""
+        pages = [
+            self._page(mock_site_no_http, "page-one", 101),
+            self._page(mock_site_no_http, "page-two", 102),
+            self._page(mock_site_no_http, "page-three", 103),
+        ]
+
+        def search_pages(site: Site, query) -> PageCollection:
+            assert query.tags == "scp"
+            assert query.limit == 3
+            assert query.perPage == 3
+            return PageCollection(site, pages)
+
+        def source_responses(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock, ...]:
+            return tuple(self._source_response(f"source {body['page_id']}") for body in request_bodies)
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=source_responses)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            results = list(
+                mock_site_no_http.pages.iter_sources(
+                    tags="scp",
+                    perPage=3,
+                    limit=3,
+                    source_batch_size=2,
+                )
+            )
+
+        assert [result.ok for result in results] == [True, True, True]
+        assert [result.page for result in results] == pages
+        assert [result.source.wiki_text if result.source is not None else None for result in results] == [
+            "source 101",
+            "source 102",
+            "source 103",
+        ]
+        assert [result.error for result in results] == [None, None, None]
+        assert [len(call.args[0]) for call in mock_site_no_http.amc_request_with_retry.call_args_list] == [2, 1]
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_iter_sources_falls_back_and_reports_page_failures(self, mock_site_no_http: Site) -> None:
+        """iter_sourcesはbatch失敗分だけ小さいbatchで再試行しページ単位の失敗を返す"""
+        pages = [
+            self._page(mock_site_no_http, "page-one", 201),
+            self._page(mock_site_no_http, "page-two", 202),
+            self._page(mock_site_no_http, "page-three", 203),
+        ]
+        requested_page_ids = []
+
+        def search_pages(site: Site, query) -> PageCollection:
+            return PageCollection(site, pages)
+
+        def source_responses(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock | None, ...]:
+            page_ids = [body["page_id"] for body in request_bodies]
+            requested_page_ids.append(page_ids)
+            if page_ids == [201, 202, 203]:
+                return (self._source_response("source 201"), None, None)
+            if page_ids == [202]:
+                return (self._source_response("source 202 fallback"),)
+            if page_ids == [203]:
+                return (None,)
+            raise AssertionError(f"Unexpected source request ids: {page_ids}")
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=source_responses)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            results = list(
+                mock_site_no_http.pages.iter_sources(
+                    limit=3,
+                    perPage=3,
+                    source_batch_size=3,
+                    fallback_batch_size=1,
+                )
+            )
+
+        assert requested_page_ids == [[201, 202, 203], [202], [203]]
+        assert [result.page for result in results] == pages
+        assert [result.ok for result in results] == [True, True, False]
+        assert [result.source.wiki_text if result.source is not None else None for result in results] == [
+            "source 201",
+            "source 202 fallback",
+            None,
+        ]
+        assert isinstance(results[2].error, NotFoundException)
+        mock_site_no_http.amc_request.assert_not_called()
 
 
 class TestSitePageAccessor:

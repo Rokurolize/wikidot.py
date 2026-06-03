@@ -24,6 +24,7 @@ from ..util.stringutil import StringUtil
 from .forum_category import ForumCategoryCollection
 from .forum_thread import ForumThread, ForumThreadCollection
 from .page import Page, PageCollection, PageConstants, SearchPagesQuery, SearchPagesQueryParams
+from .page_source import PageSource
 from .site_application import SiteApplication
 from .site_member import SiteMember
 
@@ -66,6 +67,31 @@ class PagePublishResult:
     tags_updated: bool
     parent_updated: bool
     metas_updated: bool
+
+
+@dataclass(frozen=True)
+class PageSourceResult:
+    """
+    Result returned by Site.pages.iter_sources()
+
+    Attributes
+    ----------
+    page : Page
+        Page associated with the source attempt.
+    source : PageSource | None
+        Page source when retrieval succeeded.
+    error : Exception | None
+        Error describing why source retrieval did not produce a source for this page.
+    """
+
+    page: "Page"
+    source: PageSource | None
+    error: Exception | None = None
+
+    @property
+    def ok(self) -> bool:
+        """Whether source retrieval succeeded for this page."""
+        return self.source is not None and self.error is None
 
 
 class SitePagesAccessor:
@@ -154,6 +180,64 @@ class SitePagesAccessor:
             if len(pages) < batch_limit:
                 return
             offset += per_page
+
+    def iter_sources(
+        self,
+        source_batch_size: int = 25,
+        fallback_batch_size: int = 1,
+        **kwargs: Unpack[SearchPagesQueryParams],
+    ) -> Iterator[PageSourceResult]:
+        """
+        Iterate through page source results in bounded source batches
+
+        Receives page search keyword arguments, discovers pages with iter_search(), and retrieves source code in
+        source_batch_size chunks while yielding one structured result per page.
+
+        Parameters
+        ----------
+        source_batch_size : int, default 25
+            Number of pages to fetch source for in each primary batch.
+        fallback_batch_size : int, default 1
+            Number of pages to fetch per fallback batch when a primary batch leaves pages without source.
+        **kwargs : Unpack[SearchPagesQueryParams]
+            Search condition keyword arguments. See SearchPagesQueryParams for details.
+
+        Yields
+        ------
+        PageSourceResult
+            Structured source success or failure for each matching page.
+        """
+        if source_batch_size <= 0:
+            raise ValueError("source_batch_size must be greater than 0")
+        if fallback_batch_size <= 0:
+            raise ValueError("fallback_batch_size must be greater than 0")
+
+        batch: list[Page] = []
+        for page in self.iter_search(**kwargs):
+            batch.append(page)
+            if len(batch) >= source_batch_size:
+                yield from self._source_results(batch, fallback_batch_size)
+                batch = []
+
+        if batch:
+            yield from self._source_results(batch, fallback_batch_size)
+
+    def _source_results(self, pages: list[Page], fallback_batch_size: int) -> Iterator[PageSourceResult]:
+        PageCollection(self.site, pages).get_page_sources()
+
+        missing_pages = [page for page in pages if page._source is None]
+        if missing_pages and fallback_batch_size < len(pages):
+            for index in range(0, len(missing_pages), fallback_batch_size):
+                fallback_pages = missing_pages[index : index + fallback_batch_size]
+                PageCollection(self.site, fallback_pages).get_page_sources()
+
+        for page in pages:
+            if page._source is None:
+                yield PageSourceResult(
+                    page=page, source=None, error=exceptions.NotFoundException("Cannot find page source")
+                )
+            else:
+                yield PageSourceResult(page=page, source=page._source)
 
 
 class SitePageAccessor:
