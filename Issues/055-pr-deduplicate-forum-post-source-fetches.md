@@ -71,3 +71,5 @@ Forum post source inspection is a read-heavy workflow for moderation, archiving,
 ## Additional Notes
 
 This slice does not change forum post parsing, pagination, post revision reads, edit/reply mutation methods, request retry policy, or source textarea extraction. It only removes duplicate source-fetch requests for repeated uncached post IDs in the existing source-read path.
+
+Related parser hardening in [081-pr-ignore-forum-content-pseudo-posts.md](081-pr-ignore-forum-content-pseudo-posts.md) narrows which forum post elements enter parsing before source-fetch workflows ever run.

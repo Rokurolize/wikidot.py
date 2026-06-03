@@ -71,3 +71,5 @@ Thread post-list inspection is a read-heavy Wikidot forum workflow and naturally
 ## Additional Notes
 
 This slice does not change category retrieval, thread detail retrieval, post parsing rules, forum post source retrieval, or forum mutation methods. It only centralizes direct thread post-list retrieval on the retry-aware batched path and makes exhausted retries explicit.
+
+Follow-up [081-pr-ignore-forum-content-pseudo-posts.md](081-pr-ignore-forum-content-pseudo-posts.md) keeps this retry-aware post-list read path but narrows forum post parsing to real `post-container` children so content pseudo-post markup is ignored.
