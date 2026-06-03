@@ -1230,7 +1230,11 @@ class Page:
         """
         if self._revisions is None:
             PageCollection(self.site, [self]).get_page_revisions()
-        return PageRevisionCollection(self, self._revisions)
+
+        if self._revisions is None:
+            raise exceptions.NotFoundException("Cannot find page revisions")
+
+        return self._revisions
 
     @revisions.setter
     def revisions(self, value: list["PageRevision"] | PageRevisionCollection) -> None:

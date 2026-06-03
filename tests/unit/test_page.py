@@ -818,10 +818,44 @@ class TestPageProperties:
         """リビジョンプロパティが正しく動作する"""
         mock_response = MagicMock()
         mock_response.json.return_value = page_revisionlist
-        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         revisions = mock_page_with_id.revisions
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "history/PageRevisionListModule",
+                    "page_id": 12345,
+                    "options": {"all": True},
+                    "perpage": 100000000,
+                }
+            ]
+        )
         assert len(revisions) == 3
+
+    def test_revisions_property_raises_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """リビジョン取得リトライが尽きた場合は空履歴に見せかけない"""
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.NotFoundException, match="Cannot find page revisions"):
+            _ = mock_page_with_id.revisions
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "history/PageRevisionListModule",
+                    "page_id": 12345,
+                    "options": {"all": True},
+                    "perpage": 100000000,
+                }
+            ]
+        )
+        assert mock_page_with_id._revisions is None
 
     def test_latest_revision(self, mock_page_with_id: Page, page_revisionlist: dict[str, Any]) -> None:
         """最新リビジョンを取得できる"""
