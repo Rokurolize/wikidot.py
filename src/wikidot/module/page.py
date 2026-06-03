@@ -1353,15 +1353,18 @@ class Page:
         -------
         PageFileCollection
             Collection of files attached to the page
+
+        Raises
+        ------
+        NotFoundException
+            When the file list is not found
         """
         if self._files is None:
             PageCollection(self.site, [self]).get_page_files()
 
-        # _files should be set by get_page_files(), but provide a fallback
         if self._files is None:
-            from .page_file import PageFileCollection
+            raise exceptions.NotFoundException("Cannot find page files")
 
-            self._files = PageFileCollection(page=self, files=[])
         return self._files
 
     def destroy(self) -> None:

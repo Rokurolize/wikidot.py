@@ -856,6 +856,37 @@ class TestPageProperties:
         with pytest.raises(exceptions.NotFoundException):
             _ = mock_page_with_id.latest_revision
 
+    def test_files_property_auto_acquire_empty_response(self, mock_page_with_id: Page) -> None:
+        """ファイルなしの正常レスポンスは空のコレクションとして扱う"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "<div>No files</div>"}
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        files = mock_page_with_id.files
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "files/PageFilesModule", "page_id": 12345}]
+        )
+        assert files is mock_page_with_id._files
+        assert files.page is mock_page_with_id
+        assert len(files) == 0
+
+    def test_files_property_raises_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """ファイル取得リトライが尽きた場合は空リストに見せかけない"""
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.NotFoundException, match="Cannot find page files"):
+            _ = mock_page_with_id.files
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "files/PageFilesModule", "page_id": 12345}]
+        )
+        assert mock_page_with_id._files is None
+
 
 class TestPageWriteMethods:
     """Pageの書き込み系メソッドテスト"""
