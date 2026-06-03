@@ -198,6 +198,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         ForumPostRevisionCollection
             Collection containing all revisions for the post
         """
+        if post._revisions is not None:
+            return post._revisions
+
         response = post.thread.site.amc_request_with_retry(
             [
                 {

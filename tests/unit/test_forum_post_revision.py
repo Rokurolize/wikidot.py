@@ -225,6 +225,26 @@ class TestForumPostRevisionCollectionAcquireAll:
             ]
         )
 
+    def test_acquire_all_skips_cached_post_revisions(self, mock_forum_post_no_http: ForumPost) -> None:
+        """取得済みpost.revisionsは単一post取得でも再取得しない"""
+        cached_revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+        )
+        cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
+        mock_forum_post_no_http._revisions = cached_collection
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        collection = ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        assert collection is cached_collection
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+
     def test_acquire_all(self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]) -> None:
         """リビジョン一覧を取得できる"""
         mock_response = MagicMock()
