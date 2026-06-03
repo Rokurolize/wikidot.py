@@ -40,6 +40,26 @@ class TestUserParserRegularUser:
         assert result.id == 99999
         assert result.name == "another-user"
 
+    def test_parse_regular_user_preserves_display_name_text_spacing(self, mock_client_no_http: MagicMock) -> None:
+        """装飾要素を含む表示名の語境界を保持する"""
+        html = """
+        <span class="printuser">
+            <a href="http://www.wikidot.com/user:info/first-part-user"
+               onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">
+                <span>First <em>Part</em></span><span>User</span>
+            </a>
+        </span>
+        """
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        result = user_parse(mock_client_no_http, elem)
+
+        assert isinstance(result, User)
+        assert result.name == "First Part User"
+        assert result.unix_name == "first-part-user"
+
     def test_parse_https_user_url(self, mock_client_no_http: MagicMock) -> None:
         """httpsのuser:info URLからunix nameを抽出できる"""
         html = '<span class="printuser"><a href="https://www.wikidot.com/user:info/secure-user" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">secure-user</a></span>'

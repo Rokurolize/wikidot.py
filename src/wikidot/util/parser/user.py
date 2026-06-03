@@ -66,7 +66,7 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
     _user = user_links[-1]
     if not isinstance(_user, bs4.Tag):
         raise ValueError("link element is not found")
-    user_name = _user.get_text()
+    user_name = _user.get_text(" ", strip=True)
     href = str(_user.get("href", ""))
     user_unix_match = re.search(r"(?:https?://www\.wikidot\.com)?/user:info/([^?#]+)", href)
     user_unix = user_unix_match.group(1) if user_unix_match is not None else href
