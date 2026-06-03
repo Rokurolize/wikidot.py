@@ -160,7 +160,7 @@ def _mask_sensitive_data(body: dict[str, Any]) -> dict[str, Any]:
     dict[str, Any]
         Dictionary with sensitive information masked
     """
-    sensitive_keys = {"password", "login", "WIKIDOT_SESSION_ID", "wikidot_token7"}
+    sensitive_keys = {"password", "login", "WIKIDOT_SESSION_ID", "wikidot_token7", "lock_secret"}
 
     def mask_value(value: Any) -> Any:
         if isinstance(value, dict):

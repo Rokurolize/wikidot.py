@@ -40,6 +40,20 @@ class TestMaskSensitiveData:
         result = _mask_sensitive_data(body)
         assert result["wikidot_token7"] == "***MASKED***"
 
+    def test_masks_page_lock_secret(self):
+        """savePageで使うlock_secretがマスクされる"""
+        body = {
+            "action": "WikiPageAction",
+            "lock_secret": "secret456",
+            "nested": {"lock_secret": "nested-secret"},
+        }
+
+        result = _mask_sensitive_data(body)
+
+        assert result["lock_secret"] == "***MASKED***"
+        assert result["nested"]["lock_secret"] == "***MASKED***"
+        assert body["lock_secret"] == "secret456"
+
     def test_preserves_non_sensitive_data(self):
         """機密でないデータは保持される"""
         body = {"moduleName": "test", "page_id": 123}
