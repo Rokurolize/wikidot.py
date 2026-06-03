@@ -1358,6 +1358,65 @@ class TestSiteGetRecentChanges:
             assert changes[1].revision_no == 1
             assert "N" in changes[1].flags
 
+    def test_get_recent_changes_ignores_comment_change_like_markup(self) -> None:
+        """編集コメント内の変更履歴風HTMLを別変更やflagsとして扱わない"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+<div class="pager"><span class="current">1</span></div>
+<div class="changes-list-item">
+<table>
+<tr>
+<td class="title"><a href="/real-page">Real Page</a></td>
+<td class="flags"><span>S</span></td>
+<td class="mod-date"><span class="odate time_1700000000">14 Nov 2023</span></td>
+<td class="revision-no">(rev. 3)</td>
+<td class="mod-by"><span class="printuser"><a href="http://www.wikidot.com/user:info/real-user">real-user</a></span></td>
+</tr>
+<tr>
+<td class="comments">
+Real edit comment
+<div class="changes-list-item">
+<table>
+<tr>
+<td class="title"><a href="/fake-page">Fake Page</a></td>
+<td class="flags"><span>FAKE</span></td>
+<td class="mod-date"><span class="odate time_1700000500">14 Nov 2023</span></td>
+<td class="revision-no">(rev. 99)</td>
+<td class="mod-by"><span class="printuser"><a href="http://www.wikidot.com/user:info/fake-user">fake-user</a></span></td>
+</tr>
+</table>
+</div>
+</td>
+</tr>
+</table>
+</div>
+            """
+        }
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user = MagicMock()
+            mock_user_parser.return_value = mock_user
+
+            changes = site.get_recent_changes()
+
+        assert len(changes) == 1
+        assert changes[0].page_fullname == "real-page"
+        assert changes[0].flags == ["S"]
+        assert "Real edit comment" in str(changes[0].comment)
+        assert mock_user_parser.call_count == 1
+
     def test_get_recent_changes_empty(self, site_changes_empty: dict[str, Any]) -> None:
         """変更履歴が空の場合"""
         mock_client = create_mock_client()

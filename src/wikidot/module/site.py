@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast, overload
 
 import httpx
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 if sys.version_info >= (3, 12):
     from typing import Unpack
@@ -1194,25 +1194,42 @@ class Site:
 
         def iter_changes(html: BeautifulSoup) -> Iterator[SiteChange]:
             for item in html.select("div.changes-list-item"):
-                comment_elem = item.select_one("td.comments")
+                if item.find_parent("table") is not None:
+                    continue
+
+                table_elem = item.find("table", recursive=False)
+                if not isinstance(table_elem, Tag):
+                    raise NoElementException("Change table element is not found.")
+
+                rows = table_elem.find_all("tr", recursive=False)
+                if not rows:
+                    raise NoElementException("Change row element is not found.")
+
+                metadata_row = rows[0]
+
+                comment_elem = rows[1].find("td", class_="comments", recursive=False) if len(rows) > 1 else None
                 comment = comment_elem.get_text().strip() if comment_elem else None
                 if comment == "":
                     comment = None
 
-                title_elem = item.select_one("td.title a")
-                if title_elem is None:
+                title_cell = metadata_row.find("td", class_="title", recursive=False)
+                title_elem = title_cell.find("a", recursive=False) if isinstance(title_cell, Tag) else None
+                if not isinstance(title_elem, Tag):
                     raise NoElementException("Title element is not found.")
 
                 page_title = title_elem.get_text().strip()
                 href = title_elem.get("href", "")
                 page_fullname = str(href).strip("/")
 
-                odate_elem = item.select_one("td.mod-date span.odate")
-                if odate_elem is None:
+                date_cell = metadata_row.find("td", class_="mod-date", recursive=False)
+                odate_elem = (
+                    date_cell.find("span", class_="odate", recursive=False) if isinstance(date_cell, Tag) else None
+                )
+                if not isinstance(odate_elem, Tag):
                     raise NoElementException("Odate element is not found.")
                 changed_at = odate_parser(odate_elem)
 
-                rev_elem = item.select_one("td.revision-no")
+                rev_elem = metadata_row.find("td", class_="revision-no", recursive=False)
                 if rev_elem is None:
                     raise NoElementException("Revision number element is not found.")
                 rev_text = rev_elem.get_text()
@@ -1221,12 +1238,16 @@ class Site:
                     raise NoElementException("Revision number is not found.")
                 revision_no = int(rev_match.group(1))
 
-                user_elem = item.select_one("td.mod-by span.printuser")
+                user_cell = metadata_row.find("td", class_="mod-by", recursive=False)
+                user_elem = (
+                    user_cell.find("span", class_="printuser", recursive=False) if isinstance(user_cell, Tag) else None
+                )
                 if user_elem is None:
                     raise NoElementException("User element is not found.")
                 changed_by = user_parser(self.client, user_elem)
 
-                flags_elem = item.select("td.flags span")
+                flags_cell = metadata_row.find("td", class_="flags", recursive=False)
+                flags_elem = flags_cell.find_all("span", recursive=False) if isinstance(flags_cell, Tag) else []
                 flags = [span.get_text().strip() for span in flags_elem]
 
                 yield (
