@@ -143,6 +143,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [137-pr-skip-empty-requestutil-url-batches.md](137-pr-skip-empty-requestutil-url-batches.md): upstream PR draft for the committed empty RequestUtil URL batch fast path.
 - [138-pr-reuse-requestutil-async-client.md](138-pr-reuse-requestutil-async-client.md): upstream PR draft for the committed RequestUtil per-batch AsyncClient reuse.
 - [139-pr-skip-empty-amc-retry-batches.md](139-pr-skip-empty-amc-retry-batches.md): upstream PR draft for the committed empty AMC retry batch fast path.
+- [140-pr-skip-empty-site-amc-request-batches.md](140-pr-skip-empty-site-amc-request-batches.md): upstream PR draft for the committed empty site AMC request batch fast path.
 
 ## Local Evidence Index
 
@@ -193,5 +194,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 41: `c5f173c perf(requestutil): skip empty URL batches`
 - Local implementation commits, continued 42: `8923c94 perf(requestutil): reuse async client per batch`
 - Local implementation commits, continued 43: `06b56a5 perf(site): skip empty amc retry batches`
+- Local implementation commits, continued 44: `4c650d1 perf(site): skip empty amc request batches`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
