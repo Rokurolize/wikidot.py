@@ -935,6 +935,13 @@ class Site:
         tuple[httpx.Response | None, ...]
             Responses for each body. None for permanently failed requests.
         """
+        if batch_size is not None and batch_size <= 0:
+            raise ValueError(f"batch_size must be positive, got {batch_size}")
+        if max_retries is not None and max_retries < 0:
+            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+        if len(bodies) == 0:
+            return ()
+
         config = self.client.amc_client.config
         batch_size = batch_size if batch_size is not None else config.retry_batch_size
         max_retries = max_retries if max_retries is not None else config.retry_max_retries

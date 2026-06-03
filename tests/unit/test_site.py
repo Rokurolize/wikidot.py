@@ -1105,6 +1105,33 @@ class TestSiteAmcRequest:
         assert call_args[0][2] == "test"  # site_name
         assert call_args[0][3] is True  # ssl_supported
 
+    def test_amc_request_with_retry_empty_bodies_returns_empty_without_config(self) -> None:
+        """空AMC retry batchはclient configに触れず空tupleを返す"""
+
+        class ClientWithoutAmc:
+            @property
+            def amc_client(self):
+                raise AssertionError("empty retry batches should not read amc_client")
+
+        site = Site(
+            client=ClientWithoutAmc(),
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        assert site.amc_request_with_retry([]) == ()
+
+    def test_amc_request_with_retry_empty_bodies_still_validates_explicit_batch_size(
+        self,
+        mock_site_no_http: Site,
+    ) -> None:
+        """空AMC retry batchでも明示的な不正batch_sizeは拒否する"""
+        with pytest.raises(ValueError, match="batch_size must be positive"):
+            mock_site_no_http.amc_request_with_retry([], batch_size=0)
+
 
 class TestSiteInviteUser:
     """Site.invite_user のテスト"""
