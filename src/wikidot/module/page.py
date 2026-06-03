@@ -734,14 +734,19 @@ class PageCollection(list["Page"]):
             return pages
 
         PageCollection._acquire_page_ids(site, target_pages)
+        target_pages_by_id: dict[int, list[Page]] = {}
+        for page in target_pages:
+            target_pages_by_id.setdefault(page.id, []).append(page)
+
         responses = site.amc_request_with_retry(
-            [{"moduleName": "viewsource/ViewSourceModule", "page_id": page.id} for page in target_pages]
+            [{"moduleName": "viewsource/ViewSourceModule", "page_id": page_id} for page_id in target_pages_by_id]
         )
 
         source_error: exceptions.NoElementException | None = None
-        for page, response in zip(target_pages, responses, strict=True):
+        for page_id, response in zip(target_pages_by_id, responses, strict=True):
             if response is None:
                 continue
+            target_pages_for_id = target_pages_by_id[page_id]
             body = response.json()["body"]
             # nbspをスペースに置換
             body = body.replace("&nbsp;", " ")
@@ -749,12 +754,14 @@ class PageCollection(list["Page"]):
             source_element = html.select_one("div.page-source")
             if source_element is None:
                 if source_error is None:
+                    first_page = target_pages_for_id[0]
                     source_error = exceptions.NoElementException(
-                        f"Cannot find source element for page: {page.fullname} (id={page.id})"
+                        f"Cannot find source element for page: {first_page.fullname} (id={first_page.id})"
                     )
                 continue
             source = extract_page_source_text(source_element)
-            page.source = PageSource(page, source)
+            for page in target_pages_for_id:
+                page.source = PageSource(page, source)
         if source_error is not None:
             raise source_error
         return pages

@@ -613,6 +613,26 @@ class TestPageCollectionAcquire:
         assert mock_page_with_id._source.wiki_text == "cached content"
         assert second_page._source is not None
 
+    def test_acquire_sources_deduplicates_duplicate_page_ids(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
+    ) -> None:
+        """同じpage_idの未取得sourceは1回だけ取得し重複ページへ反映する"""
+        duplicate_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        duplicate_page.id = mock_page_with_id.id
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, duplicate_page])
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(page_viewsource),))
+
+        collection.get_page_sources()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [mock_page_with_id.id]
+        assert mock_page_with_id._source is not None
+        assert duplicate_page._source is not None
+        assert mock_page_with_id._source.wiki_text == duplicate_page._source.wiki_text
+
     def test_acquire_revisions_batches_missing_page_ids(
         self,
         monkeypatch: pytest.MonkeyPatch,
