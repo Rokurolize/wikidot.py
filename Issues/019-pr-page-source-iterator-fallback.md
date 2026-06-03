@@ -75,3 +75,5 @@ Follow-up [022-pr-source-iterator-large-fallback-batch.md](022-pr-source-iterato
 Follow-up [025-pr-source-result-error-page-context.md](025-pr-source-result-error-page-context.md) keeps the same `PageSourceResult` shape but includes the failed page fullname in unresolved-source error messages.
 
 Follow-up [026-pr-source-iterator-parse-failure-isolation.md](026-pr-source-iterator-parse-failure-isolation.md) keeps malformed source response parsing failures inside the same per-page `PageSourceResult.error` path instead of aborting the iterator.
+
+Follow-up [027-pr-source-result-wiki-text.md](027-pr-source-result-wiki-text.md) exposes successful source text directly as `PageSourceResult.wiki_text` while failed results return `None`.
