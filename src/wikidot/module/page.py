@@ -777,9 +777,19 @@ class PageCollection(list["Page"]):
             return pages
 
         PageCollection._acquire_page_ids(site, target_pages)
+        acquired_source_text_by_id = {
+            page.id: page._source.wiki_text for page in pages if page._source is not None and page._id is not None
+        }
         target_pages_by_id: dict[int, list[Page]] = {}
         for page in target_pages:
+            acquired_source_text = acquired_source_text_by_id.get(page.id)
+            if acquired_source_text is not None:
+                page.source = PageSource(page, acquired_source_text)
+                continue
             target_pages_by_id.setdefault(page.id, []).append(page)
+
+        if len(target_pages_by_id) == 0:
+            return pages
 
         responses = site.amc_request_with_retry(
             [{"moduleName": "viewsource/ViewSourceModule", "page_id": page_id} for page_id in target_pages_by_id]
