@@ -212,6 +212,19 @@ class TestForumThreadCollectionAcquireAll:
 class TestForumThreadCollectionAcquireFromIds:
     """ForumThreadCollection.acquire_from_thread_idsのテスト"""
 
+    def test_site_get_threads_empty_input_skips_fetch(self, mock_site_no_http: Site) -> None:
+        """空のスレッドIDリストはAMC取得なしで空コレクションを返す"""
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock()
+
+        collection = mock_site_no_http.get_threads([])
+
+        assert isinstance(collection, ForumThreadCollection)
+        assert collection.site == mock_site_no_http
+        assert len(collection) == 0
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
     def test_acquire_from_ids_success(self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]) -> None:
         """スレッドIDからスレッド情報を取得できる"""
         mock_response = MagicMock()

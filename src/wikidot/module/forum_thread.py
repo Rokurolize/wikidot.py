@@ -358,6 +358,9 @@ class ForumThreadCollection(list["ForumThread"]):
         ForumThreadCollection
             Collection of retrieved thread information
         """
+        if len(thread_ids) == 0:
+            return ForumThreadCollection(site=site, threads=[])
+
         target_thread_ids = list(dict.fromkeys(thread_ids))
         responses = site.amc_request_with_retry(
             [
