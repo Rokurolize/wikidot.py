@@ -90,11 +90,15 @@ class SiteApplication:
 
         applications = []
 
-        application_headers = [header for header in html.select("h3") if header.select_one("span.printuser")]
+        application_headers = [
+            header
+            for header in html.select("h3")
+            if header.find_parent("table") is None and header.find("span", class_="printuser", recursive=False)
+        ]
         used_text_tables: set[int] = set()
 
         for header in application_headers:
-            user_element = header.select_one("span.printuser")
+            user_element = header.find("span", class_="printuser", recursive=False)
             if user_element is None:
                 continue
 
@@ -105,7 +109,11 @@ class SiteApplication:
                 raise exceptions.UnexpectedException("Length of application users and text tables are different")
             used_text_tables.add(id(text_wrapper_element))
 
-            text_cells = text_wrapper_element.select("td")
+            text_row = text_wrapper_element.find("tr", recursive=False)
+            if not isinstance(text_row, Tag):
+                raise exceptions.NoElementException("Application text row is not found")
+
+            text_cells = text_row.find_all("td", recursive=False)
             if len(text_cells) < 2:
                 raise exceptions.NoElementException("Application text cell is not found")
 

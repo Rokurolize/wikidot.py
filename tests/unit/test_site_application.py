@@ -179,6 +179,56 @@ class TestSiteApplicationAcquireAll:
             assert len(applications) == 1
             assert applications[0].text == "I want to join this wiki"
 
+    def test_acquire_all_ignores_application_like_body_markup(self):
+        """申請本文内の申請風HTMLを別申請として扱わない"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <div>
+                    <h3><span class="printuser">
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                    </span></h3>
+                    <table>
+                        <tr>
+                            <td>Application text:</td>
+                            <td>
+                                I want to join this wiki.
+                                <h3><span class="printuser">
+                                    <a onclick="WIKIDOT.page.listeners.userInfo(99999)" href="#">ContentUser</a>
+                                </span></h3>
+                                <table>
+                                    <tr>
+                                        <td>Application text:</td>
+                                        <td>Fake nested application</td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Options:</td>
+                            <td>accept / decline</td>
+                        </tr>
+                    </table>
+                </div>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
+            mock_user = MagicMock()
+            mock_user_parser.return_value = mock_user
+
+            applications = SiteApplication.acquire_all(site)
+
+        assert len(applications) == 1
+        assert applications[0].user == mock_user
+        assert "I want to join this wiki." in applications[0].text
+        assert mock_user_parser.call_count == 1
+
     def test_acquire_all_empty(self):
         """申請なしの場合"""
         mock_client = create_mock_client(is_logged_in=True)
