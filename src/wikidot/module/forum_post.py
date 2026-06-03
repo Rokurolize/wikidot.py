@@ -378,10 +378,18 @@ class ForumPostCollection(list["ForumPost"]):
         if len(posts) == 0:
             return posts
 
+        sources_by_id: dict[int, str] = {}
+        for post in posts:
+            if post._source is not None:
+                sources_by_id[post.id] = post._source
+
         target_posts: list[ForumPost] = []
         target_posts_by_id: dict[int, list[ForumPost]] = {}
         for post in posts:
             if post._source is not None:
+                continue
+            if post.id in sources_by_id:
+                post._source = sources_by_id[post.id]
                 continue
             if post.id not in target_posts_by_id:
                 target_posts.append(post)

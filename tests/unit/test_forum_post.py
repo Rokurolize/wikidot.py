@@ -590,6 +590,37 @@ class TestForumPostCollectionGetSources:
             ]
         )
 
+    def test_get_post_sources_reuses_cached_duplicate_post_source(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """取得済みの重複投稿ソースを未取得の同一ID投稿へ再利用する"""
+        mock_forum_post_no_http._source = "cached source"
+        duplicate_post = ForumPost(
+            thread=mock_forum_thread_no_http,
+            id=mock_forum_post_no_http.id,
+            title="Duplicate Post",
+            text="<p>Duplicate post content</p>",
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+        )
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http, duplicate_post])
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_editpost_form
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        result = collection.get_post_sources()
+
+        assert result == collection
+        assert duplicate_post._source == "cached source"
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+
     def test_get_post_sources_skips_failed_retry_response(
         self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
     ) -> None:
