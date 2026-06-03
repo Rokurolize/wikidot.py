@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Optional
 
 from bs4 import BeautifulSoup, NavigableString
 
-from ..common.exceptions import NoElementException
+from ..common.exceptions import NoElementException, UnexpectedException
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 
@@ -283,7 +283,7 @@ class ForumThreadCollection(list["ForumThread"]):
         """
         threads: list[ForumThread] = []
 
-        first_response = category.site.amc_request(
+        first_response = category.site.amc_request_with_retry(
             [
                 {
                     "p": 1,
@@ -292,6 +292,8 @@ class ForumThreadCollection(list["ForumThread"]):
                 }
             ]
         )[0]
+        if first_response is None:
+            raise UnexpectedException("Cannot retrieve forum threads page: 1")
 
         first_body = first_response.json()["body"]
         first_html = BeautifulSoup(first_body, "lxml")
@@ -312,6 +314,7 @@ class ForumThreadCollection(list["ForumThread"]):
         if last_page == 1:
             return ForumThreadCollection(site=category.site, threads=threads)
 
+        page_numbers = list(range(2, last_page + 1))
         responses = category.site.amc_request_with_retry(
             [
                 {
@@ -319,13 +322,13 @@ class ForumThreadCollection(list["ForumThread"]):
                     "c": category.id,
                     "moduleName": "forum/ForumViewCategoryModule",
                 }
-                for page in range(2, last_page + 1)
+                for page in page_numbers
             ]
         )
 
-        for response in responses:
+        for page, response in zip(page_numbers, responses, strict=True):
             if response is None:
-                continue
+                raise UnexpectedException(f"Cannot retrieve forum threads page: {page}")
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
             threads.extend(ForumThreadCollection._parse_list_in_category(category.site, html, category))
