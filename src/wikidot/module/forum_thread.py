@@ -226,22 +226,26 @@ class ForumThreadCollection(list["ForumThread"]):
         description = "".join(
             [text.strip() for text in description_block_elem if isinstance(text, NavigableString) and text.strip()]
         )
+        statistics_elems = description_block_elem.find_all("div", class_="statistics", recursive=False)
+        if not statistics_elems:
+            raise NoElementException("Statistics element is not found.")
+        statistics_elem = statistics_elems[-1]
 
         # created_by取得処理
-        user_elem = html.select_one("div.statistics span.printuser")
+        user_elem = statistics_elem.find("span", class_="printuser", recursive=False)
         if user_elem is None:
             raise NoElementException("User element is not found.")
         created_by = user_parser(site.client, user_elem)
 
         # created_at取得処理
-        odate_elem = html.select_one("div.statistics span.odate")
+        odate_elem = statistics_elem.find("span", class_="odate", recursive=False)
         if odate_elem is None:
             raise NoElementException("Odate element is not found.")
         created_at = odate_parser(odate_elem)
 
         # post_count取得処理
         # 3番目のbrの前のテキスト
-        br_tags = html.select("div.statistics br")
+        br_tags = statistics_elem.find_all("br", recursive=False)
         if len(br_tags) < 3:
             raise NoElementException("Br tags are not enough.")
         post_count_elem = br_tags[2].previous_sibling

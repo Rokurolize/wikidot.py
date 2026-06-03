@@ -288,6 +288,32 @@ class TestForumThreadCollectionAcquireFromIds:
         assert collection[0].id == 3001
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_from_ids_ignores_description_statistics_markup(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """スレッド説明内のstatistics風マークアップを詳細メタデータとして扱わない"""
+        fake_statistics = (
+            "Test thread description"
+            '<div class="statistics">Started by: '
+            '<span class="printuser"><a href="http://www.wikidot.com/user:info/content-user" '
+            'onclick="WIKIDOT.page.listeners.userInfo(99999); return false;">content_user</a></span><br/>'
+            'Date: <span class="odate time_1700000500">17 Dec 2025</span><br/>'
+            "Number of posts: 999<br/><br/></div>"
+        )
+        body = forum_thread_detail["body"].replace("Test thread description", fake_statistics, 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        assert len(collection) == 1
+        assert collection[0].created_by.name == "test_user"
+        assert int(collection[0].created_at.timestamp()) == 1700000000
+        assert collection[0].post_count == 5
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_site_get_threads_retries_transient_fetch_failures(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
     ) -> None:
