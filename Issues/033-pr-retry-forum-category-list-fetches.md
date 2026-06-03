@@ -65,4 +65,4 @@ Forum category inspection is a read-heavy Wikidot workflow and a prerequisite fo
 
 ## Additional Notes
 
-This slice does not change category parsing rules, thread caching, `ForumCategory.create_thread(...)`, or thread retrieval. It only moves the forum category list read to the established retry-aware AMC helper and makes exhausted retries explicit.
+This slice does not change category parsing rules, thread caching, `ForumCategory.create_thread(...)`, or thread retrieval. It only moves the forum category list read to the established retry-aware AMC helper and makes exhausted retries explicit. Follow-up parser-boundary work in [086-pr-ignore-nested-category-tables.md](086-pr-ignore-nested-category-tables.md) narrows category row parsing without changing this retry behavior.
