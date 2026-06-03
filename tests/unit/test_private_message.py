@@ -9,7 +9,12 @@ from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 
-from wikidot.common.exceptions import ForbiddenException, LoginRequiredException, NoElementException
+from wikidot.common.exceptions import (
+    ForbiddenException,
+    LoginRequiredException,
+    NoElementException,
+    UnexpectedException,
+)
 from wikidot.module.client import Client
 from wikidot.module.private_message import (
     PrivateMessage,
@@ -25,6 +30,8 @@ def mock_client():
     client = create_autospec(Client, instance=True)
     client.is_logged_in = True
     client.amc_client = MagicMock()
+    client.amc_client.config.retry_batch_size = 50
+    client.amc_client.config.retry_max_retries = 3
     return client
 
 
@@ -115,6 +122,35 @@ class TestPrivateMessageCollection:
                 assert len(result) == 1
                 assert result[0].id == 1
 
+    def test_from_ids_retries_transient_detail_failures(self, mock_client):
+        """一時的なAMC失敗後にメッセージ詳細取得をリトライする"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                    <span class="subject">Test Subject</span>
+                    <span class="odate time_1234567890">01 Jan 2023 12:00</span>
+                </div>
+                <div class="body">Test Body</div>
+            </div>
+            """
+        }
+
+        mock_client.amc_client.request.side_effect = [(RuntimeError("temporary failure"),), (mock_response,)]
+
+        with patch("wikidot.module.private_message.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+            with patch("wikidot.module.private_message.odate_parser") as mock_odate_parser:
+                mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
+
+                result = PrivateMessageCollection.from_ids(mock_client, [1])
+
+        assert len(result) == 1
+        assert mock_client.amc_client.request.call_count == 2
+
     def test_from_ids_forbidden_error(self, mock_client):
         """from_idsでアクセス権限エラー"""
         from wikidot.common.exceptions import WikidotStatusCodeException
@@ -126,6 +162,16 @@ class TestPrivateMessageCollection:
 
         with pytest.raises(ForbiddenException):
             PrivateMessageCollection.from_ids(mock_client, [1])
+
+    def test_from_ids_raises_when_detail_retry_is_exhausted(self, mock_client):
+        """メッセージ詳細のリトライが尽きた場合は明示的に例外を出す"""
+        mock_client.amc_client.config.retry_max_retries = 1
+        mock_client.amc_client.request.return_value = (RuntimeError("temporary failure"),)
+
+        with pytest.raises(UnexpectedException, match="Cannot retrieve private message: 1"):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
+        assert mock_client.amc_client.request.call_count == 2
 
     def test_from_ids_missing_sender_or_recipient_raises(self, mock_client):
         """送受信者要素が欠けたメッセージ詳細はNoElementException"""
@@ -183,6 +229,46 @@ class TestPrivateMessageCollection:
             PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
 
         mock_from_ids.assert_called_once_with(mock_client, [123])
+
+    def test_acquire_retries_transient_first_page_failures(self, mock_client):
+        """一時的なAMC失敗後にメッセージ一覧の初回ページをリトライする"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": '<table><tr class="message" data-href="/account/messages/view/123"></tr></table>'
+        }
+        mock_client.amc_client.request.side_effect = [(RuntimeError("temporary failure"),), (mock_response,)]
+
+        with patch.object(
+            PrivateMessageCollection, "from_ids", return_value=PrivateMessageCollection([])
+        ) as mock_from_ids:
+            PrivateMessageInbox.acquire(mock_client)
+
+        assert mock_client.amc_client.request.call_count == 2
+        mock_from_ids.assert_called_once_with(mock_client, [123])
+
+    def test_acquire_raises_when_paginated_retry_is_exhausted(self, mock_client):
+        """追加ページのリトライが尽きた場合は部分一覧を返さない"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            "body": """
+            <div class="pager"><span class="target">1</span><span class="target">2</span></div>
+            <table><tr class="message" data-href="/account/messages/view/123"></tr></table>
+            """
+        }
+        mock_client.amc_client.config.retry_max_retries = 1
+        mock_client.amc_client.request.side_effect = [
+            (first_response,),
+            (RuntimeError("temporary failure"),),
+            (RuntimeError("temporary failure"),),
+        ]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(UnexpectedException, match="Cannot retrieve private messages page: 2"),
+        ):
+            PrivateMessageInbox.acquire(mock_client)
+
+        mock_from_ids.assert_not_called()
 
 
 class TestPrivateMessageInbox:

@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup, ResultSet, Tag
 from typing_extensions import Self
@@ -75,6 +75,69 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         return None
 
     @staticmethod
+    def _amc_request_with_retry(client: "Client", bodies: list[dict[str, Any]]) -> tuple[Any | None, ...]:
+        config = getattr(client.amc_client, "config", None)
+        batch_size = getattr(config, "retry_batch_size", 50)
+        max_retries = getattr(config, "retry_max_retries", 3)
+
+        if not isinstance(batch_size, int):
+            batch_size = 50
+        if not isinstance(max_retries, int):
+            max_retries = 3
+        if batch_size <= 0:
+            raise ValueError(f"batch_size must be positive, got {batch_size}")
+        if max_retries < 0:
+            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+
+        def should_retry(response: Any) -> bool:
+            if not isinstance(response, Exception):
+                return False
+            return not (
+                isinstance(response, exceptions.ForbiddenException)
+                or (
+                    isinstance(response, exceptions.WikidotStatusCodeException) and response.status_code == "no_message"
+                )
+            )
+
+        all_results: list[Any | None] = []
+
+        for batch_start in range(0, len(bodies), batch_size):
+            batch = bodies[batch_start : batch_start + batch_size]
+            responses = client.amc_client.request(batch, return_exceptions=True)
+            batch_results: list[Any | None] = []
+            failed_indices: list[int] = []
+
+            for index, response in enumerate(responses):
+                batch_results.append(response)
+                if should_retry(response):
+                    failed_indices.append(index)
+
+            for _attempt in range(max_retries):
+                if not failed_indices:
+                    break
+
+                retry_responses = client.amc_client.request(
+                    [batch[index] for index in failed_indices],
+                    return_exceptions=True,
+                )
+                still_failed_indices: list[int] = []
+
+                for retry_index, retry_response in enumerate(retry_responses):
+                    result_index = failed_indices[retry_index]
+                    batch_results[result_index] = retry_response
+                    if should_retry(retry_response):
+                        still_failed_indices.append(result_index)
+
+                failed_indices = still_failed_indices
+
+            for index in failed_indices:
+                batch_results[index] = None
+
+            all_results.extend(batch_results)
+
+        return tuple(all_results)
+
+    @staticmethod
     @login_required
     def from_ids(client: "Client", message_ids: list[int]) -> "PrivateMessageCollection":
         """
@@ -111,7 +174,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
                 }
             )
 
-        responses = client.amc_client.request(bodies, return_exceptions=True)
+        responses = PrivateMessageCollection._amc_request_with_retry(client, bodies)
 
         messages = []
 
@@ -119,6 +182,9 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             if isinstance(response, exceptions.WikidotStatusCodeException):
                 if response.status_code == "no_message":
                     raise exceptions.ForbiddenException(f"Failed to get message: {message_ids[index]}") from response
+
+            if response is None:
+                raise exceptions.UnexpectedException(f"Cannot retrieve private message: {message_ids[index]}")
 
             if isinstance(response, Exception):
                 raise response
@@ -177,9 +243,13 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             If not logged in
         """
         # pager取得
-        response = client.amc_client.request([{"moduleName": module_name}])[0]
+        first_response = PrivateMessageCollection._amc_request_with_retry(client, [{"moduleName": module_name}])[0]
+        if first_response is None:
+            raise exceptions.UnexpectedException("Cannot retrieve private messages page: 1")
+        if isinstance(first_response, Exception):
+            raise first_response
 
-        html = BeautifulSoup(response.json()["body"], "lxml")
+        html = BeautifulSoup(first_response.json()["body"], "lxml")
         # pagerの最後から2番目の要素を取得
         # pageが存在しない場合は1ページのみ
         pager: ResultSet[Tag] = html.select("div.pager span.target")
@@ -192,14 +262,23 @@ class PrivateMessageCollection(list["PrivateMessage"]):
 
         if max_page > 1:
             # メッセージ取得
-            bodies = [{"page": page, "moduleName": module_name} for page in range(1, max_page + 1)]
-
-            responses = client.amc_client.request(bodies, return_exceptions=False)
+            page_numbers = list(range(2, max_page + 1))
+            additional_responses = PrivateMessageCollection._amc_request_with_retry(
+                client,
+                [{"page": page, "moduleName": module_name} for page in page_numbers],
+            )
+            responses = (first_response, *additional_responses)
+            response_pages = (1, *page_numbers)
         else:
-            responses = (response,)
+            responses = (first_response,)
+            response_pages = (1,)
 
         message_ids = []
-        for response in responses:
+        for page, response in zip(response_pages, responses, strict=True):
+            if response is None:
+                raise exceptions.UnexpectedException(f"Cannot retrieve private messages page: {page}")
+            if isinstance(response, Exception):
+                raise response
             html = BeautifulSoup(response.json()["body"], "lxml")
             for message_row in html.select("tr.message"):
                 data_href = message_row.get("data-href")
