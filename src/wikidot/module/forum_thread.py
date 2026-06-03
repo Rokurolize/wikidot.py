@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from bs4 import BeautifulSoup, NavigableString
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 from ..common.exceptions import NoElementException, UnexpectedException
 from ..util.parser import odate as odate_parser
@@ -85,6 +85,31 @@ class ForumThreadCollection(list["ForumThread"]):
             if thread.id == id:
                 return thread
         return None
+
+    @staticmethod
+    def _pager_from_html(html: BeautifulSoup) -> Tag | None:
+        for pager in html.select("div.pager"):
+            if ForumThreadCollection._is_inside_thread_description(pager):
+                continue
+            return pager
+        return None
+
+    @staticmethod
+    def _is_inside_thread_description(element: Tag) -> bool:
+        for ancestor in element.parents:
+            if not isinstance(ancestor, Tag):
+                continue
+            ancestor_classes = ancestor.get("class")
+            if not (isinstance(ancestor_classes, list) and "description" in ancestor_classes):
+                continue
+
+            parent = ancestor.parent
+            if not isinstance(parent, Tag):
+                continue
+            parent_classes = parent.get("class")
+            if parent.name == "td" and isinstance(parent_classes, list) and "name" in parent_classes:
+                return True
+        return False
 
     @staticmethod
     def _parse_list_in_category(
@@ -326,7 +351,7 @@ class ForumThreadCollection(list["ForumThread"]):
         threads.extend(ForumThreadCollection._parse_list_in_category(category.site, first_html, category))
 
         # pager検索
-        pager = first_html.select_one("div.pager")
+        pager = ForumThreadCollection._pager_from_html(first_html)
         if pager is None:
             return ForumThreadCollection(site=category.site, threads=threads)
 

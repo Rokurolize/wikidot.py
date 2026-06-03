@@ -207,6 +207,30 @@ class TestForumThreadCollectionAcquireAll:
         assert collection[0].post_count == 5
         assert collection[1].post_count == 3
 
+    def test_acquire_all_ignores_description_pager_markup(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド説明内のpager風マークアップをページネーションとして扱わない"""
+        body_with_description_pager = forum_threads_in_category["body"].replace(
+            '<div class="description">Test thread description</div>',
+            ('<div class="description">Test thread description<div class="pager"><a>1</a><a>2</a></div></div>'),
+            1,
+        )
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_description_pager}
+        second_response = MagicMock()
+        second_response.json.return_value = forum_threads_in_category
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(
+            side_effect=[(first_response,), (second_response,)]
+        )
+
+        collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        assert len(collection) == 2
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_called_once()
+
     def test_acquire_all_pagination(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
