@@ -74,3 +74,5 @@ Page revision inspection is read-heavy in history comparison, source auditing, p
 ## Additional Notes
 
 This does not change revision-list acquisition, ordering, parsing, lazy return types, current page source fetching, publishing, or mutation methods. It only removes duplicate source and HTML requests for repeated uncached page revision IDs.
+
+Follow-up: [063-pr-deduplicate-page-revision-list-fetches.md](063-pr-deduplicate-page-revision-list-fetches.md) removes duplicate page revision-list requests before individual revision source/HTML acquisition begins.

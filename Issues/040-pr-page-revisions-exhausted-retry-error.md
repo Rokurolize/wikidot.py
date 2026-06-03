@@ -77,3 +77,5 @@ Revision history is a core evidence surface for page inspection, publishing chec
 ## Additional Notes
 
 This slice does not change `PageCollection.get_page_revisions()`, revision parsing, revision source/HTML retrieval, request construction, retry policy, or partial-success handling. It only removes the property-level empty-collection result that hid a failed revision-list acquisition.
+
+Follow-up: [063-pr-deduplicate-page-revision-list-fetches.md](063-pr-deduplicate-page-revision-list-fetches.md) removes duplicate revision-list requests for repeated resolved page IDs while preserving this slice's failed-acquisition behavior.
