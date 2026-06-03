@@ -1417,6 +1417,33 @@ Real edit comment
         assert "Real edit comment" in str(changes[0].comment)
         assert mock_user_parser.call_count == 1
 
+    def test_get_recent_changes_preserves_comment_text_spacing(self, site_changes: dict[str, Any]) -> None:
+        """編集コメントの段落や装飾要素間の空白を保持する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = site_changes["body"].replace(
+            '<td class="comments">Test edit comment</td>',
+            '<td class="comments"><p>First <span>part</span></p><p>Second part</p></td>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            changes = site.get_recent_changes()
+
+        assert changes[0].comment == "First part Second part"
+
     def test_get_recent_changes_empty(self, site_changes_empty: dict[str, Any]) -> None:
         """変更履歴が空の場合"""
         mock_client = create_mock_client()

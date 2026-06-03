@@ -1208,7 +1208,7 @@ class Site:
                 metadata_row = rows[0]
 
                 comment_elem = rows[1].find("td", class_="comments", recursive=False) if len(rows) > 1 else None
-                comment = comment_elem.get_text().strip() if comment_elem else None
+                comment = comment_elem.get_text(" ", strip=True) if comment_elem else None
                 if comment == "":
                     comment = None
 
