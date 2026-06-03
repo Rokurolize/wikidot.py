@@ -66,3 +66,5 @@ Forum thread-list inspection is a read-heavy Wikidot workflow and naturally foll
 ## Additional Notes
 
 This slice does not change thread detail lookup, thread parsing rules, category parsing, or forum mutation methods. It only moves category thread-list reads to the established retry-aware AMC helper and makes exhausted retries explicit.
+
+Follow-up [084-pr-scope-thread-list-metadata.md](084-pr-scope-thread-list-metadata.md) keeps this retry-aware acquisition path and narrows the category thread-list parser so description-rendered user/date markup cannot be mistaken for the row's structural creator/date metadata.

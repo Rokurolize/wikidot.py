@@ -73,3 +73,5 @@ Forum post bodies can render authored markup that resembles Wikidot forum UI fra
 ## Additional Notes
 
 This slice does not change field extraction for real posts, nested reply parent detection, pagination, retry policy, source retrieval, edit actions, or reply actions. It only rejects post candidates that are nested inside the authored content body of another post.
+
+Adjacent follow-up [084-pr-scope-thread-list-metadata.md](084-pr-scope-thread-list-metadata.md) applies the same authored-content versus structural-metadata boundary to category thread-list rows, so description-rendered user/date markup cannot override thread creator/date fields.
