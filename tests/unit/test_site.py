@@ -17,7 +17,7 @@ from wikidot.common.exceptions import (
 )
 from wikidot.module.client import Client
 from wikidot.module.page import Page, PageCollection
-from wikidot.module.site import Site
+from wikidot.module.site import PagePublishResult, Site
 
 
 def create_mock_client(is_logged_in: bool = True) -> MagicMock:
@@ -560,6 +560,42 @@ class TestSitePageAccessor:
             created_result = mock_site_no_http.page.publish("new-page")
 
         assert created_result.created is True
+
+    def test_publish_result_exposes_aggregate_operation_statuses(self) -> None:
+        """publishの戻り値は集約した後続処理ステータスも判別できる"""
+        page = MagicMock()
+
+        verified_with_metadata = PagePublishResult(
+            page=page,
+            page_id=12345,
+            source_matches=True,
+            tags_updated=False,
+            parent_updated=True,
+            metas_updated=False,
+        )
+        skipped_optional_steps = PagePublishResult(
+            page=page,
+            page_id=67890,
+            source_matches=None,
+            tags_updated=False,
+            parent_updated=False,
+            metas_updated=False,
+        )
+        failed_source_check = PagePublishResult(
+            page=page,
+            page_id=13579,
+            source_matches=False,
+            tags_updated=False,
+            parent_updated=False,
+            metas_updated=True,
+        )
+
+        assert verified_with_metadata.metadata_updated is True
+        assert verified_with_metadata.source_verified is True
+        assert skipped_optional_steps.metadata_updated is False
+        assert skipped_optional_steps.source_verified is False
+        assert failed_source_check.metadata_updated is True
+        assert failed_source_check.source_verified is False
 
     def test_publish_raises_when_verified_source_mismatches(self, mock_site_no_http: Site) -> None:
         """保存後のViewSourceModule取得結果が入力sourceと違う場合は例外にする"""

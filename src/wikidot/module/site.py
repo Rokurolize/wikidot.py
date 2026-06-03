@@ -62,6 +62,10 @@ class PagePublishResult:
         Whether the publish call requested a meta-tag update.
     created : bool
         True when publish created a new page. False when publish edited an existing page.
+    metadata_updated : bool
+        True when any metadata update was requested by the publish call.
+    source_verified : bool
+        True when source verification was requested and matched.
     """
 
     page: "Page"
@@ -71,6 +75,16 @@ class PagePublishResult:
     parent_updated: bool
     metas_updated: bool
     created: bool = False
+
+    @property
+    def metadata_updated(self) -> bool:
+        """Whether publish requested any metadata update."""
+        return self.tags_updated or self.parent_updated or self.metas_updated
+
+    @property
+    def source_verified(self) -> bool:
+        """Whether publish source verification matched."""
+        return self.source_matches is True
 
 
 @dataclass(frozen=True)
