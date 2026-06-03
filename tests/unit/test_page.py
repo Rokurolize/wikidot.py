@@ -793,6 +793,25 @@ class TestPageCollectionAcquire:
         collection.get_page_votes()
         assert mock_page_with_id._votes is not None
 
+    def test_acquire_votes_ignores_non_vote_colored_spans(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_whorated: dict[str, Any]
+    ) -> None:
+        """投票リスト外の色付きspanをvote値として扱わない"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        body = page_whorated["body"].replace(
+            "<h2>Users who rated:</h2>",
+            '<h2>Users who rated:</h2><p><span style="color:#777">decorative</span></p>',
+        )
+        response = self._json_response({**page_whorated, "body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection.get_page_votes()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._votes is not None
+        assert [vote.value for vote in mock_page_with_id._votes] == [1, 1, -1]
+
     def test_acquire_votes_batches_missing_page_ids(
         self,
         monkeypatch: pytest.MonkeyPatch,

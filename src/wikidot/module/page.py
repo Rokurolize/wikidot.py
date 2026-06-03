@@ -959,8 +959,33 @@ class PageCollection(list["Page"]):
                 continue
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
-            user_elems = html.select("span.printuser")
-            value_elems = html.select("span[style^='color']")
+            vote_container: Tag | None = None
+            for element in html.find_all("div"):
+                if not isinstance(element, Tag):
+                    continue
+                style = element.get("style")
+                if isinstance(style, str) and "column-count" in style:
+                    vote_container = element
+                    break
+            user_elems: list[Tag] = []
+            value_elems: list[Tag] = []
+            if vote_container is not None:
+                for span in vote_container.find_all("span", recursive=False):
+                    if not isinstance(span, Tag):
+                        continue
+                    classes = span.get("class", [])
+                    if isinstance(classes, str):
+                        class_names = [classes]
+                    elif isinstance(classes, list):
+                        class_names = classes
+                    else:
+                        class_names = []
+                    if "printuser" in class_names:
+                        user_elems.append(span)
+                        continue
+                    style = span.get("style")
+                    if isinstance(style, str) and style.lstrip().startswith("color"):
+                        value_elems.append(span)
 
             if len(user_elems) != len(value_elems):
                 raise exceptions.UnexpectedException("User and value count mismatch")
