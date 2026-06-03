@@ -691,6 +691,28 @@ class TestPageCollectionAcquire:
         assert mock_page_with_id._revisions is cached_revisions
         assert second_page._revisions is not None
 
+    def test_acquire_revisions_deduplicates_duplicate_page_ids(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_revisionlist: dict[str, Any]
+    ) -> None:
+        """同じpage_idの未取得revision一覧は1回だけ取得し重複ページへ反映する"""
+        duplicate_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        duplicate_page.id = mock_page_with_id.id
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, duplicate_page])
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(page_revisionlist),))
+
+        collection.get_page_revisions()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [mock_page_with_id.id]
+        assert mock_page_with_id._revisions is not None
+        assert duplicate_page._revisions is not None
+        assert len(mock_page_with_id._revisions) == len(duplicate_page._revisions)
+        assert mock_page_with_id._revisions[0].page is mock_page_with_id
+        assert duplicate_page._revisions[0].page is duplicate_page
+
     def test_acquire_revisions_missing_cells_raises(
         self,
         mock_site_no_http: Site,

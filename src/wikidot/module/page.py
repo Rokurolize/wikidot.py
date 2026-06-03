@@ -809,61 +809,65 @@ class PageCollection(list["Page"]):
             return pages
 
         PageCollection._acquire_page_ids(site, target_pages)
+        target_pages_by_id: dict[int, list[Page]] = {}
+        for page in target_pages:
+            target_pages_by_id.setdefault(page.id, []).append(page)
 
         responses = site.amc_request_with_retry(
             [
                 {
                     "moduleName": "history/PageRevisionListModule",
-                    "page_id": page.id,
+                    "page_id": page_id,
                     "options": {"all": True},
                     "perpage": 100000000,  # pagerを使わずに全て取得
                 }
-                for page in target_pages
+                for page_id in target_pages_by_id
             ]
         )
 
-        for page, response in zip(target_pages, responses, strict=True):
+        for page_id, response in zip(target_pages_by_id, responses, strict=True):
             if response is None:
                 continue
             body = response.json()["body"]
-            revs = []
-            body_html = BeautifulSoup(body, "lxml")
-            for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
-                rev_id = int(str(rev_element["id"]).removeprefix("revision-row-"))
+            for page in target_pages_by_id[page_id]:
+                revs = []
+                body_html = BeautifulSoup(body, "lxml")
+                for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
+                    rev_id = int(str(rev_element["id"]).removeprefix("revision-row-"))
 
-                tds = rev_element.select("td")
-                if len(tds) < 7:
-                    raise exceptions.NoElementException(
-                        f"Cannot find revision cells for page: {page.fullname}, revision: {rev_id}"
-                    )
-                rev_no = int(tds[0].text.strip().removesuffix("."))
-                created_by_elem = tds[4].select_one("span.printuser")
-                if created_by_elem is None:
-                    raise exceptions.NoElementException(
-                        f"Cannot find created by element for page: {page.fullname}, revision: {rev_id}"
-                    )
-                created_by = user_parser(page.site.client, created_by_elem)
+                    tds = rev_element.select("td")
+                    if len(tds) < 7:
+                        raise exceptions.NoElementException(
+                            f"Cannot find revision cells for page: {page.fullname}, revision: {rev_id}"
+                        )
+                    rev_no = int(tds[0].text.strip().removesuffix("."))
+                    created_by_elem = tds[4].select_one("span.printuser")
+                    if created_by_elem is None:
+                        raise exceptions.NoElementException(
+                            f"Cannot find created by element for page: {page.fullname}, revision: {rev_id}"
+                        )
+                    created_by = user_parser(page.site.client, created_by_elem)
 
-                created_at_elem = tds[5].select_one("span.odate")
-                if created_at_elem is None:
-                    raise exceptions.NoElementException(
-                        f"Cannot find created at element for page: {page.fullname}, revision: {rev_id}"
-                    )
-                created_at = odate_parser(created_at_elem)
+                    created_at_elem = tds[5].select_one("span.odate")
+                    if created_at_elem is None:
+                        raise exceptions.NoElementException(
+                            f"Cannot find created at element for page: {page.fullname}, revision: {rev_id}"
+                        )
+                    created_at = odate_parser(created_at_elem)
 
-                comment = tds[6].text.strip()
+                    comment = tds[6].text.strip()
 
-                revs.append(
-                    PageRevision(
-                        page=page,
-                        id=rev_id,
-                        rev_no=rev_no,
-                        created_by=created_by,
-                        created_at=created_at,
-                        comment=comment,
+                    revs.append(
+                        PageRevision(
+                            page=page,
+                            id=rev_id,
+                            rev_no=rev_no,
+                            created_by=created_by,
+                            created_at=created_at,
+                            comment=comment,
+                        )
                     )
-                )
-            page.revisions = PageRevisionCollection(page, revs)
+                page.revisions = PageRevisionCollection(page, revs)
 
         return pages
 
