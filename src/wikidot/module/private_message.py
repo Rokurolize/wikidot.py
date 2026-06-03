@@ -246,7 +246,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             parsed_messages_by_id[message_id] = (
                 user_parser(client, sender),
                 user_parser(client, recipient),
-                subject_element.get_text() if subject_element else "",
+                subject_element.get_text(" ", strip=True) if subject_element else "",
                 body_element.get_text(" ", strip=True) if body_element else "",
                 odate_parser(odate_element) if odate_element else datetime.fromtimestamp(0),
             )
