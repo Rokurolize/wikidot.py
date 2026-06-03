@@ -568,6 +568,27 @@ class TestPageCollectionAcquire:
         assert mock_page_no_http.id == 333
         assert duplicate_page.id == 333
 
+    def test_acquire_page_ids_reuses_cached_duplicate_page_url(
+        self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
+    ) -> None:
+        """取得済み同一URLページのpage_idを未取得ページへ再利用する"""
+        mock_page_no_http.id = 333
+        duplicate_page = self._other_page(mock_site_no_http, mock_page_no_http)
+        duplicate_page.fullname = mock_page_no_http.fullname
+        duplicate_page.name = mock_page_no_http.name
+        duplicate_page.category = mock_page_no_http.category
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http, duplicate_page])
+        response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 999;")
+        request = MagicMock(return_value=[response])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        result = collection.get_page_ids()
+
+        assert result is collection
+        request.assert_not_called()
+        assert mock_page_no_http.id == 333
+        assert duplicate_page._id == 333
+
     def test_acquire_sources_success(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:

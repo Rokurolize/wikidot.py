@@ -702,8 +702,22 @@ class PageCollection(list["Page"]):
         UnexpectedException
             When page ID is not found or response type is unexpected
         """
-        # pagesからidが設定されていないものを抽出
-        target_pages = [page for page in pages if not page.is_id_acquired()]
+        acquired_ids_by_url: dict[str, int] = {}
+        for page in pages:
+            if page._id is not None:
+                request_url = f"{page.get_url()}/norender/true/noredirect/true"
+                acquired_ids_by_url.setdefault(request_url, page._id)
+
+        target_pages: list[Page] = []
+        for page in pages:
+            if page.is_id_acquired():
+                continue
+            request_url = f"{page.get_url()}/norender/true/noredirect/true"
+            acquired_id = acquired_ids_by_url.get(request_url)
+            if acquired_id is not None:
+                page.id = acquired_id
+                continue
+            target_pages.append(page)
 
         # なければ終了
         if len(target_pages) == 0:
