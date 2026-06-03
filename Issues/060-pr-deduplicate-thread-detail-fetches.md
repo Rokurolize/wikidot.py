@@ -72,4 +72,4 @@ Direct forum thread lookup is a read-heavy workflow for moderation, archival ind
 
 ## Additional Notes
 
-This slice does not change category thread-list retrieval, thread parsing rules, post-list retrieval, post source fetching, lazy post acquisition, or forum mutation methods. It only removes duplicate direct thread detail requests for repeated thread IDs while preserving the original requested-ID order in the returned collection.
+This slice does not change category thread-list retrieval, thread parsing rules, post-list retrieval, post source fetching, lazy post acquisition, or forum mutation methods. It only removes duplicate direct thread detail requests for repeated thread IDs while preserving the original requested-ID order in the returned collection. The later follow-up [076-pr-skip-empty-thread-fetch-batches.md](076-pr-skip-empty-thread-fetch-batches.md) skips the same direct thread detail request path when the requested ID list is empty.
