@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
 from wikidot.module.page import Page, PageCollection, SearchPagesQuery
+from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 
 if TYPE_CHECKING:
@@ -879,6 +880,47 @@ class TestPageCollectionAcquire:
         assert len(mock_page_with_id._revisions) == len(duplicate_page._revisions)
         assert mock_page_with_id._revisions[0].page is mock_page_with_id
         assert duplicate_page._revisions[0].page is duplicate_page
+
+    def test_acquire_revisions_reuses_cached_duplicate_page_revisions(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_revisionlist: dict[str, Any]
+    ) -> None:
+        """取得済みの重複ページrevision一覧を未取得の同一IDページへ再利用する"""
+        cached_revision = PageRevision(
+            page=mock_page_with_id,
+            id=1000001,
+            rev_no=1,
+            created_by=MagicMock(name="cached_user"),
+            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
+            comment="Cached revision",
+        )
+        cached_revision._source = PageSource(mock_page_with_id, "cached revision source")
+        cached_revision._html = "<p>cached revision html</p>"
+        mock_page_with_id._revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        duplicate_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        duplicate_page.id = mock_page_with_id.id
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, duplicate_page])
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(page_revisionlist),))
+
+        result = collection.get_page_revisions()
+
+        assert result == collection
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+        assert mock_page_with_id._revisions is not None
+        assert duplicate_page._revisions is not None
+        assert duplicate_page._revisions is not mock_page_with_id._revisions
+        assert len(duplicate_page._revisions) == 1
+        assert duplicate_page._revisions[0] is not cached_revision
+        assert duplicate_page._revisions[0].page is duplicate_page
+        assert duplicate_page._revisions[0].id == cached_revision.id
+        assert duplicate_page._revisions[0].comment == "Cached revision"
+        assert duplicate_page._revisions[0]._source is not cached_revision._source
+        assert duplicate_page._revisions[0]._source is not None
+        assert duplicate_page._revisions[0]._source.page is duplicate_page
+        assert duplicate_page._revisions[0]._source.wiki_text == "cached revision source"
+        assert duplicate_page._revisions[0]._html == "<p>cached revision html</p>"
 
     def test_acquire_revisions_missing_cells_raises(
         self,

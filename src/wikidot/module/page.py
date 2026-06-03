@@ -862,9 +862,39 @@ class PageCollection(list["Page"]):
             return pages
 
         PageCollection._acquire_page_ids(site, target_pages)
+
+        def clone_revisions(page: Page, revisions: PageRevisionCollection) -> PageRevisionCollection:
+            cloned_revisions = []
+            for revision in revisions:
+                cloned_revision = PageRevision(
+                    page=page,
+                    id=revision.id,
+                    rev_no=revision.rev_no,
+                    created_by=revision.created_by,
+                    created_at=revision.created_at,
+                    comment=revision.comment,
+                )
+                if revision._source is not None:
+                    cloned_revision._source = PageSource(page, revision._source.wiki_text)
+                cloned_revision._html = revision._html
+                cloned_revisions.append(cloned_revision)
+            return PageRevisionCollection(page, cloned_revisions)
+
+        acquired_revisions_by_id: dict[int, PageRevisionCollection] = {}
+        for page in pages:
+            if page._id is not None and page._revisions is not None:
+                acquired_revisions_by_id[page.id] = page._revisions
+
         target_pages_by_id: dict[int, list[Page]] = {}
         for page in target_pages:
+            acquired_revisions = acquired_revisions_by_id.get(page.id)
+            if acquired_revisions is not None:
+                page.revisions = clone_revisions(page, acquired_revisions)
+                continue
             target_pages_by_id.setdefault(page.id, []).append(page)
+
+        if len(target_pages_by_id) == 0:
+            return pages
 
         responses = site.amc_request_with_retry(
             [
