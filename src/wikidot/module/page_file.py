@@ -162,7 +162,7 @@ class PageFileCollection(list["PageFile"]):
             if not isinstance(link_elem, Tag):
                 continue
 
-            name = link_elem.get_text().strip()
+            name = link_elem.get_text(" ", strip=True)
             href = link_elem.get("href", "")
             url = urljoin(f"{site_url}/", str(href))
 

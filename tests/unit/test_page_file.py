@@ -216,6 +216,39 @@ class TestPageFileCollectionAcquire:
         assert collection[0].size == 1500
         assert "test.wikidot.com" in collection[0].url
 
+    def test_acquire_preserves_file_name_text_spacing(self):
+        """装飾要素を含む添付ファイル名の語境界を保持する"""
+        page = MagicMock()
+        page.id = 12345
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        page.site = site
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-100">
+                            <td>
+                                <a href="/local--files/test-page/first-second.txt">
+                                    <span>First <em>part</em></span><span>Second part.txt</span>
+                                </a>
+                            </td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>1 KB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        collection = PageFileCollection.acquire(page)
+
+        assert len(collection) == 1
+        assert collection[0].name == "First part Second part.txt"
+
     def test_acquire_preserves_absolute_file_url(self):
         """絶対URLの添付ファイルhrefを壊さない"""
         page = MagicMock()
