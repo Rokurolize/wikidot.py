@@ -19,12 +19,12 @@ Add large-corpus helper APIs around existing `SearchPagesQuery` and `PageCollect
 Possible shape:
 
 ```python
-for page in site.pages.iter_search(tags="scp", per_page=250, batch_pages=True):
+for page in site.pages.iter_search(tags="scp", perPage=250, limit=1000):
     ...
 
 for result in site.pages.iter_sources(
     tags="scp",
-    per_page=250,
+    perPage=250,
     source_batch_size=25,
     fallback_batch_size=1,
 ):
@@ -36,7 +36,7 @@ for result in site.pages.iter_sources(
 
 ## Alternatives Considered
 
-- Keep requiring callers to manage offsets and source batches manually. This gives maximum control but repeats subtle logic across scripts.
+- Keep requiring callers to manage offsets and source batches manually. Local commit `9f7b2da` now removes the repeated offset loop for page discovery through `site.pages.iter_search(...)`, but source batch fallback remains a separate unsolved piece.
 - Only document recommended pagination settings. Documentation helps, but does not address timeout fallback or structured per-page failure reporting.
 
 ## Use Case
@@ -65,4 +65,4 @@ wikidot.py already exposes the core mechanisms needed for corpus collection. Ite
 
 ## Additional Information
 
-The small local PR drafts in [002-pr-batch-source-page-id-lookups.md](002-pr-batch-source-page-id-lookups.md), [005-pr-bound-listpages-pagination-by-limit.md](005-pr-bound-listpages-pagination-by-limit.md), [006-pr-retry-batched-source-fetches.md](006-pr-retry-batched-source-fetches.md), [008-pr-skip-cached-source-fetches.md](008-pr-skip-cached-source-fetches.md), [009-pr-skip-cached-page-detail-fetches.md](009-pr-skip-cached-page-detail-fetches.md), [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md), [014-pr-preserve-viewsource-text.md](014-pr-preserve-viewsource-text.md), [015-pr-retry-revision-source-html-fetches.md](015-pr-retry-revision-source-html-fetches.md), and [016-pr-retry-listpages-pagination.md](016-pr-retry-listpages-pagination.md) are immediate performance and reliability improvements for this feature area, but this issue remains broader and should be designed separately.
+The first iterator slice is drafted in [018-pr-bounded-page-search-iterator.md](018-pr-bounded-page-search-iterator.md). The small local PR drafts in [002-pr-batch-source-page-id-lookups.md](002-pr-batch-source-page-id-lookups.md), [005-pr-bound-listpages-pagination-by-limit.md](005-pr-bound-listpages-pagination-by-limit.md), [006-pr-retry-batched-source-fetches.md](006-pr-retry-batched-source-fetches.md), [008-pr-skip-cached-source-fetches.md](008-pr-skip-cached-source-fetches.md), [009-pr-skip-cached-page-detail-fetches.md](009-pr-skip-cached-page-detail-fetches.md), [010-pr-retry-batched-file-fetches.md](010-pr-retry-batched-file-fetches.md), [014-pr-preserve-viewsource-text.md](014-pr-preserve-viewsource-text.md), [015-pr-retry-revision-source-html-fetches.md](015-pr-retry-revision-source-html-fetches.md), [016-pr-retry-listpages-pagination.md](016-pr-retry-listpages-pagination.md), and [018-pr-bounded-page-search-iterator.md](018-pr-bounded-page-search-iterator.md) are immediate performance, reliability, and ergonomics improvements for this feature area, but source iteration and fallback remain broader design work.
