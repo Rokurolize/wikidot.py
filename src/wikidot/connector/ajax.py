@@ -160,12 +160,19 @@ def _mask_sensitive_data(body: dict[str, Any]) -> dict[str, Any]:
     dict[str, Any]
         Dictionary with sensitive information masked
     """
-    masked = body.copy()
     sensitive_keys = {"password", "login", "WIKIDOT_SESSION_ID", "wikidot_token7"}
-    for key in sensitive_keys:
-        if key in masked:
-            masked[key] = "***MASKED***"
-    return masked
+
+    def mask_value(value: Any) -> Any:
+        if isinstance(value, dict):
+            return {
+                key: "***MASKED***" if key in sensitive_keys else mask_value(nested_value)
+                for key, nested_value in value.items()
+            }
+        if isinstance(value, list):
+            return [mask_value(item) for item in value]
+        return value
+
+    return mask_value(body)
 
 
 def _calculate_backoff(

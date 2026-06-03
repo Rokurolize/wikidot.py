@@ -47,6 +47,38 @@ class TestMaskSensitiveData:
         assert result["moduleName"] == "test"
         assert result["page_id"] == 123
 
+    def test_masks_nested_sensitive_data_without_mutating_original(self):
+        """ネストしたリクエストデータ内の機密値もマスクする"""
+        body = {
+            "moduleName": "test",
+            "params": {
+                "password": "secret123",
+                "safe": "visible",
+                "items": [
+                    {"login": "private-user"},
+                    {"WIKIDOT_SESSION_ID": "abc123"},
+                    {"wikidot_token7": 987654},
+                ],
+            },
+        }
+
+        result = _mask_sensitive_data(body)
+
+        assert result == {
+            "moduleName": "test",
+            "params": {
+                "password": "***MASKED***",
+                "safe": "visible",
+                "items": [
+                    {"login": "***MASKED***"},
+                    {"WIKIDOT_SESSION_ID": "***MASKED***"},
+                    {"wikidot_token7": "***MASKED***"},
+                ],
+            },
+        }
+        assert body["params"]["password"] == "secret123"
+        assert body["params"]["items"][0]["login"] == "private-user"
+
     def test_empty_dict(self):
         """空の辞書でも動作する"""
         result = _mask_sensitive_data({})
