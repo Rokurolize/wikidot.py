@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
 from wikidot.module.page import Page, PageCollection, SearchPagesQuery
+from wikidot.module.page_file import PageFile, PageFileCollection
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.page_votes import PageVote, PageVoteCollection
@@ -1161,6 +1162,45 @@ class TestPageCollectionAcquire:
         assert len(mock_page_with_id._files) == len(duplicate_page._files) == 1
         assert mock_page_with_id._files[0].page is mock_page_with_id
         assert duplicate_page._files[0].page is duplicate_page
+
+    def test_acquire_files_reuses_cached_duplicate_page_files(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        """取得済みの重複ページfile一覧を未取得の同一IDページへ再利用する"""
+        cached_file = PageFile(
+            page=mock_page_with_id,
+            id=100,
+            name="cached.png",
+            url="https://test-site.wikidot.com/local--files/test-page/cached.png",
+            mime_type="image/png",
+            size=1500,
+        )
+        mock_page_with_id._files = PageFileCollection(mock_page_with_id, [cached_file])
+        duplicate_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        duplicate_page.id = mock_page_with_id.id
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, duplicate_page])
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._json_response({"body": "<div>No files</div>"}),)
+        )
+
+        result = collection.get_page_files()
+
+        assert result == collection
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+        assert mock_page_with_id._files is not None
+        assert duplicate_page._files is not None
+        assert duplicate_page._files is not mock_page_with_id._files
+        assert len(duplicate_page._files) == 1
+        assert duplicate_page._files[0] is not cached_file
+        assert duplicate_page._files[0].page is duplicate_page
+        assert duplicate_page._files[0].id == cached_file.id
+        assert duplicate_page._files[0].name == "cached.png"
+        assert duplicate_page._files[0].url == cached_file.url
+        assert duplicate_page._files[0].mime_type == "image/png"
+        assert duplicate_page._files[0].size == 1500
 
 
 # ============================================================

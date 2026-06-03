@@ -1125,9 +1125,25 @@ class PageCollection(list["Page"]):
 
         from .page_file import PageFileCollection
 
+        def clone_files(page: Page, files: PageFileCollection) -> PageFileCollection:
+            file_fields = [(file.id, file.name, file.url, file.mime_type, file.size) for file in files]
+            return PageFileCollection(page=page, files=PageFileCollection._build_page_files(page, file_fields))
+
+        acquired_files_by_id: dict[int, PageFileCollection] = {}
+        for page in pages:
+            if page._id is not None and page._files is not None:
+                acquired_files_by_id[page.id] = page._files
+
         target_pages_by_id: dict[int, list[Page]] = {}
         for page in target_pages:
+            acquired_files = acquired_files_by_id.get(page.id)
+            if acquired_files is not None:
+                page._files = clone_files(page, acquired_files)
+                continue
             target_pages_by_id.setdefault(page.id, []).append(page)
+
+        if len(target_pages_by_id) == 0:
+            return pages
 
         responses = site.amc_request_with_retry(
             [{"moduleName": "files/PageFilesModule", "page_id": page_id} for page_id in target_pages_by_id]
