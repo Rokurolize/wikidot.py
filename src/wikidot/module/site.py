@@ -1191,29 +1191,9 @@ class Site:
 
         changes: list[SiteChange] = []
         per_page = min(limit, 1000) if limit is not None else 1000
-        page_no = 1
 
-        while True:
-            response = self.amc_request_with_retry(
-                [
-                    {
-                        "moduleName": "changes/SiteChangesListModule",
-                        "perpage": str(per_page),
-                        "page": page_no,
-                        "options": "{'all':true}",
-                    }
-                ]
-            )[0]
-            if response is None:
-                raise exceptions.UnexpectedException(f"Cannot retrieve recent changes page: {page_no}")
-
-            html = BeautifulSoup(response.json()["body"], "lxml")
-            items = html.select("div.changes-list-item")
-
-            if not items:
-                break
-
-            for item in items:
+        def iter_changes(html: BeautifulSoup) -> Iterator[SiteChange]:
+            for item in html.select("div.changes-list-item"):
                 comment_elem = item.select_one("td.comments")
                 comment = comment_elem.get_text().strip() if comment_elem else None
                 if comment == "":
@@ -1249,7 +1229,7 @@ class Site:
                 flags_elem = item.select("td.flags span")
                 flags = [span.get_text().strip() for span in flags_elem]
 
-                changes.append(
+                yield (
                     SiteChange(
                         site=self,
                         page_fullname=page_fullname,
@@ -1262,22 +1242,63 @@ class Site:
                     )
                 )
 
-                if limit is not None and len(changes) >= limit:
-                    return changes
-
+        def get_last_page(html: BeautifulSoup) -> int:
             pager = html.select_one("div.pager")
             if pager is None:
-                break
+                return 1
 
-            last_page = 1
             for pager_link in reversed(pager.select("a")):
                 page_text = pager_link.get_text(strip=True)
                 if page_text.isdigit():
-                    last_page = int(page_text)
-                    break
-            if page_no >= last_page:
+                    return int(page_text)
+            return 1
+
+        def request_body(page_no: int) -> dict[str, Any]:
+            return {
+                "moduleName": "changes/SiteChangesListModule",
+                "perpage": str(per_page),
+                "page": page_no,
+                "options": "{'all':true}",
+            }
+
+        response = self.amc_request_with_retry([request_body(1)])[0]
+        if response is None:
+            raise exceptions.UnexpectedException("Cannot retrieve recent changes page: 1")
+
+        html = BeautifulSoup(response.json()["body"], "lxml")
+        page_changes = list(iter_changes(html))
+        if not page_changes:
+            return changes
+
+        for change in page_changes:
+            changes.append(change)
+            if limit is not None and len(changes) >= limit:
+                return changes
+
+        last_page = get_last_page(html)
+        if last_page <= 1:
+            return changes
+
+        page_numbers = list(range(2, last_page + 1))
+        if limit is not None:
+            remaining = limit - len(changes)
+            if remaining <= 0:
+                return changes
+            page_numbers = page_numbers[: (remaining + per_page - 1) // per_page]
+
+        responses = self.amc_request_with_retry([request_body(page_no) for page_no in page_numbers])
+        for page_no, response in zip(page_numbers, responses, strict=True):
+            if response is None:
+                raise exceptions.UnexpectedException(f"Cannot retrieve recent changes page: {page_no}")
+
+            html = BeautifulSoup(response.json()["body"], "lxml")
+            page_changes = list(iter_changes(html))
+            if not page_changes:
                 break
 
-            page_no += 1
+            for change in page_changes:
+                changes.append(change)
+                if limit is not None and len(changes) >= limit:
+                    return changes
 
         return changes

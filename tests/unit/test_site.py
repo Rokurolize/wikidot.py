@@ -1302,6 +1302,30 @@ class TestSiteMemberLookup:
 class TestSiteGetRecentChanges:
     """Site.get_recent_changes のテスト"""
 
+    @staticmethod
+    def _site_change_response(page_no: int, last_page: int) -> MagicMock:
+        pager_links = "".join(f'<a href="#">{page}</a>' for page in range(1, last_page + 1))
+        pager = f'<div class="pager">{pager_links}</div>'
+        timestamp = 1_700_000_000 - page_no
+        response = MagicMock()
+        response.json.return_value = {
+            "body": f"""
+{pager}
+<div class="changes-list-item">
+<table>
+<tr>
+<td class="title"><a href="/page-{page_no}">Page {page_no}</a></td>
+<td class="flags"><span>U</span></td>
+<td class="mod-date"><span class="odate time_{timestamp}">14 Nov 2023</span></td>
+<td class="revision-no">(rev. {page_no})</td>
+<td class="mod-by"><span class="printuser"><a href="http://www.wikidot.com/user:info/user-{page_no}">user-{page_no}</a></span></td>
+</tr>
+</table>
+</div>
+""",
+        }
+        return response
+
     def test_get_recent_changes_success(self, site_changes: dict[str, Any]) -> None:
         """変更履歴取得成功"""
         mock_client = create_mock_client()
@@ -1455,3 +1479,61 @@ class TestSiteGetRecentChanges:
 
         assert len(changes) == 2
         mock_client.amc_client.request.assert_called_once()
+
+    def test_get_recent_changes_batches_paginated_pages(self) -> None:
+        """変更履歴の2ページ目以降は1回のAMCバッチで取得する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        responses = {page: self._site_change_response(page, last_page=3) for page in range(1, 4)}
+        requested_pages: list[list[int]] = []
+
+        def request_side_effect(bodies: list[dict[str, Any]], *_args: Any) -> tuple[MagicMock, ...]:
+            pages = [int(body["page"]) for body in bodies]
+            requested_pages.append(pages)
+            return tuple(responses[page] for page in pages)
+
+        mock_client.amc_client.request.side_effect = request_side_effect
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            changes = site.get_recent_changes()
+
+        assert [change.page_fullname for change in changes] == ["page-1", "page-2", "page-3"]
+        assert requested_pages == [[1], [2, 3]]
+
+    def test_get_recent_changes_batches_only_pages_needed_for_limit(self) -> None:
+        """limitで不要な後続ページはAMCバッチに含めない"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        responses = {page: self._site_change_response(page, last_page=4) for page in range(1, 5)}
+        requested_pages: list[list[int]] = []
+
+        def request_side_effect(bodies: list[dict[str, Any]], *_args: Any) -> tuple[MagicMock, ...]:
+            pages = [int(body["page"]) for body in bodies]
+            requested_pages.append(pages)
+            return tuple(responses[page] for page in pages)
+
+        mock_client.amc_client.request.side_effect = request_side_effect
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            changes = site.get_recent_changes(limit=2)
+
+        assert [change.page_fullname for change in changes] == ["page-1", "page-2"]
+        assert requested_pages == [[1], [2]]
