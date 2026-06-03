@@ -64,4 +64,4 @@ wikidot.py uses retry and error logs to diagnose unreliable AMC requests. Those 
 
 ## Additional Notes
 
-This slice does not mask arbitrary content fields such as page source text. It only extends the existing explicit sensitive-key policy to nested dictionaries and lists.
+This slice does not mask arbitrary content fields such as page source text. It only extends the existing explicit sensitive-key policy to nested dictionaries and lists. Follow-up [071-pr-mask-page-lock-secrets.md](071-pr-mask-page-lock-secrets.md) extends the same explicit key policy to `lock_secret`, which is used by Wikidot's page edit `savePage` workflow.
