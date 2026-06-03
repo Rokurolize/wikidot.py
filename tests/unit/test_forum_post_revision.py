@@ -226,6 +226,31 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
 
+    def test_acquire_all_for_posts_deduplicates_duplicate_post_ids(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """重複したpost IDのリビジョン一覧取得は1回にまとめる"""
+        duplicate_post = self._post_with_id(mock_forum_post_no_http, mock_forum_post_no_http.id)
+        response = MagicMock()
+        response.json.return_value = forum_post_revisions
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        result = ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, duplicate_post])
+
+        assert set(result) == {5001}
+        assert len(result[5001]) == 3
+        assert result[5001].post == mock_forum_post_no_http
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionsModule",
+                    "postId": mock_forum_post_no_http.id,
+                }
+            ]
+        )
+
     def test_acquire_all_for_posts_raises_when_retry_is_exhausted(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:

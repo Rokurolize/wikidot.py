@@ -231,6 +231,13 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
 
         result: dict[int, ForumPostRevisionCollection] = {}
         site = posts[0].thread.site
+        target_posts: list[ForumPost] = []
+        seen_post_ids: set[int] = set()
+        for post in posts:
+            if post.id in seen_post_ids:
+                continue
+            seen_post_ids.add(post.id)
+            target_posts.append(post)
 
         # Step 1: Get revision lists for all posts
         responses = site.amc_request_with_retry(
@@ -239,12 +246,12 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     "moduleName": "forum/sub/ForumPostRevisionsModule",
                     "postId": post.id,
                 }
-                for post in posts
+                for post in target_posts
             ]
         )
 
         # Step 2: Parse revision lists
-        for post, response in zip(posts, responses, strict=True):
+        for post, response in zip(target_posts, responses, strict=True):
             if response is None:
                 raise exceptions.UnexpectedException(f"Cannot retrieve forum post revisions for post: {post.id}")
             body = response.json()["body"]
