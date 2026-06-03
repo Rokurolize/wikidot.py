@@ -93,7 +93,7 @@ class UserCollection(list["AbstractUser"]):
             name_elem = html.select_one("h1.profile-title")
             if name_elem is None:
                 raise NoElementException("User name element not found")
-            name = name_elem.get_text(strip=True)
+            name = name_elem.get_text(" ", strip=True)
 
             # avatar_url取得
             avatar_url = f"https://www.wikidot.com/avatar.php?userid={user_id}"

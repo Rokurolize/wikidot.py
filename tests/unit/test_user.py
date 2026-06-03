@@ -227,6 +227,35 @@ class TestUserCollection:
         assert len(result) == 1
         assert result[0].id == 444
 
+    def test_from_names_preserves_profile_title_text_spacing(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
+    ) -> None:
+        """プロフィール名内の装飾タグや隣接要素のテキストを連結しない"""
+        html = """
+        <!DOCTYPE html>
+        <html>
+        <body>
+        <div id="user-info">
+            <h1 class="profile-title"><span>First <em>Part</em></span><span>User</span></h1>
+            <a class="btn btn-default btn-xs" href="http://www.wikidot.com/userkarma.php/555">
+                Karma
+            </a>
+        </div>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/user:info/first-part-user",
+            text=html,
+        )
+
+        result = UserCollection.from_names(mock_client_no_http, ["first-part-user"])
+
+        assert len(result) == 1
+        assert result[0].id == 555
+        assert result[0].name == "First Part User"
+        assert result[0].unix_name == "first-part-user"
+
     def test_from_names_missing_id_element(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
         """ID要素がない場合NoElementException"""
         html = """
