@@ -90,3 +90,5 @@ Forum post revision reads are the forum equivalent of page revision source/HTML 
 ## Additional Notes
 
 This slice does not change `ForumPost.edit(...)`, `ForumThread.posts`, forum post parsing, revision ordering, user/date parsing, or the `ForumPostRevision.html` public return type. It only moves forum post revision-list and revision-HTML read requests to the same retry-aware AMC model used by the surrounding read APIs.
+
+Later parser follow-up [085-pr-scope-forum-revision-metadata.md](085-pr-scope-forum-revision-metadata.md) narrows revision-list user/date/action extraction to structural cells while preserving this retry-aware acquisition behavior.
