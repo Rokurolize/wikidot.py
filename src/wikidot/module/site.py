@@ -227,7 +227,7 @@ class SitePagesAccessor:
         PageCollection(self.site, pages).get_page_sources()
 
         missing_pages = [page for page in pages if page._source is None]
-        if missing_pages and fallback_batch_size < len(pages):
+        if missing_pages:
             for index in range(0, len(missing_pages), fallback_batch_size):
                 fallback_pages = missing_pages[index : index + fallback_batch_size]
                 PageCollection(self.site, fallback_pages).get_page_sources()

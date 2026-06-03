@@ -246,6 +246,47 @@ class TestSitePagesAccessor:
         assert isinstance(results[2].error, NotFoundException)
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_iter_sources_retries_missing_pages_when_fallback_batch_is_large(self, mock_site_no_http: Site) -> None:
+        """fallback_batch_sizeが大きくても未取得ページは再試行する"""
+        pages = [
+            self._page(mock_site_no_http, "page-one", 301),
+            self._page(mock_site_no_http, "page-two", 302),
+        ]
+        requested_page_ids = []
+
+        def search_pages(site: Site, query) -> PageCollection:
+            return PageCollection(site, pages)
+
+        def source_responses(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock | None, ...]:
+            page_ids = [body["page_id"] for body in request_bodies]
+            requested_page_ids.append(page_ids)
+            if page_ids == [301, 302]:
+                return (self._source_response("source 301"), None)
+            if page_ids == [302]:
+                return (self._source_response("source 302 fallback"),)
+            raise AssertionError(f"Unexpected source request ids: {page_ids}")
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=source_responses)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            results = list(
+                mock_site_no_http.pages.iter_sources(
+                    limit=2,
+                    perPage=2,
+                    source_batch_size=2,
+                    fallback_batch_size=10,
+                )
+            )
+
+        assert requested_page_ids == [[301, 302], [302]]
+        assert [result.ok for result in results] == [True, True]
+        assert [result.source.wiki_text if result.source is not None else None for result in results] == [
+            "source 301",
+            "source 302 fallback",
+        ]
+        mock_site_no_http.amc_request.assert_not_called()
+
 
 class TestSitePageAccessor:
     """Site.pageアクセサのテスト"""
