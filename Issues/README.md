@@ -108,6 +108,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [102-pr-ignore-private-message-nested-row-markup.md](102-pr-ignore-private-message-nested-row-markup.md): upstream PR draft for the committed private-message nested row parsing fix.
 - [103-pr-ignore-site-member-row-pager-markup.md](103-pr-ignore-site-member-row-pager-markup.md): upstream PR draft for the committed site-member row pager parsing fix.
 - [104-pr-preserve-thread-detail-description-text.md](104-pr-preserve-thread-detail-description-text.md): upstream PR draft for the committed thread detail description text parsing fix.
+- [105-pr-preserve-thread-title-separators.md](105-pr-preserve-thread-title-separators.md): upstream PR draft for the committed thread title separator parsing fix.
 
 ## Local Evidence Index
 
@@ -123,5 +124,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 6: `aa8b0ec fix(private_message): ignore nested row markup`
 - Local implementation commits, continued 7: `c1285ad fix(site_member): ignore row pager markup`
 - Local implementation commits, continued 8: `3e8eb86 fix(forum_thread): preserve formatted detail descriptions`
+- Local implementation commits, continued 9: `275b41a fix(forum_thread): preserve breadcrumb title separators`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
