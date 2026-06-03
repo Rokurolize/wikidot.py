@@ -111,6 +111,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [105-pr-preserve-thread-title-separators.md](105-pr-preserve-thread-title-separators.md): upstream PR draft for the committed thread title separator parsing fix.
 - [106-pr-preserve-private-message-body-spacing.md](106-pr-preserve-private-message-body-spacing.md): upstream PR draft for the committed private-message body text spacing fix.
 - [107-pr-preserve-thread-list-description-spacing.md](107-pr-preserve-thread-list-description-spacing.md): upstream PR draft for the committed thread-list description text spacing fix.
+- [108-pr-preserve-forum-category-description-spacing.md](108-pr-preserve-forum-category-description-spacing.md): upstream PR draft for the committed forum-category description text spacing fix.
 
 ## Local Evidence Index
 
@@ -129,5 +130,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 9: `275b41a fix(forum_thread): preserve breadcrumb title separators`
 - Local implementation commits, continued 10: `4f86438 fix(private_message): preserve body text spacing`
 - Local implementation commits, continued 11: `a7f673f fix(forum_thread): preserve list description spacing`
+- Local implementation commits, continued 12: `de35dc5 fix(forum_category): preserve description spacing`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
