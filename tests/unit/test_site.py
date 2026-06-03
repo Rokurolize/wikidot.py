@@ -468,6 +468,48 @@ class TestSitePagesAccessor:
         assert results[1].error_message == "Cannot find page source: page-two"
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_iter_sources_result_exports_ledger_record(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultは永続化しやすい辞書形式に変換できる"""
+        pages = [
+            self._page(mock_site_no_http, "page-one", 371),
+            self._page(mock_site_no_http, "page-two", 372),
+        ]
+
+        def search_pages(site: Site, query) -> PageCollection:
+            return PageCollection(site, pages)
+
+        def source_responses(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock | None, ...]:
+            page_ids = [body["page_id"] for body in request_bodies]
+            if page_ids == [371, 372]:
+                return (self._source_response("source 371"), None)
+            if page_ids == [372]:
+                return (None,)
+            raise AssertionError(f"Unexpected source request ids: {page_ids}")
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=source_responses)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            results = list(
+                mock_site_no_http.pages.iter_sources(
+                    limit=2,
+                    perPage=2,
+                    source_batch_size=2,
+                    fallback_batch_size=1,
+                )
+            )
+
+        assert [result.as_dict() for result in results] == [
+            {"fullname": "page-one", "ok": True, "wiki_text": "source 371", "error_message": None},
+            {
+                "fullname": "page-two",
+                "ok": False,
+                "wiki_text": None,
+                "error_message": "Cannot find page source: page-two",
+            },
+        ]
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_iter_sources_reports_parse_failures_without_losing_other_pages(self, mock_site_no_http: Site) -> None:
         """source解析失敗はページ単位の失敗にし、同じ検索内の他ページは継続する"""
         pages = [
