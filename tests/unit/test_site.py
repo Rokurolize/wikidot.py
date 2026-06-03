@@ -161,6 +161,39 @@ class TestSitePagesAccessor:
         assert [query.limit for query in search_calls] == [2, 2, 2]
         assert [query.parent for query in search_calls] == ["parent-page", "parent-page", "parent-page"]
 
+    def test_iter_search_required_tags_filters_client_side(self, mock_site_no_http: Site) -> None:
+        """iter_searchはListPagesの広いタグ結果を必要タグで絞り込める"""
+        first_match = self._page(mock_site_no_http, "fr:scp-001", 101)
+        first_match.tags = ["scp", "fr"]
+        broad_only = self._page(mock_site_no_http, "scp-001", 102)
+        broad_only.tags = ["scp"]
+        second_match = self._page(mock_site_no_http, "fr:scp-002", 103)
+        second_match.tags = ["scp", "fr", "translated"]
+        search_calls = []
+
+        def search_pages(site: Site, query) -> PageCollection:
+            search_calls.append(query)
+            if query.offset == 0:
+                return PageCollection(site, [first_match, broad_only])
+            if query.offset == 2:
+                return PageCollection(site, [second_match])
+            raise AssertionError(f"Unexpected offset: {query.offset}")
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            pages = list(
+                mock_site_no_http.pages.iter_search(
+                    tags="scp",
+                    required_tags=["scp", "fr"],
+                    perPage=2,
+                    limit=2,
+                )
+            )
+
+        assert [page.fullname for page in pages] == ["fr:scp-001", "fr:scp-002"]
+        assert [query.tags for query in search_calls] == ["scp", "scp"]
+        assert [query.offset for query in search_calls] == [0, 2]
+        assert [query.limit for query in search_calls] == [2, 1]
+
     def test_iter_sources_yields_sources_in_search_order(self, mock_site_no_http: Site) -> None:
         """iter_sourcesは検索順を保ったままsourceを分割取得して結果を返す"""
         pages = [
@@ -200,6 +233,45 @@ class TestSitePagesAccessor:
         ]
         assert [result.error for result in results] == [None, None, None]
         assert [len(call.args[0]) for call in mock_site_no_http.amc_request_with_retry.call_args_list] == [2, 1]
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_iter_sources_required_tags_skips_source_fetch_for_nonmatching_pages(self, mock_site_no_http: Site) -> None:
+        """iter_sourcesの必要タグ絞り込みは非一致ページのsource取得を避ける"""
+        matching_page = self._page(mock_site_no_http, "fr:scp-001", 101)
+        matching_page.tags = ["scp", "fr"]
+        broad_only = self._page(mock_site_no_http, "scp-001", 102)
+        broad_only.tags = ["scp"]
+        search_calls = []
+
+        def search_pages(site: Site, query) -> PageCollection:
+            search_calls.append(query)
+            if query.offset == 0:
+                return PageCollection(site, [matching_page, broad_only])
+            if query.offset == 2:
+                return PageCollection(site, [])
+            raise AssertionError(f"Unexpected offset: {query.offset}")
+
+        def source_responses(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock, ...]:
+            return tuple(self._source_response(f"source {body['page_id']}") for body in request_bodies)
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=source_responses)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            results = list(
+                mock_site_no_http.pages.iter_sources(
+                    tags="scp",
+                    required_tags="scp fr",
+                    perPage=2,
+                    source_batch_size=2,
+                )
+            )
+
+        assert [result.page.fullname for result in results] == ["fr:scp-001"]
+        assert [result.wiki_text for result in results] == ["source 101"]
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [101]
+        assert [query.offset for query in search_calls] == [0, 2]
         mock_site_no_http.amc_request.assert_not_called()
 
     def test_iter_sources_falls_back_and_reports_page_failures(self, mock_site_no_http: Site) -> None:

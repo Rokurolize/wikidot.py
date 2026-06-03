@@ -159,7 +159,19 @@ class SitePagesAccessor:
         query = SearchPagesQuery(**kwargs)
         return PageCollection.search_pages(self.site, query)
 
-    def iter_search(self, **kwargs: Unpack[SearchPagesQueryParams]) -> Iterator["Page"]:
+    @staticmethod
+    def _normalize_required_tags(required_tags: str | list[str] | None) -> set[str]:
+        if required_tags is None:
+            return set()
+        if isinstance(required_tags, str):
+            return set(required_tags.split())
+        return set(required_tags)
+
+    def iter_search(
+        self,
+        required_tags: str | list[str] | None = None,
+        **kwargs: Unpack[SearchPagesQueryParams],
+    ) -> Iterator["Page"]:
         """
         Iterate through page search results in bounded ListPages chunks
 
@@ -168,6 +180,8 @@ class SitePagesAccessor:
 
         Parameters
         ----------
+        required_tags : str | list[str] | None, default None
+            Tags that every yielded page must contain after the ListPages result is parsed.
         **kwargs : Unpack[SearchPagesQueryParams]
             Search condition keyword arguments. See SearchPagesQueryParams for details.
 
@@ -184,6 +198,7 @@ class SitePagesAccessor:
         if remaining is not None and remaining <= 0:
             return
 
+        required_tag_set = self._normalize_required_tags(required_tags)
         while True:
             batch_limit = per_page if remaining is None else min(per_page, remaining)
             if batch_limit <= 0:
@@ -197,9 +212,13 @@ class SitePagesAccessor:
             if not pages:
                 return
 
-            yield from pages[:batch_limit]
+            batch_pages = pages[:batch_limit]
+            if required_tag_set:
+                batch_pages = [page for page in batch_pages if required_tag_set.issubset(set(page.tags))]
 
-            yielded_count = min(len(pages), batch_limit)
+            yield from batch_pages
+
+            yielded_count = len(batch_pages) if required_tag_set else min(len(pages), batch_limit)
             if remaining is not None:
                 remaining -= yielded_count
                 if remaining <= 0:
@@ -212,6 +231,7 @@ class SitePagesAccessor:
         self,
         source_batch_size: int = 25,
         fallback_batch_size: int = 1,
+        required_tags: str | list[str] | None = None,
         **kwargs: Unpack[SearchPagesQueryParams],
     ) -> Iterator[PageSourceResult]:
         """
@@ -226,6 +246,8 @@ class SitePagesAccessor:
             Number of pages to fetch source for in each primary batch.
         fallback_batch_size : int, default 1
             Number of pages to fetch per fallback batch when a primary batch leaves pages without source.
+        required_tags : str | list[str] | None, default None
+            Tags that every yielded source result page must contain after the ListPages result is parsed.
         **kwargs : Unpack[SearchPagesQueryParams]
             Search condition keyword arguments. See SearchPagesQueryParams for details.
 
@@ -240,7 +262,7 @@ class SitePagesAccessor:
             raise ValueError("fallback_batch_size must be greater than 0")
 
         batch: list[Page] = []
-        for page in self.iter_search(**kwargs):
+        for page in self.iter_search(required_tags=required_tags, **kwargs):
             batch.append(page)
             if len(batch) >= source_batch_size:
                 yield from self._source_results(batch, fallback_batch_size)
