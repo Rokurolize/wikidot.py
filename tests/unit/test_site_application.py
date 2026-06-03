@@ -12,7 +12,9 @@ from wikidot.common.exceptions import (
     UnexpectedException,
     WikidotStatusCodeException,
 )
+from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.module.client import Client
+from wikidot.module.site import Site
 from wikidot.module.site_application import SiteApplication
 
 
@@ -60,6 +62,55 @@ class TestSiteApplicationDataclass:
 class TestSiteApplicationAcquireAll:
     """SiteApplication.acquire_allのテスト"""
 
+    def test_site_applications_retries_transient_fetch_failures(self):
+        """site.applicationsは一時的なAMC失敗を再試行して申請を返す"""
+        mock_client = create_mock_client(is_logged_in=True)
+        mock_client.amc_client = MagicMock()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(
+            retry_batch_size=1,
+            retry_max_retries=1,
+        )
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test Site",
+            unix_name="test-site",
+            domain="test-site.wikidot.com",
+            ssl_supported=True,
+        )
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <div>
+                    <h3><span class="printuser">
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                    </span></h3>
+                    <table>
+                        <tr>
+                            <td>Label</td>
+                            <td>I want to join this wiki</td>
+                        </tr>
+                    </table>
+                </div>
+            """
+        }
+        mock_client.amc_client.request.side_effect = [
+            (RuntimeError("temporary failure"),),
+            (response,),
+        ]
+
+        with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
+            mock_user = MagicMock()
+            mock_user_parser.return_value = mock_user
+
+            applications = site.applications
+
+        assert len(applications) == 1
+        assert applications[0].user == mock_user
+        assert applications[0].text == "I want to join this wiki"
+        assert mock_client.amc_client.request.call_count == 2
+
     def test_acquire_all_success(self):
         """申請リスト取得成功"""
         mock_client = create_mock_client(is_logged_in=True)
@@ -82,7 +133,7 @@ class TestSiteApplicationAcquireAll:
                 </div>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
             mock_user = MagicMock()
@@ -117,7 +168,7 @@ class TestSiteApplicationAcquireAll:
                 </div>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
             mock_user_parser.return_value = MagicMock()
@@ -135,11 +186,23 @@ class TestSiteApplicationAcquireAll:
 
         response = MagicMock()
         response.json.return_value = {"body": "<div>No applications</div>"}
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         applications = SiteApplication.acquire_all(site)
 
         assert len(applications) == 0
+
+    def test_acquire_all_raises_when_retry_is_exhausted(self):
+        """申請リスト取得の再試行が尽きた場合は明示的に失敗する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+        site.amc_request_with_retry.return_value = (None,)
+
+        with pytest.raises(UnexpectedException, match="Cannot retrieve site applications"):
+            SiteApplication.acquire_all(site)
+
+        site.amc_request.assert_not_called()
 
     def test_acquire_all_forbidden(self):
         """権限がない場合ForbiddenException"""
@@ -149,7 +212,7 @@ class TestSiteApplicationAcquireAll:
 
         response = MagicMock()
         response.json.return_value = {"body": '<a onclick="WIKIDOT.page.listeners.loginClick(event)">Login</a>'}
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         with pytest.raises(ForbiddenException, match="not allowed"):
             SiteApplication.acquire_all(site)
@@ -188,7 +251,7 @@ class TestSiteApplicationAcquireAll:
                 </div>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         with pytest.raises(UnexpectedException, match="Length"):
             SiteApplication.acquire_all(site)
@@ -210,7 +273,7 @@ class TestSiteApplicationAcquireAll:
                 </div>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         with pytest.raises(NoElementException, match="text cell"):
             SiteApplication.acquire_all(site)

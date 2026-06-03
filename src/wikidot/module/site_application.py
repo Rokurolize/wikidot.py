@@ -77,7 +77,9 @@ class SiteApplication:
         UnexpectedException
             If response parsing fails
         """
-        response = site.amc_request([{"moduleName": "managesite/ManageSiteMembersApplicationsModule"}])[0]
+        response = site.amc_request_with_retry([{"moduleName": "managesite/ManageSiteMembersApplicationsModule"}])[0]
+        if response is None:
+            raise exceptions.UnexpectedException("Cannot retrieve site applications")
 
         body = response.json()["body"]
 
