@@ -308,6 +308,23 @@ class PageCollection(list["Page"]):
 
     site: "Site"
 
+    @staticmethod
+    def _is_inside_listpages_result(element: Tag) -> bool:
+        for ancestor in element.parents:
+            if not isinstance(ancestor, Tag):
+                continue
+            if ancestor.name == "div" and "page" in ancestor.get("class", []):
+                return True
+        return False
+
+    @staticmethod
+    def _pager_from_listpages_html(html_body: BeautifulSoup) -> Tag | None:
+        for pager in html_body.select("div.pager"):
+            if PageCollection._is_inside_listpages_result(pager):
+                continue
+            return pager
+        return None
+
     def __init__(self, site: Optional["Site"] = None, pages: list["Page"] | None = None):
         """
         Initialize method
@@ -617,9 +634,9 @@ class PageCollection(list["Page"]):
 
         total = 1
         html_bodies = [first_page_html_body]
-        # pagerが存在する
-        if first_page_html_body.select_one("div.pager") is not None:
-            for pager_target in reversed(first_page_html_body.select("div.pager span.target")):
+        pager = PageCollection._pager_from_listpages_html(first_page_html_body)
+        if pager is not None:
+            for pager_target in reversed(pager.select("span.target")):
                 pager_link = pager_target.select_one("a")
                 page_text = (pager_link or pager_target).get_text(strip=True)
                 if page_text.isdigit():

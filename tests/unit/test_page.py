@@ -334,6 +334,34 @@ class TestPageCollectionSearchPages:
         assert len(pages) == 1
         mock_site_no_http.amc_request.assert_called_once()
 
+    def test_search_pages_ignores_field_value_pager_markup(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """ListPagesフィールド値内のpager風HTMLをページ送りとして扱わない"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            **page_listpages_single,
+            "body": page_listpages_single["body"].replace(
+                '<span class="set title"><span class="name">title</span> <span class="value">SCP-001</span></span>',
+                (
+                    '<span class="set title"><span class="name">title</span> <span class="value">SCP-001'
+                    '<div class="pager"><span class="target">1</span><span class="target"><a>2</a></span></div>'
+                    "</span></span>"
+                ),
+            ),
+        }
+        second_response = MagicMock()
+        second_response.json.return_value = page_listpages_single
+        mock_site_no_http.amc_request = MagicMock(return_value=[first_response])
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(second_response,))
+
+        pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        assert len(pages) == 1
+        assert pages[0].fullname == "scp-001"
+        mock_site_no_http.amc_request.assert_called_once()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
     def test_search_pages_pagination_preserves_query_offset(
         self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
     ) -> None:
