@@ -60,6 +60,8 @@ class PagePublishResult:
         Whether the publish call requested a parent update.
     metas_updated : bool
         Whether the publish call requested a meta-tag update.
+    created : bool
+        True when publish created a new page. False when publish edited an existing page.
     """
 
     page: "Page"
@@ -68,6 +70,7 @@ class PagePublishResult:
     tags_updated: bool
     parent_updated: bool
     metas_updated: bool
+    created: bool = False
 
 
 @dataclass(frozen=True)
@@ -467,6 +470,7 @@ class SitePageAccessor:
 
         existing_page = self.get(fullname, raise_when_not_found=False)
         if existing_page is None:
+            created = True
             page = Page.create_or_edit(
                 site=self.site,
                 fullname=fullname,
@@ -477,6 +481,7 @@ class SitePageAccessor:
                 raise_on_exists=True,
             )
         else:
+            created = False
             page = existing_page.edit(title=title, source=source, comment=comment, force_edit=force_edit)
 
         page_id = self._resolve_post_save_page_id(
@@ -516,6 +521,7 @@ class SitePageAccessor:
             tags_updated=tags_updated,
             parent_updated=parent_updated,
             metas_updated=metas_updated,
+            created=created,
         )
 
 

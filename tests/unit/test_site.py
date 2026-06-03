@@ -452,6 +452,29 @@ class TestSitePageAccessor:
         assert result.parent_updated is False
         assert result.metas_updated is False
 
+    def test_publish_result_reports_create_or_edit_outcome(self, mock_site_no_http: Site) -> None:
+        """publishの戻り値は新規作成か既存編集かを判別できる"""
+        mock_site_no_http.client.login_check = MagicMock()
+
+        edited_page = MagicMock()
+        edited_page.id = 11111
+        existing_page = MagicMock()
+        existing_page.edit.return_value = edited_page
+        mock_site_no_http.page.get = MagicMock(return_value=existing_page)
+
+        edited_result = mock_site_no_http.page.publish("existing-page")
+
+        assert edited_result.created is False
+
+        created_page = MagicMock()
+        created_page.id = 22222
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+
+        with patch.object(Page, "create_or_edit", return_value=created_page):
+            created_result = mock_site_no_http.page.publish("new-page")
+
+        assert created_result.created is True
+
     def test_publish_raises_when_verified_source_mismatches(self, mock_site_no_http: Site) -> None:
         """保存後のViewSourceModule取得結果が入力sourceと違う場合は例外にする"""
         mock_site_no_http.client.login_check = MagicMock()
