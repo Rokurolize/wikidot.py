@@ -249,29 +249,32 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             if post.id in seen_post_ids:
                 continue
             seen_post_ids.add(post.id)
+            if post._revisions is not None:
+                result[post.id] = post._revisions
+                continue
             target_posts.append(post)
 
-        # Step 1: Get revision lists for all posts
-        responses = site.amc_request_with_retry(
-            [
-                {
-                    "moduleName": "forum/sub/ForumPostRevisionsModule",
-                    "postId": post.id,
-                }
-                for post in target_posts
-            ]
-        )
+        # Step 1: Get and parse missing revision lists
+        if len(target_posts) > 0:
+            responses = site.amc_request_with_retry(
+                [
+                    {
+                        "moduleName": "forum/sub/ForumPostRevisionsModule",
+                        "postId": post.id,
+                    }
+                    for post in target_posts
+                ]
+            )
 
-        # Step 2: Parse revision lists
-        for post, response in zip(target_posts, responses, strict=True):
-            if response is None:
-                raise exceptions.UnexpectedException(f"Cannot retrieve forum post revisions for post: {post.id}")
-            body = response.json()["body"]
-            html = BeautifulSoup(body, "lxml")
-            revisions = ForumPostRevisionCollection._parse(post, html)
-            result[post.id] = ForumPostRevisionCollection(post=post, revisions=revisions)
+            for post, response in zip(target_posts, responses, strict=True):
+                if response is None:
+                    raise exceptions.UnexpectedException(f"Cannot retrieve forum post revisions for post: {post.id}")
+                body = response.json()["body"]
+                html = BeautifulSoup(body, "lxml")
+                revisions = ForumPostRevisionCollection._parse(post, html)
+                result[post.id] = ForumPostRevisionCollection(post=post, revisions=revisions)
 
-        # Step 3: Optionally get HTML content for all revisions
+        # Step 2: Optionally get HTML content for all revisions
         if with_html:
             all_revisions: list[ForumPostRevision] = []
             all_revisions_by_id: dict[int, list[ForumPostRevision]] = {}
