@@ -289,6 +289,52 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         assert mock_forum_post_no_http.thread.site.amc_request_with_retry.call_count == 2
 
+    def test_acquire_all_for_posts_with_html_deduplicates_duplicate_revision_ids(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_post_revisions: dict[str, Any],
+        forum_post_revision_content: dict[str, Any],
+    ) -> None:
+        """with_html=Trueの重複したrevision IDのHTML取得は1回にまとめる"""
+        duplicate_revision_response = {
+            **forum_post_revisions,
+            "body": forum_post_revisions["body"].replace("showRevision(event, 9002)", "showRevision(event, 9001)"),
+        }
+        list_response = MagicMock()
+        list_response.json.return_value = duplicate_revision_response
+        html_response1 = MagicMock()
+        html_response1.json.return_value = forum_post_revision_content
+        html_response2 = MagicMock()
+        html_response2.json.return_value = forum_post_revision_content
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(
+            side_effect=[(list_response,), (html_response1, html_response2)]
+        )
+
+        result = ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
+
+        revisions = result[5001]
+        assert [revision.id for revision in revisions] == [9001, 9001, 9003]
+        assert all(revision.is_html_acquired() for revision in revisions)
+        assert [revision.html for revision in revisions] == [
+            str(forum_post_revision_content["content"]),
+            str(forum_post_revision_content["content"]),
+            str(forum_post_revision_content["content"]),
+        ]
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http.thread.site.amc_request_with_retry.call_args_list[1].args == (
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionModule",
+                    "revisionId": 9001,
+                },
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionModule",
+                    "revisionId": 9003,
+                },
+            ],
+        )
+
 
 class TestForumPostRevisionCollectionGetHtmls:
     """ForumPostRevisionCollection.get_htmlsのテスト"""

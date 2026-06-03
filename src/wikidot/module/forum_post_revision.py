@@ -262,10 +262,15 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         # Step 3: Optionally get HTML content for all revisions
         if with_html:
             all_revisions: list[ForumPostRevision] = []
+            all_revisions_by_id: dict[int, list[ForumPostRevision]] = {}
             for collection in result.values():
                 for revision in collection:
-                    if not revision.is_html_acquired():
+                    if revision.is_html_acquired():
+                        continue
+                    if revision.id not in all_revisions_by_id:
                         all_revisions.append(revision)
+                        all_revisions_by_id[revision.id] = []
+                    all_revisions_by_id[revision.id].append(revision)
 
             if len(all_revisions) > 0:
                 html_responses = site.amc_request_with_retry(
@@ -282,7 +287,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     if response is None:
                         continue
                     data = response.json()
-                    revision._html = str(data.get("content", ""))
+                    revision_html = str(data.get("content", ""))
+                    for target_revision in all_revisions_by_id[revision.id]:
+                        target_revision._html = revision_html
 
         return result
 
