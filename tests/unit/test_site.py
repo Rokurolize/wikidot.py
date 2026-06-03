@@ -455,6 +455,39 @@ class TestSitePageAccessor:
         saved_page.refresh_source.assert_called_once_with()
         assert result.source_matches is True
 
+    def test_publish_retries_post_save_visibility_before_returning_page_id(self, mock_site_no_http: Site) -> None:
+        """保存直後のページID取得が一時的に失敗したら指定回数だけ再試行する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+
+        class EventuallyVisiblePage:
+            def __init__(self) -> None:
+                self.id_attempts = 0
+                self.set_metadata = MagicMock()
+                self.refresh_source = MagicMock()
+
+            @property
+            def id(self) -> int:
+                self.id_attempts += 1
+                if self.id_attempts == 1:
+                    raise UnexpectedException("Cannot find page id: new-page")
+                return 24680
+
+        created_page = EventuallyVisiblePage()
+
+        with patch.object(Page, "create_or_edit", return_value=created_page):
+            result = mock_site_no_http.page.publish(
+                "new-page",
+                title="New Title",
+                source="New source",
+                post_save_visibility_attempts=3,
+                post_save_visibility_interval=0,
+            )
+
+        assert created_page.id_attempts == 2
+        assert result.page is created_page
+        assert result.page_id == 24680
+
 
 class TestSiteFromUnixName:
     """Site.from_unix_name のテスト"""

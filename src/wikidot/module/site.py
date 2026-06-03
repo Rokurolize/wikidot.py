@@ -1,5 +1,6 @@
 import re
 import sys
+import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -380,6 +381,22 @@ class SitePageAccessor:
             raise_on_exists=True,
         )
 
+    @staticmethod
+    def _resolve_post_save_page_id(page: "Page", attempts: int, interval: float) -> int:
+        for attempt in range(attempts):
+            try:
+                return page.id
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code != 404 or attempt == attempts - 1:
+                    raise
+            except (exceptions.NotFoundException, exceptions.UnexpectedException):
+                if attempt == attempts - 1:
+                    raise
+            if interval > 0:
+                time.sleep(interval)
+
+        raise exceptions.NotFoundException("Cannot find page id")
+
     def publish(
         self,
         fullname: str,
@@ -392,6 +409,8 @@ class SitePageAccessor:
         force_edit: bool = False,
         verify_source: bool = False,
         source_normalizer: Callable[[str], str] | None = None,
+        post_save_visibility_attempts: int = 1,
+        post_save_visibility_interval: float = 2.0,
     ) -> PagePublishResult:
         """
         Create or edit a page, then optionally update metadata and verify saved source
@@ -418,6 +437,10 @@ class SitePageAccessor:
             Whether to force a fresh ViewSourceModule fetch and compare it with the submitted source.
         source_normalizer : Callable[[str], str] | None, default None
             Optional function applied to both fetched and submitted source before verification.
+        post_save_visibility_attempts : int, default 1
+            Total attempts to resolve the saved page ID before metadata updates, source verification, and result return.
+        post_save_visibility_interval : float, default 2.0
+            Seconds to wait between post-save page ID resolution attempts.
 
         Returns
         -------
@@ -435,6 +458,11 @@ class SitePageAccessor:
         WikidotStatusCodeException
             When saving the page or metadata fails.
         """
+        if post_save_visibility_attempts < 1:
+            raise ValueError("post_save_visibility_attempts must be at least 1")
+        if post_save_visibility_interval < 0:
+            raise ValueError("post_save_visibility_interval must be non-negative")
+
         self.site.client.login_check()
 
         existing_page = self.get(fullname, raise_when_not_found=False)
@@ -450,6 +478,12 @@ class SitePageAccessor:
             )
         else:
             page = existing_page.edit(title=title, source=source, comment=comment, force_edit=force_edit)
+
+        page_id = self._resolve_post_save_page_id(
+            page,
+            attempts=post_save_visibility_attempts,
+            interval=post_save_visibility_interval,
+        )
 
         tags_updated = tags is not None
         parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
@@ -477,7 +511,7 @@ class SitePageAccessor:
 
         return PagePublishResult(
             page=page,
-            page_id=page.id,
+            page_id=page_id,
             source_matches=source_matches,
             tags_updated=tags_updated,
             parent_updated=parent_updated,
