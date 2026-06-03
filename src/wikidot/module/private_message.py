@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
-from bs4 import BeautifulSoup, ResultSet, Tag
+from bs4 import BeautifulSoup, Tag
 from typing_extensions import Self
 
 from ..common import exceptions
@@ -136,6 +136,23 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             all_results.extend(batch_results)
 
         return tuple(all_results)
+
+    @staticmethod
+    def _is_inside_message_row(element: Tag) -> bool:
+        for ancestor in element.parents:
+            if not isinstance(ancestor, Tag):
+                continue
+            if ancestor.name == "tr" and "message" in ancestor.get("class", []):
+                return True
+        return False
+
+    @staticmethod
+    def _pager_targets_from_html(html: BeautifulSoup) -> list[Tag]:
+        for pager in html.select("div.pager"):
+            if PrivateMessageCollection._is_inside_message_row(pager):
+                continue
+            return list(pager.select("span.target"))
+        return []
 
     @staticmethod
     def from_ids(client: "Client", message_ids: list[int]) -> "PrivateMessageCollection":
@@ -287,7 +304,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         html = BeautifulSoup(first_response.json()["body"], "lxml")
         # pagerの最後から2番目の要素を取得
         # pageが存在しない場合は1ページのみ
-        pager: ResultSet[Tag] = html.select("div.pager span.target")
+        pager = PrivateMessageCollection._pager_targets_from_html(html)
         max_page = 1
         for pager_target in reversed(pager):
             page_text = pager_target.get_text(strip=True)

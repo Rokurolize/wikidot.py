@@ -323,6 +323,31 @@ class TestPrivateMessageCollection:
 
         mock_from_ids.assert_called_once_with(mock_client, [123])
 
+    def test_acquire_ignores_message_row_pager_markup(self, mock_client):
+        """メッセージ行内のpager風マークアップをページネーションとして扱わない"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <table>
+                <tr class="message" data-href="/account/messages/view/123">
+                    <td>
+                        Test message preview
+                        <div class="pager"><span class="target">1</span><span class="target">2</span></div>
+                    </td>
+                </tr>
+            </table>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with patch.object(
+            PrivateMessageCollection, "from_ids", return_value=PrivateMessageCollection([])
+        ) as mock_from_ids:
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+        assert mock_client.amc_client.request.call_count == 1
+        mock_from_ids.assert_called_once_with(mock_client, [123])
+
     def test_acquire_retries_transient_first_page_failures(self, mock_client):
         """一時的なAMC失敗後にメッセージ一覧の初回ページをリトライする"""
         mock_response = MagicMock()
