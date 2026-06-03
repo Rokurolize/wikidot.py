@@ -765,6 +765,26 @@ class TestPageCollectionAcquire:
         assert first_revision.created_at == datetime.fromtimestamp(1700002000)
         assert first_revision.comment == "Renamed page"
 
+    def test_acquire_revisions_preserves_comment_text_spacing(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_revisionlist: dict[str, Any]
+    ) -> None:
+        """履歴コメント内の隣接テキストは単語境界を保持する"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        body = page_revisionlist["body"].replace(
+            "<td>Renamed page</td>",
+            "<td><p>First <span>part</span></p><p>Second part</p></td>",
+            1,
+        )
+        response = self._json_response({**page_revisionlist, "body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection.get_page_revisions()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._revisions is not None
+        assert mock_page_with_id._revisions[0].comment == "First part Second part"
+
     def test_acquire_revisions_skips_already_acquired_pages(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_revisionlist: dict[str, Any]
     ) -> None:

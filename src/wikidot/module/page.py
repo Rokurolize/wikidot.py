@@ -903,7 +903,7 @@ class PageCollection(list["Page"]):
                     )
                 created_at = odate_parser(created_at_elem)
 
-                comment = tds[6].text.strip()
+                comment = tds[6].get_text(" ", strip=True)
                 parsed_revisions.append((rev_id, rev_no, created_by, created_at, comment))
 
             for page in target_pages_for_id:
