@@ -93,6 +93,7 @@ class PageRevisionCollection(list["PageRevision"]):
         check_acquired_func: Callable[["PageRevision"], bool],
         module_name: str,
         process_response_func: Callable[[httpx.Response, "Page"], Callable[["PageRevision"], None]],
+        copy_acquired_func: Callable[["PageRevision", "PageRevision"], None] | None = None,
     ) -> list["PageRevision"]:
         """
         Generic method for batch retrieval of revision data
@@ -109,16 +110,29 @@ class PageRevisionCollection(list["PageRevision"]):
             Module name to use in AMC request
         process_response_func : callable
             Function to process the response once and return an applicator for each revision
+        copy_acquired_func : callable | None, default None
+            Function to copy already acquired same-ID revision data before requesting
 
         Returns
         -------
         list[PageRevision]
             List of revisions with updated data
         """
+        acquired_revisions_by_id: dict[int, PageRevision] = {}
+        if copy_acquired_func is not None:
+            for revision in revisions:
+                if check_acquired_func(revision):
+                    acquired_revisions_by_id[revision.id] = revision
+
         target_revisions_by_id: dict[int, list[PageRevision]] = {}
         for revision in revisions:
-            if not check_acquired_func(revision):
-                target_revisions_by_id.setdefault(revision.id, []).append(revision)
+            if check_acquired_func(revision):
+                continue
+            acquired_revision = acquired_revisions_by_id.get(revision.id)
+            if acquired_revision is not None and copy_acquired_func is not None:
+                copy_acquired_func(acquired_revision, revision)
+                continue
+            target_revisions_by_id.setdefault(revision.id, []).append(revision)
 
         if len(target_revisions_by_id) == 0:
             return revisions
@@ -176,12 +190,16 @@ class PageRevisionCollection(list["PageRevision"]):
 
             return apply_source
 
+        def copy_acquired_source(acquired: "PageRevision", revision: "PageRevision") -> None:
+            revision._source = acquired._source
+
         return PageRevisionCollection._generic_acquire(
             page,
             revisions,
             lambda r: r.is_source_acquired(),
             "history/PageSourceModule",
             process_source_response,
+            copy_acquired_source,
         )
 
     def get_sources(self) -> "PageRevisionCollection":
@@ -236,12 +254,16 @@ class PageRevisionCollection(list["PageRevision"]):
 
             return apply_html
 
+        def copy_acquired_html(acquired: "PageRevision", revision: "PageRevision") -> None:
+            revision._html = acquired._html
+
         return PageRevisionCollection._generic_acquire(
             page,
             revisions,
             lambda r: r.is_html_acquired(),
             "history/PageVersionModule",
             process_html_response,
+            copy_acquired_html,
         )
 
     def get_htmls(self) -> "PageRevisionCollection":
