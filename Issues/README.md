@@ -121,6 +121,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [115-pr-preserve-recent-change-title-spacing.md](115-pr-preserve-recent-change-title-spacing.md): upstream PR draft for the committed recent-change page title text spacing fix.
 - [116-pr-preserve-listpages-field-spacing.md](116-pr-preserve-listpages-field-spacing.md): upstream PR draft for the committed ListPages string field text spacing fix.
 - [117-pr-preserve-page-file-name-spacing.md](117-pr-preserve-page-file-name-spacing.md): upstream PR draft for the committed page-file name text spacing fix.
+- [118-pr-preserve-printuser-name-spacing.md](118-pr-preserve-printuser-name-spacing.md): upstream PR draft for the committed printuser display-name text spacing fix.
 
 ## Local Evidence Index
 
@@ -149,5 +150,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 19: `da07175 fix(site): preserve recent change title spacing`
 - Local implementation commits, continued 20: `baefdaa fix(page): preserve listpages field spacing`
 - Local implementation commits, continued 21: `e523849 fix(page_file): preserve file name spacing`
+- Local implementation commits, continued 22: `b27a661 fix(user): preserve printuser name spacing`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
