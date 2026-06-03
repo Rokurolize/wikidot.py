@@ -71,3 +71,5 @@ Large Wikidot collection workflows need a caller-facing way to collect source te
 This slice builds on the bounded search iterator in [018-pr-bounded-page-search-iterator.md](018-pr-bounded-page-search-iterator.md), the source retry draft in [006-pr-retry-batched-source-fetches.md](006-pr-retry-batched-source-fetches.md), and the cache-aware source retry draft in [008-pr-skip-cached-source-fetches.md](008-pr-skip-cached-source-fetches.md).
 
 Follow-up [022-pr-source-iterator-large-fallback-batch.md](022-pr-source-iterator-large-fallback-batch.md) keeps fallback retry active when `fallback_batch_size` is larger than the primary source batch.
+
+Follow-up [025-pr-source-result-error-page-context.md](025-pr-source-result-error-page-context.md) keeps the same `PageSourceResult` shape but includes the failed page fullname in unresolved-source error messages.
