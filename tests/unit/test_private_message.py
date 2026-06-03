@@ -134,6 +134,46 @@ class TestPrivateMessageCollection:
                 assert len(result) == 1
                 assert result[0].id == 1
 
+    def test_from_ids_ignores_body_header_markup(self, mock_client):
+        """本文内のheader風マークアップを送受信者メタデータとして扱わない"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                    <span class="subject">Test Subject</span>
+                    <span class="odate time_1234567890">01 Jan 2023 12:00</span>
+                </div>
+                <div class="body">
+                    Test Body
+                    <div class="header">
+                        <span class="printuser"><a href="http://www.wikidot.com/user:info/content-user" onclick="WIKIDOT.page.listeners.userInfo(33333); return false;">content-user</a></span>
+                    </div>
+                </div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+        sender = MagicMock()
+        recipient = MagicMock()
+
+        with (
+            patch("wikidot.module.private_message.user_parser", side_effect=[sender, recipient]) as mock_user_parser,
+            patch("wikidot.module.private_message.odate_parser") as mock_odate_parser,
+        ):
+            mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
+
+            result = PrivateMessageCollection.from_ids(mock_client, [1])
+
+        assert len(result) == 1
+        assert result[0].sender == sender
+        assert result[0].recipient == recipient
+        assert result[0].subject == "Test Subject"
+        assert "Test Body" in result[0].body
+        assert mock_user_parser.call_count == 2
+
     def test_from_ids_retries_transient_detail_failures(self, mock_client):
         """一時的なAMC失敗後にメッセージ詳細取得をリトライする"""
         mock_response = MagicMock()

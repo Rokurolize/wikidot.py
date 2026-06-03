@@ -210,14 +210,21 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             response = responses_by_id[message_id]
             html = BeautifulSoup(response.json()["body"], "lxml")
 
-            user_elements = html.select("div.pmessage div.header span.printuser")
+            message_element = html.select_one("div.pmessage")
+            if message_element is None:
+                raise exceptions.NoElementException(f"Message element is not found for message: {message_id}")
+            header_element = message_element.select_one(":scope > div.header")
+            if header_element is None:
+                raise exceptions.NoElementException(f"Message header element is not found for message: {message_id}")
+
+            user_elements = header_element.select(":scope > span.printuser")
             if len(user_elements) != 2:
                 raise exceptions.NoElementException(f"Expected sender and recipient elements for message: {message_id}")
             sender, recipient = user_elements
 
-            subject_element = html.select_one("div.pmessage div.header span.subject")
-            body_element = html.select_one("div.pmessage div.body")
-            odate_element = html.select_one("div.header span.odate")
+            subject_element = header_element.select_one(":scope > span.subject")
+            body_element = message_element.select_one(":scope > div.body")
+            odate_element = header_element.select_one(":scope > span.odate")
 
             parsed_messages_by_id[message_id] = (
                 user_parser(client, sender),
