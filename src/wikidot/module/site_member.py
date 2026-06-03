@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 
 from ..common.exceptions import (
     TargetErrorException,
+    UnexpectedException,
     WikidotStatusCodeException,
 )
 from ..util.parser import odate as odate_parser
@@ -121,7 +122,7 @@ class SiteMember:
 
         members: list[SiteMember] = []
 
-        first_response = site.amc_request(
+        first_response = site.amc_request_with_retry(
             [
                 {
                     "moduleName": "membership/MembersListModule",
@@ -130,6 +131,8 @@ class SiteMember:
                 }
             ]
         )[0]
+        if first_response is None:
+            raise UnexpectedException("Cannot retrieve site members page: 1")
 
         first_body = first_response.json()["body"]
         first_html = BeautifulSoup(first_body, "lxml")
@@ -149,18 +152,21 @@ class SiteMember:
         if last_page == 1:
             return members
 
-        responses = site.amc_request(
+        page_numbers = list(range(2, last_page + 1))
+        responses = site.amc_request_with_retry(
             [
                 {
                     "moduleName": "membership/MembersListModule",
                     "page": page,
                     "group": group,
                 }
-                for page in range(2, last_page + 1)
+                for page in page_numbers
             ]
         )
 
-        for response in responses:
+        for page, response in zip(page_numbers, responses, strict=True):
+            if response is None:
+                raise UnexpectedException(f"Cannot retrieve site members page: {page}")
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
             members.extend(SiteMember._parse(site, html))

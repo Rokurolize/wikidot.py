@@ -6,7 +6,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from bs4 import BeautifulSoup
 
-from wikidot.common.exceptions import LoginRequiredException, TargetErrorException, WikidotStatusCodeException
+from wikidot.common.exceptions import (
+    LoginRequiredException,
+    TargetErrorException,
+    UnexpectedException,
+    WikidotStatusCodeException,
+)
+from wikidot.module.site import Site
 from wikidot.module.site_member import SiteMember
 
 
@@ -154,12 +160,17 @@ class TestSiteMemberParse:
 class TestSiteMemberGet:
     """SiteMember.getのテスト"""
 
+    @staticmethod
+    def _members_response(body: str) -> MagicMock:
+        response = MagicMock()
+        response.json.return_value = {"body": body}
+        return response
+
     def test_get_members_single_page(self):
         """単一ページのメンバー取得"""
         site = MagicMock()
-        response = MagicMock()
-        response.json.return_value = {
-            "body": """
+        response = self._members_response(
+            """
                 <table>
                     <tr>
                         <td><span class="printuser">
@@ -168,8 +179,8 @@ class TestSiteMemberGet:
                     </tr>
                 </table>
             """
-        }
-        site.amc_request.return_value = [response]
+        )
+        site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
             mock_user_parser.return_value = MagicMock()
@@ -177,7 +188,47 @@ class TestSiteMemberGet:
             members = SiteMember.get(site, "")
 
             assert len(members) == 1
-            site.amc_request.assert_called_once()
+            site.amc_request.assert_not_called()
+            site.amc_request_with_retry.assert_called_once()
+
+    def test_get_members_retries_transient_first_page_failures(self):
+        """メンバー一覧の初回取得は一時的なAMC失敗を再試行する"""
+        mock_client = MagicMock()
+        mock_client.amc_client = MagicMock()
+        mock_client.amc_client.config.retry_batch_size = 50
+        mock_client.amc_client.config.retry_max_retries = 3
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        response = self._members_response(
+            """
+                <table>
+                    <tr>
+                        <td><span class="printuser">
+                            <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                        </span></td>
+                    </tr>
+                </table>
+            """
+        )
+        mock_client.amc_client.request.side_effect = [
+            (RuntimeError("temporary failure"),),
+            (response,),
+        ]
+
+        with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            members = SiteMember.get(site, "")
+
+        assert len(members) == 1
+        assert mock_client.amc_client.request.call_count == 2
+        assert [call.args[1] for call in mock_client.amc_client.request.call_args_list] == [True, True]
 
     def test_get_members_with_pagination(self):
         """ページネーション付きのメンバー取得"""
@@ -214,7 +265,7 @@ class TestSiteMemberGet:
             """
         }
 
-        site.amc_request.side_effect = [[first_response], [second_response]]
+        site.amc_request_with_retry.side_effect = [(first_response,), (second_response,)]
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
             mock_user_parser.return_value = MagicMock()
@@ -222,7 +273,37 @@ class TestSiteMemberGet:
             members = SiteMember.get(site, "")
 
             assert len(members) == 2
-            assert site.amc_request.call_count == 2
+            site.amc_request.assert_not_called()
+            assert site.amc_request_with_retry.call_count == 2
+
+    def test_get_members_raises_when_paginated_retry_is_exhausted(self):
+        """ページネーション中の再試行失敗は部分的な一覧を返さない"""
+        site = MagicMock()
+        first_response = self._members_response(
+            """
+                <table>
+                    <tr>
+                        <td><span class="printuser">
+                            <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                        </span></td>
+                    </tr>
+                </table>
+                <div class="pager">
+                    <a href="#">1</a>
+                    <a href="#">2</a>
+                </div>
+            """
+        )
+        site.amc_request_with_retry.side_effect = [(first_response,), (None,)]
+
+        with (
+            patch("wikidot.module.site_member.user_parser") as mock_user_parser,
+            pytest.raises(UnexpectedException, match="Cannot retrieve site members page: 2"),
+        ):
+            mock_user_parser.return_value = MagicMock()
+            SiteMember.get(site, "")
+
+        site.amc_request.assert_not_called()
 
     def test_get_members_ignores_non_numeric_pager_links(self):
         """数値ページがないpagerでは単一ページとして扱う"""
@@ -240,7 +321,7 @@ class TestSiteMemberGet:
                 <div class="pager"><a href="#">next</a></div>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
             mock_user_parser.return_value = MagicMock()
@@ -248,18 +329,19 @@ class TestSiteMemberGet:
             members = SiteMember.get(site, "")
 
             assert len(members) == 1
-            site.amc_request.assert_called_once()
+            site.amc_request.assert_not_called()
+            site.amc_request_with_retry.assert_called_once()
 
     def test_get_admins_group(self):
         """管理者グループ取得"""
         site = MagicMock()
         response = MagicMock()
         response.json.return_value = {"body": "<table></table>"}
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         SiteMember.get(site, "admins")
 
-        call_args = site.amc_request.call_args[0][0][0]
+        call_args = site.amc_request_with_retry.call_args[0][0][0]
         assert call_args["group"] == "admins"
 
     def test_get_moderators_group(self):
@@ -267,11 +349,11 @@ class TestSiteMemberGet:
         site = MagicMock()
         response = MagicMock()
         response.json.return_value = {"body": "<table></table>"}
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         SiteMember.get(site, "moderators")
 
-        call_args = site.amc_request.call_args[0][0][0]
+        call_args = site.amc_request_with_retry.call_args[0][0][0]
         assert call_args["group"] == "moderators"
 
     def test_get_invalid_group_raises(self):
@@ -286,11 +368,11 @@ class TestSiteMemberGet:
         site = MagicMock()
         response = MagicMock()
         response.json.return_value = {"body": "<table></table>"}
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         SiteMember.get(site, None)
 
-        call_args = site.amc_request.call_args[0][0][0]
+        call_args = site.amc_request_with_retry.call_args[0][0][0]
         assert call_args["group"] == ""
 
 
