@@ -338,6 +338,28 @@ class TestForumThreadCollectionAcquireFromIds:
         assert collection[0].post_count == 5
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_from_ids_preserves_formatted_description_text(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """スレッド説明内の装飾タグのテキストを欠落させない"""
+        body = forum_thread_detail["body"].replace(
+            "Test thread description",
+            'Test <span class="wiki-formatting">thread</span> description',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        assert len(collection) == 1
+        assert collection[0].description == "Test thread description"
+        assert collection[0].created_by.name == "test_user"
+        assert collection[0].post_count == 5
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_site_get_threads_retries_transient_fetch_failures(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
     ) -> None:

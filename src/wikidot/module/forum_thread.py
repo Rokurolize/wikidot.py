@@ -112,6 +112,26 @@ class ForumThreadCollection(list["ForumThread"]):
         return False
 
     @staticmethod
+    def _description_text_from_block(description_block_elem: Tag, statistics_elem: Tag) -> str:
+        chunks: list[str] = []
+
+        for child in description_block_elem.children:
+            if child is statistics_elem:
+                continue
+
+            if isinstance(child, NavigableString):
+                text = child.strip()
+            elif isinstance(child, Tag):
+                text = child.get_text(" ", strip=True)
+            else:
+                continue
+
+            if text:
+                chunks.append(text)
+
+        return " ".join(chunks)
+
+    @staticmethod
     def _parse_list_in_category(
         site: "Site", html: BeautifulSoup, category: Optional["ForumCategory"] = None
     ) -> "ForumThreadCollection":
@@ -248,13 +268,11 @@ class ForumThreadCollection(list["ForumThread"]):
         description_block_elem = html.select_one("div.description-block")
         if description_block_elem is None:
             raise NoElementException("Description block element is not found.")
-        description = "".join(
-            [text.strip() for text in description_block_elem if isinstance(text, NavigableString) and text.strip()]
-        )
         statistics_elems = description_block_elem.find_all("div", class_="statistics", recursive=False)
         if not statistics_elems:
             raise NoElementException("Statistics element is not found.")
         statistics_elem = statistics_elems[-1]
+        description = ForumThreadCollection._description_text_from_block(description_block_elem, statistics_elem)
 
         # created_by取得処理
         user_elem = statistics_elem.find("span", class_="printuser", recursive=False)
