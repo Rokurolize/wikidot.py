@@ -66,3 +66,5 @@ Large Wikidot collection workflows need predictable bounded ListPages scans. A p
 ## Additional Notes
 
 This slice does not add `iter_sources(...)`, source batch fallback, or structured per-page source failure records. Those are covered by the follow-up local draft in [019-pr-page-source-iterator-fallback.md](019-pr-page-source-iterator-fallback.md).
+
+Follow-up [023-pr-search-pagination-validation.md](023-pr-search-pagination-validation.md) rejects invalid `offset` and `perPage` values before iterator or ListPages request construction.
