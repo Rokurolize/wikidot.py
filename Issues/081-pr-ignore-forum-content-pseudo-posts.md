@@ -74,3 +74,5 @@ Forum post bodies can contain arbitrary HTML-like or Wikidot-rendered structures
 ## Additional Notes
 
 This slice does not change forum post field extraction, nested reply parent detection, pagination, retry policy, source retrieval, edit actions, or reply actions. It only narrows the parser's candidate post elements before the existing parse logic runs.
+
+Follow-up [082-pr-ignore-content-edit-metadata.md](082-pr-ignore-content-edit-metadata.md) keeps the real post candidate selector but also scopes edit metadata to the direct `div.changes` emitted by the forum post wrapper, so content `div.changes` markup cannot create false edit attribution.
