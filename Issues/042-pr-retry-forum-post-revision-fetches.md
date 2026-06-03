@@ -10,6 +10,8 @@ The fix routes forum post revision-list and revision-HTML reads through `site.am
 
 Complements [036-pr-retry-thread-post-fetches.md](036-pr-retry-thread-post-fetches.md), which made forum thread post-list fetches retry-aware, and [015-pr-retry-revision-source-html-fetches.md](015-pr-retry-revision-source-html-fetches.md), which applied the same retry and partial-success behavior to page revision source/HTML fetches. No upstream issue filed yet.
 
+Follow-up performance draft: [056-pr-deduplicate-forum-post-revision-fetches.md](056-pr-deduplicate-forum-post-revision-fetches.md) removes duplicate revision-list requests while preserving this retry-aware read path and post-ID keyed result shape.
+
 ## Changes
 
 - Use `post.thread.site.amc_request_with_retry(...)` in `ForumPostRevisionCollection.acquire_all(post)`.
