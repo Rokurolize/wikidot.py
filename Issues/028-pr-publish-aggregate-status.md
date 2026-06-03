@@ -62,3 +62,5 @@ Structured publish result data is most useful when callers can persist concise a
 ## Additional Notes
 
 This slice does not add partial-failure result objects. Failed publish operations still raise the existing wikidot.py exceptions instead of returning a partial success record.
+
+Follow-up [070-pr-publish-result-audit-record.md](070-pr-publish-result-audit-record.md) wraps `metadata_updated`, `source_verified`, and the individual publish status fields into a compact `PagePublishResult.as_dict()` audit record.
