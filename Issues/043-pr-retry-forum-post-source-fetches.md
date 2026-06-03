@@ -10,6 +10,8 @@ The fix routes forum post source fetches through `site.amc_request_with_retry(..
 
 Complements [036-pr-retry-thread-post-fetches.md](036-pr-retry-thread-post-fetches.md), which made forum post-list fetches retry-aware, and [042-pr-retry-forum-post-revision-fetches.md](042-pr-retry-forum-post-revision-fetches.md), which applied retry-aware handling to forum post revision reads. It also mirrors the partial-success source/HTML behavior from [015-pr-retry-revision-source-html-fetches.md](015-pr-retry-revision-source-html-fetches.md). No upstream issue filed yet.
 
+Follow-up performance draft: [055-pr-deduplicate-forum-post-source-fetches.md](055-pr-deduplicate-forum-post-source-fetches.md) removes duplicate source-fetch requests while preserving this retry-aware read path.
+
 ## Changes
 
 - Use `thread.site.amc_request_with_retry(...)` in `ForumPostCollection._acquire_post_sources(...)`.
