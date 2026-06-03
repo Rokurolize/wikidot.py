@@ -62,3 +62,5 @@ Source collection workflows often write compact ledgers of failures for later re
 ## Additional Notes
 
 This slice does not change retry counts, fallback batch sizing, or the `PageSourceResult` dataclass fields. It only makes the existing failure object more useful when rendered or logged.
+
+Follow-up [026-pr-source-iterator-parse-failure-isolation.md](026-pr-source-iterator-parse-failure-isolation.md) applies the same per-page failure contract to malformed source response parse failures.

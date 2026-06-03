@@ -73,3 +73,5 @@ This slice builds on the bounded search iterator in [018-pr-bounded-page-search-
 Follow-up [022-pr-source-iterator-large-fallback-batch.md](022-pr-source-iterator-large-fallback-batch.md) keeps fallback retry active when `fallback_batch_size` is larger than the primary source batch.
 
 Follow-up [025-pr-source-result-error-page-context.md](025-pr-source-result-error-page-context.md) keeps the same `PageSourceResult` shape but includes the failed page fullname in unresolved-source error messages.
+
+Follow-up [026-pr-source-iterator-parse-failure-isolation.md](026-pr-source-iterator-parse-failure-isolation.md) keeps malformed source response parsing failures inside the same per-page `PageSourceResult.error` path instead of aborting the iterator.
