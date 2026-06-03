@@ -192,7 +192,42 @@ class TestSitePagesAccessor:
         assert [page.fullname for page in pages] == ["fr:scp-001", "fr:scp-002"]
         assert [query.tags for query in search_calls] == ["scp", "scp"]
         assert [query.offset for query in search_calls] == [0, 2]
-        assert [query.limit for query in search_calls] == [2, 1]
+        assert [query.limit for query in search_calls] == [2, 2]
+
+    def test_iter_search_required_tags_keeps_remote_chunk_size_after_skips(
+        self,
+        mock_site_no_http: Site,
+    ) -> None:
+        """iter_searchは必要タグの非一致を挟んでもremote chunkを縮めない"""
+        first_match = self._page(mock_site_no_http, "fr:scp-001", 201)
+        first_match.tags = ["scp", "fr"]
+        first_broad_only = self._page(mock_site_no_http, "scp-001", 202)
+        first_broad_only.tags = ["scp"]
+        second_broad_only = self._page(mock_site_no_http, "scp-002", 203)
+        second_broad_only.tags = ["scp"]
+        second_match = self._page(mock_site_no_http, "fr:scp-002", 204)
+        second_match.tags = ["scp", "fr"]
+        broad_pages = [first_match, first_broad_only, second_broad_only, second_match]
+        search_calls = []
+
+        def search_pages(site: Site, query) -> PageCollection:
+            search_calls.append(query)
+            limit = query.limit or 0
+            return PageCollection(site, broad_pages[query.offset : query.offset + limit])
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            pages = list(
+                mock_site_no_http.pages.iter_search(
+                    tags="scp",
+                    required_tags=["scp", "fr"],
+                    perPage=2,
+                    limit=2,
+                )
+            )
+
+        assert [page.fullname for page in pages] == ["fr:scp-001", "fr:scp-002"]
+        assert [query.offset for query in search_calls] == [0, 2]
+        assert [query.limit for query in search_calls] == [2, 2]
 
     def test_iter_sources_yields_sources_in_search_order(self, mock_site_no_http: Site) -> None:
         """iter_sourcesは検索順を保ったままsourceを分割取得して結果を返す"""

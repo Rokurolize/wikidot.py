@@ -216,7 +216,7 @@ class SitePagesAccessor:
 
         required_tag_set = self._normalize_required_tags(required_tags)
         while True:
-            batch_limit = per_page if remaining is None else min(per_page, remaining)
+            batch_limit = per_page if remaining is None or required_tag_set else min(per_page, remaining)
             if batch_limit <= 0:
                 return
 
