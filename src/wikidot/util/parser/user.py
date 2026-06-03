@@ -49,7 +49,8 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
     img_src = img_elem.get("src") if isinstance(img_elem, bs4.Tag) else None
     if isinstance(img_src, str) and "gravatar.com" in img_src:
         avatar_url = img_src
-        guest_name = elem.get_text(strip=True).split(" ", maxsplit=1)[0]
+        guest_text = elem.get_text(" ", strip=True)
+        guest_name = re.sub(r"\s*(?:\([^)]*\)|（[^）]*）)\s*$", "", guest_text)
         return user.GuestUser(
             client=client,
             name=guest_name,

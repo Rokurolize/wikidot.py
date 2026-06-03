@@ -158,6 +158,25 @@ class TestUserParserGuestUser:
         assert isinstance(result, GuestUser)
         assert result.name == ""
 
+    def test_parse_guest_user_preserves_display_name_text_spacing(self, mock_client_no_http: MagicMock) -> None:
+        """ゲスト表示名内の装飾要素や空白を切り落とさない"""
+        html = """
+        <span class="printuser avatarhover">
+            <a href="javascript:;">
+                <img class="small" src="https://www.gravatar.com/avatar/abc123" alt="">
+            </a>
+            <span>First <em>Part</em></span><span>Guest</span> (ゲスト)
+        </span>
+        """
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        result = user_parse(mock_client_no_http, elem)
+
+        assert isinstance(result, GuestUser)
+        assert result.name == "First Part Guest"
+
 
 class TestUserParserWikidotUser:
     """Wikidotシステムユーザーのパーステスト"""
