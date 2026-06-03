@@ -244,6 +244,7 @@ class TestSitePagesAccessor:
             None,
         ]
         assert isinstance(results[2].error, NotFoundException)
+        assert "page-three" in str(results[2].error)
         mock_site_no_http.amc_request.assert_not_called()
 
     def test_iter_sources_retries_missing_pages_when_fallback_batch_is_large(self, mock_site_no_http: Site) -> None:

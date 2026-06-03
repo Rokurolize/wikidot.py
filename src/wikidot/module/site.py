@@ -238,7 +238,9 @@ class SitePagesAccessor:
         for page in pages:
             if page._source is None:
                 yield PageSourceResult(
-                    page=page, source=None, error=exceptions.NotFoundException("Cannot find page source")
+                    page=page,
+                    source=None,
+                    error=exceptions.NotFoundException(f"Cannot find page source: {page.fullname}"),
                 )
             else:
                 yield PageSourceResult(page=page, source=page._source)
