@@ -154,7 +154,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
                 category = ForumCategory(
                     site=site,
                     id=int(category_id_str),
-                    title=name_link_elem.text,
+                    title=name_link_elem.get_text(" ", strip=True),
                     description=description_elem.get_text(" ", strip=True),
                     threads_count=int(thread_count_elem.text),
                     posts_count=int(post_count_elem.text),
