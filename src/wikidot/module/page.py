@@ -1007,9 +1007,25 @@ class PageCollection(list["Page"]):
             return pages
 
         PageCollection._acquire_page_ids(site, target_pages)
+
+        def clone_votes(page: Page, votes: PageVoteCollection) -> PageVoteCollection:
+            return PageVoteCollection(page, [PageVote(page, vote.user, vote.value) for vote in votes])
+
+        acquired_votes_by_id: dict[int, PageVoteCollection] = {}
+        for page in pages:
+            if page._id is not None and page._votes is not None:
+                acquired_votes_by_id[page.id] = page._votes
+
         target_pages_by_id: dict[int, list[Page]] = {}
         for page in target_pages:
+            acquired_votes = acquired_votes_by_id.get(page.id)
+            if acquired_votes is not None:
+                page._votes = clone_votes(page, acquired_votes)
+                continue
             target_pages_by_id.setdefault(page.id, []).append(page)
+
+        if len(target_pages_by_id) == 0:
+            return pages
 
         responses = site.amc_request_with_retry(
             [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": page_id} for page_id in target_pages_by_id]

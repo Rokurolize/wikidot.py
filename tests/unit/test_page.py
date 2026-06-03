@@ -14,6 +14,7 @@ from wikidot.common import exceptions
 from wikidot.module.page import Page, PageCollection, SearchPagesQuery
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
+from wikidot.module.page_votes import PageVote, PageVoteCollection
 
 if TYPE_CHECKING:
     from wikidot.module.site import Site
@@ -1035,6 +1036,34 @@ class TestPageCollectionAcquire:
         assert len(mock_page_with_id._votes) == len(duplicate_page._votes)
         assert mock_page_with_id._votes[0].page is mock_page_with_id
         assert duplicate_page._votes[0].page is duplicate_page
+
+    def test_acquire_votes_reuses_cached_duplicate_page_votes(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_whorated: dict[str, Any]
+    ) -> None:
+        """取得済みの重複ページvote一覧を未取得の同一IDページへ再利用する"""
+        cached_user = MagicMock(name="cached_user")
+        cached_vote = PageVote(mock_page_with_id, cached_user, 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        duplicate_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        duplicate_page.id = mock_page_with_id.id
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, duplicate_page])
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(page_whorated),))
+
+        result = collection.get_page_votes()
+
+        assert result == collection
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+        assert mock_page_with_id._votes is not None
+        assert duplicate_page._votes is not None
+        assert duplicate_page._votes is not mock_page_with_id._votes
+        assert len(duplicate_page._votes) == 1
+        assert duplicate_page._votes[0] is not cached_vote
+        assert duplicate_page._votes[0].page is duplicate_page
+        assert duplicate_page._votes[0].user is cached_user
+        assert duplicate_page._votes[0].value == 1
 
     def test_acquire_files_batches_missing_page_ids(
         self,
