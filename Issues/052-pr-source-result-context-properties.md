@@ -63,3 +63,5 @@ Source collection workflows need ledger-friendly result records. Direct `fullnam
 ## Additional Notes
 
 This slice does not change source fetching, retry behavior, fallback batch sizing, parse failure handling, or the `PageSource` object. It only adds read-only convenience properties to the existing `PageSourceResult` record.
+
+Follow-up [069-pr-source-result-ledger-record.md](069-pr-source-result-ledger-record.md) wraps `fullname`, `ok`, `wiki_text`, and `error_message` into a compact `PageSourceResult.as_dict()` ledger record while preserving these individual read-only properties.
