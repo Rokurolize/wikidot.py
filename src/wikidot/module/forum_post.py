@@ -256,6 +256,13 @@ class ForumPostCollection(list["ForumPost"]):
 
         result: dict[int, ForumPostCollection] = {}
         site = threads[0].site
+        target_threads: list[ForumThread] = []
+        seen_thread_ids: set[int] = set()
+        for thread in threads:
+            if thread.id in seen_thread_ids:
+                continue
+            seen_thread_ids.add(thread.id)
+            target_threads.append(thread)
 
         # Step 1: Get the first page of all threads
         first_page_responses = site.amc_request_with_retry(
@@ -265,14 +272,14 @@ class ForumPostCollection(list["ForumPost"]):
                     "pageNo": "1",
                     "t": str(thread.id),
                 }
-                for thread in threads
+                for thread in target_threads
             ]
         )
 
         # Step 2: Parse first pages and determine pagination
         additional_requests: list[tuple[ForumThread, int]] = []
 
-        for thread, response in zip(threads, first_page_responses, strict=True):
+        for thread, response in zip(target_threads, first_page_responses, strict=True):
             if response is None:
                 raise UnexpectedException(f"Cannot retrieve forum posts for thread {thread.id} page: 1")
             body = response.json()["body"]

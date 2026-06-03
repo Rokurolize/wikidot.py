@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -10,10 +10,7 @@ from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
 from wikidot.module.forum_post import ForumPost, ForumPostCollection
-
-if TYPE_CHECKING:
-    from wikidot.module.forum_thread import ForumThread
-
+from wikidot.module.forum_thread import ForumThread
 
 # ============================================================
 # ForumPostCollectionテスト
@@ -155,6 +152,41 @@ class TestForumPostCollectionAcquireAll:
         # 最初のページで2件 + 2ページ目で2件 = 4件
         assert len(collection) == 4
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_acquire_all_in_threads_deduplicates_duplicate_thread_ids(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """重複したthread IDの投稿一覧取得は1回にまとめる"""
+        duplicate_thread = ForumThread(
+            site=mock_forum_thread_no_http.site,
+            id=mock_forum_thread_no_http.id,
+            title="Duplicate Thread",
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=mock_forum_thread_no_http.post_count,
+            category=mock_forum_thread_no_http.category,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_posts_in_thread
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        result = ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, duplicate_thread])
+
+        assert set(result) == {mock_forum_thread_no_http.id}
+        assert len(result[mock_forum_thread_no_http.id]) == 2
+        assert result[mock_forum_thread_no_http.id].thread == mock_forum_thread_no_http
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/ForumViewThreadPostsModule",
+                    "pageNo": "1",
+                    "t": str(mock_forum_thread_no_http.id),
+                }
+            ]
+        )
 
     def test_acquire_all_ignores_non_numeric_pager_targets(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
