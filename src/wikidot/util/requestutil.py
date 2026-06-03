@@ -35,9 +35,14 @@ class RequestUtil:
         list[httpx.Response | Exception]
             List of responses
         """
+        method = method.upper()
+        if method not in {"GET", "POST"}:
+            raise ValueError("Invalid method")
+        if len(urls) == 0:
+            return []
+
         config = client.amc_client.config
         semaphore = asyncio.Semaphore(config.semaphore_limit)
-        method = method.upper()
 
         def _get_headers() -> dict[str, str] | None:
             header = getattr(client.amc_client, "header", None)

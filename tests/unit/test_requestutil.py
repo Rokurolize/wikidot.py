@@ -12,6 +12,27 @@ from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.util.requestutil import RequestUtil
 
 
+class TestRequestUtilEmpty:
+    """空URL入力のテスト"""
+
+    def test_empty_get_urls_returns_empty_without_client_config(self):
+        """URLがないGETはクライアント設定なしで空結果を返す"""
+        result = RequestUtil.request(object(), "GET", [])
+
+        assert result == []
+
+    def test_empty_post_urls_returns_empty_without_client_config(self):
+        """URLがないPOSTはクライアント設定なしで空結果を返す"""
+        result = RequestUtil.request(object(), "POST", [])
+
+        assert result == []
+
+    def test_empty_urls_still_validate_method(self):
+        """URLがない場合も不正なHTTPメソッドは握りつぶさない"""
+        with pytest.raises(ValueError, match="Invalid method"):
+            RequestUtil.request(object(), "DELETE", [])
+
+
 class TestRequestUtilGet:
     """RequestUtil.request GETメソッドのテスト"""
 
