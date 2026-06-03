@@ -66,4 +66,4 @@ wikidot.py already exposes the pieces needed for browser-free page publishing, b
 
 ## Additional Notes
 
-This slice does not retry `savePage`, because blind retries of a write operation can duplicate side effects. The source normalization follow-up is drafted in [020-pr-publish-source-verification-normalizer.md](020-pr-publish-source-verification-normalizer.md), and the post-save visibility follow-up is drafted in [021-pr-publish-post-save-visibility-retry.md](021-pr-publish-post-save-visibility-retry.md).
+This slice does not retry `savePage`, because blind retries of a write operation can duplicate side effects. The source normalization follow-up is drafted in [020-pr-publish-source-verification-normalizer.md](020-pr-publish-source-verification-normalizer.md), the post-save visibility follow-up is drafted in [021-pr-publish-post-save-visibility-retry.md](021-pr-publish-post-save-visibility-retry.md), and the create/edit result-status follow-up is drafted in [024-pr-publish-create-outcome.md](024-pr-publish-create-outcome.md).
