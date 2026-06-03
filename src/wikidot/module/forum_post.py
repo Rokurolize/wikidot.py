@@ -344,7 +344,15 @@ class ForumPostCollection(list["ForumPost"]):
         if len(posts) == 0:
             return posts
 
-        target_posts = [post for post in posts if post._source is None]
+        target_posts: list[ForumPost] = []
+        target_posts_by_id: dict[int, list[ForumPost]] = {}
+        for post in posts:
+            if post._source is not None:
+                continue
+            if post.id not in target_posts_by_id:
+                target_posts.append(post)
+                target_posts_by_id[post.id] = []
+            target_posts_by_id[post.id].append(post)
 
         if len(target_posts) == 0:
             return posts
@@ -367,7 +375,9 @@ class ForumPostCollection(list["ForumPost"]):
             source_elem = html.select_one("textarea[name='source']")
             if source_elem is None:
                 raise NoElementException(f"Source textarea is not found for post: {post.id}")
-            post._source = source_elem.get_text()
+            source = source_elem.get_text()
+            for target_post in target_posts_by_id[post.id]:
+                target_post._source = source
 
         return posts
 
