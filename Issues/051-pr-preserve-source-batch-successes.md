@@ -75,3 +75,5 @@ Large Wikidot source collections should salvage every successful response from a
 ## Additional Notes
 
 This slice deliberately does not change retry counts, source request construction, public dataclass fields, or the direct exception type. It only changes when the first parse error is raised so successful responses in the same batch are not lost.
+
+Follow-up: [062-pr-deduplicate-page-source-fetches.md](062-pr-deduplicate-page-source-fetches.md) removes duplicate source requests for repeated resolved page IDs while preserving this slice's later-success preservation behavior.

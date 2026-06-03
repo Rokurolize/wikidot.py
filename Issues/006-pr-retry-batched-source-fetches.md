@@ -60,3 +60,5 @@ Large source collection workflows are vulnerable to transient Wikidot failures a
 ## Additional Notes
 
 This is an immediate reliability improvement for the broader large-corpus source collection feature draft in [004-feature-large-corpus-page-source-collection.md](004-feature-large-corpus-page-source-collection.md).
+
+Follow-up: [062-pr-deduplicate-page-source-fetches.md](062-pr-deduplicate-page-source-fetches.md) removes duplicate source requests for repeated resolved page IDs while preserving the retry-aware behavior from this slice.
