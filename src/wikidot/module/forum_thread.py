@@ -228,7 +228,7 @@ class ForumThreadCollection(list["ForumThread"]):
                     site=site,
                     id=int(thread_id),
                     title=title.text,
-                    description=description_elem.text,
+                    description=description_elem.get_text(" ", strip=True),
                     created_by=user_parser(site.client, user_elem),
                     created_at=odate_parser(odate_elem),
                     post_count=int(posts_count_elem.text),
