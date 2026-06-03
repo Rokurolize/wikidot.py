@@ -2,7 +2,7 @@ import re
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, Optional, overload
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast, overload
 
 import httpx
 from bs4 import BeautifulSoup
@@ -29,6 +29,42 @@ from .site_member import SiteMember
 if TYPE_CHECKING:
     from .client import Client
     from .user import AbstractUser, User
+
+
+class _UnsetPublishParentType:
+    pass
+
+
+_UNSET_PUBLISH_PARENT = _UnsetPublishParentType()
+
+
+@dataclass(frozen=True)
+class PagePublishResult:
+    """
+    Result returned by Site.page.publish()
+
+    Attributes
+    ----------
+    page : Page
+        Created or edited page.
+    page_id : int
+        Public page ID resolved after saving.
+    source_matches : bool | None
+        True when source verification was requested and matched. None when verification was not requested.
+    tags_updated : bool
+        Whether the publish call requested a tags update.
+    parent_updated : bool
+        Whether the publish call requested a parent update.
+    metas_updated : bool
+        Whether the publish call requested a meta-tag update.
+    """
+
+    page: "Page"
+    page_id: int
+    source_matches: bool | None
+    tags_updated: bool
+    parent_updated: bool
+    metas_updated: bool
 
 
 class SitePagesAccessor:
@@ -208,6 +244,102 @@ class SitePageAccessor:
             comment=comment,
             force_edit=force_edit,
             raise_on_exists=True,
+        )
+
+    def publish(
+        self,
+        fullname: str,
+        title: str = "",
+        source: str = "",
+        comment: str = "",
+        tags: list[str] | None = None,
+        parent_fullname: str | None | _UnsetPublishParentType = _UNSET_PUBLISH_PARENT,
+        metas: dict[str, str] | None = None,
+        force_edit: bool = False,
+        verify_source: bool = False,
+    ) -> PagePublishResult:
+        """
+        Create or edit a page, then optionally update metadata and verify saved source
+
+        Parameters
+        ----------
+        fullname : str
+            Fullname of the page to publish.
+        title : str, default ""
+            Title to save.
+        source : str, default ""
+            Wikidot source to save.
+        comment : str, default ""
+            Edit comment.
+        tags : list[str] | None, default None
+            Tags to save after the page source. None leaves tags unchanged.
+        parent_fullname : str | None, optional
+            Parent fullname to set. Passing None clears the parent. Omitting this argument leaves the parent unchanged.
+        metas : dict[str, str] | None, default None
+            Meta tags to save after the page source. None leaves meta tags unchanged.
+        force_edit : bool, default False
+            Whether to forcibly release locks by other users.
+        verify_source : bool, default False
+            Whether to force a fresh ViewSourceModule fetch and compare it with the submitted source.
+
+        Returns
+        -------
+        PagePublishResult
+            Created or edited page plus publish status fields.
+
+        Raises
+        ------
+        LoginRequiredException
+            When not logged in.
+        TargetErrorException
+            When the page is locked.
+        UnexpectedException
+            When source verification is requested and the fetched source does not match.
+        WikidotStatusCodeException
+            When saving the page or metadata fails.
+        """
+        self.site.client.login_check()
+
+        existing_page = self.get(fullname, raise_when_not_found=False)
+        if existing_page is None:
+            page = Page.create_or_edit(
+                site=self.site,
+                fullname=fullname,
+                title=title,
+                source=source,
+                comment=comment,
+                force_edit=force_edit,
+                raise_on_exists=True,
+            )
+        else:
+            page = existing_page.edit(title=title, source=source, comment=comment, force_edit=force_edit)
+
+        tags_updated = tags is not None
+        parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
+        metas_updated = metas is not None
+        if tags_updated or parent_updated or metas_updated:
+            if parent_updated:
+                page.set_metadata(
+                    tags=tags,
+                    parent_fullname=cast(str | None, parent_fullname),
+                    metas=metas,
+                )
+            else:
+                page.set_metadata(tags=tags, metas=metas)
+
+        source_matches: bool | None = None
+        if verify_source:
+            source_matches = page.refresh_source().wiki_text == source
+            if not source_matches:
+                raise exceptions.UnexpectedException(f"Saved source verification failed for page: {fullname}")
+
+        return PagePublishResult(
+            page=page,
+            page_id=page.id,
+            source_matches=source_matches,
+            tags_updated=tags_updated,
+            parent_updated=parent_updated,
+            metas_updated=metas_updated,
         )
 
 

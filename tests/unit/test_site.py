@@ -15,7 +15,7 @@ from wikidot.common.exceptions import (
     WikidotStatusCodeException,
 )
 from wikidot.module.client import Client
-from wikidot.module.page import PageCollection
+from wikidot.module.page import Page, PageCollection
 from wikidot.module.site import Site
 
 
@@ -165,6 +165,101 @@ class TestSitePageAccessor:
             mock_site_no_http.page.create("test-page", force_edit=True)
 
         mock_site_no_http.page.get.assert_not_called()
+
+    def test_publish_edits_existing_page_sets_metadata_and_verifies_source(self, mock_site_no_http: Site) -> None:
+        """既存ページの保存、メタデータ更新、ソース検証を一つのpublish操作で実行する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        saved_page = MagicMock()
+        saved_page.id = 12345
+        saved_page.refresh_source.return_value.wiki_text = "Saved source"
+        existing_page = MagicMock()
+        existing_page.edit.return_value = saved_page
+        mock_site_no_http.page.get = MagicMock(return_value=existing_page)
+
+        result = mock_site_no_http.page.publish(
+            "test-page",
+            title="Updated Title",
+            source="Saved source",
+            comment="Automated publish",
+            tags=["published", "_hidden"],
+            parent_fullname="parent-page",
+            metas={"codex-source": "demo"},
+            force_edit=True,
+            verify_source=True,
+        )
+
+        mock_site_no_http.client.login_check.assert_called_once()
+        existing_page.edit.assert_called_once_with(
+            title="Updated Title",
+            source="Saved source",
+            comment="Automated publish",
+            force_edit=True,
+        )
+        saved_page.set_metadata.assert_called_once_with(
+            tags=["published", "_hidden"],
+            parent_fullname="parent-page",
+            metas={"codex-source": "demo"},
+        )
+        saved_page.refresh_source.assert_called_once_with()
+        assert result.page is saved_page
+        assert result.page_id == 12345
+        assert result.source_matches is True
+        assert result.tags_updated is True
+        assert result.parent_updated is True
+        assert result.metas_updated is True
+
+    def test_publish_creates_missing_page_without_optional_steps(self, mock_site_no_http: Site) -> None:
+        """未作成ページは作成し、任意のメタデータ更新やソース検証は省略できる"""
+        mock_site_no_http.client.login_check = MagicMock()
+        created_page = MagicMock()
+        created_page.id = 67890
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+
+        with patch.object(Page, "create_or_edit", return_value=created_page) as mock_create_or_edit:
+            result = mock_site_no_http.page.publish(
+                "new-page",
+                title="New Title",
+                source="New source",
+                comment="Initial publish",
+            )
+
+        mock_create_or_edit.assert_called_once_with(
+            site=mock_site_no_http,
+            fullname="new-page",
+            title="New Title",
+            source="New source",
+            comment="Initial publish",
+            force_edit=False,
+            raise_on_exists=True,
+        )
+        created_page.set_metadata.assert_not_called()
+        created_page.refresh_source.assert_not_called()
+        assert result.page is created_page
+        assert result.page_id == 67890
+        assert result.source_matches is None
+        assert result.tags_updated is False
+        assert result.parent_updated is False
+        assert result.metas_updated is False
+
+    def test_publish_raises_when_verified_source_mismatches(self, mock_site_no_http: Site) -> None:
+        """保存後のViewSourceModule取得結果が入力sourceと違う場合は例外にする"""
+        mock_site_no_http.client.login_check = MagicMock()
+        saved_page = MagicMock()
+        saved_page.refresh_source.return_value.wiki_text = "Remote source"
+        existing_page = MagicMock()
+        existing_page.edit.return_value = saved_page
+        mock_site_no_http.page.get = MagicMock(return_value=existing_page)
+
+        with pytest.raises(UnexpectedException, match="Saved source verification failed for page: test-page"):
+            mock_site_no_http.page.publish(
+                "test-page",
+                title="Updated Title",
+                source="Expected source",
+                verify_source=True,
+            )
+
+        saved_page.set_metadata.assert_not_called()
+        saved_page.refresh_source.assert_called_once_with()
 
 
 class TestSiteFromUnixName:
