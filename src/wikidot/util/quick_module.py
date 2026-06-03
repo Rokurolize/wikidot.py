@@ -71,7 +71,7 @@ class QuickModule:
 
         params = urlencode({"module": module_name, "s": site_id, "q": query})
         url = f"https://www.wikidot.com/quickmodule.php?{params}"
-        response = sync_get_with_retry(url, timeout=300, attempt_limit=1, raise_for_status=False)
+        response = sync_get_with_retry(url, timeout=300, attempt_limit=3, raise_for_status=False)
         if response.status_code == httpx.codes.INTERNAL_SERVER_ERROR:
             raise ValueError("Site is not found")
         return response.json()

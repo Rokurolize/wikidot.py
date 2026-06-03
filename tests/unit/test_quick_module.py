@@ -62,6 +62,23 @@ class TestQuickModuleRequest:
             call_url = mock_get.call_args[0][0]
             assert "q=a+b%26role%3Dadmin" in call_url
 
+    def test_request_retries_transient_5xx(self, quickmodule_member_lookup: dict[str, Any]):
+        """QuickModuleの一時的な5xxは再試行する"""
+        transient_response = MagicMock()
+        transient_response.status_code = httpx.codes.INTERNAL_SERVER_ERROR
+        success_response = MagicMock()
+        success_response.status_code = httpx.codes.OK
+        success_response.json.return_value = quickmodule_member_lookup
+
+        with (
+            patch("httpx.get", side_effect=[transient_response, success_response]) as mock_get,
+            patch("wikidot.util.http.time.sleep"),
+        ):
+            result = QuickModule._request("MemberLookupQModule", 123456, "test")
+
+        assert result == quickmodule_member_lookup
+        assert mock_get.call_count == 2
+
     def test_request_user_lookup(self, quickmodule_user_lookup: dict[str, Any]):
         """UserLookupQModuleリクエスト"""
         mock_response = MagicMock()
@@ -96,6 +113,7 @@ class TestQuickModuleRequest:
 
         with (
             patch("httpx.get", return_value=mock_response),
+            patch("wikidot.util.http.time.sleep"),
             pytest.raises(ValueError, match="Site is not found"),
         ):
             QuickModule._request("MemberLookupQModule", 999999, "test")
