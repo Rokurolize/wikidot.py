@@ -179,7 +179,7 @@ class ForumPostCollection(list["ForumPost"]):
             title_elem = head.select_one(":scope > div.title")
             if title_elem is None:
                 raise NoElementException("Post title element is not found.")
-            title = title_elem.get_text().strip()
+            title = title_elem.get_text(" ", strip=True)
 
             content_elem = wrapper.select_one(":scope > div.content")
             if content_elem is None:

@@ -200,6 +200,25 @@ class TestForumPostCollectionAcquireAll:
         assert len(collection) == 2
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_preserves_title_text_spacing(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """投稿タイトル内の隣接した表示テキスト間の空白を維持する"""
+        body = forum_posts_in_thread["body"].replace(
+            '<div class="title" id="post-title-5001">Test Post Title</div>',
+            '<div class="title" id="post-title-5001"><p>First <span>part</span></p><p>Second part</p></div>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_posts_in_thread, "body": body}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        assert collection[0].title == "First part Second part"
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_ignores_content_pager_markup(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
