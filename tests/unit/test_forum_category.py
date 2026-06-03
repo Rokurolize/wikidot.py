@@ -104,6 +104,23 @@ class TestForumCategoryCollectionAcquireAll:
         assert category2.id == 1002
         assert category2.title == "Another Category"
 
+    def test_acquire_all_preserves_description_text_spacing(
+        self, mock_site_no_http: Site, forum_start: dict[str, Any]
+    ) -> None:
+        """カテゴリ説明の段落や装飾要素間の空白を保持する"""
+        body = forum_start["body"].replace(
+            '<div class="description">Test category description</div>',
+            '<div class="description"><p>First <span>part</span></p><p>Second part</p></div>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+        assert collection[0].description == "First part Second part"
+
     def test_acquire_all_ignores_nested_category_tables(self, mock_site_no_http: Site) -> None:
         """カテゴリ説明内のネストテーブルをカテゴリ行として扱わない"""
         response_body = {
