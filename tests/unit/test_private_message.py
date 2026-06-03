@@ -385,6 +385,25 @@ class TestPrivateMessageCollection:
 
         mock_from_ids.assert_called_once_with(mock_client, [123])
 
+    def test_acquire_reuses_first_page_body_for_message_ids(self, mock_client):
+        """1ページ目の一覧レスポンスbodyをページャ判定とメッセージID抽出で再利用する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pager"><span class="target">next</span></div>
+            <table><tr class="message" data-href="/account/messages/view/123"></tr></table>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with patch.object(
+            PrivateMessageCollection, "from_ids", return_value=PrivateMessageCollection([])
+        ) as mock_from_ids:
+            PrivateMessageInbox.acquire(mock_client)
+
+        mock_from_ids.assert_called_once_with(mock_client, [123])
+        assert mock_response.json.call_count == 1
+
     def test_acquire_ignores_message_row_pager_markup(self, mock_client):
         """メッセージ行内のpager風マークアップをページネーションとして扱わない"""
         mock_response = MagicMock()

@@ -301,10 +301,10 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         if isinstance(first_response, Exception):
             raise first_response
 
-        html = BeautifulSoup(first_response.json()["body"], "lxml")
+        first_html = BeautifulSoup(first_response.json()["body"], "lxml")
         # pagerの最後から2番目の要素を取得
         # pageが存在しない場合は1ページのみ
-        pager = PrivateMessageCollection._pager_targets_from_html(html)
+        pager = PrivateMessageCollection._pager_targets_from_html(first_html)
         max_page = 1
         for pager_target in reversed(pager):
             page_text = pager_target.get_text(strip=True)
@@ -332,7 +332,10 @@ class PrivateMessageCollection(list["PrivateMessage"]):
                 raise exceptions.UnexpectedException(f"Cannot retrieve private messages page: {page}")
             if isinstance(response, Exception):
                 raise response
-            html = BeautifulSoup(response.json()["body"], "lxml")
+            if page == 1:
+                html = first_html
+            else:
+                html = BeautifulSoup(response.json()["body"], "lxml")
             for message_row in html.select("tr.message"):
                 if PrivateMessageCollection._is_inside_message_row(message_row):
                     continue
