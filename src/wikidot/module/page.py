@@ -914,12 +914,15 @@ class PageCollection(list["Page"]):
             return pages
 
         PageCollection._acquire_page_ids(site, target_pages)
+        target_pages_by_id: dict[int, list[Page]] = {}
+        for page in target_pages:
+            target_pages_by_id.setdefault(page.id, []).append(page)
 
         responses = site.amc_request_with_retry(
-            [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": page.id} for page in target_pages]
+            [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": page_id} for page_id in target_pages_by_id]
         )
 
-        for page, response in zip(target_pages, responses, strict=True):
+        for page_id, response in zip(target_pages_by_id, responses, strict=True):
             if response is None:
                 continue
             body = response.json()["body"]
@@ -941,8 +944,9 @@ class PageCollection(list["Page"]):
                 else:
                     values.append(int(_v))
 
-            votes = [PageVote(page, user, vote) for user, vote in zip(users, values, strict=True)]
-            page._votes = PageVoteCollection(page, votes)
+            for page in target_pages_by_id[page_id]:
+                votes = [PageVote(page, user, vote) for user, vote in zip(users, values, strict=True)]
+                page._votes = PageVoteCollection(page, votes)
 
         return pages
 
