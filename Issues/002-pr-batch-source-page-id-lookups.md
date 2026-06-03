@@ -65,4 +65,4 @@ Revision, vote, and file collection have the same batching expectation: collecti
 
 This change is intentionally small and reviewable: a collection-level page-id preflight before each affected request batch plus focused regression tests.
 
-The follow-up cache-aware detail acquisition draft in [009-pr-skip-cached-page-detail-fetches.md](009-pr-skip-cached-page-detail-fetches.md) builds on the same source, revision, vote, and file detail paths.
+The follow-up cache-aware detail acquisition draft in [009-pr-skip-cached-page-detail-fetches.md](009-pr-skip-cached-page-detail-fetches.md) builds on the same source, revision, vote, and file detail paths. The later follow-up [066-pr-deduplicate-page-id-fetch-urls.md](066-pr-deduplicate-page-id-fetch-urls.md) removes duplicate unresolved page-ID lookup URLs inside the same collection-level page-ID preflight.

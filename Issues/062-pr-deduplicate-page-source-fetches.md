@@ -74,4 +74,4 @@ Large source collection, source auditing, and publication verification workflows
 
 ## Additional Notes
 
-This slice does not deduplicate unresolved page ID lookup requests, page revision/vote/file detail requests, or source iterator search results. It only removes duplicate source requests after each page already has a resolved page ID.
+This slice does not deduplicate page revision/vote/file detail requests or source iterator search results. The later follow-up [066-pr-deduplicate-page-id-fetch-urls.md](066-pr-deduplicate-page-id-fetch-urls.md) covers unresolved page ID lookup requests. This slice only removes duplicate source requests after each page already has a resolved page ID.

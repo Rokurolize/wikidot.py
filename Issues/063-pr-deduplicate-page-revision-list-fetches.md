@@ -75,4 +75,4 @@ Revision history is a read-heavy evidence surface for page inspection, history c
 
 ## Additional Notes
 
-This slice does not deduplicate unresolved page ID lookup requests, page source requests, vote requests, file requests, or page revision source/HTML requests. It only removes duplicate revision-list requests after each page already has a resolved page ID.
+This slice does not deduplicate page source requests, vote requests, file requests, or page revision source/HTML requests. The later follow-up [066-pr-deduplicate-page-id-fetch-urls.md](066-pr-deduplicate-page-id-fetch-urls.md) covers unresolved page ID lookup requests. This slice only removes duplicate revision-list requests after each page already has a resolved page ID.

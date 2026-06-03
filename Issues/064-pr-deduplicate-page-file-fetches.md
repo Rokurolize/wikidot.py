@@ -75,4 +75,4 @@ Attached-file inspection is a read-heavy evidence surface for page review, publi
 
 ## Additional Notes
 
-This slice does not deduplicate unresolved page ID lookup requests, page source requests, revision-list requests, or direct single-page `PageFileCollection.acquire(...)` calls. The later follow-up [065-pr-deduplicate-page-vote-fetches.md](065-pr-deduplicate-page-vote-fetches.md) covers vote requests. This slice only removes duplicate page file-list requests after each page already has a resolved page ID.
+This slice does not deduplicate page source requests, revision-list requests, or direct single-page `PageFileCollection.acquire(...)` calls. The later follow-up [065-pr-deduplicate-page-vote-fetches.md](065-pr-deduplicate-page-vote-fetches.md) covers vote requests, and [066-pr-deduplicate-page-id-fetch-urls.md](066-pr-deduplicate-page-id-fetch-urls.md) covers unresolved page ID lookup requests. This slice only removes duplicate page file-list requests after each page already has a resolved page ID.
