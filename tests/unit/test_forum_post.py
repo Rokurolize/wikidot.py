@@ -401,18 +401,59 @@ class TestForumPostEdit:
         mock_forum_post_no_http.thread.site.client.is_logged_in = True
         mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
 
-        # 最初の呼び出しはフォーム取得、2回目は保存
         form_response = MagicMock()
         form_response.json.return_value = forum_editpost_form
         save_response = MagicMock()
         save_response.json.return_value = amc_ok_response
 
-        mock_forum_post_no_http.thread.site.amc_request = MagicMock(side_effect=[[form_response], [save_response]])
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[save_response])
 
         result = mock_forum_post_no_http.edit(source="Updated source")
 
         assert result == mock_forum_post_no_http
         assert mock_forum_post_no_http._source == "Updated source"
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
+        mock_forum_post_no_http.thread.site.amc_request.assert_called_once()
+
+    def test_edit_retries_transient_form_fetch_failures(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+        amc_ok_response: dict[str, Any],
+    ) -> None:
+        """一時的なAMC失敗後に編集フォーム取得をリトライする"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+
+        form_response = MagicMock()
+        form_response.json.return_value = forum_editpost_form
+        save_response = MagicMock()
+        save_response.json.return_value = amc_ok_response
+        amc_request = MagicMock(side_effect=[(RuntimeError("temporary failure"),), (form_response,), (save_response,)])
+        mock_forum_post_no_http.thread.site.client.amc_client.request = amc_request
+
+        result = mock_forum_post_no_http.edit(source="Updated source")
+
+        assert result == mock_forum_post_no_http
+        assert mock_forum_post_no_http._source == "Updated source"
+        assert amc_request.call_count == 3
+
+    def test_edit_raises_when_form_fetch_retry_is_exhausted(self, mock_forum_post_no_http: ForumPost) -> None:
+        """編集フォーム取得のリトライが尽きた場合は保存しない"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(None,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve forum post edit form: 5001",
+        ):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
 
     def test_edit_with_new_title(
         self,
@@ -429,9 +470,12 @@ class TestForumPostEdit:
         save_response = MagicMock()
         save_response.json.return_value = amc_ok_response
 
-        mock_forum_post_no_http.thread.site.amc_request = MagicMock(side_effect=[[form_response], [save_response]])
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[save_response])
 
         mock_forum_post_no_http.edit(source="Updated source", title="New Title")
 
         assert mock_forum_post_no_http.title == "New Title"
         assert mock_forum_post_no_http._source == "Updated source"
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
+        mock_forum_post_no_http.thread.site.amc_request.assert_called_once()

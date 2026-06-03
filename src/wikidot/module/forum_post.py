@@ -542,11 +542,13 @@ class ForumPost:
             If editing fails
         NoElementException
             If revision ID element is not found
+        UnexpectedException
+            If the edit form cannot be retrieved
         """
         self.thread.site.client.login_check()
 
         # 現在のリビジョンIDを取得
-        form_response = self.thread.site.amc_request(
+        form_response = self.thread.site.amc_request_with_retry(
             [
                 {
                     "moduleName": "forum/sub/ForumEditPostFormModule",
@@ -555,6 +557,8 @@ class ForumPost:
                 }
             ]
         )[0]
+        if form_response is None:
+            raise UnexpectedException(f"Cannot retrieve forum post edit form: {self.id}")
 
         html = BeautifulSoup(form_response.json()["body"], "lxml")
         revision_elem = html.select_one("input[name='currentRevisionId']")
