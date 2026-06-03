@@ -348,7 +348,7 @@ class AjaxModuleConnectorClient:
         async def _request(_body: dict[str, Any], client: httpx.AsyncClient) -> httpx.Response:
             retry_count = 0
             response: httpx.Response | None = None
-            request_body = {**_body, "wikidot_token7": 123456}
+            request_body = {"wikidot_token7": self.header.cookie.get("wikidot_token7", 123456), **_body}
 
             while True:
                 # Execute request

@@ -201,6 +201,37 @@ class TestAjaxModuleConnectorClientRequest:
         assert body == {"moduleName": "TestModule"}
         assert b"wikidot_token7=123456" in httpx_mock.get_requests()[0].content
 
+    def test_request_preserves_explicit_wikidot_token(self, httpx_mock: HTTPXMock) -> None:
+        """呼び出し元が指定したwikidot_token7を上書きしない"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+        )
+
+        body = {"moduleName": "TestModule", "wikidot_token7": 987654}
+        client = AjaxModuleConnectorClient(site_name="www")
+        client.request([body])
+
+        assert body == {"moduleName": "TestModule", "wikidot_token7": 987654}
+        assert b"wikidot_token7=987654" in httpx_mock.get_requests()[0].content
+        assert b"wikidot_token7=123456" not in httpx_mock.get_requests()[0].content
+
+    def test_request_uses_header_wikidot_token_by_default(self, httpx_mock: HTTPXMock) -> None:
+        """body未指定時は現在のヘッダCookieのwikidot_token7を使う"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+        )
+
+        client = AjaxModuleConnectorClient(site_name="www")
+        client.header.set_cookie("wikidot_token7", 987654)
+        client.request([{"moduleName": "TestModule"}])
+
+        request = httpx_mock.get_requests()[0]
+        assert "wikidot_token7=987654" in request.headers["Cookie"]
+        assert b"wikidot_token7=987654" in request.content
+        assert b"wikidot_token7=123456" not in request.content
+
     def test_multiple_requests(self, httpx_mock: HTTPXMock) -> None:
         """複数リクエストを並行処理"""
         httpx_mock.add_response(
