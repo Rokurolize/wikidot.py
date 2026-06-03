@@ -84,6 +84,28 @@ class ForumPostCollection(list["ForumPost"]):
         return None
 
     @staticmethod
+    def _copy_for_thread(thread: "ForumThread", posts: "ForumPostCollection") -> "ForumPostCollection":
+        return ForumPostCollection(
+            thread=thread,
+            posts=[
+                ForumPost(
+                    thread=thread,
+                    id=post.id,
+                    title=post.title,
+                    text=post.text,
+                    element=post.element,
+                    created_by=post.created_by,
+                    created_at=post.created_at,
+                    edited_by=post.edited_by,
+                    edited_at=post.edited_at,
+                    _parent_id=post._parent_id,
+                    _source=post._source,
+                )
+                for post in posts
+            ],
+        )
+
+    @staticmethod
     def _last_page_from_pager(pager: Tag) -> int:
         last_page = 1
         for pager_target in reversed(pager.select("span.target")):
@@ -283,6 +305,11 @@ class ForumPostCollection(list["ForumPost"]):
 
         result: dict[int, ForumPostCollection] = {}
         site = threads[0].site
+        cached_posts_by_id: dict[int, ForumPostCollection] = {}
+        for thread in threads:
+            if thread._posts is not None and thread.id not in cached_posts_by_id:
+                cached_posts_by_id[thread.id] = thread._posts
+
         target_threads: list[ForumThread] = []
         seen_thread_ids: set[int] = set()
         for thread in threads:
@@ -291,6 +318,10 @@ class ForumPostCollection(list["ForumPost"]):
             seen_thread_ids.add(thread.id)
             if thread._posts is not None:
                 result[thread.id] = thread._posts
+                continue
+            cached_posts = cached_posts_by_id.get(thread.id)
+            if cached_posts is not None:
+                result[thread.id] = ForumPostCollection._copy_for_thread(thread, cached_posts)
                 continue
             target_threads.append(thread)
 

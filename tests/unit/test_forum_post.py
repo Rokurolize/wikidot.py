@@ -430,6 +430,51 @@ class TestForumPostCollectionAcquireAll:
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
         mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
 
+    def test_acquire_all_in_threads_reuses_later_cached_duplicate_thread_posts(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """後続の重複threadにcached postsがあればfirst-seen thread用に再利用する"""
+        cached_duplicate_thread = ForumThread(
+            site=mock_forum_thread_no_http.site,
+            id=mock_forum_thread_no_http.id,
+            title="Cached Duplicate Thread",
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=mock_forum_thread_no_http.post_count,
+            category=mock_forum_thread_no_http.category,
+        )
+        cached_post = ForumPost(
+            thread=cached_duplicate_thread,
+            id=5001,
+            title="Cached Post",
+            text="<div>Cached post body</div>",
+            element=MagicMock(),
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            _source="cached source",
+        )
+        cached_post._revisions = MagicMock()
+        cached_duplicate_thread._posts = ForumPostCollection(cached_duplicate_thread, [cached_post])
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        result = ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, cached_duplicate_thread])
+
+        assert set(result) == {mock_forum_thread_no_http.id}
+        result_collection = result[mock_forum_thread_no_http.id]
+        assert result_collection.thread == mock_forum_thread_no_http
+        assert result_collection is not cached_duplicate_thread._posts
+        assert len(result_collection) == 1
+        assert result_collection[0] is not cached_post
+        assert result_collection[0].thread == mock_forum_thread_no_http
+        assert result_collection[0].id == cached_post.id
+        assert result_collection[0].title == cached_post.title
+        assert result_collection[0]._source == "cached source"
+        assert result_collection[0]._revisions is None
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+
     def test_acquire_all_ignores_non_numeric_pager_targets(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
