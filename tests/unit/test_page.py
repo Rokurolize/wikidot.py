@@ -1644,6 +1644,25 @@ class TestPageCreateOrEdit:
         with pytest.raises(exceptions.TargetExistsException):
             Page.create_or_edit(mock_site_no_http, "existing-page", raise_on_exists=True)
 
+    def test_create_or_edit_save_failure_decodes_response_once(
+        self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
+    ) -> None:
+        """保存失敗時もsaveレスポンスを1回だけdecodeする"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_success
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = {"status": "not_ok"}
+
+        mock_site_no_http.amc_request = MagicMock(side_effect=[[mock_lock_response], [mock_save_response]])
+
+        with pytest.raises(exceptions.WikidotStatusCodeException, match="Failed to create or edit page"):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        assert mock_save_response.json.call_count == 1
+
     def test_edit_not_logged_in(self, mock_site_no_http: Site) -> None:
         """ログインしていない場合に例外"""
         mock_site_no_http.client.is_logged_in = False

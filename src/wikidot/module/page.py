@@ -1730,10 +1730,11 @@ class Page:
             "comments": comment,
         }
         response = site.amc_request([edit_request_body])[0]
+        response_data = response.json()
 
-        if response.json()["status"] != "ok":
+        if response_data["status"] != "ok":
             raise exceptions.WikidotStatusCodeException(
-                f"Failed to create or edit page: {fullname}", response.json()["status"]
+                f"Failed to create or edit page: {fullname}", response_data["status"]
             )
 
         page = PageCollection.get_by_fullname(site, fullname)
