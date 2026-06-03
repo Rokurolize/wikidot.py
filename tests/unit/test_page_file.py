@@ -2,6 +2,9 @@
 
 from unittest.mock import MagicMock
 
+import pytest
+
+from wikidot.common import exceptions
 from wikidot.module.page_file import PageFile, PageFileCollection
 
 
@@ -145,6 +148,41 @@ class TestPageFileCollectionParseSize:
 class TestPageFileCollectionAcquire:
     """PageFileCollection.acquireのテスト"""
 
+    def test_acquire_uses_retry_aware_amc(self):
+        """直接ファイル取得でもリトライ対応AMCを使う"""
+        page = MagicMock()
+        page.id = 12345
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        page.site = site
+
+        response = MagicMock()
+        response.json.return_value = {"body": "<div>No files</div>"}
+        site.amc_request = MagicMock(return_value=[RuntimeError("transient")])
+        site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection = PageFileCollection.acquire(page)
+
+        site.amc_request.assert_not_called()
+        site.amc_request_with_retry.assert_called_once_with([{"moduleName": "files/PageFilesModule", "page_id": 12345}])
+        assert len(collection) == 0
+        assert collection.page == page
+
+    def test_acquire_raises_when_retry_is_exhausted(self):
+        """直接ファイル取得リトライが尽きた場合は明示的に失敗する"""
+        page = MagicMock()
+        page.id = 12345
+        site = MagicMock()
+        page.site = site
+        site.amc_request = MagicMock()
+        site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve page files"):
+            PageFileCollection.acquire(page)
+
+        site.amc_request.assert_not_called()
+        site.amc_request_with_retry.assert_called_once_with([{"moduleName": "files/PageFilesModule", "page_id": 12345}])
+
     def test_acquire_success(self):
         """ファイル取得成功"""
         page = MagicMock()
@@ -167,7 +205,7 @@ class TestPageFileCollectionAcquire:
                 </table>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         collection = PageFileCollection.acquire(page)
 
@@ -200,7 +238,7 @@ class TestPageFileCollectionAcquire:
                 </table>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         collection = PageFileCollection.acquire(page)
 
@@ -233,7 +271,7 @@ class TestPageFileCollectionAcquire:
                 </table>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         collection = PageFileCollection.acquire(page)
 
@@ -250,7 +288,7 @@ class TestPageFileCollectionAcquire:
 
         response = MagicMock()
         response.json.return_value = {"body": "<div>No files</div>"}
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         collection = PageFileCollection.acquire(page)
 
@@ -284,7 +322,7 @@ class TestPageFileCollectionAcquire:
                 </table>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         collection = PageFileCollection.acquire(page)
 
@@ -322,7 +360,7 @@ class TestPageFileCollectionAcquire:
                 </table>
             """
         }
-        site.amc_request.return_value = [response]
+        site.amc_request_with_retry.return_value = (response,)
 
         collection = PageFileCollection.acquire(page)
 

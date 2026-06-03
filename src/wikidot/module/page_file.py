@@ -13,6 +13,8 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 
+from ..common import exceptions
+
 if TYPE_CHECKING:
     from .page import Page
 
@@ -212,7 +214,7 @@ class PageFileCollection(list["PageFile"]):
         PageFileCollection
             Collection of files attached to the page
         """
-        response = page.site.amc_request(
+        response = page.site.amc_request_with_retry(
             [
                 {
                     "moduleName": "files/PageFilesModule",
@@ -220,6 +222,8 @@ class PageFileCollection(list["PageFile"]):
                 }
             ]
         )[0]
+        if response is None:
+            raise exceptions.UnexpectedException("Cannot retrieve page files")
 
         html = BeautifulSoup(response.json()["body"], "lxml")
         files = PageFileCollection._parse_from_html(page, html)
