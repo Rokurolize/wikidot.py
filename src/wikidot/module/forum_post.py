@@ -349,7 +349,7 @@ class ForumPostCollection(list["ForumPost"]):
         if len(target_posts) == 0:
             return posts
 
-        responses = thread.site.amc_request(
+        responses = thread.site.amc_request_with_retry(
             [
                 {
                     "moduleName": "forum/sub/ForumEditPostFormModule",
@@ -361,6 +361,8 @@ class ForumPostCollection(list["ForumPost"]):
         )
 
         for post, response in zip(target_posts, responses, strict=True):
+            if response is None:
+                continue
             html = BeautifulSoup(response.json()["body"], "lxml")
             source_elem = html.select_one("textarea[name='source']")
             if source_elem is None:

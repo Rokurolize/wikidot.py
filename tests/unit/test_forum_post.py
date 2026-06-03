@@ -224,12 +224,34 @@ class TestForumPostCollectionGetSources:
 
         mock_response = MagicMock()
         mock_response.json.return_value = forum_editpost_form
-        mock_forum_thread_no_http.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         result = collection.get_post_sources()
         assert result == collection
         assert mock_forum_post_no_http._source is not None
         assert mock_forum_post_no_http._source == "Test source content in wikidot syntax"
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_get_post_sources_retries_transient_fetch_failures(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """一時的なAMC失敗後に投稿ソース取得をリトライする"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_editpost_form
+        amc_request = MagicMock(side_effect=[(RuntimeError("temporary failure"),), (mock_response,)])
+        mock_forum_thread_no_http.site.client.amc_client.request = amc_request
+
+        result = collection.get_post_sources()
+
+        assert result == collection
+        assert mock_forum_post_no_http._source == "Test source content in wikidot syntax"
+        assert amc_request.call_count == 2
 
     def test_get_post_sources_skips_already_acquired(
         self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
@@ -237,10 +259,12 @@ class TestForumPostCollectionGetSources:
         """既に取得済みのソースはスキップ"""
         mock_forum_post_no_http._source = "cached source"
         mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
         collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
 
         result = collection.get_post_sources()
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
         assert result == collection
         assert mock_forum_post_no_http._source == "cached source"
 
@@ -275,12 +299,28 @@ class TestForumPostCollectionGetSources:
         mock_response1.json.return_value = forum_editpost_form
         mock_response2 = MagicMock()
         mock_response2.json.return_value = forum_editpost_form
-        mock_forum_thread_no_http.site.amc_request = MagicMock(return_value=[mock_response1, mock_response2])
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response1, mock_response2))
 
         result = collection.get_post_sources()
         assert result == collection
         assert mock_forum_post_no_http._source is not None
         assert post2._source is not None
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_get_post_sources_skips_failed_retry_response(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """リトライが尽きた投稿は未取得のまま残す"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        result = collection.get_post_sources()
+
+        assert result == collection
+        assert mock_forum_post_no_http._source is None
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
 
 # ============================================================
@@ -315,15 +355,27 @@ class TestForumPostSource:
         """sourceプロパティがAPIを呼び出す"""
         mock_response = MagicMock()
         mock_response.json.return_value = forum_editpost_form
-        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         source = mock_forum_post_no_http.source
         assert source == "Test source content in wikidot syntax"
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
 
     def test_source_property_cached(self, mock_forum_post_no_http: ForumPost) -> None:
         """sourceプロパティがキャッシュされる"""
         mock_forum_post_no_http._source = "cached source"
         assert mock_forum_post_no_http.source == "cached source"
+
+    def test_source_property_raises_when_retry_is_exhausted(self, mock_forum_post_no_http: ForumPost) -> None:
+        """sourceプロパティはリトライ枯渇時に既存の未取得例外を返す"""
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.NoElementException, match="Source textarea is not found"):
+            _ = mock_forum_post_no_http.source
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
 
 
 class TestForumPostEdit:
