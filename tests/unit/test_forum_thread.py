@@ -239,6 +239,23 @@ class TestForumThreadCollectionAcquireFromIds:
         assert collection[0].id == 3001
         assert amc_request.call_count == 2
 
+    def test_acquire_from_ids_deduplicates_duplicate_thread_ids(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """重複スレッドIDは詳細取得を1回だけ行い、返却順は入力どおりに保つ"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_thread_detail
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001, 3001])
+
+        assert [thread.id for thread in collection] == [3001, 3001]
+        assert mock_site_no_http.amc_request_with_retry.call_args.args[0] == [
+            {"t": 3001, "moduleName": "forum/ForumViewThreadModule"}
+        ]
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_acquire_from_ids_raises_when_retry_is_exhausted(self, mock_site_no_http: Site) -> None:
         """スレッド詳細取得のリトライが尽きた場合は明示的に例外を出す"""
         mock_site_no_http.amc_request = MagicMock()

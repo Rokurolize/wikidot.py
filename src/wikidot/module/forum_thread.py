@@ -358,19 +358,20 @@ class ForumThreadCollection(list["ForumThread"]):
         ForumThreadCollection
             Collection of retrieved thread information
         """
+        target_thread_ids = list(dict.fromkeys(thread_ids))
         responses = site.amc_request_with_retry(
             [
                 {
                     "t": thread_id,
                     "moduleName": "forum/ForumViewThreadModule",
                 }
-                for thread_id in thread_ids
+                for thread_id in target_thread_ids
             ]
         )
 
-        threads = []
+        threads_by_id = {}
 
-        for response, thread_id in zip(responses, thread_ids, strict=True):
+        for response, thread_id in zip(responses, target_thread_ids, strict=True):
             if response is None:
                 raise UnexpectedException(f"Cannot retrieve forum thread: {thread_id}")
             body = response.json()["body"]
@@ -379,7 +380,9 @@ class ForumThreadCollection(list["ForumThread"]):
             thread = ForumThreadCollection._parse_thread_page(site, html, category)
             if thread_id != thread.id:
                 raise NoElementException("Thread ID is not matched.")
-            threads.append(thread)
+            threads_by_id[thread_id] = thread
+
+        threads = [threads_by_id[thread_id] for thread_id in thread_ids]
 
         return ForumThreadCollection(site=site, threads=threads)
 
