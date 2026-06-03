@@ -367,6 +367,49 @@ class TestPageFileCollectionAcquire:
         assert len(collection) == 1
         assert collection[0].name == "valid.txt"
 
+    def test_acquire_ignores_nested_file_rows(self):
+        """添付ファイル行内のネストした表は構造的なファイル行として扱わない"""
+        page = MagicMock()
+        page.id = 12345
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        page.site = site
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-100">
+                            <td>
+                                <table>
+                                    <tbody>
+                                        <tr id="file-row-999">
+                                            <td><a href="/local--files/test-page/fake.txt">fake.txt</a></td>
+                                            <td><span title="text/fake">FAKE</span></td>
+                                            <td>999 MB</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <a href="/local--files/test-page/real.txt">real.txt</a>
+                            </td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>1 KB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        collection = PageFileCollection.acquire(page)
+
+        assert len(collection) == 1
+        assert collection[0].id == 100
+        assert collection[0].name == "real.txt"
+        assert collection[0].mime_type == "text/plain"
+        assert collection[0].size == 1000
+
 
 class TestPageFile:
     """PageFileのテスト"""

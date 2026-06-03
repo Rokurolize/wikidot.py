@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ..common import exceptions
 
@@ -138,11 +138,14 @@ class PageFileCollection(list["PageFile"]):
     def _parse_file_fields_from_html(site_url: str, html: BeautifulSoup) -> list[tuple[int, str, str, str, int]]:
         files_table = html.select_one("table.page-files")
 
-        if files_table is None:
+        if not isinstance(files_table, Tag):
+            return []
+        files_tbody = files_table.find("tbody", recursive=False)
+        if not isinstance(files_tbody, Tag):
             return []
 
         file_fields: list[tuple[int, str, str, str, int]] = []
-        for row in files_table.select("tbody tr[id^='file-row-']"):
+        for row in files_tbody.find_all("tr", recursive=False):
             row_id = row.get("id")
             if row_id is None:
                 continue
@@ -151,20 +154,20 @@ class PageFileCollection(list["PageFile"]):
             if not file_id_text.isdigit():
                 continue
             file_id = int(file_id_text)
-            tds = row.select("td")
+            tds = [td for td in row.find_all("td", recursive=False) if isinstance(td, Tag)]
             if len(tds) < 3:
                 continue
 
-            link_elem = tds[0].select_one("a")
-            if link_elem is None:
+            link_elem = tds[0].find("a", recursive=False)
+            if not isinstance(link_elem, Tag):
                 continue
 
             name = link_elem.get_text().strip()
             href = link_elem.get("href", "")
             url = urljoin(f"{site_url}/", str(href))
 
-            mime_elem = tds[1].select_one("span")
-            mime_type = str(mime_elem.get("title", "")) if mime_elem else ""
+            mime_elem = tds[1].find("span", recursive=False)
+            mime_type = str(mime_elem.get("title", "")) if isinstance(mime_elem, Tag) else ""
 
             size_text = tds[2].get_text().strip()
             size = PageFileCollection._parse_size(size_text)
