@@ -406,7 +406,10 @@ class ForumPostCollection(list["ForumPost"]):
             if response is None:
                 continue
             html = BeautifulSoup(response.json()["body"], "lxml")
-            source_elem = html.select_one("textarea[name='source']")
+            edit_form = html.select_one("form#edit-post-form")
+            source_elem = (
+                edit_form.select_one(":scope > textarea[name='source']") if isinstance(edit_form, Tag) else None
+            )
             if source_elem is None:
                 raise NoElementException(f"Source textarea is not found for post: {post.id}")
             source = source_elem.get_text()
@@ -605,7 +608,10 @@ class ForumPost:
             raise UnexpectedException(f"Cannot retrieve forum post edit form: {self.id}")
 
         html = BeautifulSoup(form_response.json()["body"], "lxml")
-        revision_elem = html.select_one("input[name='currentRevisionId']")
+        edit_form = html.select_one("form#edit-post-form")
+        revision_elem = (
+            edit_form.select_one(":scope > input[name='currentRevisionId']") if isinstance(edit_form, Tag) else None
+        )
         if revision_elem is None:
             raise NoElementException("Current revision ID input is not found.")
         current_revision_id = int(str(revision_elem["value"]))

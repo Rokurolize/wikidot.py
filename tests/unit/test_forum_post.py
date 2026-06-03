@@ -448,6 +448,34 @@ class TestForumPostCollectionGetSources:
         assert mock_forum_post_no_http._source == "Test source content in wikidot syntax"
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_get_post_sources_scopes_source_textarea_to_edit_form_direct_child(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """編集フォーム直下のソースtextareaを使用する"""
+        form_with_preview = {
+            **forum_editpost_form,
+            "body": forum_editpost_form["body"].replace(
+                '<form id="edit-post-form">',
+                '<form id="edit-post-form"><div class="preview">'
+                '<textarea name="source">Preview source</textarea></div>',
+                1,
+            ),
+        }
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = form_with_preview
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection.get_post_sources()
+
+        assert mock_forum_post_no_http._source == "Test source content in wikidot syntax"
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_get_post_sources_retries_transient_fetch_failures(
         self,
         mock_forum_thread_no_http: ForumThread,
@@ -669,6 +697,38 @@ class TestForumPostEdit:
         assert mock_forum_post_no_http._source == "Updated source"
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
         mock_forum_post_no_http.thread.site.amc_request.assert_called_once()
+
+    def test_edit_scopes_current_revision_id_to_edit_form_direct_child(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+        amc_ok_response: dict[str, Any],
+    ) -> None:
+        """編集フォーム直下のcurrentRevisionIdを使用する"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        form_with_preview = {
+            **forum_editpost_form,
+            "body": forum_editpost_form["body"].replace(
+                '<form id="edit-post-form">',
+                '<form id="edit-post-form"><div class="preview">'
+                '<input type="hidden" name="currentRevisionId" value="9999"/></div>',
+                1,
+            ),
+        }
+
+        form_response = MagicMock()
+        form_response.json.return_value = form_with_preview
+        save_response = MagicMock()
+        save_response.json.return_value = amc_ok_response
+
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[save_response])
+
+        mock_forum_post_no_http.edit(source="Updated source")
+
+        save_request = mock_forum_post_no_http.thread.site.amc_request.call_args.args[0][0]
+        assert save_request["currentRevisionId"] == 9001
 
     def test_edit_retries_transient_form_fetch_failures(
         self,
