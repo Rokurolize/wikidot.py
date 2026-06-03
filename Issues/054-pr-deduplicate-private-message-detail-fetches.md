@@ -71,4 +71,4 @@ Private-message list acquisition should not spend dashboard requests fetching th
 
 ## Additional Notes
 
-This slice does not change private-message parsing, detail response parsing, pagination request construction, retry policy, no-message permission mapping, or send behavior. It only removes duplicate IDs before the existing detail fetch step.
+This slice does not change private-message parsing, detail response parsing, pagination request construction, retry policy, no-message permission mapping, or send behavior. It only removes duplicate IDs before the existing detail fetch step for inbox/sent-box list acquisition. Follow-up [067-pr-deduplicate-direct-private-message-fetches.md](067-pr-deduplicate-direct-private-message-fetches.md) handles duplicate IDs passed directly to the public `from_ids(...)` API while preserving duplicate output positions.
