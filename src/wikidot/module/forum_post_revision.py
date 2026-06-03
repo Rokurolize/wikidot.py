@@ -122,25 +122,37 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         """
         revisions: list[ForumPostRevision] = []
 
-        rows = html.select("table.table tr")
+        revision_table = html.select_one("table.table")
+        if revision_table is None:
+            return revisions
+
+        rows = revision_table.find_all("tr", recursive=False)
         for row in rows:
             # Skip header row
             row_class = row.get("class")
             if isinstance(row_class, list) and "head" in row_class:
                 continue
 
+            cells = row.find_all("td", recursive=False)
+            if len(cells) < 3:
+                continue
+
             # Get user element
-            user_elem = row.select_one("span.printuser")
+            user_elem = cells[0].find("span", class_="printuser", recursive=False)
             if user_elem is None:
                 continue
 
             # Get odate element
-            odate_elem = row.select_one("span.odate")
+            odate_elem = cells[1].find("span", class_="odate", recursive=False)
             if odate_elem is None:
                 continue
 
             # Get revision ID from onclick attribute
-            revision_link = row.select_one("a[onclick*='showRevision']")
+            revision_link = cells[2].find(
+                "a",
+                onclick=lambda onclick: isinstance(onclick, str) and "showRevision" in onclick,
+                recursive=False,
+            )
             if revision_link is None:
                 continue
 

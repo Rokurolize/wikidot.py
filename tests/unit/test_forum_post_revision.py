@@ -134,6 +134,53 @@ class TestForumPostRevisionCollectionParse:
         assert len(revisions) == 1
         assert revisions[0].rev_no == 0
 
+    def test_parse_uses_revision_cells_for_metadata(self, mock_forum_post_no_http: ForumPost) -> None:
+        """行内のネスト要素ではなくリビジョン表のセルからメタデータを読む"""
+        html = BeautifulSoup(
+            """
+            <div class="title">Post Revisions</div>
+            <table class="table">
+                <tr>
+                    <td>
+                        <div class="preview">
+                            <span class="printuser">
+                                <a href="http://www.wikidot.com/user:info/wrong-user"
+                                   onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">wrong_user</a>
+                            </span>
+                            <span class="odate time_1700000500">17 Dec 2025, 12:08</span>
+                            <a href="javascript:;"
+                               onclick="WIKIDOT.modules.ForumViewThreadModule.listeners.showRevision(event, 9999)">
+                                Wrong revision
+                            </a>
+                        </div>
+                        <span class="printuser">
+                            <a href="http://www.wikidot.com/user:info/test-user"
+                               onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test_user</a>
+                        </span>
+                    </td>
+                    <td>
+                        <span class="odate time_1700000000">17 Dec 2025, 12:00</span>
+                    </td>
+                    <td>
+                        <a href="javascript:;"
+                           onclick="WIKIDOT.modules.ForumViewThreadModule.listeners.showRevision(event, 9001)">
+                            View revision
+                        </a>
+                    </td>
+                </tr>
+            </table>
+            """,
+            "lxml",
+        )
+
+        revisions = ForumPostRevisionCollection._parse(mock_forum_post_no_http, html)
+
+        assert len(revisions) == 1
+        assert revisions[0].id == 9001
+        assert revisions[0].created_by.name == "test_user"
+        assert revisions[0].created_by.unix_name == "test-user"
+        assert revisions[0].created_at == datetime.fromtimestamp(1700000000)
+
 
 class TestForumPostRevisionCollectionAcquireAll:
     """ForumPostRevisionCollection.acquire_allのテスト"""
