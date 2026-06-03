@@ -782,6 +782,32 @@ class TestSitePageAccessor:
         assert failed_source_check.metadata_updated is True
         assert failed_source_check.source_verified is False
 
+    def test_publish_result_exports_audit_record(self) -> None:
+        """PagePublishResultは監査ledger向けの辞書形式に変換できる"""
+        page = MagicMock()
+        page.fullname = "test-page"
+        result = PagePublishResult(
+            page=page,
+            page_id=12345,
+            source_matches=True,
+            tags_updated=True,
+            parent_updated=False,
+            metas_updated=True,
+            created=False,
+        )
+
+        assert result.as_dict() == {
+            "fullname": "test-page",
+            "page_id": 12345,
+            "created": False,
+            "source_matches": True,
+            "source_verified": True,
+            "tags_updated": True,
+            "parent_updated": False,
+            "metas_updated": True,
+            "metadata_updated": True,
+        }
+
     def test_publish_raises_when_verified_source_mismatches(self, mock_site_no_http: Site) -> None:
         """保存後のViewSourceModule取得結果が入力sourceと違う場合は例外にする"""
         mock_site_no_http.client.login_check = MagicMock()

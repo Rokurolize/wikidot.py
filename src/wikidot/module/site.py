@@ -66,6 +66,8 @@ class PagePublishResult:
         True when any metadata update was requested by the publish call.
     source_verified : bool
         True when source verification was requested and matched.
+    as_dict : dict[str, str | int | bool | None]
+        Audit-friendly dictionary containing publish result status fields.
     """
 
     page: "Page"
@@ -85,6 +87,20 @@ class PagePublishResult:
     def source_verified(self) -> bool:
         """Whether publish source verification matched."""
         return self.source_matches is True
+
+    def as_dict(self) -> dict[str, str | int | bool | None]:
+        """Return a compact audit-friendly representation of this publish result."""
+        return {
+            "fullname": self.page.fullname,
+            "page_id": self.page_id,
+            "created": self.created,
+            "source_matches": self.source_matches,
+            "source_verified": self.source_verified,
+            "tags_updated": self.tags_updated,
+            "parent_updated": self.parent_updated,
+            "metas_updated": self.metas_updated,
+            "metadata_updated": self.metadata_updated,
+        }
 
 
 @dataclass(frozen=True)
