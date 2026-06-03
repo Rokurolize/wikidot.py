@@ -18,6 +18,7 @@ def mock_page():
     page = MagicMock()
     page.site = MagicMock()
     page.site.amc_request = MagicMock()
+    page.site.amc_request_with_retry = MagicMock()
     return page
 
 
@@ -99,7 +100,7 @@ class TestPageRevisionCollection:
         """get_sourcesの成功ケース"""
         mock_response = MagicMock()
         mock_response.json.return_value = {"body": '<div class="page-source">Test wiki text</div>'}
-        mock_page.site.amc_request.return_value = [mock_response]
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
 
         collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
         result = collection.get_sources()
@@ -114,13 +115,41 @@ class TestPageRevisionCollection:
         mock_response.json.return_value = {
             "body": '<div class="page-source">\n\t+ Source from revision\n\t\n\tFoundation line.\n</div>'
         }
-        mock_page.site.amc_request.return_value = [mock_response]
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
 
         collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
         collection.get_sources()
 
         assert sample_revision._source is not None
         assert sample_revision._source.wiki_text == "+ Source from revision\n\nFoundation line."
+
+    def test_get_sources_skips_failed_retry_response(self, mock_page, sample_revision, mock_user):
+        """source取得の一部失敗は成功リビジョンを保持し失敗リビジョンを未取得にする"""
+        second_revision = PageRevision(
+            page=mock_page,
+            id=101,
+            rev_no=2,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 2, 12, 0, 0),
+            comment="Second revision",
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": '<div class="page-source">Test wiki text</div>'}
+        mock_page.site.amc_request = MagicMock(return_value=[mock_response, None])
+        mock_page.site.amc_request_with_retry = MagicMock(return_value=(mock_response, None))
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision, second_revision])
+        collection.get_sources()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {"moduleName": "history/PageSourceModule", "revision_id": 100},
+                {"moduleName": "history/PageSourceModule", "revision_id": 101},
+            ]
+        )
+        assert sample_revision._source is not None
+        assert second_revision._source is None
 
     def test_get_sources_skips_already_acquired(self, mock_page, sample_revision):
         """既に取得済みのソースはスキップ"""
@@ -145,7 +174,7 @@ class TestPageRevisionCollection:
         mock_response.json.return_value = {
             "body": "onclick=\"document.getElementById('page-version-info').style.display='none'\">close</a>\n\t</div>\n\n\n\n<p>Test HTML content</p>"
         }
-        mock_page.site.amc_request.return_value = [mock_response]
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
 
         collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
         result = collection.get_htmls()
@@ -161,18 +190,46 @@ class TestPageRevisionCollection:
             "body": "onclick=\"document.getElementById('page-version-info').style.display='none'\">close</a>\n"
             "   </div>\n<p>Test HTML content</p>"
         }
-        mock_page.site.amc_request.return_value = [mock_response]
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
 
         collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
         collection.get_htmls()
 
         assert sample_revision._html == "<p>Test HTML content</p>"
 
+    def test_get_htmls_skips_failed_retry_response(self, mock_page, sample_revision, mock_user):
+        """HTML取得の一部失敗は成功リビジョンを保持し失敗リビジョンを未取得にする"""
+        second_revision = PageRevision(
+            page=mock_page,
+            id=101,
+            rev_no=2,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 2, 12, 0, 0),
+            comment="Second revision",
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "<p>Test HTML content</p>"}
+        mock_page.site.amc_request = MagicMock(return_value=[mock_response, None])
+        mock_page.site.amc_request_with_retry = MagicMock(return_value=(mock_response, None))
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision, second_revision])
+        collection.get_htmls()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {"moduleName": "history/PageVersionModule", "revision_id": 100},
+                {"moduleName": "history/PageVersionModule", "revision_id": 101},
+            ]
+        )
+        assert sample_revision._html == "<p>Test HTML content</p>"
+        assert second_revision._html is None
+
     def test_get_htmls_without_separator_uses_body(self, mock_page, sample_revision):
         """区切りリンクがない場合はbody全体をHTMLとして保持する"""
         mock_response = MagicMock()
         mock_response.json.return_value = {"body": "<p>Direct HTML content</p>"}
-        mock_page.site.amc_request.return_value = [mock_response]
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
 
         collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
         collection.get_htmls()
@@ -215,11 +272,12 @@ class TestPageRevision:
         """sourceプロパティの遅延読み込み"""
         mock_response = MagicMock()
         mock_response.json.return_value = {"body": '<div class="page-source">Lazy loaded text</div>'}
-        mock_page.site.amc_request.return_value = [mock_response]
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
 
         result = sample_revision.source
 
-        mock_page.site.amc_request.assert_called_once()
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_called_once()
         assert result is not None
 
     def test_source_property_uses_cache(self, sample_revision):
@@ -243,11 +301,12 @@ class TestPageRevision:
         mock_response.json.return_value = {
             "body": "onclick=\"document.getElementById('page-version-info').style.display='none'\">close</a>\n\t</div>\n\n\n\n<p>Lazy HTML</p>"
         }
-        mock_page.site.amc_request.return_value = [mock_response]
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
 
         result = sample_revision.html
 
-        mock_page.site.amc_request.assert_called_once()
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_called_once()
         assert result is not None
 
     def test_html_property_uses_cache(self, sample_revision):

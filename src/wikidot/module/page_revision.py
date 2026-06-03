@@ -120,11 +120,13 @@ class PageRevisionCollection(list["PageRevision"]):
         if len(target_revisions) == 0:
             return revisions
 
-        responses = page.site.amc_request(
+        responses = page.site.amc_request_with_retry(
             [{"moduleName": module_name, "revision_id": revision.id} for revision in target_revisions]
         )
 
         for revision, response in zip(target_revisions, responses, strict=True):
+            if response is None:
+                continue
             process_response_func(revision, response, page)
 
         return revisions
