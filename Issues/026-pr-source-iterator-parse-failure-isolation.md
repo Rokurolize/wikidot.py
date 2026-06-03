@@ -67,3 +67,5 @@ Large Wikidot source collections are vulnerable to partial source response failu
 This slice does not change retry counts, source request construction, cache behavior, or the `PageSourceResult` dataclass fields. It only moves iterator-level parse failures into the same structured per-page failure path already used for unresolved source fetches.
 
 Follow-up [027-pr-source-result-wiki-text.md](027-pr-source-result-wiki-text.md) keeps the same failure semantics while exposing successful source text directly on the result record.
+
+Follow-up [051-pr-preserve-source-batch-successes.md](051-pr-preserve-source-batch-successes.md) keeps the direct `PageCollection.get_page_sources()` exception surface but improves the lower-level batch parser so later valid source responses are preserved before the first parse error is raised.
