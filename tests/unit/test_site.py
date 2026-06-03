@@ -30,6 +30,8 @@ def create_mock_client(is_logged_in: bool = True) -> MagicMock:
         mock_client.login_check.side_effect = LoginRequiredException("Login required")
     mock_client.amc_client = MagicMock()
     mock_client.amc_client.config.request_timeout = 30.0
+    mock_client.amc_client.config.retry_batch_size = 50
+    mock_client.amc_client.config.retry_max_retries = 3
     return mock_client
 
 
@@ -1167,6 +1169,36 @@ class TestSiteGetRecentChanges:
 
             assert len(changes) == 1
             assert changes[0].page_fullname == "test:test-page"
+
+    def test_get_recent_changes_retries_transient_amc_failures(self, site_changes: dict[str, Any]) -> None:
+        """変更履歴取得は一時的なAMC失敗を再試行する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = site_changes
+        mock_client.amc_client.request.side_effect = [
+            (RuntimeError("temporary failure"),),
+            (mock_response,),
+        ]
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user = MagicMock()
+            mock_user_parser.return_value = mock_user
+
+            changes = site.get_recent_changes(limit=1)
+
+        assert len(changes) == 1
+        assert changes[0].page_fullname == "test:test-page"
+        assert mock_client.amc_client.request.call_count == 2
+        assert [call.args[1] for call in mock_client.amc_client.request.call_args_list] == [True, True]
 
     def test_get_recent_changes_zero_limit_returns_empty(self) -> None:
         """limit=0ではリクエストせず空リストを返す"""

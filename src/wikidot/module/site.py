@@ -1129,7 +1129,7 @@ class Site:
         page_no = 1
 
         while True:
-            response = self.amc_request(
+            response = self.amc_request_with_retry(
                 [
                     {
                         "moduleName": "changes/SiteChangesListModule",
@@ -1139,6 +1139,8 @@ class Site:
                     }
                 ]
             )[0]
+            if response is None:
+                raise exceptions.UnexpectedException(f"Cannot retrieve recent changes page: {page_no}")
 
             html = BeautifulSoup(response.json()["body"], "lxml")
             items = html.select("div.changes-list-item")
