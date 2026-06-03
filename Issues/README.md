@@ -126,6 +126,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [120-pr-preserve-user-profile-title-spacing.md](120-pr-preserve-user-profile-title-spacing.md): upstream PR draft for the committed user profile-title text spacing fix.
 - [121-pr-preserve-guest-display-name-spacing.md](121-pr-preserve-guest-display-name-spacing.md): upstream PR draft for the committed guest printuser display-name text spacing fix.
 - [122-pr-verify-publish-source-before-metadata.md](122-pr-verify-publish-source-before-metadata.md): upstream PR draft for the committed publish source-verification side-effect ordering fix.
+- [123-pr-scope-forum-post-metadata-spans.md](123-pr-scope-forum-post-metadata-spans.md): upstream PR draft for the committed forum-post metadata span scoping fix.
 
 ## Local Evidence Index
 
@@ -159,5 +160,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 24: `c0ae0c0 fix(user): preserve profile title spacing`
 - Local implementation commits, continued 25: `e546d95 fix(user): preserve guest display name spacing`
 - Local implementation commits, continued 26: `e0b2999 fix(site): verify publish source before metadata`
+- Local implementation commits, continued 27: `19e1caa fix(forum_post): scope post metadata spans`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
