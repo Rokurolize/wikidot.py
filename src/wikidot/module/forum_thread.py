@@ -116,55 +116,68 @@ class ForumThreadCollection(list["ForumThread"]):
             If required HTML elements are not found
         """
         threads = []
-        for info in html.select("table.table tr.head~tr"):
-            name_elem = info.select_one(":scope > td.name")
-            started_elem = info.select_one(":scope > td.started")
-            posts_count_elem = info.select_one(":scope > td.posts")
+        for table in html.select("div.forum-category-box > table.table"):
+            rows = table.find_all("tr", recursive=False)
+            for info in rows:
+                row_class = info.get("class")
+                if isinstance(row_class, list) and "head" in row_class:
+                    continue
 
-            if name_elem is None:
-                raise NoElementException("Thread name element is not found.")
-            if started_elem is None:
-                raise NoElementException("Thread started element is not found.")
-            if posts_count_elem is None:
-                raise NoElementException("Posts count element is not found.")
+                cells = info.find_all("td", recursive=False)
+                if len(cells) < 3:
+                    continue
 
-            title = name_elem.select_one(":scope > div.title > a")
-            if title is None:
-                raise NoElementException("Title element is not found.")
+                name_elem = cells[0]
+                started_elem = cells[1]
+                posts_count_elem = cells[2]
 
-            title_href = title.get("href")
-            if title_href is None:
-                raise NoElementException("Title href is not found.")
+                name_class = name_elem.get("class")
+                started_class = started_elem.get("class")
+                posts_count_class = posts_count_elem.get("class")
+                if not (isinstance(name_class, list) and "name" in name_class):
+                    raise NoElementException("Thread name element is not found.")
+                if not (isinstance(started_class, list) and "started" in started_class):
+                    raise NoElementException("Thread started element is not found.")
+                if not (isinstance(posts_count_class, list) and "posts" in posts_count_class):
+                    raise NoElementException("Posts count element is not found.")
 
-            thread_id_match = re.search(r"t-(\d+)", str(title_href))
-            if thread_id_match is None:
-                raise NoElementException("Thread ID is not found.")
+                title = name_elem.select_one(":scope > div.title > a")
+                if title is None:
+                    raise NoElementException("Title element is not found.")
 
-            thread_id = int(thread_id_match.group(1))
+                title_href = title.get("href")
+                if title_href is None:
+                    raise NoElementException("Title href is not found.")
 
-            description_elem = name_elem.select_one(":scope > div.description")
-            user_elem = started_elem.select_one(":scope > span.printuser")
-            odate_elem = started_elem.select_one(":scope > span.odate")
+                thread_id_match = re.search(r"t-(\d+)", str(title_href))
+                if thread_id_match is None:
+                    raise NoElementException("Thread ID is not found.")
 
-            if description_elem is None:
-                raise NoElementException("Description element is not found.")
-            if user_elem is None:
-                raise NoElementException("User element is not found.")
-            if odate_elem is None:
-                raise NoElementException("Odate element is not found.")
+                thread_id = int(thread_id_match.group(1))
 
-            thread = ForumThread(
-                site=site,
-                id=int(thread_id),
-                title=title.text,
-                description=description_elem.text,
-                created_by=user_parser(site.client, user_elem),
-                created_at=odate_parser(odate_elem),
-                post_count=int(posts_count_elem.text),
-                category=category,
-            )
+                description_elem = name_elem.select_one(":scope > div.description")
+                user_elem = started_elem.select_one(":scope > span.printuser")
+                odate_elem = started_elem.select_one(":scope > span.odate")
 
-            threads.append(thread)
+                if description_elem is None:
+                    raise NoElementException("Description element is not found.")
+                if user_elem is None:
+                    raise NoElementException("User element is not found.")
+                if odate_elem is None:
+                    raise NoElementException("Odate element is not found.")
+
+                thread = ForumThread(
+                    site=site,
+                    id=int(thread_id),
+                    title=title.text,
+                    description=description_elem.text,
+                    created_by=user_parser(site.client, user_elem),
+                    created_at=odate_parser(odate_elem),
+                    post_count=int(posts_count_elem.text),
+                    category=category,
+                )
+
+                threads.append(thread)
 
         return ForumThreadCollection(site=site, threads=threads)
 

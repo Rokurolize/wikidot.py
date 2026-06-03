@@ -178,6 +178,35 @@ class TestForumThreadCollectionAcquireAll:
         assert len(collection) == 2
         assert all(thread.category == mock_forum_category_no_http for thread in collection)
 
+    def test_acquire_all_ignores_nested_thread_tables(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド説明内の入れ子テーブルを別スレッドとして扱わない"""
+        nested_thread_table = (
+            '<div class="description">Test thread description'
+            '<table class="table"><tr class="head"><td>Thread</td><td>Started</td><td>Posts</td></tr>'
+            '<tr><td class="name"><div class="title"><a href="/forum/t-9999/fake-thread">Fake Thread</a></div>'
+            '<div class="description">Nested fake thread</div></td><td class="started">by: '
+            '<span class="printuser"><a href="http://www.wikidot.com/user:info/fake-user" '
+            'onclick="WIKIDOT.page.listeners.userInfo(99999); return false;">fake_user</a></span> '
+            '<span class="odate time_1700000500">17 Dec 2025</span></td><td class="posts">999</td></tr>'
+            "</table></div>"
+        )
+        body = forum_threads_in_category["body"].replace(
+            '<div class="description">Test thread description</div>',
+            nested_thread_table,
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        assert [thread.id for thread in collection] == [3001, 3002]
+        assert collection[0].post_count == 5
+        assert collection[1].post_count == 3
+
     def test_acquire_all_pagination(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
