@@ -358,7 +358,7 @@ class ForumThreadCollection(list["ForumThread"]):
         ForumThreadCollection
             Collection of retrieved thread information
         """
-        responses = site.amc_request(
+        responses = site.amc_request_with_retry(
             [
                 {
                     "t": thread_id,
@@ -371,6 +371,8 @@ class ForumThreadCollection(list["ForumThread"]):
         threads = []
 
         for response, thread_id in zip(responses, thread_ids, strict=True):
+            if response is None:
+                raise UnexpectedException(f"Cannot retrieve forum thread: {thread_id}")
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
 

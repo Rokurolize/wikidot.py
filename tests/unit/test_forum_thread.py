@@ -216,11 +216,38 @@ class TestForumThreadCollectionAcquireFromIds:
         """スレッドIDからスレッド情報を取得できる"""
         mock_response = MagicMock()
         mock_response.json.return_value = forum_thread_detail
-        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         collection = ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
         assert len(collection) == 1
         assert collection[0].id == 3001
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_site_get_threads_retries_transient_fetch_failures(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """サイトのスレッド取得が一時的なAMC失敗をリトライする"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_thread_detail
+        amc_request = MagicMock(side_effect=[(RuntimeError("temporary failure"),), (mock_response,)])
+        mock_site_no_http.client.amc_client.request = amc_request
+
+        collection = mock_site_no_http.get_threads([3001])
+
+        assert len(collection) == 1
+        assert collection[0].id == 3001
+        assert amc_request.call_count == 2
+
+    def test_acquire_from_ids_raises_when_retry_is_exhausted(self, mock_site_no_http: Site) -> None:
+        """スレッド詳細取得のリトライが尽きた場合は明示的に例外を出す"""
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve forum thread: 3001"):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        mock_site_no_http.amc_request.assert_not_called()
 
 
 # ============================================================
