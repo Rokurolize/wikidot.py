@@ -77,4 +77,4 @@ Direct private-message detail acquisition should avoid redundant dashboard reads
 
 ## Additional Notes
 
-This slice does not change inbox/sent-box list parsing, pagination request construction, retry policy, no-message permission mapping, message HTML parsing, date parsing, client accessor names, or send behavior. It only removes duplicate direct detail requests from the public `from_ids(...)` path while preserving the requested output shape.
+This slice does not change inbox/sent-box list parsing, pagination request construction, retry policy, no-message permission mapping, message HTML parsing, date parsing, client accessor names, or send behavior. It only removes duplicate direct detail requests from the public `from_ids(...)` path while preserving the requested output shape. Follow-up [073-pr-reuse-private-message-detail-parsing.md](073-pr-reuse-private-message-detail-parsing.md) reuses parsed fields for duplicate output positions after this request-level deduplication.
