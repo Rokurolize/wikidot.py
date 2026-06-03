@@ -295,7 +295,15 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         ForumPostRevisionCollection
             Self (for method chaining)
         """
-        target_revisions = [r for r in self if not r.is_html_acquired()]
+        target_revisions: list[ForumPostRevision] = []
+        target_revisions_by_id: dict[int, list[ForumPostRevision]] = {}
+        for revision in self:
+            if revision.is_html_acquired():
+                continue
+            if revision.id not in target_revisions_by_id:
+                target_revisions.append(revision)
+                target_revisions_by_id[revision.id] = []
+            target_revisions_by_id[revision.id].append(revision)
 
         if len(target_revisions) == 0:
             return self
@@ -308,7 +316,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             if response is None:
                 continue
             data = response.json()
-            revision._html = str(data.get("content", ""))
+            html = str(data.get("content", ""))
+            for target_revision in target_revisions_by_id[revision.id]:
+                target_revision._html = html
 
         return self
 

@@ -364,6 +364,48 @@ class TestForumPostRevisionCollectionGetHtmls:
         assert collection[1].is_html_acquired() is False
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
 
+    def test_get_htmls_deduplicates_duplicate_revision_ids(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revision_content: dict[str, Any]
+    ) -> None:
+        """重複したrevision IDのHTML取得は1回にまとめる"""
+        revisions = [
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=0,
+                created_by=None,
+                created_at=datetime.now(tz=timezone.utc),
+            ),
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=1,
+                created_by=None,
+                created_at=datetime.now(tz=timezone.utc),
+            ),
+        ]
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, revisions)
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_post_revision_content
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        result = collection.get_htmls()
+
+        assert result == collection
+        assert collection[0].html == str(forum_post_revision_content["content"])
+        assert collection[1].html == str(forum_post_revision_content["content"])
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionModule",
+                    "revisionId": 9001,
+                }
+            ]
+        )
+
     def test_get_htmls(self, mock_forum_post_no_http: ForumPost, forum_post_revision_content: dict[str, Any]) -> None:
         """複数リビジョンのHTMLを一括取得できる"""
         revisions = [
