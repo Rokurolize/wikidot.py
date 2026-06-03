@@ -78,4 +78,4 @@ Wikidot forum descriptions can render HTML-like fragments that contain user/date
 
 This slice does not change direct thread detail parsing, category acquisition pagination, retry policy, post acquisition, reply behavior, or any forum post parser rules. It only narrows category thread-list row metadata extraction to the cells Wikidot emits for that metadata.
 
-Adjacent follow-up [085-pr-scope-forum-revision-metadata.md](085-pr-scope-forum-revision-metadata.md) applies the same structural-cell boundary to forum post revision-list editor/date/action parsing.
+Adjacent follow-up [085-pr-scope-forum-revision-metadata.md](085-pr-scope-forum-revision-metadata.md) applies the same structural-cell boundary to forum post revision-list editor/date/action parsing. Follow-up [087-pr-ignore-nested-thread-tables.md](087-pr-ignore-nested-thread-tables.md) narrows the outer category thread-list row selection so nested thread-like tables inside descriptions cannot become extra threads.
