@@ -64,4 +64,4 @@ Recent-changes retrieval is a read-only inspection workflow, so it should benefi
 
 ## Additional Notes
 
-This slice does not batch recent-changes pages or change the semantics of `limit=None`. It only moves the existing page fetch to the established retry-aware AMC helper and makes exhausted retries explicit.
+This slice did not batch recent-changes pages or change the semantics of `limit=None`. Follow-up [072-pr-batch-recent-changes-pages.md](072-pr-batch-recent-changes-pages.md) batches page 2 and later through the established retry-aware AMC helper while preserving this retry behavior.
