@@ -265,6 +265,10 @@ class SearchPagesQuery:
         self.offset: int | None = kwargs.get("offset", 0)
         self.limit: int | None = kwargs.get("limit")
         self.perPage: int | None = kwargs.get("perPage", PageConstants.DEFAULT_PER_PAGE)
+        if self.offset is not None and self.offset < 0:
+            raise ValueError("offset must be non-negative")
+        if self.perPage is not None and self.perPage <= 0:
+            raise ValueError("perPage must be positive")
         # layout
         self.separate: str | None = kwargs.get("separate", "no")
         self.wrapper: str | None = kwargs.get("wrapper", "no")

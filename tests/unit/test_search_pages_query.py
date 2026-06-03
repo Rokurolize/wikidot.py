@@ -213,6 +213,20 @@ class TestSearchPagesQueryValidation:
         with pytest.raises(ValueError, match="Invalid query parameters"):
             SearchPagesQuery(category="scp", invalid_param="value")
 
+    def test_per_page_must_be_positive(self):
+        """perPageは正の値だけ受け付ける"""
+        import pytest
+
+        with pytest.raises(ValueError, match="perPage must be positive"):
+            SearchPagesQuery(perPage=0)
+
+    def test_offset_must_be_non_negative(self):
+        """offsetは0以上だけ受け付ける"""
+        import pytest
+
+        with pytest.raises(ValueError, match="offset must be non-negative"):
+            SearchPagesQuery(offset=-1)
+
     def test_all_valid_parameters_work(self):
         """すべて有効なパラメータは正常に動作すること"""
         query = SearchPagesQuery(
