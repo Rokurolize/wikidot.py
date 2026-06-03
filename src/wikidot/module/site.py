@@ -902,6 +902,9 @@ class Site:
         list | Exception
             List of responses, or exceptions if return_exceptions is True
         """
+        if len(bodies) == 0:
+            return ()
+
         if return_exceptions:
             return self.client.amc_client.request(bodies, True, self.unix_name, self.ssl_supported)
         else:
