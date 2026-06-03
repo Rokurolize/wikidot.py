@@ -504,6 +504,40 @@ class PageCollection(list["Page"]):
         return PageCollection(site, pages)
 
     @staticmethod
+    def _request_listpages_page(site: "Site", query_dict: dict[str, Any], offset: int | None) -> httpx.Response:
+        config = site.client.amc_client.config
+        max_retries = getattr(config, "retry_max_retries", 3)
+        if not isinstance(max_retries, int):
+            max_retries = 3
+        if max_retries < 0:
+            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+
+        last_exception: Exception | None = None
+        for _ in range(max_retries + 1):
+            try:
+                response_or_exception = site.amc_request([query_dict], return_exceptions=True)[0]
+            except Exception as exc:
+                response_or_exception = exc
+
+            if not isinstance(response_or_exception, Exception):
+                return response_or_exception
+
+            if isinstance(response_or_exception, exceptions.ForbiddenException):
+                raise response_or_exception
+
+            if isinstance(response_or_exception, exceptions.WikidotStatusCodeException):
+                if response_or_exception.status_code == "not_ok":
+                    raise exceptions.ForbiddenException("Failed to get pages, target site may be private") from (
+                        response_or_exception
+                    )
+                if response_or_exception.status_code != "try_again":
+                    raise response_or_exception
+
+            last_exception = response_or_exception
+
+        raise exceptions.UnexpectedException(f"Failed to get ListPages page at offset: {offset}") from last_exception
+
+    @staticmethod
     def search_pages(site: "Site", query: SearchPagesQuery | None = None) -> "PageCollection":
         """
         Search for pages within a site
@@ -554,12 +588,7 @@ class PageCollection(list["Page"]):
             + "\n[[/div]]"
         )
 
-        try:
-            response = site.amc_request([query_dict])[0]
-        except exceptions.WikidotStatusCodeException as e:
-            if e.status_code == "not_ok":
-                raise exceptions.ForbiddenException("Failed to get pages, target site may be private") from e
-            raise e
+        response = PageCollection._request_listpages_page(site, query_dict, query.offset)
 
         body = response.json()["body"]
 

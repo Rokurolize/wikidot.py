@@ -228,6 +228,46 @@ class TestPageCollectionSearchPages:
         assert len(pages) == 1
         assert pages[0].fullname == "scp-001"
 
+    def test_search_pages_retries_transient_first_page_failures(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """初回ListPagesページの一時失敗はretryする"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = page_listpages_single
+        mock_site_no_http.amc_request = MagicMock(
+            side_effect=[
+                (RuntimeError("temporary failure"),),
+                (mock_response,),
+            ]
+        )
+
+        pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        assert len(pages) == 1
+        assert pages[0].fullname == "scp-001"
+        assert mock_site_no_http.amc_request.call_count == 2
+
+    def test_search_pages_raises_when_first_page_retry_is_exhausted(self, mock_site_no_http: Site) -> None:
+        """初回ListPagesページのretryを使い切った場合はoffset付きで失敗する"""
+        mock_site_no_http.client.amc_client.config.retry_max_retries = 1
+        mock_site_no_http.amc_request = MagicMock(return_value=(RuntimeError("temporary failure"),))
+
+        with pytest.raises(exceptions.UnexpectedException, match="offset: 500"):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500))
+
+        assert mock_site_no_http.amc_request.call_count == 2
+
+    def test_search_pages_preserves_private_site_status_mapping(self, mock_site_no_http: Site) -> None:
+        """private siteのnot_okは従来どおりForbiddenExceptionに変換する"""
+        mock_site_no_http.amc_request = MagicMock(
+            return_value=(exceptions.WikidotStatusCodeException("not ok", "not_ok"),)
+        )
+
+        with pytest.raises(exceptions.ForbiddenException, match="target site may be private"):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        mock_site_no_http.amc_request.assert_called_once()
+
     def test_search_pages_with_query(self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]) -> None:
         """クエリパラメータを指定して検索できる"""
         mock_response = MagicMock()
