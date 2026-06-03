@@ -251,6 +251,26 @@ class TestForumThreadCollectionAcquireAll:
         assert collection[0].description == "First part Second part"
         mock_forum_category_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_preserves_title_text_spacing(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド一覧タイトル内の段落や装飾タグのテキストを連結しない"""
+        body_with_formatted_title = forum_threads_in_category["body"].replace(
+            '<div class="title"><a href="/forum/t-3001/test-thread">Test Thread</a></div>',
+            '<div class="title"><a href="/forum/t-3001/test-thread"><p>First <span>part</span></p><p>Second part</p></a></div>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body_with_formatted_title}
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        assert len(collection) == 2
+        assert collection[0].title == "First part Second part"
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_pagination(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
