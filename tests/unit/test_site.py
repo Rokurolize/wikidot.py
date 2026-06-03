@@ -9,6 +9,7 @@ from pytest_httpx import HTTPXMock
 
 from wikidot.common.exceptions import (
     LoginRequiredException,
+    NoElementException,
     NotFoundException,
     TargetErrorException,
     UnexpectedException,
@@ -286,6 +287,56 @@ class TestSitePagesAccessor:
             "source 301",
             "source 302 fallback",
         ]
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_iter_sources_reports_parse_failures_without_losing_other_pages(self, mock_site_no_http: Site) -> None:
+        """source解析失敗はページ単位の失敗にし、同じ検索内の他ページは継続する"""
+        pages = [
+            self._page(mock_site_no_http, "page-one", 401),
+            self._page(mock_site_no_http, "page-two", 402),
+            self._page(mock_site_no_http, "page-three", 403),
+        ]
+        requested_page_ids = []
+
+        def search_pages(site: Site, query) -> PageCollection:
+            return PageCollection(site, pages)
+
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"body": "<div>missing source wrapper</div>"}
+
+        def source_responses(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock, ...]:
+            page_ids = [body["page_id"] for body in request_bodies]
+            requested_page_ids.append(page_ids)
+            if page_ids == [401, 402, 403]:
+                return (self._source_response("source 401"), malformed_response, self._source_response("source 403"))
+            if page_ids == [402]:
+                return (malformed_response,)
+            if page_ids == [403]:
+                return (self._source_response("source 403 fallback"),)
+            raise AssertionError(f"Unexpected source request ids: {page_ids}")
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=source_responses)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            results = list(
+                mock_site_no_http.pages.iter_sources(
+                    limit=3,
+                    perPage=3,
+                    source_batch_size=3,
+                    fallback_batch_size=1,
+                )
+            )
+
+        assert requested_page_ids == [[401, 402, 403], [402], [403]]
+        assert [result.ok for result in results] == [True, False, True]
+        assert [result.source.wiki_text if result.source is not None else None for result in results] == [
+            "source 401",
+            None,
+            "source 403 fallback",
+        ]
+        assert isinstance(results[1].error, NoElementException)
+        assert "page-two" in str(results[1].error)
         mock_site_no_http.amc_request.assert_not_called()
 
 

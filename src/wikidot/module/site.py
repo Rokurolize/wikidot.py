@@ -226,21 +226,47 @@ class SitePagesAccessor:
         if batch:
             yield from self._source_results(batch, fallback_batch_size)
 
+    def _get_page_sources_error(self, pages: list[Page]) -> Exception | None:
+        try:
+            PageCollection(self.site, pages).get_page_sources()
+        except Exception as exc:
+            return exc
+        return None
+
     def _source_results(self, pages: list[Page], fallback_batch_size: int) -> Iterator[PageSourceResult]:
-        PageCollection(self.site, pages).get_page_sources()
+        source_errors: dict[int, Exception] = {}
+        source_error = self._get_page_sources_error(pages)
+        if source_error is not None:
+            for page in pages:
+                if page._source is None:
+                    source_errors[id(page)] = source_error
 
         missing_pages = [page for page in pages if page._source is None]
         if missing_pages:
             for index in range(0, len(missing_pages), fallback_batch_size):
                 fallback_pages = missing_pages[index : index + fallback_batch_size]
-                PageCollection(self.site, fallback_pages).get_page_sources()
+                for page in fallback_pages:
+                    source_errors.pop(id(page), None)
+                fallback_error = self._get_page_sources_error(fallback_pages)
+                if fallback_error is not None:
+                    if len(fallback_pages) == 1:
+                        source_errors[id(fallback_pages[0])] = fallback_error
+                    else:
+                        for page in fallback_pages:
+                            if page._source is None:
+                                source_errors.pop(id(page), None)
+                                page_error = self._get_page_sources_error([page])
+                                if page_error is not None:
+                                    source_errors[id(page)] = page_error
 
         for page in pages:
             if page._source is None:
                 yield PageSourceResult(
                     page=page,
                     source=None,
-                    error=exceptions.NotFoundException(f"Cannot find page source: {page.fullname}"),
+                    error=source_errors.get(
+                        id(page), exceptions.NotFoundException(f"Cannot find page source: {page.fullname}")
+                    ),
                 )
             else:
                 yield PageSourceResult(page=page, source=page._source)
