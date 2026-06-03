@@ -117,6 +117,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [111-pr-preserve-forum-category-title-spacing.md](111-pr-preserve-forum-category-title-spacing.md): upstream PR draft for the committed forum-category title text spacing fix.
 - [112-pr-preserve-recent-change-comment-spacing.md](112-pr-preserve-recent-change-comment-spacing.md): upstream PR draft for the committed recent-change comment text spacing fix.
 - [113-pr-preserve-site-application-text-spacing.md](113-pr-preserve-site-application-text-spacing.md): upstream PR draft for the committed site-application text spacing fix.
+- [114-pr-preserve-page-revision-comment-spacing.md](114-pr-preserve-page-revision-comment-spacing.md): upstream PR draft for the committed page-revision comment text spacing fix.
 
 ## Local Evidence Index
 
@@ -141,5 +142,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 15: `833e720 fix(forum_category): preserve title spacing`
 - Local implementation commits, continued 16: `aee09e9 fix(site): preserve recent change comment spacing`
 - Local implementation commits, continued 17: `325093d fix(site_application): preserve application text spacing`
+- Local implementation commits, continued 18: `fe26da9 fix(page): preserve revision comment spacing`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
