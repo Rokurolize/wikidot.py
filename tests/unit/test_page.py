@@ -295,6 +295,48 @@ class TestPageCollectionSearchPages:
         second_page_body = mock_site_no_http.amc_request.call_args_list[1].args[0][0]
         assert second_page_body["offset"] == 600
 
+    def test_search_pages_additional_pager_requests_use_retry(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """追加ListPagesページはretry付きAMCで取得する"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            **page_listpages_single,
+            "body": page_listpages_single["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target"><a>2</a></span></div>',
+        }
+        second_response = MagicMock()
+        second_response.json.return_value = page_listpages_single
+        mock_site_no_http.amc_request = MagicMock(return_value=[first_response])
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(second_response,))
+
+        pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500, perPage=100))
+
+        assert len(pages) == 2
+        mock_site_no_http.amc_request.assert_called_once()
+        mock_site_no_http.amc_request_with_retry.assert_called_once()
+        second_page_body = mock_site_no_http.amc_request_with_retry.call_args.args[0][0]
+        assert second_page_body["offset"] == 600
+
+    def test_search_pages_failed_retry_additional_page_raises(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """retry後も追加ListPagesページを取得できない場合は部分結果を返さない"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            **page_listpages_single,
+            "body": page_listpages_single["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target"><a>2</a></span></div>',
+        }
+        mock_site_no_http.amc_request = MagicMock(return_value=[first_response])
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.UnexpectedException, match="offset: 600"):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500, perPage=100))
+
+        mock_site_no_http.amc_request.assert_called_once()
+        mock_site_no_http.amc_request_with_retry.assert_called_once()
+
     def test_search_pages_limit_within_first_page_skips_additional_pager_requests(
         self, mock_site_no_http: Site, page_listpages_multiple: dict[str, Any]
     ) -> None:

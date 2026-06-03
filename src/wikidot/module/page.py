@@ -590,8 +590,12 @@ class PageCollection(list["Page"]):
                 request_bodies.append(_query_dict)
 
             if request_bodies:
-                responses = site.amc_request(request_bodies)
-                html_bodies.extend([BeautifulSoup(response.json()["body"], "lxml") for response in responses])
+                responses = site.amc_request_with_retry(request_bodies)
+                for index, additional_response in enumerate(responses):
+                    if additional_response is None:
+                        offset = request_bodies[index].get("offset")
+                        raise exceptions.UnexpectedException(f"Failed to get ListPages page at offset: {offset}")
+                    html_bodies.append(BeautifulSoup(additional_response.json()["body"], "lxml"))
 
         pages: list[Page] = []
         for html_body in html_bodies:
