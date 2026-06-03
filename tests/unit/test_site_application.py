@@ -311,6 +311,7 @@ class TestSiteApplicationProcess:
 
         call_args = site.amc_request.call_args[0][0][0]
         assert call_args["type"] == "decline"
+        assert call_args["text"] == "your application has been declined"
 
     def test_process_invalid_action(self):
         """無効なアクションでValueError"""

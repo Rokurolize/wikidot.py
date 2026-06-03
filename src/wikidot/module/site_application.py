@@ -142,6 +142,8 @@ class SiteApplication:
         if action not in ["accept", "decline"]:
             raise ValueError(f"Invalid action: {action}")
 
+        status_text = {"accept": "accepted", "decline": "declined"}[action]
+
         try:
             self.site.amc_request(
                 [
@@ -149,7 +151,7 @@ class SiteApplication:
                         "action": "ManageSiteMembershipAction",
                         "event": "acceptApplication",
                         "user_id": self.user.id,
-                        "text": f"your application has been {action}ed",
+                        "text": f"your application has been {status_text}",
                         "type": action,
                         "moduleName": "Empty",
                     }
