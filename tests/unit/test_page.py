@@ -479,6 +479,28 @@ class TestPageCollectionAcquire:
         response.json.return_value = body
         return response
 
+    def test_acquire_page_ids_deduplicates_duplicate_page_urls(
+        self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
+    ) -> None:
+        """同じ未取得ページURLのpage_id lookupは1回だけ行い重複ページへ反映する"""
+        duplicate_page = self._other_page(mock_site_no_http, mock_page_no_http)
+        duplicate_page.fullname = mock_page_no_http.fullname
+        duplicate_page.name = mock_page_no_http.name
+        duplicate_page.category = mock_page_no_http.category
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http, duplicate_page])
+        response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 333;")
+        request = MagicMock(return_value=[response])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        collection.get_page_ids()
+
+        request.assert_called_once()
+        assert request.call_args.args[2] == [
+            "https://test-site.wikidot.com/test-page/norender/true/noredirect/true",
+        ]
+        assert mock_page_no_http.id == 333
+        assert duplicate_page.id == 333
+
     def test_acquire_sources_success(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:

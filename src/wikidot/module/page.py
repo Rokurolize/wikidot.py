@@ -671,12 +671,14 @@ class PageCollection(list["Page"]):
         if len(target_pages) == 0:
             return pages
 
+        target_pages_by_url: dict[str, list[Page]] = {}
+        for page in target_pages:
+            request_url = f"{page.get_url()}/norender/true/noredirect/true"
+            target_pages_by_url.setdefault(request_url, []).append(page)
+
         # norender, noredirectでアクセス
-        responses = RequestUtil.request(
-            site.client,
-            "GET",
-            [f"{page.get_url()}/norender/true/noredirect/true" for page in target_pages],
-        )
+        request_urls = list(target_pages_by_url)
+        responses = RequestUtil.request(site.client, "GET", request_urls)
 
         # "WIKIREQUEST.info.pageId = xxx;"の値をidに設定
         for index, response in enumerate(responses):
@@ -685,9 +687,12 @@ class PageCollection(list["Page"]):
             source = response.text
 
             id_match = re.search(r"WIKIREQUEST\.info\.pageId = (\d+);", source)
+            target_pages_for_url = target_pages_by_url[request_urls[index]]
             if id_match is None:
-                raise exceptions.UnexpectedException(f"Cannot find page id: {target_pages[index].fullname}")
-            target_pages[index].id = int(id_match.group(1))
+                raise exceptions.UnexpectedException(f"Cannot find page id: {target_pages_for_url[0].fullname}")
+            page_id = int(id_match.group(1))
+            for page in target_pages_for_url:
+                page.id = page_id
 
         return pages
 
