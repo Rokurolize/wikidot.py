@@ -129,6 +129,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [123-pr-scope-forum-post-metadata-spans.md](123-pr-scope-forum-post-metadata-spans.md): upstream PR draft for the committed forum-post metadata span scoping fix.
 - [124-pr-scope-forum-post-edit-form-controls.md](124-pr-scope-forum-post-edit-form-controls.md): upstream PR draft for the committed forum-post edit-form control scoping fix.
 - [125-pr-reuse-cached-duplicate-forum-post-sources.md](125-pr-reuse-cached-duplicate-forum-post-sources.md): upstream PR draft for the committed cached duplicate forum-post source reuse fix.
+- [126-pr-reuse-cached-duplicate-page-revision-data.md](126-pr-reuse-cached-duplicate-page-revision-data.md): upstream PR draft for the committed cached duplicate page revision source/HTML reuse fix.
 
 ## Local Evidence Index
 
@@ -165,5 +166,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 27: `19e1caa fix(forum_post): scope post metadata spans`
 - Local implementation commits, continued 28: `4714f4a fix(forum_post): scope edit form controls`
 - Local implementation commits, continued 29: `2ec41e9 perf(forum_post): reuse cached duplicate sources`
+- Local implementation commits, continued 30: `bc67044 perf(page_revision): reuse cached duplicate revision data`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
