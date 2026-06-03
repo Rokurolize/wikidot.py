@@ -94,6 +94,14 @@ class ForumPostCollection(list["ForumPost"]):
         return last_page
 
     @staticmethod
+    def _pager_from_html(html: BeautifulSoup) -> Tag | None:
+        for pager in html.select("div.pager"):
+            if ForumPostCollection._is_inside_post_content(pager):
+                continue
+            return pager
+        return None
+
+    @staticmethod
     def _is_inside_post_content(post_elem: Tag) -> bool:
         for ancestor in post_elem.parents:
             if not isinstance(ancestor, Tag):
@@ -308,7 +316,7 @@ class ForumPostCollection(list["ForumPost"]):
             result[thread.id] = ForumPostCollection(thread=thread, posts=posts)
 
             # Check pagination
-            pager = html.select_one("div.pager")
+            pager = ForumPostCollection._pager_from_html(html)
             if pager is None:
                 continue
 

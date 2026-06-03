@@ -200,6 +200,34 @@ class TestForumPostCollectionAcquireAll:
         assert len(collection) == 2
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_ignores_content_pager_markup(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """本文内のpager風マークアップをページネーションとして扱わない"""
+        body_with_content_pager = forum_posts_in_thread["body"].replace(
+            "<p>Test post content</p>",
+            (
+                "<p>Test post content</p>"
+                '<div class="pager"><span class="target">1</span>'
+                '<span class="target">2</span></div>'
+            ),
+            1,
+        )
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_content_pager}
+        second_response = MagicMock()
+        second_response.json.return_value = forum_posts_in_thread
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(
+            side_effect=[(first_response,), (second_response,)]
+        )
+
+        collection = ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        assert len(collection) == 2
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_called_once()
+
     def test_acquire_all_retries_transient_first_page_failures(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
