@@ -94,6 +94,22 @@ class ForumPostCollection(list["ForumPost"]):
         return last_page
 
     @staticmethod
+    def _is_inside_post_content(post_elem: Tag) -> bool:
+        for ancestor in post_elem.parents:
+            if not isinstance(ancestor, Tag):
+                continue
+            ancestor_classes = ancestor.get("class")
+            ancestor_id = ancestor.get("id")
+            if (
+                isinstance(ancestor_classes, list)
+                and "content" in ancestor_classes
+                and isinstance(ancestor_id, str)
+                and ancestor_id.startswith("post-content-")
+            ):
+                return True
+        return False
+
+    @staticmethod
     def _parse(thread: "ForumThread", html: BeautifulSoup) -> list["ForumPost"]:
         """
         Parse post list from HTML
@@ -120,6 +136,9 @@ class ForumPostCollection(list["ForumPost"]):
         post_elements = html.select("div.post-container > div.post[id^='post-']")
 
         for post_elem in post_elements:
+            if ForumPostCollection._is_inside_post_content(post_elem):
+                continue
+
             post_id_attr = post_elem.get("id")
             if post_id_attr is None:
                 raise NoElementException("Post ID attribute is not found.")

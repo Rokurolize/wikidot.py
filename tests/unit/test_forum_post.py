@@ -112,6 +112,31 @@ class TestForumPostCollectionParse:
 
         assert [post.id for post in posts] == [5001, 5002]
 
+    def test_parse_ignores_content_post_containers(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """本文内のpost-container風マークアップを投稿として扱わない"""
+        body = forum_posts_in_thread["body"].replace(
+            "<p>Test post content</p>",
+            (
+                "<p>Test post content</p>"
+                '<div class="post-container" id="fpc-9999"><div class="post" id="post-9999">'
+                '<div class="long"><div class="head"><div class="title" id="post-title-9999">'
+                'Content Post</div><div class="info"><span class="printuser">'
+                '<a href="http://www.wikidot.com/user:info/content-post-user" '
+                'onclick="WIKIDOT.page.listeners.userInfo(54323); return false;">content_post_user</a>'
+                '</span> <span class="odate time_1700000600">17 Dec 2025</span></div></div>'
+                '<div class="content" id="post-content-9999"><p>Content pseudo post body</p></div>'
+                "</div></div></div>"
+            ),
+            1,
+        )
+        html = BeautifulSoup(body, "lxml")
+
+        posts = ForumPostCollection._parse(mock_forum_thread_no_http, html)
+
+        assert [post.id for post in posts] == [5001, 5002]
+
     def test_parse_ignores_content_changes_metadata(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
