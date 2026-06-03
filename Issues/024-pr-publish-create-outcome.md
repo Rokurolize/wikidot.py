@@ -61,4 +61,4 @@ High-level browser-free publishing should return enough structured data for call
 
 ## Additional Notes
 
-This slice does not add write retries or per-metadata-operation error objects. Failed operations still raise the existing wikidot.py exceptions instead of returning a partial success result.
+This slice does not add write retries or per-metadata-operation error objects. Failed operations still raise the existing wikidot.py exceptions instead of returning a partial success result. The aggregate publish status follow-up is drafted in [028-pr-publish-aggregate-status.md](028-pr-publish-aggregate-status.md).
