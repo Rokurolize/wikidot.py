@@ -33,6 +33,49 @@ class TestRequestUtilEmpty:
             RequestUtil.request(object(), "DELETE", [])
 
 
+class TestRequestUtilClientReuse:
+    """HTTPクライアント再利用のテスト"""
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    def test_batch_reuses_one_async_client(self, monkeypatch, method):
+        """複数URLのバッチでAsyncClientをURLごとに作り直さない"""
+        created_clients = []
+
+        class FakeAsyncClient:
+            def __init__(self, *, timeout):
+                self.timeout = timeout
+                created_clients.append(self)
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+            async def get(self, url, *, headers=None):
+                return httpx.Response(200, request=httpx.Request("GET", url))
+
+            async def post(self, url, *, headers=None):
+                return httpx.Response(200, request=httpx.Request("POST", url))
+
+        monkeypatch.setattr("wikidot.util.requestutil.httpx.AsyncClient", FakeAsyncClient)
+
+        mock_client = MagicMock()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(
+            attempt_limit=1,
+            retry_interval=0.01,
+        )
+
+        results = RequestUtil.request(
+            mock_client,
+            method,
+            ["https://example.com/test1", "https://example.com/test2"],
+        )
+
+        assert len(results) == 2
+        assert len(created_clients) == 1
+
+
 class TestRequestUtilGet:
     """RequestUtil.request GETメソッドのテスト"""
 

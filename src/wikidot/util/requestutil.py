@@ -72,14 +72,13 @@ class RequestUtil:
 
             return None
 
-        async def _get(url: str) -> httpx.Response:
+        async def _get(http_client: httpx.AsyncClient, url: str) -> httpx.Response:
             async with semaphore:
                 for attempt in range(config.attempt_limit):
                     try:
-                        async with httpx.AsyncClient(timeout=config.request_timeout) as _client:
-                            response = await _client.get(url, headers=_get_headers_for_url(url))
-                            response.raise_for_status()
-                            return response
+                        response = await http_client.get(url, headers=_get_headers_for_url(url))
+                        response.raise_for_status()
+                        return response
                     except httpx.HTTPStatusError as e:
                         # Don't retry 4xx errors - they are client errors that won't change on retry
                         if not _is_retryable_status(e.response.status_code):
@@ -105,14 +104,13 @@ class RequestUtil:
                         await asyncio.sleep(backoff)
                 raise RuntimeError("Unreachable")
 
-        async def _post(url: str) -> httpx.Response:
+        async def _post(http_client: httpx.AsyncClient, url: str) -> httpx.Response:
             async with semaphore:
                 for attempt in range(config.attempt_limit):
                     try:
-                        async with httpx.AsyncClient(timeout=config.request_timeout) as _client:
-                            response = await _client.post(url, headers=_get_headers_for_url(url))
-                            response.raise_for_status()
-                            return response
+                        response = await http_client.post(url, headers=_get_headers_for_url(url))
+                        response.raise_for_status()
+                        return response
                     except httpx.HTTPStatusError as e:
                         # Don't retry 4xx errors - they are client errors that won't change on retry
                         if not _is_retryable_status(e.response.status_code):
@@ -139,12 +137,19 @@ class RequestUtil:
                 raise RuntimeError("Unreachable")
 
         async def _execute() -> list[httpx.Response | BaseException]:
-            if method == "GET":
-                return await asyncio.gather(*[_get(url) for url in urls], return_exceptions=return_exceptions)
-            elif method == "POST":
-                return await asyncio.gather(*[_post(url) for url in urls], return_exceptions=return_exceptions)
-            else:
-                raise ValueError("Invalid method")
+            async with httpx.AsyncClient(timeout=config.request_timeout) as http_client:
+                if method == "GET":
+                    return await asyncio.gather(
+                        *[_get(http_client, url) for url in urls],
+                        return_exceptions=return_exceptions,
+                    )
+                elif method == "POST":
+                    return await asyncio.gather(
+                        *[_post(http_client, url) for url in urls],
+                        return_exceptions=return_exceptions,
+                    )
+                else:
+                    raise ValueError("Invalid method")
 
         results: list[httpx.Response | BaseException] = run_coroutine(_execute())
         return [
