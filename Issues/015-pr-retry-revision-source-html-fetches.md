@@ -65,3 +65,5 @@ Revision source and HTML collection are the revision-level equivalents of curren
 ## Additional Notes
 
 This is a small consistency fix. It does not add a new history iterator, revision diff API, or high-level corpus collection helper.
+
+Follow-up: [061-pr-deduplicate-page-revision-fetches.md](061-pr-deduplicate-page-revision-fetches.md) removes duplicate revision source/HTML requests while preserving the retry-aware behavior from this slice.
