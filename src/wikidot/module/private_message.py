@@ -334,6 +334,9 @@ class PrivateMessageCollection(list["PrivateMessage"]):
                 raise response
             html = BeautifulSoup(response.json()["body"], "lxml")
             for message_row in html.select("tr.message"):
+                if PrivateMessageCollection._is_inside_message_row(message_row):
+                    continue
+
                 data_href = message_row.get("data-href")
                 if data_href is None:
                     raise exceptions.NoElementException("Message data-href attribute is not found")
