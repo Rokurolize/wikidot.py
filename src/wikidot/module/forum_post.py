@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Optional
 
 from bs4 import BeautifulSoup, Tag
 
-from ..common.exceptions import NoElementException
+from ..common.exceptions import NoElementException, UnexpectedException
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 
@@ -224,50 +224,7 @@ class ForumPostCollection(list["ForumPost"]):
         NoElementException
             If HTML element parsing fails
         """
-        posts: list[ForumPost] = []
-
-        first_response = thread.site.amc_request(
-            [
-                {
-                    "moduleName": "forum/ForumViewThreadPostsModule",
-                    "pageNo": "1",
-                    "t": str(thread.id),
-                }
-            ]
-        )[0]
-
-        first_body = first_response.json()["body"]
-        first_html = BeautifulSoup(first_body, "lxml")
-
-        posts.extend(ForumPostCollection._parse(thread, first_html))
-
-        # ページネーション確認
-        pager = first_html.select_one("div.pager")
-        if pager is None:
-            return ForumPostCollection(thread=thread, posts=posts)
-
-        last_page = ForumPostCollection._last_page_from_pager(pager)
-        if last_page <= 1:
-            return ForumPostCollection(thread=thread, posts=posts)
-
-        # 残りのページを取得
-        responses = thread.site.amc_request(
-            [
-                {
-                    "moduleName": "forum/ForumViewThreadPostsModule",
-                    "pageNo": str(page),
-                    "t": str(thread.id),
-                }
-                for page in range(2, last_page + 1)
-            ]
-        )
-
-        for response in responses:
-            body = response.json()["body"]
-            html = BeautifulSoup(body, "lxml")
-            posts.extend(ForumPostCollection._parse(thread, html))
-
-        return ForumPostCollection(thread=thread, posts=posts)
+        return ForumPostCollection.acquire_all_in_threads([thread])[thread.id]
 
     @staticmethod
     def acquire_all_in_threads(
@@ -317,7 +274,7 @@ class ForumPostCollection(list["ForumPost"]):
 
         for thread, response in zip(threads, first_page_responses, strict=True):
             if response is None:
-                continue
+                raise UnexpectedException(f"Cannot retrieve forum posts for thread {thread.id} page: 1")
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
 
@@ -350,9 +307,9 @@ class ForumPostCollection(list["ForumPost"]):
                 ]
             )
 
-            for (thread, _page), response in zip(additional_requests, additional_responses, strict=True):
+            for (thread, page), response in zip(additional_requests, additional_responses, strict=True):
                 if response is None:
-                    continue
+                    raise UnexpectedException(f"Cannot retrieve forum posts for thread {thread.id} page: {page}")
                 body = response.json()["body"]
                 html = BeautifulSoup(body, "lxml")
                 posts = ForumPostCollection._parse(thread, html)

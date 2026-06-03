@@ -293,6 +293,20 @@ class TestForumThreadPosts:
         mock_forum_thread_no_http._posts = posts
         assert mock_forum_thread_no_http._posts == posts
 
+    def test_posts_property_raises_when_retry_is_exhausted(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """postsプロパティはリトライ失敗を空コレクションとしてキャッシュしない"""
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve forum posts for thread 3001 page: 1",
+        ):
+            _ = mock_forum_thread_no_http.posts
+
+        assert mock_forum_thread_no_http._posts is None
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
 
 class TestForumThreadReply:
     """ForumThread.replyのテスト"""

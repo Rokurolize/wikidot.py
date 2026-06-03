@@ -110,10 +110,26 @@ class TestForumPostCollectionAcquireAll:
         """単一ページの投稿一覧を取得できる"""
         mock_response = MagicMock()
         mock_response.json.return_value = forum_posts_in_thread
-        mock_forum_thread_no_http.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         collection = ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
         assert len(collection) == 2
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_acquire_all_retries_transient_first_page_failures(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """一時的なAMC失敗後にスレッド内投稿一覧をリトライする"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_posts_in_thread
+        amc_request = MagicMock(side_effect=[(RuntimeError("temporary failure"),), (mock_response,)])
+        mock_forum_thread_no_http.site.client.amc_client.request = amc_request
+
+        collection = ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        assert len(collection) == 2
+        assert amc_request.call_count == 2
 
     def test_acquire_all_pagination(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
@@ -130,11 +146,15 @@ class TestForumPostCollectionAcquireAll:
         second_response = MagicMock()
         second_response.json.return_value = forum_posts_in_thread
 
-        mock_forum_thread_no_http.site.amc_request = MagicMock(side_effect=[[first_response], [second_response]])
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(
+            side_effect=[(first_response,), (second_response,)]
+        )
 
         collection = ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
         # 最初のページで2件 + 2ページ目で2件 = 4件
         assert len(collection) == 4
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
     def test_acquire_all_ignores_non_numeric_pager_targets(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
@@ -143,12 +163,51 @@ class TestForumPostCollectionAcquireAll:
         body_with_pager = forum_posts_in_thread["body"] + '<div class="pager"><span class="target">next</span></div>'
         first_response = MagicMock()
         first_response.json.return_value = {"status": "ok", "body": body_with_pager}
-        mock_forum_thread_no_http.site.amc_request = MagicMock(return_value=[first_response])
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(first_response,))
 
         collection = ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
 
         assert len(collection) == 2
-        mock_forum_thread_no_http.site.amc_request.assert_called_once()
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_called_once()
+
+    def test_acquire_all_raises_when_first_page_retry_is_exhausted(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """初回ページのリトライが尽きた場合は明示的に例外を出す"""
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve forum posts for thread 3001 page: 1",
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_acquire_all_raises_when_paginated_retry_is_exhausted(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """追加ページのリトライが尽きた場合は部分一覧を返さない"""
+        body_with_pager = (
+            forum_posts_in_thread["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target">2</span></div>'
+        )
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(side_effect=[(first_response,), (None,)])
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve forum posts for thread 3001 page: 2",
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
 
 class TestForumPostCollectionGetSources:
