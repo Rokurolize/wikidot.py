@@ -862,21 +862,25 @@ class PageCollection(list["Page"]):
             for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
                 rev_id = int(str(rev_element["id"]).removeprefix("revision-row-"))
 
-                tds = rev_element.select("td")
+                tds = [
+                    td_element
+                    for td_element in rev_element.find_all("td", recursive=False)
+                    if isinstance(td_element, Tag)
+                ]
                 if len(tds) < 7:
                     raise exceptions.NoElementException(
                         f"Cannot find revision cells for page: {first_page.fullname}, revision: {rev_id}"
                     )
                 rev_no = int(tds[0].text.strip().removesuffix("."))
-                created_by_elem = tds[4].select_one("span.printuser")
-                if created_by_elem is None:
+                created_by_elem = tds[4].find("span", class_="printuser", recursive=False)
+                if not isinstance(created_by_elem, Tag):
                     raise exceptions.NoElementException(
                         f"Cannot find created by element for page: {first_page.fullname}, revision: {rev_id}"
                     )
                 created_by = user_parser(site.client, created_by_elem)
 
-                created_at_elem = tds[5].select_one("span.odate")
-                if created_at_elem is None:
+                created_at_elem = tds[5].find("span", class_="odate", recursive=False)
+                if not isinstance(created_at_elem, Tag):
                     raise exceptions.NoElementException(
                         f"Cannot find created at element for page: {first_page.fullname}, revision: {rev_id}"
                     )

@@ -709,6 +709,34 @@ class TestPageCollectionAcquire:
         # フィクスチャには3つのリビジョン
         assert len(mock_page_with_id._revisions) == 3
 
+    def test_acquire_revisions_ignores_nested_table_cells(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_revisionlist: dict[str, Any]
+    ) -> None:
+        """履歴行内の入れ子テーブルセルを構造列として扱わない"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        body = page_revisionlist["body"].replace(
+            '<td><span class="spantip" title="Page renamed">R</span></td>',
+            (
+                "<td><table><tr><td>decorative</td><td>not metadata</td></tr></table>"
+                '<span class="spantip" title="Page renamed">R</span></td>'
+            ),
+            1,
+        )
+        response = self._json_response({**page_revisionlist, "body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection.get_page_revisions()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._revisions is not None
+        first_revision = mock_page_with_id._revisions[0]
+        assert first_revision.id == 1000003
+        assert first_revision.rev_no == 3
+        assert first_revision.created_by.name == "test-user"
+        assert first_revision.created_at == datetime.fromtimestamp(1700002000)
+        assert first_revision.comment == "Renamed page"
+
     def test_acquire_revisions_skips_already_acquired_pages(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_revisionlist: dict[str, Any]
     ) -> None:
