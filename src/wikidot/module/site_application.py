@@ -86,7 +86,7 @@ class SiteApplication:
         if "WIKIDOT.page.listeners.loginClick(event)" in body:
             raise exceptions.ForbiddenException("You are not allowed to access this page")
 
-        html = BeautifulSoup(response.json()["body"], "lxml")
+        html = BeautifulSoup(body, "lxml")
 
         applications = []
 

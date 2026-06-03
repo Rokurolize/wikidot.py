@@ -144,6 +144,7 @@ class TestSiteApplicationAcquireAll:
             assert len(applications) == 1
             assert applications[0].user == mock_user
             assert applications[0].text == "I want to join this wiki"
+            assert response.json.call_count == 1
 
     def test_acquire_all_ignores_unrelated_tables(self):
         """申請と無関係なtableを誤って数えない"""
