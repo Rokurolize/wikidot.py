@@ -97,6 +97,21 @@ class TestForumPostCollectionParse:
         # 2つ目の投稿者はtest_user_2
         assert posts[1].created_by.name == "test_user_2"
 
+    def test_parse_ignores_pseudo_posts_with_post_id(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_with_pseudo_post: dict[str, Any]
+    ) -> None:
+        """post ID風のidを持つコンテンツ内疑似ポストも無視する"""
+        body = forum_posts_with_pseudo_post["body"].replace(
+            '<div class="collapsible-block post">',
+            '<div class="collapsible-block post" id="post-9999">',
+            1,
+        )
+        html = BeautifulSoup(body, "lxml")
+
+        posts = ForumPostCollection._parse(mock_forum_thread_no_http, html)
+
+        assert [post.id for post in posts] == [5001, 5002]
+
 
 class TestForumPostCollectionAcquireAll:
     """ForumPostCollection.acquire_all_in_threadのテスト"""

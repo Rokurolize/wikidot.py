@@ -116,8 +116,8 @@ class ForumPostCollection(list["ForumPost"]):
             If required elements are not found
         """
         posts: list[ForumPost] = []
-        # Use attribute selector to get only top-level posts (with id starting with "post-")
-        post_elements = html.select("div.post[id^='post-']")
+        # Wikidot forum posts are direct children of post containers; content can contain post-like markup.
+        post_elements = html.select("div.post-container > div.post[id^='post-']")
 
         for post_elem in post_elements:
             post_id_attr = post_elem.get("id")
