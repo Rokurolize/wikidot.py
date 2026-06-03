@@ -104,6 +104,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [098-pr-ignore-thread-description-pager-markup.md](098-pr-ignore-thread-description-pager-markup.md): upstream PR draft for the committed thread-description pager parsing fix.
 - [099-pr-ignore-recent-change-comment-pager-markup.md](099-pr-ignore-recent-change-comment-pager-markup.md): upstream PR draft for the committed recent-change comment pager parsing fix.
 - [100-pr-ignore-listpages-field-pager-markup.md](100-pr-ignore-listpages-field-pager-markup.md): upstream PR draft for the committed ListPages field pager parsing fix.
+- [101-pr-ignore-private-message-row-pager-markup.md](101-pr-ignore-private-message-row-pager-markup.md): upstream PR draft for the committed private-message row pager parsing fix.
 
 ## Local Evidence Index
 
@@ -115,5 +116,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 2: `9c74116 fix(forum_thread): ignore description pager markup`
 - Local implementation commits, continued 3: `d6ad9eb fix(site): ignore recent-change comment pager markup`
 - Local implementation commits, continued 4: `eabac4b fix(page): ignore listpages field pager markup`
+- Local implementation commits, continued 5: `0e1d08a fix(private_message): ignore row pager markup`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
