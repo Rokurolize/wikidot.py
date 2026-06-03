@@ -79,3 +79,5 @@ Large Wikidot collection scripts often need broad discovery plus exact local fil
 ## Additional Notes
 
 The change is intentionally scoped to the higher-level iterators. It does not attempt to reinterpret Wikidot ListPages tag query semantics, and it does not broaden `SearchPagesQuery` or `site.pages.search(...)` parameters.
+
+Follow-up [068-pr-preserve-required-tag-search-chunk-size.md](068-pr-preserve-required-tag-search-chunk-size.md) tightens the `limit` interaction for this feature: while `required_tags` performs local filtering, remote ListPages chunks stay at `perPage` so a skipped broad page cannot hide a later matching page in the same chunk.
