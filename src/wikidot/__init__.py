@@ -6,14 +6,44 @@ It contains various classes for accessing major Wikidot elements such as users, 
 """
 
 import importlib
-import inspect
-import os
 import sys
+from collections.abc import Iterator
+from pathlib import Path
+from types import ModuleType
 
 from .module.client import Client
 
 __all__ = ["Client"]
 __version__ = "4.4.1"
+_SUBMODULE_DIRS = ("common", "connector", "module", "util")
+
+
+def _iter_submodule_names(package_dir: Path) -> Iterator[str]:
+    base_paths = [package_dir / base_dir for base_dir in _SUBMODULE_DIRS]
+    module_paths: list[Path] = []
+    for base_path in base_paths:
+        if base_path.is_dir():
+            module_paths.extend(base_path.glob("*.py"))
+    module_paths.sort()
+
+    for path in module_paths:
+        if path.name.startswith("_"):
+            continue
+
+        yield f"{__name__}.{path.parent.name}.{path.stem}"
+
+
+def _iter_module_classes(module: ModuleType, module_name: str) -> Iterator[tuple[str, type]]:
+    for name, obj in module.__dict__.items():
+        if isinstance(obj, type) and obj.__module__ == module_name:
+            yield name, obj
+
+
+def _expose_module_classes(current_module: ModuleType, module: ModuleType, module_name: str) -> None:
+    for name, obj in _iter_module_classes(module, module_name):
+        setattr(current_module, name, obj)
+        if name not in __all__:
+            __all__.append(name)
 
 
 def _import_submodules() -> None:
@@ -30,27 +60,14 @@ def _import_submodules() -> None:
     Import failures are silently ignored.
     """
     current_module = sys.modules[__name__]
-    package_dir = os.path.dirname(__file__)
+    package_dir = Path(__file__).parent
 
-    for base_dir in ["common", "connector", "module", "util"]:
-        base_path = os.path.join(package_dir, base_dir)
-        if not os.path.isdir(base_path):
-            continue
-
-        for filename in os.listdir(base_path):
-            if filename.startswith("_") or not filename.endswith(".py"):
-                continue
-
-            module_name = filename[:-3]
-            full_module_name = f"{__name__}.{base_dir}.{module_name}"
-
-            try:
-                module = importlib.import_module(full_module_name)
-                for name, obj in inspect.getmembers(module, inspect.isclass):
-                    if obj.__module__ == full_module_name:
-                        setattr(current_module, name, obj)
-            except ImportError:
-                pass
+    for full_module_name in _iter_submodule_names(package_dir):
+        try:
+            module = importlib.import_module(full_module_name)
+            _expose_module_classes(current_module, module, full_module_name)
+        except ImportError:
+            pass
 
 
 _import_submodules()
