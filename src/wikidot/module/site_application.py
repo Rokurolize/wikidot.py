@@ -118,7 +118,7 @@ class SiteApplication:
                 raise exceptions.NoElementException("Application text cell is not found")
 
             user = user_parser(site.client, user_element)
-            text = text_cells[1].text.strip()
+            text = text_cells[1].get_text(" ", strip=True)
 
             applications.append(SiteApplication(site, user, text))
 

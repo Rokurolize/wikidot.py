@@ -229,6 +229,37 @@ class TestSiteApplicationAcquireAll:
         assert "I want to join this wiki." in applications[0].text
         assert mock_user_parser.call_count == 1
 
+    def test_acquire_all_preserves_application_text_spacing(self):
+        """申請本文の段落や装飾要素間の空白を保持する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <div>
+                    <h3><span class="printuser">
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                    </span></h3>
+                    <table>
+                        <tr>
+                            <td>Application text:</td>
+                            <td><p>First <span>part</span></p><p>Second part</p></td>
+                        </tr>
+                    </table>
+                </div>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            applications = SiteApplication.acquire_all(site)
+
+        assert applications[0].text == "First part Second part"
+
     def test_acquire_all_empty(self):
         """申請なしの場合"""
         mock_client = create_mock_client(is_logged_in=True)
