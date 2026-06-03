@@ -78,3 +78,5 @@ Wikidot page metadata endpoints can lag behind direct page visibility after crea
 ## Additional Notes
 
 For upstream review quality, consider splitting parser/AMC retry hardening from the page create/edit fallback if the local `41c1639` diff is too broad.
+
+Follow-up [080-pr-reuse-page-save-response-data.md](080-pr-reuse-page-save-response-data.md) removes duplicate save-response decoding on the failed `savePage` path while preserving the create/edit save-result behavior described here.

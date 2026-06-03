@@ -74,3 +74,5 @@ Implemented locally in commit `a08bdd9 fix(ajax): mask page lock secrets`.
 ## Additional Notes
 
 This slice does not mask arbitrary content fields such as page source text, title, comments, tags, parent names, or meta values. It only extends the explicit sensitive-key policy for AMC diagnostics.
+
+Follow-up [080-pr-reuse-page-save-response-data.md](080-pr-reuse-page-save-response-data.md) covers the same edit-lock and `savePage` workflow from the response-handling side; it does not change lock-secret masking or AMC diagnostic behavior.
