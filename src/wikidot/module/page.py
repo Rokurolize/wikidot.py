@@ -738,6 +738,7 @@ class PageCollection(list["Page"]):
             [{"moduleName": "viewsource/ViewSourceModule", "page_id": page.id} for page in target_pages]
         )
 
+        source_error: exceptions.NoElementException | None = None
         for page, response in zip(target_pages, responses, strict=True):
             if response is None:
                 continue
@@ -747,11 +748,15 @@ class PageCollection(list["Page"]):
             html = BeautifulSoup(body, "lxml")
             source_element = html.select_one("div.page-source")
             if source_element is None:
-                raise exceptions.NoElementException(
-                    f"Cannot find source element for page: {page.fullname} (id={page.id})"
-                )
+                if source_error is None:
+                    source_error = exceptions.NoElementException(
+                        f"Cannot find source element for page: {page.fullname} (id={page.id})"
+                    )
+                continue
             source = extract_page_source_text(source_element)
             page.source = PageSource(page, source)
+        if source_error is not None:
+            raise source_error
         return pages
 
     def get_page_sources(self) -> "PageCollection":

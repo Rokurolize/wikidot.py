@@ -419,8 +419,6 @@ class TestSitePagesAccessor:
                 return (self._source_response("source 401"), malformed_response, self._source_response("source 403"))
             if page_ids == [402]:
                 return (malformed_response,)
-            if page_ids == [403]:
-                return (self._source_response("source 403 fallback"),)
             raise AssertionError(f"Unexpected source request ids: {page_ids}")
 
         mock_site_no_http.amc_request = MagicMock()
@@ -436,12 +434,12 @@ class TestSitePagesAccessor:
                 )
             )
 
-        assert requested_page_ids == [[401, 402, 403], [402], [403]]
+        assert requested_page_ids == [[401, 402, 403], [402]]
         assert [result.ok for result in results] == [True, False, True]
         assert [result.source.wiki_text if result.source is not None else None for result in results] == [
             "source 401",
             None,
-            "source 403 fallback",
+            "source 403",
         ]
         assert isinstance(results[1].error, NoElementException)
         assert "page-two" in str(results[1].error)
