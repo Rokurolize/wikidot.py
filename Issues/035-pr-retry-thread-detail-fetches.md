@@ -66,3 +66,5 @@ Direct thread lookup is a read-heavy Wikidot forum inspection workflow and natur
 ## Additional Notes
 
 This slice does not change category thread-list retrieval, thread parsing rules, post retrieval, or forum mutation methods. It only moves direct thread detail reads to the established retry-aware AMC helper and makes exhausted retries explicit.
+
+Follow-up: [060-pr-deduplicate-thread-detail-fetches.md](060-pr-deduplicate-thread-detail-fetches.md) removes duplicate direct thread detail requests while preserving the retry-aware behavior from this slice.
