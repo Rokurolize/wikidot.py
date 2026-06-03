@@ -132,6 +132,19 @@ class ForumThreadCollection(list["ForumThread"]):
         return " ".join(chunks)
 
     @staticmethod
+    def _thread_title_from_breadcrumbs(bc_elem: Tag) -> str:
+        for child in reversed(list(bc_elem.children)):
+            if not isinstance(child, NavigableString):
+                continue
+            text = child.strip()
+            if not text:
+                continue
+            title = text.removeprefix("»").strip()
+            if title:
+                return title
+        return bc_elem.get_text(" ", strip=True).split("»")[-1].strip()
+
+    @staticmethod
     def _parse_list_in_category(
         site: "Site", html: BeautifulSoup, category: Optional["ForumCategory"] = None
     ) -> "ForumThreadCollection":
@@ -260,7 +273,7 @@ class ForumThreadCollection(list["ForumThread"]):
         bc_elem = html.select_one("div.forum-breadcrumbs")
         if bc_elem is None:
             raise NoElementException("Breadcrumbs element is not found.")
-        title = bc_elem.get_text(" ", strip=True).split("»")[-1].strip()
+        title = ForumThreadCollection._thread_title_from_breadcrumbs(bc_elem)
         if not title:
             raise NoElementException("Thread title is not found.")
 

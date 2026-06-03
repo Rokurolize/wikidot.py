@@ -360,6 +360,23 @@ class TestForumThreadCollectionAcquireFromIds:
         assert collection[0].post_count == 5
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_from_ids_preserves_breadcrumb_title_separator(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """スレッド名内のパンくず区切り文字をタイトルとして保持する"""
+        body = forum_thread_detail["body"].replace("Test Thread Title", "Alpha » Beta", 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        assert len(collection) == 1
+        assert collection[0].title == "Alpha » Beta"
+        assert collection[0].id == 3001
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_site_get_threads_retries_transient_fetch_failures(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
     ) -> None:
