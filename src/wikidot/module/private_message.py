@@ -274,6 +274,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             response_pages = (1,)
 
         message_ids = []
+        seen_message_ids: set[int] = set()
         for page, response in zip(response_pages, responses, strict=True):
             if response is None:
                 raise exceptions.UnexpectedException(f"Cannot retrieve private messages page: {page}")
@@ -289,7 +290,11 @@ class PrivateMessageCollection(list["PrivateMessage"]):
                 if message_id_match is None:
                     raise exceptions.NoElementException(f"Message ID is not found in data-href: {data_href}")
 
-                message_ids.append(int(message_id_match.group(1)))
+                message_id = int(message_id_match.group(1))
+                if message_id in seen_message_ids:
+                    continue
+                seen_message_ids.add(message_id)
+                message_ids.append(message_id)
 
         return PrivateMessageCollection.from_ids(client, message_ids)
 

@@ -246,6 +246,35 @@ class TestPrivateMessageCollection:
         assert mock_client.amc_client.request.call_count == 2
         mock_from_ids.assert_called_once_with(mock_client, [123])
 
+    def test_acquire_deduplicates_message_ids_preserving_order(self, mock_client):
+        """ページをまたいで重複したメッセージIDは詳細取得前に順序保持で重複排除する"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            "body": """
+            <div class="pager"><span class="target">1</span><span class="target">2</span></div>
+            <table>
+                <tr class="message" data-href="/account/messages/view/123"></tr>
+            </table>
+            """
+        }
+        second_response = MagicMock()
+        second_response.json.return_value = {
+            "body": """
+            <table>
+                <tr class="message" data-href="/account/messages/view/123"></tr>
+                <tr class="message" data-href="/account/messages/view/456"></tr>
+            </table>
+            """
+        }
+        mock_client.amc_client.request.side_effect = [(first_response,), (second_response,)]
+
+        with patch.object(
+            PrivateMessageCollection, "from_ids", return_value=PrivateMessageCollection([])
+        ) as mock_from_ids:
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+        mock_from_ids.assert_called_once_with(mock_client, [123, 456])
+
     def test_acquire_raises_when_paginated_retry_is_exhausted(self, mock_client):
         """追加ページのリトライが尽きた場合は部分一覧を返さない"""
         first_response = MagicMock()
