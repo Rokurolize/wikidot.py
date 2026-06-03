@@ -1217,7 +1217,7 @@ class Site:
                 if not isinstance(title_elem, Tag):
                     raise NoElementException("Title element is not found.")
 
-                page_title = title_elem.get_text().strip()
+                page_title = title_elem.get_text(" ", strip=True)
                 href = title_elem.get("href", "")
                 page_fullname = str(href).strip("/")
 
