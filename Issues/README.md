@@ -141,6 +141,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [135-pr-skip-cached-post-revision-list-fetches.md](135-pr-skip-cached-post-revision-list-fetches.md): upstream PR draft for the committed cached post revision-list fetch skip.
 - [136-pr-skip-cached-category-thread-list-fetches.md](136-pr-skip-cached-category-thread-list-fetches.md): upstream PR draft for the committed cached category thread-list fetch skip.
 - [137-pr-skip-empty-requestutil-url-batches.md](137-pr-skip-empty-requestutil-url-batches.md): upstream PR draft for the committed empty RequestUtil URL batch fast path.
+- [138-pr-reuse-requestutil-async-client.md](138-pr-reuse-requestutil-async-client.md): upstream PR draft for the committed RequestUtil per-batch AsyncClient reuse.
 
 ## Local Evidence Index
 
@@ -189,5 +190,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 39: `4e6841e perf(forum_post_revision): skip cached post revision lists`
 - Local implementation commits, continued 40: `1857df0 perf(forum_thread): skip cached category thread lists`
 - Local implementation commits, continued 41: `c5f173c perf(requestutil): skip empty URL batches`
+- Local implementation commits, continued 42: `8923c94 perf(requestutil): reuse async client per batch`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
