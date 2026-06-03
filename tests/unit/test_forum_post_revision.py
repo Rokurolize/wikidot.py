@@ -499,6 +499,38 @@ class TestForumPostRevisionCollectionGetHtmls:
             ]
         )
 
+    def test_get_htmls_reuses_cached_duplicate_revision_html(self, mock_forum_post_no_http: ForumPost) -> None:
+        """取得済みの重複revision HTMLを未取得の同一IDリビジョンへ再利用する"""
+        revisions = [
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=0,
+                created_by=None,
+                created_at=datetime.now(tz=timezone.utc),
+                _html="<p>Cached revision HTML</p>",
+            ),
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=1,
+                created_by=None,
+                created_at=datetime.now(tz=timezone.utc),
+            ),
+        ]
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, revisions)
+
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        result = collection.get_htmls()
+
+        assert result == collection
+        assert collection[0].html == "<p>Cached revision HTML</p>"
+        assert collection[1].html == "<p>Cached revision HTML</p>"
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+
     def test_get_htmls(self, mock_forum_post_no_http: ForumPost, forum_post_revision_content: dict[str, Any]) -> None:
         """複数リビジョンのHTMLを一括取得できる"""
         revisions = [

@@ -314,10 +314,15 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         ForumPostRevisionCollection
             Self (for method chaining)
         """
+        acquired_html_by_id = {revision.id: revision._html for revision in self if revision._html is not None}
         target_revisions: list[ForumPostRevision] = []
         target_revisions_by_id: dict[int, list[ForumPostRevision]] = {}
         for revision in self:
             if revision.is_html_acquired():
+                continue
+            acquired_html = acquired_html_by_id.get(revision.id)
+            if acquired_html is not None:
+                revision._html = acquired_html
                 continue
             if revision.id not in target_revisions_by_id:
                 target_revisions.append(revision)
