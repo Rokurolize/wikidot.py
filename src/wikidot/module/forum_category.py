@@ -252,6 +252,7 @@ class ForumCategory:
         ForumThreadCollection
             Latest thread collection
         """
+        self._threads = None
         self._threads = ForumThreadCollection.acquire_all_in_category(self)
         return self._threads
 

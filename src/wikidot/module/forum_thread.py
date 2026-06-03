@@ -362,6 +362,9 @@ class ForumThreadCollection(list["ForumThread"]):
         NoElementException
             If HTML element parsing fails
         """
+        if category._threads is not None:
+            return category._threads
+
         threads: list[ForumThread] = []
 
         first_response = category.site.amc_request_with_retry(

@@ -178,6 +178,51 @@ class TestForumThreadCollectionAcquireAll:
         assert len(collection) == 2
         assert all(thread.category == mock_forum_category_no_http for thread in collection)
 
+    def test_acquire_all_skips_cached_category_threads(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """取得済みcategory.threadsは再取得しない"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        assert collection is cached_threads
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_not_called()
+
+    def test_reload_threads_bypasses_cached_category_threads(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        forum_threads_in_category: dict[str, Any],
+    ) -> None:
+        """reload_threadsは取得済みthreadsを再利用せず再取得する"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        response = MagicMock()
+        response.json.return_value = forum_threads_in_category
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection = mock_forum_category_no_http.reload_threads()
+
+        assert collection is not cached_threads
+        assert mock_forum_category_no_http._threads is collection
+        assert len(collection) == 2
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "p": 1,
+                    "c": mock_forum_category_no_http.id,
+                    "moduleName": "forum/ForumViewCategoryModule",
+                }
+            ]
+        )
+
     def test_acquire_all_ignores_nested_thread_tables(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
