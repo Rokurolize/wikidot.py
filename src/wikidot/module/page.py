@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional
 
 import httpx
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 if sys.version_info >= (3, 12):
     from typing import TypedDict, Unpack
@@ -423,27 +423,44 @@ class PageCollection(list["Page"]):
         """
         pages = []
 
-        for page_element in html_body.select("div.page"):
+        page_container = html_body.body if html_body.body is not None else html_body
+        for page_element in page_container.find_all("div", class_="page", recursive=False):
             page_params: dict[str, Any] = {}
+            set_container = page_element.find("p", recursive=False)
+            if not isinstance(set_container, Tag):
+                set_container = page_element
+            set_elements = [
+                set_element
+                for set_element in set_container.find_all("span", class_="set", recursive=False)
+                if isinstance(set_element, Tag)
+            ]
 
             # レーティング方式を判定
-            is_5star_rating = page_element.select_one("span.rating span.page-rate-list-pages-start") is not None
+            is_5star_rating = any(
+                "rating" in set_element.get("class", [])
+                and set_element.find("span", class_="page-rate-list-pages-start", recursive=False) is not None
+                for set_element in set_elements
+            )
 
             # 各値を取得
-            for set_element in page_element.select("span.set"):
-                key_element = set_element.select_one("span.name")
+            for set_element in set_elements:
+                key_element = set_element.find("span", class_="name", recursive=False)
                 if key_element is None:
                     page_name = page_params.get("fullname", "unknown")
                     raise exceptions.NoElementException(f"Cannot find key element in set for page: {page_name}")
                 key = key_element.text.strip()
-                value_element = set_element.select_one("span.value")
+                value_element = set_element.find("span", class_="value", recursive=False)
 
                 if value_element is None:
                     value: Any = None
 
                 elif key in ["created_at", "updated_at", "commented_at"]:
-                    odate_element = value_element.select_one("span.odate")
-                    if odate_element is None:
+                    odate_element = (
+                        value_element.find("span", class_="odate", recursive=False)
+                        if isinstance(value_element, Tag)
+                        else None
+                    )
+                    if not isinstance(odate_element, Tag):
                         value = None
                     else:
                         value = odate_parser(odate_element)
@@ -453,8 +470,12 @@ class PageCollection(list["Page"]):
                     "updated_by_linked",
                     "commented_by_linked",
                 ]:
-                    printuser_element = value_element.select_one("span.printuser")
-                    if printuser_element is None:
+                    printuser_element = (
+                        value_element.find("span", class_="printuser", recursive=False)
+                        if isinstance(value_element, Tag)
+                        else None
+                    )
+                    if not isinstance(printuser_element, Tag):
                         value = None
                     else:
                         value = user_parser(site.client, printuser_element)

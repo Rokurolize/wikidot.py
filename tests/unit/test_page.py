@@ -156,6 +156,23 @@ class TestPageCollectionParse:
         assert page.title == "SCP-001"
         assert page.rating == 100
 
+    def test_parse_ignores_nested_listpages_markup_in_values(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """値の中にあるListPages風マークアップを構造フィールドとして扱わない"""
+        body = page_listpages_single["body"].replace(
+            '<span class="set title"><span class="name">title</span> <span class="value">SCP-001</span></span>',
+            '<span class="set title"><span class="name">title</span> <span class="value">SCP-001 '
+            '<span class="set fullname"><span class="name">fullname</span> '
+            '<span class="value">content:fake</span></span></span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        pages = PageCollection._parse(mock_site_no_http, html_body)
+
+        assert len(pages) == 1
+        assert pages[0].fullname == "scp-001"
+
     def test_parse_multiple_pages(self, mock_site_no_http: Site, page_listpages_multiple: dict[str, Any]) -> None:
         """複数ページをパースできる"""
         html_body = BeautifulSoup(page_listpages_multiple["body"], "lxml")
