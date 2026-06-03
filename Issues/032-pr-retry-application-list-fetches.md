@@ -65,4 +65,4 @@ Pending join-application inspection is an administrative read path, similar to m
 
 ## Additional Notes
 
-This slice does not change application parsing rules, login checks, permission checks, `SiteApplication.accept()`, or `SiteApplication.decline()`. It only moves the pending-application list read to the established retry-aware AMC helper and makes exhausted retries explicit.
+This slice does not change application parsing rules, login checks, permission checks, `SiteApplication.accept()`, or `SiteApplication.decline()`. It only moves the pending-application list read to the established retry-aware AMC helper and makes exhausted retries explicit. Follow-up [053-pr-decline-application-status-text.md](053-pr-decline-application-status-text.md) fixes the decline notification text without changing the mutation action path.
