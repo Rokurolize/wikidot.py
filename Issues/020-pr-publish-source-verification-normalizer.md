@@ -63,4 +63,4 @@ Wikidot source round-trip checks can be useful even when callers need a project-
 
 ## Additional Notes
 
-This slice does not add an opinionated built-in normalizer and does not add explicit post-save visibility polling. Callers remain responsible for choosing a normalization policy appropriate for their content.
+This slice does not add an opinionated built-in normalizer. The post-save visibility follow-up is drafted in [021-pr-publish-post-save-visibility-retry.md](021-pr-publish-post-save-visibility-retry.md). Callers remain responsible for choosing a normalization policy appropriate for their content.
