@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Optional
 
 from bs4 import BeautifulSoup
 
-from ..common.exceptions import NoElementException
+from ..common.exceptions import NoElementException, UnexpectedException
 from .forum_thread import ForumThread, ForumThreadCollection
 
 if TYPE_CHECKING:
@@ -107,7 +107,9 @@ class ForumCategoryCollection(list["ForumCategory"]):
         """
         categories = []
 
-        response = site.amc_request([{"moduleName": "forum/ForumStartModule", "hidden": "true"}])[0]
+        response = site.amc_request_with_retry([{"moduleName": "forum/ForumStartModule", "hidden": "true"}])[0]
+        if response is None:
+            raise UnexpectedException("Cannot retrieve forum categories")
 
         body = response.json()["body"]
         html = BeautifulSoup(body, "lxml")

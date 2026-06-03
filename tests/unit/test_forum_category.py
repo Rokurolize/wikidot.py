@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from wikidot.common import exceptions
+from wikidot.common.exceptions import UnexpectedException
 from wikidot.module.forum_category import ForumCategory, ForumCategoryCollection
 
 if TYPE_CHECKING:
@@ -53,11 +54,31 @@ class TestForumCategoryCollectionInit:
 class TestForumCategoryCollectionAcquireAll:
     """ForumCategoryCollection.acquire_allのテスト"""
 
+    def test_site_forum_categories_retries_transient_fetch_failures(
+        self, mock_site_no_http: Site, forum_start: dict[str, Any]
+    ) -> None:
+        """site.forum.categoriesは一時的なAMC失敗を再試行してカテゴリを返す"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_start
+        amc_request = MagicMock(
+            side_effect=[
+                (RuntimeError("temporary failure"),),
+                (mock_response,),
+            ]
+        )
+        mock_site_no_http.client.amc_client.request = amc_request
+
+        collection = mock_site_no_http.forum.categories
+
+        assert len(collection) == 2
+        assert collection[0].id == 1001
+        assert amc_request.call_count == 2
+
     def test_acquire_all_success(self, mock_site_no_http: Site, forum_start: dict[str, Any]) -> None:
         """カテゴリ一覧を正常に取得できる"""
         mock_response = MagicMock()
         mock_response.json.return_value = forum_start
-        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         collection = ForumCategoryCollection.acquire_all(mock_site_no_http)
         assert len(collection) == 2
@@ -66,7 +87,7 @@ class TestForumCategoryCollectionAcquireAll:
         """カテゴリの各フィールドが正しくパースされる"""
         mock_response = MagicMock()
         mock_response.json.return_value = forum_start
-        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         collection = ForumCategoryCollection.acquire_all(mock_site_no_http)
 
@@ -87,10 +108,20 @@ class TestForumCategoryCollectionAcquireAll:
         """空のカテゴリ一覧を取得できる"""
         mock_response = MagicMock()
         mock_response.json.return_value = forum_start_empty
-        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         collection = ForumCategoryCollection.acquire_all(mock_site_no_http)
         assert len(collection) == 0
+
+    def test_acquire_all_raises_when_retry_is_exhausted(self, mock_site_no_http: Site) -> None:
+        """カテゴリ一覧取得の再試行が尽きた場合は明示的に失敗する"""
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(UnexpectedException, match="Cannot retrieve forum categories"):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+        mock_site_no_http.amc_request.assert_not_called()
 
 
 # ============================================================
