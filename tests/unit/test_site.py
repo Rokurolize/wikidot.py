@@ -828,6 +828,30 @@ class TestSitePageAccessor:
         saved_page.set_metadata.assert_not_called()
         saved_page.refresh_source.assert_called_once_with()
 
+    def test_publish_skips_metadata_when_source_verification_fails(self, mock_site_no_http: Site) -> None:
+        """source検証に失敗したpublishはタグ・親・メタを更新しない"""
+        mock_site_no_http.client.login_check = MagicMock()
+        saved_page = MagicMock()
+        saved_page.id = 12345
+        saved_page.refresh_source.return_value.wiki_text = "Remote source"
+        existing_page = MagicMock()
+        existing_page.edit.return_value = saved_page
+        mock_site_no_http.page.get = MagicMock(return_value=existing_page)
+
+        with pytest.raises(UnexpectedException, match="Saved source verification failed for page: test-page"):
+            mock_site_no_http.page.publish(
+                "test-page",
+                title="Updated Title",
+                source="Expected source",
+                tags=["published"],
+                parent_fullname="parent-page",
+                metas={"codex-source": "demo"},
+                verify_source=True,
+            )
+
+        saved_page.refresh_source.assert_called_once_with()
+        saved_page.set_metadata.assert_not_called()
+
     def test_publish_verifies_source_with_custom_normalizer(self, mock_site_no_http: Site) -> None:
         """呼び出し側の正規化ルールで保存後ソースを検証できる"""
         mock_site_no_http.client.login_check = MagicMock()

@@ -609,15 +609,6 @@ class SitePageAccessor:
         tags_updated = tags is not None
         parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
         metas_updated = metas is not None
-        if tags_updated or parent_updated or metas_updated:
-            if parent_updated:
-                page.set_metadata(
-                    tags=tags,
-                    parent_fullname=cast(str | None, parent_fullname),
-                    metas=metas,
-                )
-            else:
-                page.set_metadata(tags=tags, metas=metas)
 
         source_matches: bool | None = None
         if verify_source:
@@ -629,6 +620,16 @@ class SitePageAccessor:
             source_matches = fetched_source == expected_source
             if not source_matches:
                 raise exceptions.UnexpectedException(f"Saved source verification failed for page: {fullname}")
+
+        if tags_updated or parent_updated or metas_updated:
+            if parent_updated:
+                page.set_metadata(
+                    tags=tags,
+                    parent_fullname=cast(str | None, parent_fullname),
+                    metas=metas,
+                )
+            else:
+                page.set_metadata(tags=tags, metas=metas)
 
         return PagePublishResult(
             page=page,
