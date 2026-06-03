@@ -67,3 +67,5 @@ Most source collection scripts are interested in the source text itself, not jus
 ## Additional Notes
 
 This slice does not change source fetching, retry behavior, parsing, fallback batch sizing, or the `PageSource` object. It only adds a convenience property to the result record returned by `site.pages.iter_sources(...)`.
+
+Follow-up [052-pr-source-result-context-properties.md](052-pr-source-result-context-properties.md) exposes the same result record's page fullname and error message directly for compact source-collection ledgers.
