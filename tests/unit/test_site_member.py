@@ -373,6 +373,37 @@ class TestSiteMemberGet:
             site.amc_request.assert_not_called()
             site.amc_request_with_retry.assert_called_once()
 
+    def test_get_members_ignores_member_row_pager_markup(self):
+        """メンバー行内のpager風マークアップをページネーションとして扱わない"""
+        site = MagicMock()
+        response = self._members_response(
+            """
+                <table>
+                    <tr>
+                        <td>
+                            <span class="printuser">
+                                <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                            </span>
+                            <div class="pager">
+                                <a href="#">1</a>
+                                <a href="#">2</a>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            """
+        )
+        site.amc_request_with_retry.return_value = (response,)
+
+        with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+
+            members = SiteMember.get(site, "")
+
+        assert len(members) == 1
+        site.amc_request.assert_not_called()
+        site.amc_request_with_retry.assert_called_once()
+
     def test_get_admins_group(self):
         """管理者グループ取得"""
         site = MagicMock()

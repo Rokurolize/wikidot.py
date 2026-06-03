@@ -101,6 +101,31 @@ class SiteMember:
         return members
 
     @staticmethod
+    def _is_inside_member_row(element: Tag) -> bool:
+        for ancestor in element.parents:
+            if not isinstance(ancestor, Tag) or ancestor.name != "tr":
+                continue
+
+            tds = [td for td in ancestor.find_all("td", recursive=False) if isinstance(td, Tag)]
+            if not tds:
+                continue
+
+            if isinstance(tds[0].find("span", class_="printuser", recursive=False), Tag):
+                return True
+
+        return False
+
+    @staticmethod
+    def _pager_from_html(html: BeautifulSoup) -> Tag | None:
+        for pager in html.select("div.pager"):
+            if not isinstance(pager, Tag) or SiteMember._is_inside_member_row(pager):
+                continue
+
+            return pager
+
+        return None
+
+    @staticmethod
     def get(site: "Site", group: str | None = None) -> list["SiteMember"]:
         """
         Retrieve the member list of a site
@@ -149,7 +174,7 @@ class SiteMember:
 
         members.extend(SiteMember._parse(site, first_html))
 
-        pager = first_html.select_one("div.pager")
+        pager = SiteMember._pager_from_html(first_html)
         if pager is None:
             return members
 
