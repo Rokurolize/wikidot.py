@@ -138,7 +138,6 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         return tuple(all_results)
 
     @staticmethod
-    @login_required
     def from_ids(client: "Client", message_ids: list[int]) -> "PrivateMessageCollection":
         """
         Retrieve a collection of message objects from a list of message IDs
@@ -164,6 +163,11 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         ForbiddenException
             If no permission to access the message
         """
+        if len(message_ids) == 0:
+            return PrivateMessageCollection([])
+
+        client.login_check()
+
         unique_message_ids: list[int] = []
         seen_message_ids: set[int] = set()
         for message_id in message_ids:

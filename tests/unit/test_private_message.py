@@ -93,6 +93,18 @@ class TestPrivateMessageCollection:
         with pytest.raises(LoginRequiredException):
             PrivateMessageCollection.from_ids(mock_client, [1, 2, 3])
 
+    def test_from_ids_empty_input_skips_login_and_fetch(self, mock_client):
+        """空のメッセージIDリストはログイン確認もAMC取得も行わず空コレクションを返す"""
+        mock_client.is_logged_in = False
+        mock_client.login_check.side_effect = LoginRequiredException("Not logged in")
+
+        result = PrivateMessageCollection.from_ids(mock_client, [])
+
+        assert isinstance(result, PrivateMessageCollection)
+        assert len(result) == 0
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
     def test_from_ids_success(self, mock_client):
         """from_idsの成功ケース"""
         mock_response = MagicMock()
