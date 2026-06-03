@@ -106,6 +106,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [100-pr-ignore-listpages-field-pager-markup.md](100-pr-ignore-listpages-field-pager-markup.md): upstream PR draft for the committed ListPages field pager parsing fix.
 - [101-pr-ignore-private-message-row-pager-markup.md](101-pr-ignore-private-message-row-pager-markup.md): upstream PR draft for the committed private-message row pager parsing fix.
 - [102-pr-ignore-private-message-nested-row-markup.md](102-pr-ignore-private-message-nested-row-markup.md): upstream PR draft for the committed private-message nested row parsing fix.
+- [103-pr-ignore-site-member-row-pager-markup.md](103-pr-ignore-site-member-row-pager-markup.md): upstream PR draft for the committed site-member row pager parsing fix.
 
 ## Local Evidence Index
 
@@ -119,5 +120,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 4: `eabac4b fix(page): ignore listpages field pager markup`
 - Local implementation commits, continued 5: `0e1d08a fix(private_message): ignore row pager markup`
 - Local implementation commits, continued 6: `aa8b0ec fix(private_message): ignore nested row markup`
+- Local implementation commits, continued 7: `c1285ad fix(site_member): ignore row pager markup`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
