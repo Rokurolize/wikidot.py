@@ -246,6 +246,24 @@ class TestPageCollectionSearchPages:
         assert len(pages) == 1
         assert pages[0].fullname == "scp-001"
 
+    def test_search_pages_preserves_field_value_text_spacing(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """ListPagesの文字列フィールド値の装飾要素間の空白を保持する"""
+        body = page_listpages_single["body"].replace(
+            '<span class="set title"><span class="name">title</span> <span class="value">SCP-001</span></span>',
+            '<span class="set title"><span class="name">title</span> '
+            '<span class="value"><span>First <em>part</em></span><span>Second part</span></span></span>',
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**page_listpages_single, "body": body}
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+
+        pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        assert len(pages) == 1
+        assert pages[0].title == "First part Second part"
+
     def test_search_pages_retries_transient_first_page_failures(
         self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
     ) -> None:

@@ -516,7 +516,7 @@ class PageCollection(list["Page"]):
                         value = None
 
                 else:
-                    value = value_element.text.strip()
+                    value = value_element.get_text(" ", strip=True)
 
                 # keyを変換
                 if "_linked" in key:
