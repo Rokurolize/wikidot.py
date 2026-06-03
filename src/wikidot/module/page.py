@@ -1324,9 +1324,14 @@ class Page:
         -------
         ForumThread | None
             Discussion thread. None if it does not exist
+
+        Raises
+        ------
+        UnexpectedException
+            When the discussion module cannot be retrieved after retries
         """
         if not self._discussion_checked:
-            response = self.site.amc_request(
+            response = self.site.amc_request_with_retry(
                 [
                     {
                         "moduleName": "forum/ForumCommentsListModule",
@@ -1334,6 +1339,8 @@ class Page:
                     }
                 ]
             )[0]
+            if response is None:
+                raise exceptions.UnexpectedException(f"Cannot retrieve page discussion: {self.fullname}")
 
             body = response.json()["body"]
             match = re.search(r"WIKIDOT\.forumThreadId = (\d+);", body)

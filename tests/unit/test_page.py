@@ -890,6 +890,41 @@ class TestPageProperties:
         with pytest.raises(exceptions.NotFoundException):
             _ = mock_page_with_id.latest_revision
 
+    def test_discussion_retries_transient_fetch_failures(
+        self, monkeypatch: pytest.MonkeyPatch, mock_page_with_id: Page
+    ) -> None:
+        """ページコメントスレッドID取得の一時失敗はretryする"""
+        from wikidot.module.forum_thread import ForumThread
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "WIKIDOT.forumThreadId = 3001;"}
+        mock_page_with_id.site.amc_request = MagicMock(
+            side_effect=[
+                (RuntimeError("temporary failure"),),
+                (mock_response,),
+            ]
+        )
+        fetched_thread = MagicMock()
+        get_from_id = MagicMock(return_value=fetched_thread)
+        monkeypatch.setattr(ForumThread, "get_from_id", get_from_id)
+
+        discussion = mock_page_with_id.discussion
+
+        assert discussion is fetched_thread
+        assert mock_page_with_id.site.amc_request.call_count == 2
+        get_from_id.assert_called_once_with(mock_page_with_id.site, 3001)
+
+    def test_discussion_raises_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """コメントスレッドID取得リトライが尽きた場合は未確認扱いのまま明示的に失敗する"""
+        mock_page_with_id.site.client.amc_client.config.retry_max_retries = 1
+        mock_page_with_id.site.amc_request = MagicMock(return_value=(RuntimeError("temporary failure"),))
+
+        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve page discussion: test-page"):
+            _ = mock_page_with_id.discussion
+
+        assert mock_page_with_id.site.amc_request.call_count == 2
+        assert mock_page_with_id._discussion_checked is False
+
     def test_files_property_auto_acquire_empty_response(self, mock_page_with_id: Page) -> None:
         """ファイルなしの正常レスポンスは空のコレクションとして扱う"""
         mock_response = MagicMock()
