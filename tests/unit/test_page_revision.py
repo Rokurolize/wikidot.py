@@ -186,6 +186,7 @@ class TestPageRevisionCollection:
         assert duplicate_revision._source is not None
         assert sample_revision._source.wiki_text == "Shared wiki text"
         assert duplicate_revision._source.wiki_text == "Shared wiki text"
+        assert mock_response.json.call_count == 1
 
     def test_get_htmls_requires_page(self):
         """get_htmlsはpageが必要"""
@@ -285,6 +286,7 @@ class TestPageRevisionCollection:
         )
         assert sample_revision._html == "<p>Shared HTML content</p>"
         assert duplicate_revision._html == "<p>Shared HTML content</p>"
+        assert mock_response.json.call_count == 1
 
     def test_get_htmls_skips_already_acquired(self, mock_page, sample_revision):
         """既に取得済みのHTMLはスキップ"""

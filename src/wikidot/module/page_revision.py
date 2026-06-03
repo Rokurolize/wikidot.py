@@ -92,7 +92,7 @@ class PageRevisionCollection(list["PageRevision"]):
         revisions: list["PageRevision"],
         check_acquired_func: Callable[["PageRevision"], bool],
         module_name: str,
-        process_response_func: Callable[["PageRevision", httpx.Response, "Page"], None],
+        process_response_func: Callable[[httpx.Response, "Page"], Callable[["PageRevision"], None]],
     ) -> list["PageRevision"]:
         """
         Generic method for batch retrieval of revision data
@@ -108,7 +108,7 @@ class PageRevisionCollection(list["PageRevision"]):
         module_name : str
             Module name to use in AMC request
         process_response_func : callable
-            Function to process the response (revision, response, page) -> None
+            Function to process the response once and return an applicator for each revision
 
         Returns
         -------
@@ -130,8 +130,9 @@ class PageRevisionCollection(list["PageRevision"]):
         for revision_id, response in zip(target_revisions_by_id, responses, strict=True):
             if response is None:
                 continue
+            apply_response = process_response_func(response, page)
             for revision in target_revisions_by_id[revision_id]:
-                process_response_func(revision, response, page)
+                apply_response(revision)
 
         return revisions
 
@@ -160,7 +161,7 @@ class PageRevisionCollection(list["PageRevision"]):
             If source element is not found
         """
 
-        def process_source_response(revision: "PageRevision", response: httpx.Response, page: "Page") -> None:
+        def process_source_response(response: httpx.Response, page: "Page") -> Callable[["PageRevision"], None]:
             body = response.json()["body"]
             # Replace nbsp with space
             body = body.replace("&nbsp;", " ")
@@ -168,10 +169,12 @@ class PageRevisionCollection(list["PageRevision"]):
             wiki_text_elem = body_html.select_one("div.page-source")
             if wiki_text_elem is None:
                 raise NoElementException("Wiki text element not found")
-            revision.source = PageSource(
-                page=page,
-                wiki_text=extract_page_source_text(wiki_text_elem),
-            )
+            wiki_text = extract_page_source_text(wiki_text_elem)
+
+            def apply_source(revision: "PageRevision") -> None:
+                revision.source = PageSource(page=page, wiki_text=wiki_text)
+
+            return apply_source
 
         return PageRevisionCollection._generic_acquire(
             page,
@@ -215,7 +218,7 @@ class PageRevisionCollection(list["PageRevision"]):
             List of revisions with updated HTML information
         """
 
-        def process_html_response(revision: "PageRevision", response: httpx.Response, page: "Page") -> None:
+        def process_html_response(response: httpx.Response, page: "Page") -> Callable[["PageRevision"], None]:
             body = response.json()["body"]
             marker = "onclick=\"document.getElementById('page-version-info').style.display='none'\">"
             _, separator, source = body.partition(marker)
@@ -227,7 +230,11 @@ class PageRevisionCollection(list["PageRevision"]):
                     source = body
             else:
                 source = body
-            revision._html = source
+
+            def apply_html(revision: "PageRevision") -> None:
+                revision._html = source
+
+            return apply_html
 
         return PageRevisionCollection._generic_acquire(
             page,
