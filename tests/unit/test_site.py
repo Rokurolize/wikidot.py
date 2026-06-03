@@ -289,6 +289,40 @@ class TestSitePagesAccessor:
         ]
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_iter_sources_result_exposes_wiki_text(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultからsource本文を直接読める"""
+        pages = [
+            self._page(mock_site_no_http, "page-one", 351),
+            self._page(mock_site_no_http, "page-two", 352),
+        ]
+
+        def search_pages(site: Site, query) -> PageCollection:
+            return PageCollection(site, pages)
+
+        def source_responses(request_bodies: list[dict[str, Any]]) -> tuple[MagicMock | None, ...]:
+            page_ids = [body["page_id"] for body in request_bodies]
+            if page_ids == [351, 352]:
+                return (self._source_response("source 351"), None)
+            if page_ids == [352]:
+                return (None,)
+            raise AssertionError(f"Unexpected source request ids: {page_ids}")
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=source_responses)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            results = list(
+                mock_site_no_http.pages.iter_sources(
+                    limit=2,
+                    perPage=2,
+                    source_batch_size=2,
+                    fallback_batch_size=1,
+                )
+            )
+
+        assert [result.wiki_text for result in results] == ["source 351", None]
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_iter_sources_reports_parse_failures_without_losing_other_pages(self, mock_site_no_http: Site) -> None:
         """source解析失敗はページ単位の失敗にし、同じ検索内の他ページは継続する"""
         pages = [

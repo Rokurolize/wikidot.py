@@ -84,6 +84,8 @@ class PageSourceResult:
         Page associated with the source attempt.
     source : PageSource | None
         Page source when retrieval succeeded.
+    wiki_text : str | None
+        Page source text when retrieval succeeded. None when retrieval failed.
     error : Exception | None
         Error describing why source retrieval did not produce a source for this page.
     """
@@ -96,6 +98,13 @@ class PageSourceResult:
     def ok(self) -> bool:
         """Whether source retrieval succeeded for this page."""
         return self.source is not None and self.error is None
+
+    @property
+    def wiki_text(self) -> str | None:
+        """Source wiki text when retrieval succeeded."""
+        if self.source is None:
+            return None
+        return self.source.wiki_text
 
 
 class SitePagesAccessor:
