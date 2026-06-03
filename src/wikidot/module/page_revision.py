@@ -115,19 +115,23 @@ class PageRevisionCollection(list["PageRevision"]):
         list[PageRevision]
             List of revisions with updated data
         """
-        target_revisions = [revision for revision in revisions if not check_acquired_func(revision)]
+        target_revisions_by_id: dict[int, list[PageRevision]] = {}
+        for revision in revisions:
+            if not check_acquired_func(revision):
+                target_revisions_by_id.setdefault(revision.id, []).append(revision)
 
-        if len(target_revisions) == 0:
+        if len(target_revisions_by_id) == 0:
             return revisions
 
         responses = page.site.amc_request_with_retry(
-            [{"moduleName": module_name, "revision_id": revision.id} for revision in target_revisions]
+            [{"moduleName": module_name, "revision_id": revision_id} for revision_id in target_revisions_by_id]
         )
 
-        for revision, response in zip(target_revisions, responses, strict=True):
+        for revision_id, response in zip(target_revisions_by_id, responses, strict=True):
             if response is None:
                 continue
-            process_response_func(revision, response, page)
+            for revision in target_revisions_by_id[revision_id]:
+                process_response_func(revision, response, page)
 
         return revisions
 

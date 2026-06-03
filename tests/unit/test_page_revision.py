@@ -161,6 +161,32 @@ class TestPageRevisionCollection:
         mock_page.site.amc_request.assert_not_called()
         assert result == collection
 
+    def test_get_sources_deduplicates_duplicate_revision_ids(self, mock_page, sample_revision, mock_user):
+        """重複リビジョンIDはソース取得を1回だけ行い、各エントリへ反映する"""
+        duplicate_revision = PageRevision(
+            page=mock_page,
+            id=sample_revision.id,
+            rev_no=2,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 2, 12, 0, 0),
+            comment="Duplicate revision entry",
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": '<div class="page-source">Shared wiki text</div>'}
+        mock_page.site.amc_request_with_retry.return_value = (mock_response,)
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision, duplicate_revision])
+        result = collection.get_sources()
+
+        assert result == collection
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "history/PageSourceModule", "revision_id": sample_revision.id}]
+        )
+        assert sample_revision._source is not None
+        assert duplicate_revision._source is not None
+        assert sample_revision._source.wiki_text == "Shared wiki text"
+        assert duplicate_revision._source.wiki_text == "Shared wiki text"
+
     def test_get_htmls_requires_page(self):
         """get_htmlsはpageが必要"""
         collection = PageRevisionCollection()
@@ -235,6 +261,30 @@ class TestPageRevisionCollection:
         collection.get_htmls()
 
         assert sample_revision._html == "<p>Direct HTML content</p>"
+
+    def test_get_htmls_deduplicates_duplicate_revision_ids(self, mock_page, sample_revision, mock_user):
+        """重複リビジョンIDはHTML取得を1回だけ行い、各エントリへ反映する"""
+        duplicate_revision = PageRevision(
+            page=mock_page,
+            id=sample_revision.id,
+            rev_no=2,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 2, 12, 0, 0),
+            comment="Duplicate revision entry",
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "<p>Shared HTML content</p>"}
+        mock_page.site.amc_request_with_retry.return_value = (mock_response,)
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision, duplicate_revision])
+        result = collection.get_htmls()
+
+        assert result == collection
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "history/PageVersionModule", "revision_id": sample_revision.id}]
+        )
+        assert sample_revision._html == "<p>Shared HTML content</p>"
+        assert duplicate_revision._html == "<p>Shared HTML content</p>"
 
     def test_get_htmls_skips_already_acquired(self, mock_page, sample_revision):
         """既に取得済みのHTMLはスキップ"""
