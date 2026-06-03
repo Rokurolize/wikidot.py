@@ -289,7 +289,13 @@ class ForumPostCollection(list["ForumPost"]):
             if thread.id in seen_thread_ids:
                 continue
             seen_thread_ids.add(thread.id)
+            if thread._posts is not None:
+                result[thread.id] = thread._posts
+                continue
             target_threads.append(thread)
+
+        if len(target_threads) == 0:
+            return result
 
         # Step 1: Get the first page of all threads
         first_page_responses = site.amc_request_with_retry(

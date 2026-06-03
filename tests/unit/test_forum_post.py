@@ -371,6 +371,65 @@ class TestForumPostCollectionAcquireAll:
             ]
         )
 
+    def test_acquire_all_in_threads_skips_cached_thread_posts(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_post_no_http: ForumPost,
+        forum_posts_in_thread: dict[str, Any],
+    ) -> None:
+        """取得済みthread.postsは再取得せず未取得threadだけを取得する"""
+        cached_collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        mock_forum_thread_no_http._posts = cached_collection
+        uncached_thread = ForumThread(
+            site=mock_forum_thread_no_http.site,
+            id=3002,
+            title="Uncached Thread",
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=mock_forum_thread_no_http.post_count,
+            category=mock_forum_thread_no_http.category,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_posts_in_thread
+
+        def request_with_retry(requests):
+            return tuple(mock_response for _ in requests)
+
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(side_effect=request_with_retry)
+
+        result = ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, uncached_thread])
+
+        assert result[mock_forum_thread_no_http.id] is cached_collection
+        assert len(result[uncached_thread.id]) == 2
+        assert result[uncached_thread.id].thread == uncached_thread
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/ForumViewThreadPostsModule",
+                    "pageNo": "1",
+                    "t": str(uncached_thread.id),
+                }
+            ]
+        )
+
+    def test_acquire_all_in_threads_all_cached_skips_fetch(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """全threadが取得済みならAMCを呼ばずにcached collectionを返す"""
+        cached_collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        mock_forum_thread_no_http._posts = cached_collection
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        result = ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http])
+
+        assert result[mock_forum_thread_no_http.id] is cached_collection
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+
     def test_acquire_all_ignores_non_numeric_pager_targets(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
