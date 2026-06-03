@@ -171,10 +171,9 @@ class TestPrivateMessageCollection:
             }
             return mock_response
 
-        mock_client.amc_client.request.return_value = [
-            message_response("First Subject"),
-            message_response("Second Subject"),
-        ]
+        first_response = message_response("First Subject")
+        second_response = message_response("Second Subject")
+        mock_client.amc_client.request.return_value = [first_response, second_response]
 
         with patch("wikidot.module.private_message.user_parser") as mock_user_parser:
             mock_user_parser.return_value = MagicMock()
@@ -188,6 +187,10 @@ class TestPrivateMessageCollection:
         assert [message.id for message in result] == [1, 1, 2]
         assert [message.subject for message in result] == ["First Subject", "First Subject", "Second Subject"]
         assert result[0] is not result[1]
+        assert first_response.json.call_count == 1
+        assert second_response.json.call_count == 1
+        assert mock_user_parser.call_count == 4
+        assert mock_odate_parser.call_count == 2
 
     def test_from_ids_forbidden_error(self, mock_client):
         """from_idsでアクセス権限エラー"""

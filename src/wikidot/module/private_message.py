@@ -201,8 +201,8 @@ class PrivateMessageCollection(list["PrivateMessage"]):
 
             responses_by_id[message_id] = response
 
-        messages = []
-        for message_id in message_ids:
+        parsed_messages_by_id: dict[int, tuple[Any, Any, str, str, datetime]] = {}
+        for message_id in unique_message_ids:
             response = responses_by_id[message_id]
             html = BeautifulSoup(response.json()["body"], "lxml")
 
@@ -215,15 +215,26 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             body_element = html.select_one("div.pmessage div.body")
             odate_element = html.select_one("div.header span.odate")
 
+            parsed_messages_by_id[message_id] = (
+                user_parser(client, sender),
+                user_parser(client, recipient),
+                subject_element.get_text() if subject_element else "",
+                body_element.get_text() if body_element else "",
+                odate_parser(odate_element) if odate_element else datetime.fromtimestamp(0),
+            )
+
+        messages = []
+        for message_id in message_ids:
+            sender, recipient, subject, body, created_at = parsed_messages_by_id[message_id]
             messages.append(
                 PrivateMessage(
                     client=client,
                     id=message_id,
-                    sender=user_parser(client, sender),
-                    recipient=user_parser(client, recipient),
-                    subject=subject_element.get_text() if subject_element else "",
-                    body=body_element.get_text() if body_element else "",
-                    created_at=(odate_parser(odate_element) if odate_element else datetime.fromtimestamp(0)),
+                    sender=sender,
+                    recipient=recipient,
+                    subject=subject,
+                    body=body,
+                    created_at=created_at,
                 )
             )
 
