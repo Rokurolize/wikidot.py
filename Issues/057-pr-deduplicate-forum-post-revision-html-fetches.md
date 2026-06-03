@@ -8,7 +8,7 @@ The fix preserves the collection shape, first-seen ordering, retry handling, cac
 
 ## Related Issue
 
-Builds on the retry-aware forum post revision work in [042-pr-retry-forum-post-revision-fetches.md](042-pr-retry-forum-post-revision-fetches.md) and the revision-list deduplication work in [056-pr-deduplicate-forum-post-revision-fetches.md](056-pr-deduplicate-forum-post-revision-fetches.md). Also follows the ordered duplicate-ID request pattern from [055-pr-deduplicate-forum-post-source-fetches.md](055-pr-deduplicate-forum-post-source-fetches.md). No upstream issue filed yet.
+Builds on the retry-aware forum post revision work in [042-pr-retry-forum-post-revision-fetches.md](042-pr-retry-forum-post-revision-fetches.md) and the revision-list deduplication work in [056-pr-deduplicate-forum-post-revision-fetches.md](056-pr-deduplicate-forum-post-revision-fetches.md). Also follows the ordered duplicate-ID request pattern from [055-pr-deduplicate-forum-post-source-fetches.md](055-pr-deduplicate-forum-post-source-fetches.md). Follow-up optional with-HTML deduplication draft: [058-pr-deduplicate-forum-post-revision-with-html-fetches.md](058-pr-deduplicate-forum-post-revision-with-html-fetches.md). No upstream issue filed yet.
 
 ## Changes
 

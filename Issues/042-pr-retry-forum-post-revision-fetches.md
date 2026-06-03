@@ -10,7 +10,7 @@ The fix routes forum post revision-list and revision-HTML reads through `site.am
 
 Complements [036-pr-retry-thread-post-fetches.md](036-pr-retry-thread-post-fetches.md), which made forum thread post-list fetches retry-aware, and [015-pr-retry-revision-source-html-fetches.md](015-pr-retry-revision-source-html-fetches.md), which applied the same retry and partial-success behavior to page revision source/HTML fetches. No upstream issue filed yet.
 
-Follow-up performance drafts: [056-pr-deduplicate-forum-post-revision-fetches.md](056-pr-deduplicate-forum-post-revision-fetches.md) removes duplicate revision-list requests, and [057-pr-deduplicate-forum-post-revision-html-fetches.md](057-pr-deduplicate-forum-post-revision-html-fetches.md) removes duplicate revision HTML requests while preserving this retry-aware read path and post-ID keyed result shape.
+Follow-up performance drafts: [056-pr-deduplicate-forum-post-revision-fetches.md](056-pr-deduplicate-forum-post-revision-fetches.md) removes duplicate revision-list requests, [057-pr-deduplicate-forum-post-revision-html-fetches.md](057-pr-deduplicate-forum-post-revision-html-fetches.md) removes collection-level duplicate revision HTML requests, and [058-pr-deduplicate-forum-post-revision-with-html-fetches.md](058-pr-deduplicate-forum-post-revision-with-html-fetches.md) removes optional `with_html=True` duplicate revision HTML requests while preserving this retry-aware read path and post-ID keyed result shape.
 
 ## Changes
 

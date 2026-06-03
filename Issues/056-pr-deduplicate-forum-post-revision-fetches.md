@@ -8,7 +8,7 @@ The fix keeps the post-ID keyed result contract, retry handling, exhausted retry
 
 ## Related Issue
 
-Builds on the retry-aware forum post revision work in [042-pr-retry-forum-post-revision-fetches.md](042-pr-retry-forum-post-revision-fetches.md). Also follows the ordered deduplication pattern from [055-pr-deduplicate-forum-post-source-fetches.md](055-pr-deduplicate-forum-post-source-fetches.md). Follow-up HTML-fetch deduplication draft: [057-pr-deduplicate-forum-post-revision-html-fetches.md](057-pr-deduplicate-forum-post-revision-html-fetches.md). No upstream issue filed yet.
+Builds on the retry-aware forum post revision work in [042-pr-retry-forum-post-revision-fetches.md](042-pr-retry-forum-post-revision-fetches.md). Also follows the ordered deduplication pattern from [055-pr-deduplicate-forum-post-source-fetches.md](055-pr-deduplicate-forum-post-source-fetches.md). Follow-up HTML-fetch deduplication drafts: [057-pr-deduplicate-forum-post-revision-html-fetches.md](057-pr-deduplicate-forum-post-revision-html-fetches.md) and [058-pr-deduplicate-forum-post-revision-with-html-fetches.md](058-pr-deduplicate-forum-post-revision-with-html-fetches.md). No upstream issue filed yet.
 
 ## Changes
 
