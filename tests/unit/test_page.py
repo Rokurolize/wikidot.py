@@ -844,6 +844,41 @@ class TestPageCollectionAcquire:
         assert mock_page_with_id._files is not None
         assert second_page._files is None
 
+    def test_acquire_files_deduplicates_duplicate_page_ids(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        """同じpage_idの未取得file一覧は1回だけ取得し重複ページへ反映する"""
+        duplicate_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        duplicate_page.id = mock_page_with_id.id
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, duplicate_page])
+        body = {
+            "body": """
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-100">
+                            <td><a href="/local--files/test-page/image.png">image.png</a></td>
+                            <td><span title="image/png">PNG</span></td>
+                            <td>1.5 kB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(body),))
+
+        collection.get_page_files()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
+        assert [body["page_id"] for body in request_bodies] == [mock_page_with_id.id]
+        assert mock_page_with_id._files is not None
+        assert duplicate_page._files is not None
+        assert len(mock_page_with_id._files) == len(duplicate_page._files) == 1
+        assert mock_page_with_id._files[0].page is mock_page_with_id
+        assert duplicate_page._files[0].page is duplicate_page
+
 
 # ============================================================
 # Pageテスト

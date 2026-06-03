@@ -987,17 +987,22 @@ class PageCollection(list["Page"]):
 
         from .page_file import PageFileCollection
 
+        target_pages_by_id: dict[int, list[Page]] = {}
+        for page in target_pages:
+            target_pages_by_id.setdefault(page.id, []).append(page)
+
         responses = site.amc_request_with_retry(
-            [{"moduleName": "files/PageFilesModule", "page_id": page.id} for page in target_pages]
+            [{"moduleName": "files/PageFilesModule", "page_id": page_id} for page_id in target_pages_by_id]
         )
 
-        for page, response in zip(target_pages, responses, strict=True):
+        for page_id, response in zip(target_pages_by_id, responses, strict=True):
             if response is None:
                 continue
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
-            files = PageFileCollection._parse_from_html(page, html)
-            page._files = PageFileCollection(page=page, files=files)
+            for page in target_pages_by_id[page_id]:
+                files = PageFileCollection._parse_from_html(page, html)
+                page._files = PageFileCollection(page=page, files=files)
 
         return pages
 
