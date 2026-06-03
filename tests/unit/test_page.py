@@ -1117,7 +1117,8 @@ class TestPageWriteMethods:
             )
         }
         mock_page_with_id._metas = None
-        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         metas = mock_page_with_id.metas
 
@@ -1127,7 +1128,8 @@ class TestPageWriteMethods:
             "quoted": 'a "quote"',
             "literal": "literal & value",
         }
-        mock_page_with_id.site.amc_request.assert_called_once_with(
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
             [
                 {
                     "pageId": 12345,
@@ -1135,6 +1137,35 @@ class TestPageWriteMethods:
                 }
             ]
         )
+
+    def test_metas_getter_retries_transient_fetch_failures(self, mock_page_with_id: Page) -> None:
+        """metaタグ取得の一時失敗はretryする"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": '&lt;meta name="description" content="retry ok"/&gt;'}
+        mock_page_with_id._metas = None
+        mock_page_with_id.site.amc_request = MagicMock(
+            side_effect=[
+                (RuntimeError("temporary failure"),),
+                (mock_response,),
+            ]
+        )
+
+        metas = mock_page_with_id.metas
+
+        assert metas == {"description": "retry ok"}
+        assert mock_page_with_id.site.amc_request.call_count == 2
+
+    def test_metas_getter_raises_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """metaタグ取得リトライが尽きた場合は未取得扱いのまま明示的に失敗する"""
+        mock_page_with_id._metas = None
+        mock_page_with_id.site.client.amc_client.config.retry_max_retries = 1
+        mock_page_with_id.site.amc_request = MagicMock(return_value=(RuntimeError("temporary failure"),))
+
+        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve page metas: test-page"):
+            _ = mock_page_with_id.metas
+
+        assert mock_page_with_id.site.amc_request.call_count == 2
+        assert mock_page_with_id._metas is None
 
     def test_metas_setter_batches_changes(self, mock_page_with_id: Page) -> None:
         """metaタグの削除・追加・更新は1つのAMCバッチで送信する"""

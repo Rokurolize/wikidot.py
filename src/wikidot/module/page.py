@@ -1414,19 +1414,26 @@ class Page:
         -------
         dict[str, str]
             Dictionary of meta tag names and their contents
+
+        Raises
+        ------
+        UnexpectedException
+            When meta tag information cannot be retrieved after retries
         """
         if self._metas is None:
-            response = self.site.amc_request(
+            response = self.site.amc_request_with_retry(
                 [
                     {
                         "pageId": self.id,
                         "moduleName": "edit/EditMetaModule",
                     }
                 ]
-            )
+            )[0]
+            if response is None:
+                raise exceptions.UnexpectedException(f"Cannot retrieve page metas: {self.fullname}")
 
             # レスポンス解析
-            body = response[0].json()["body"]
+            body = response.json()["body"]
 
             # タグ境界だけを戻してからHTMLとして解析し、属性値は取得後に復号する
             body = body.replace("&lt;", "<").replace("&gt;", ">").replace("&LT;", "<").replace("&GT;", ">")
