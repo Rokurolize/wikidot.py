@@ -177,7 +177,7 @@ class ForumPostCollection(list["ForumPost"]):
             # 編集情報（存在する場合）
             edited_by = None
             edited_at = None
-            changes_elem = wrapper.select_one("div.changes")
+            changes_elem = wrapper.select_one(":scope > div.changes")
             if changes_elem is not None:
                 edit_user_elem = changes_elem.select_one("span.printuser")
                 edit_odate_elem = changes_elem.select_one("span.odate")

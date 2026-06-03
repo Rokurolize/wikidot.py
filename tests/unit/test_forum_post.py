@@ -112,6 +112,52 @@ class TestForumPostCollectionParse:
 
         assert [post.id for post in posts] == [5001, 5002]
 
+    def test_parse_ignores_content_changes_metadata(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """本文内のchanges風マークアップを編集情報として扱わない"""
+        body = forum_posts_in_thread["body"].replace(
+            "<p>Test post content</p>",
+            (
+                "<p>Test post content</p>"
+                '<div class="changes"><span class="printuser">'
+                '<a href="http://www.wikidot.com/user:info/content-user" '
+                'onclick="WIKIDOT.page.listeners.userInfo(54321); return false;">content_user</a>'
+                '</span> <span class="odate time_1700000400">17 Dec 2025</span></div>'
+            ),
+            1,
+        )
+        html = BeautifulSoup(body, "lxml")
+
+        posts = ForumPostCollection._parse(mock_forum_thread_no_http, html)
+
+        assert posts[0].edited_by is None
+        assert posts[0].edited_at is None
+
+    def test_parse_preserves_top_level_changes_metadata(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """トップレベルの編集情報は引き続きパースする"""
+        body = forum_posts_in_thread["body"].replace(
+            '<div class="content" id="post-content-5001"><p>Test post content</p></div>',
+            (
+                '<div class="content" id="post-content-5001"><p>Test post content</p></div>'
+                '<div class="changes"><span class="printuser">'
+                '<a href="http://www.wikidot.com/user:info/edit-user" '
+                'onclick="WIKIDOT.page.listeners.userInfo(54322); return false;">edit_user</a>'
+                '</span> <span class="odate time_1700000500">17 Dec 2025</span></div>'
+            ),
+            1,
+        )
+        html = BeautifulSoup(body, "lxml")
+
+        posts = ForumPostCollection._parse(mock_forum_thread_no_http, html)
+
+        assert posts[0].edited_by is not None
+        assert posts[0].edited_by.name == "edit_user"
+        assert posts[0].edited_by.id == 54322
+        assert posts[0].edited_at is not None
+
 
 class TestForumPostCollectionAcquireAll:
     """ForumPostCollection.acquire_all_in_threadのテスト"""
