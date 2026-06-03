@@ -117,7 +117,18 @@ class ForumThreadCollection(list["ForumThread"]):
         """
         threads = []
         for info in html.select("table.table tr.head~tr"):
-            title = info.select_one("div.title a")
+            name_elem = info.select_one(":scope > td.name")
+            started_elem = info.select_one(":scope > td.started")
+            posts_count_elem = info.select_one(":scope > td.posts")
+
+            if name_elem is None:
+                raise NoElementException("Thread name element is not found.")
+            if started_elem is None:
+                raise NoElementException("Thread started element is not found.")
+            if posts_count_elem is None:
+                raise NoElementException("Posts count element is not found.")
+
+            title = name_elem.select_one(":scope > div.title > a")
             if title is None:
                 raise NoElementException("Title element is not found.")
 
@@ -131,10 +142,9 @@ class ForumThreadCollection(list["ForumThread"]):
 
             thread_id = int(thread_id_match.group(1))
 
-            description_elem = info.select_one("div.description")
-            user_elem = info.select_one("span.printuser")
-            odate_elem = info.select_one("span.odate")
-            posts_count_elem = info.select_one("td.posts")
+            description_elem = name_elem.select_one(":scope > div.description")
+            user_elem = started_elem.select_one(":scope > span.printuser")
+            odate_elem = started_elem.select_one(":scope > span.odate")
 
             if description_elem is None:
                 raise NoElementException("Description element is not found.")
@@ -142,8 +152,6 @@ class ForumThreadCollection(list["ForumThread"]):
                 raise NoElementException("User element is not found.")
             if odate_elem is None:
                 raise NoElementException("Odate element is not found.")
-            if posts_count_elem is None:
-                raise NoElementException("Posts count element is not found.")
 
             thread = ForumThread(
                 site=site,

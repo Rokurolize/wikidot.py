@@ -87,6 +87,28 @@ class TestForumThreadCollectionParseListInCategory:
         collection = ForumThreadCollection._parse_list_in_category(mock_site_no_http, html, mock_forum_category_no_http)
         assert collection[0].category == mock_forum_category_no_http
 
+    def test_parse_ignores_description_metadata_markup(
+        self, mock_site_no_http: Site, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド説明内のユーザー・日時風マークアップを作成者情報として扱わない"""
+        description_with_metadata = (
+            '<div class="description">Test thread description '
+            '<span class="printuser"><a href="http://www.wikidot.com/user:info/content-user" '
+            'onclick="WIKIDOT.page.listeners.userInfo(99999); return false;">content_user</a></span> '
+            '<span class="odate time_1700000500">17 Dec 2025</span></div>'
+        )
+        body = forum_threads_in_category["body"].replace(
+            '<div class="description">Test thread description</div>',
+            description_with_metadata,
+            1,
+        )
+        html = BeautifulSoup(body, "lxml")
+
+        collection = ForumThreadCollection._parse_list_in_category(mock_site_no_http, html)
+
+        assert collection[0].created_by.name == "test_user"
+        assert int(collection[0].created_at.timestamp()) == 1700000000
+
 
 class TestForumThreadCollectionParseThreadPage:
     """ForumThreadCollection._parse_thread_pageのテスト"""
