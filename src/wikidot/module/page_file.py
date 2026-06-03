@@ -135,30 +135,13 @@ class PageFileCollection(list["PageFile"]):
         return int(value * multiplier)
 
     @staticmethod
-    def _parse_from_html(page: "Page", html: BeautifulSoup) -> list["PageFile"]:
-        """
-        Parse file information from HTML response
-
-        Internal helper method used by acquire() and PageCollection._acquire_page_files().
-
-        Parameters
-        ----------
-        page : Page
-            The page the files belong to
-        html : BeautifulSoup
-            Parsed HTML response from files/PageFilesModule
-
-        Returns
-        -------
-        list[PageFile]
-            List of parsed PageFile objects
-        """
+    def _parse_file_fields_from_html(site_url: str, html: BeautifulSoup) -> list[tuple[int, str, str, str, int]]:
         files_table = html.select_one("table.page-files")
 
         if files_table is None:
             return []
 
-        files: list[PageFile] = []
+        file_fields: list[tuple[int, str, str, str, int]] = []
         for row in files_table.select("tbody tr[id^='file-row-']"):
             row_id = row.get("id")
             if row_id is None:
@@ -178,7 +161,7 @@ class PageFileCollection(list["PageFile"]):
 
             name = link_elem.get_text().strip()
             href = link_elem.get("href", "")
-            url = urljoin(f"{page.site.url}/", str(href))
+            url = urljoin(f"{site_url}/", str(href))
 
             mime_elem = tds[1].select_one("span")
             mime_type = str(mime_elem.get("title", "")) if mime_elem else ""
@@ -186,18 +169,45 @@ class PageFileCollection(list["PageFile"]):
             size_text = tds[2].get_text().strip()
             size = PageFileCollection._parse_size(size_text)
 
-            files.append(
-                PageFile(
-                    page=page,
-                    id=file_id,
-                    name=name,
-                    url=url,
-                    mime_type=mime_type,
-                    size=size,
-                )
-            )
+            file_fields.append((file_id, name, url, mime_type, size))
 
-        return files
+        return file_fields
+
+    @staticmethod
+    def _build_page_files(page: "Page", file_fields: list[tuple[int, str, str, str, int]]) -> list["PageFile"]:
+        return [
+            PageFile(
+                page=page,
+                id=file_id,
+                name=name,
+                url=url,
+                mime_type=mime_type,
+                size=size,
+            )
+            for file_id, name, url, mime_type, size in file_fields
+        ]
+
+    @staticmethod
+    def _parse_from_html(page: "Page", html: BeautifulSoup) -> list["PageFile"]:
+        """
+        Parse file information from HTML response
+
+        Internal helper method used by acquire() and PageCollection._acquire_page_files().
+
+        Parameters
+        ----------
+        page : Page
+            The page the files belong to
+        html : BeautifulSoup
+            Parsed HTML response from files/PageFilesModule
+
+        Returns
+        -------
+        list[PageFile]
+            List of parsed PageFile objects
+        """
+        file_fields = PageFileCollection._parse_file_fields_from_html(page.site.url, html)
+        return PageFileCollection._build_page_files(page, file_fields)
 
     @staticmethod
     def acquire(page: "Page") -> "PageFileCollection":

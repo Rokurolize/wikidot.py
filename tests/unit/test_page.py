@@ -921,13 +921,17 @@ class TestPageCollectionAcquire:
         }
 
         mock_site_no_http.amc_request = MagicMock()
-        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(body),))
+        response = self._json_response(body)
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
 
-        collection.get_page_files()
+        with patch("wikidot.module.page_file.PageFileCollection._parse_size", return_value=1500) as mock_parse_size:
+            collection.get_page_files()
 
         mock_site_no_http.amc_request.assert_not_called()
         request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
         assert [body["page_id"] for body in request_bodies] == [mock_page_with_id.id]
+        assert response.json.call_count == 1
+        assert mock_parse_size.call_count == 1
         assert mock_page_with_id._files is not None
         assert duplicate_page._files is not None
         assert len(mock_page_with_id._files) == len(duplicate_page._files) == 1

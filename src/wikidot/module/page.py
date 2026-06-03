@@ -1015,8 +1015,9 @@ class PageCollection(list["Page"]):
                 continue
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
+            file_fields = PageFileCollection._parse_file_fields_from_html(site.url, html)
             for page in target_pages_by_id[page_id]:
-                files = PageFileCollection._parse_from_html(page, html)
+                files = PageFileCollection._build_page_files(page, file_fields)
                 page._files = PageFileCollection(page=page, files=files)
 
         return pages
