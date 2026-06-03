@@ -77,6 +77,54 @@ class TestSiteDataclass:
         assert hasattr(mock_site_no_http, "forum")
 
 
+class TestSitePagesAccessor:
+    """Site.pagesアクセサのテスト"""
+
+    def test_iter_search_fetches_bounded_offset_pages(self, mock_site_no_http: Site) -> None:
+        """iter_searchはlimit内でoffsetを進めながらページを逐次取得する"""
+        search_calls = []
+
+        def search_pages(site: Site, query) -> PageCollection:
+            search_calls.append(query)
+            pages = [MagicMock(name=f"page-{query.offset + index}") for index in range(query.limit or 0)]
+            return PageCollection(site, pages)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            pages = list(
+                mock_site_no_http.pages.iter_search(
+                    category="_default",
+                    tags="scp",
+                    perPage=2,
+                    limit=5,
+                )
+            )
+
+        assert len(pages) == 5
+        assert [query.offset for query in search_calls] == [0, 2, 4]
+        assert [query.limit for query in search_calls] == [2, 2, 1]
+        assert [query.perPage for query in search_calls] == [2, 2, 2]
+        assert [query.category for query in search_calls] == ["_default", "_default", "_default"]
+        assert [query.tags for query in search_calls] == ["scp", "scp", "scp"]
+
+    def test_iter_search_stops_after_short_page_without_limit(self, mock_site_no_http: Site) -> None:
+        """limit未指定では最後の短いページで逐次取得を終了する"""
+        search_calls = []
+        counts_by_offset = {10: 2, 12: 2, 14: 1}
+
+        def search_pages(site: Site, query) -> PageCollection:
+            search_calls.append(query)
+            pages = [MagicMock(name=f"page-{query.offset + index}") for index in range(counts_by_offset[query.offset])]
+            return PageCollection(site, pages)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            pages = list(mock_site_no_http.pages.iter_search(parent="parent-page", offset=10, perPage=2))
+
+        assert len(pages) == 5
+        assert [query.offset for query in search_calls] == [10, 12, 14]
+        assert [query.limit for query in search_calls] == [2, 2, 2]
+        assert [query.parent for query in search_calls] == ["parent-page", "parent-page", "parent-page"]
+
+
 class TestSitePageAccessor:
     """Site.pageアクセサのテスト"""
 

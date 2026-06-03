@@ -1,5 +1,6 @@
 import re
 import sys
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast, overload
@@ -22,7 +23,7 @@ from ..util.quick_module import QMCUser, QuickModule
 from ..util.stringutil import StringUtil
 from .forum_category import ForumCategoryCollection
 from .forum_thread import ForumThread, ForumThreadCollection
-from .page import Page, PageCollection, SearchPagesQuery, SearchPagesQueryParams
+from .page import Page, PageCollection, PageConstants, SearchPagesQuery, SearchPagesQueryParams
 from .site_application import SiteApplication
 from .site_member import SiteMember
 
@@ -104,6 +105,55 @@ class SitePagesAccessor:
         """
         query = SearchPagesQuery(**kwargs)
         return PageCollection.search_pages(self.site, query)
+
+    def iter_search(self, **kwargs: Unpack[SearchPagesQueryParams]) -> Iterator["Page"]:
+        """
+        Iterate through page search results in bounded ListPages chunks
+
+        Receives keyword arguments, converts them to a SearchPagesQuery object, and yields pages while advancing the
+        query offset by perPage. Unlike search(), this avoids loading an unbounded result set into memory by default.
+
+        Parameters
+        ----------
+        **kwargs : Unpack[SearchPagesQueryParams]
+            Search condition keyword arguments. See SearchPagesQueryParams for details.
+
+        Yields
+        ------
+        Page
+            Matching pages yielded in ListPages order.
+        """
+        query = SearchPagesQuery(**kwargs)
+        offset = query.offset or 0
+        per_page = query.perPage or PageConstants.DEFAULT_PER_PAGE
+        remaining = query.limit
+
+        if remaining is not None and remaining <= 0:
+            return
+
+        while True:
+            batch_limit = per_page if remaining is None else min(per_page, remaining)
+            if batch_limit <= 0:
+                return
+
+            batch_kwargs = query.as_dict()
+            batch_kwargs["offset"] = offset
+            batch_kwargs["perPage"] = per_page
+            batch_kwargs["limit"] = batch_limit
+            pages = PageCollection.search_pages(self.site, SearchPagesQuery(**batch_kwargs))
+            if not pages:
+                return
+
+            yield from pages[:batch_limit]
+
+            yielded_count = min(len(pages), batch_limit)
+            if remaining is not None:
+                remaining -= yielded_count
+                if remaining <= 0:
+                    return
+            if len(pages) < batch_limit:
+                return
+            offset += per_page
 
 
 class SitePageAccessor:
