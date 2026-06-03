@@ -298,6 +298,43 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             ]
         )
 
+    def test_acquire_all_for_posts_reuses_later_cached_duplicate_post_revisions(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """後続の重複postが持つ取得済みリビジョン一覧を先頭postへ再利用する"""
+        cached_duplicate_post = self._post_with_id(mock_forum_post_no_http, mock_forum_post_no_http.id)
+        cached_revision = ForumPostRevision(
+            post=cached_duplicate_post,
+            id=9001,
+            rev_no=0,
+            created_by=cached_duplicate_post.created_by,
+            created_at=cached_duplicate_post.created_at,
+            _html="<p>Cached revision HTML</p>",
+        )
+        cached_collection = ForumPostRevisionCollection(cached_duplicate_post, [cached_revision])
+        cached_duplicate_post._revisions = cached_collection
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        result = ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, cached_duplicate_post])
+
+        assert set(result) == {mock_forum_post_no_http.id}
+        copied_collection = result[mock_forum_post_no_http.id]
+        assert copied_collection is not cached_collection
+        assert copied_collection.post is mock_forum_post_no_http
+        assert len(copied_collection) == 1
+        copied_revision = copied_collection[0]
+        assert copied_revision is not cached_revision
+        assert copied_revision.post is mock_forum_post_no_http
+        assert copied_revision.id == cached_revision.id
+        assert copied_revision.rev_no == cached_revision.rev_no
+        assert copied_revision.created_by == cached_revision.created_by
+        assert copied_revision.created_at == cached_revision.created_at
+        assert copied_revision.html == "<p>Cached revision HTML</p>"
+        assert cached_revision.post is cached_duplicate_post
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+
     def test_acquire_all_for_posts_skips_cached_post_revisions(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:

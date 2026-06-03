@@ -7,7 +7,7 @@ It enables operations such as retrieving revision history and accessing historic
 
 import re
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
@@ -216,6 +216,13 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         return ForumPostRevisionCollection(post=post, revisions=revisions)
 
     @staticmethod
+    def _copy_for_post(post: "ForumPost", revisions: "ForumPostRevisionCollection") -> "ForumPostRevisionCollection":
+        return ForumPostRevisionCollection(
+            post=post,
+            revisions=[replace(revision, post=post) for revision in revisions],
+        )
+
+    @staticmethod
     def acquire_all_for_posts(
         posts: list["ForumPost"],
         with_html: bool = False,
@@ -244,13 +251,22 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         result: dict[int, ForumPostRevisionCollection] = {}
         site = posts[0].thread.site
         target_posts: list[ForumPost] = []
+        cached_revisions_by_id: dict[int, ForumPostRevisionCollection] = {}
+        for post in posts:
+            if post._revisions is not None and post.id not in cached_revisions_by_id:
+                cached_revisions_by_id[post.id] = post._revisions
+
         seen_post_ids: set[int] = set()
         for post in posts:
             if post.id in seen_post_ids:
                 continue
             seen_post_ids.add(post.id)
-            if post._revisions is not None:
-                result[post.id] = post._revisions
+            cached_revisions = cached_revisions_by_id.get(post.id)
+            if cached_revisions is not None:
+                if cached_revisions.post is post:
+                    result[post.id] = cached_revisions
+                else:
+                    result[post.id] = ForumPostRevisionCollection._copy_for_post(post, cached_revisions)
                 continue
             target_posts.append(post)
 
