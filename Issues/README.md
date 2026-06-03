@@ -133,6 +133,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [127-pr-reuse-cached-duplicate-page-sources.md](127-pr-reuse-cached-duplicate-page-sources.md): upstream PR draft for the committed cached duplicate page source reuse fix.
 - [128-pr-reuse-cached-duplicate-page-revisions.md](128-pr-reuse-cached-duplicate-page-revisions.md): upstream PR draft for the committed cached duplicate page revision-list reuse fix.
 - [129-pr-reuse-cached-duplicate-page-votes.md](129-pr-reuse-cached-duplicate-page-votes.md): upstream PR draft for the committed cached duplicate page vote-list reuse fix.
+- [130-pr-reuse-cached-duplicate-page-files.md](130-pr-reuse-cached-duplicate-page-files.md): upstream PR draft for the committed cached duplicate page file-list reuse fix.
 
 ## Local Evidence Index
 
@@ -173,5 +174,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 31: `55887b6 perf(page): reuse cached duplicate page sources`
 - Local implementation commits, continued 32: `9aecc45 perf(page): reuse cached duplicate revisions`
 - Local implementation commits, continued 33: `b94f206 perf(page): reuse cached duplicate page votes`
+- Local implementation commits, continued 34: `0c0591c perf(page): reuse cached duplicate page files`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
