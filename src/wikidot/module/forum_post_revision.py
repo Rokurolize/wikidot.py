@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Optional
 
 from bs4 import BeautifulSoup
 
+from ..common import exceptions
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 
@@ -185,7 +186,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         ForumPostRevisionCollection
             Collection containing all revisions for the post
         """
-        response = post.thread.site.amc_request(
+        response = post.thread.site.amc_request_with_retry(
             [
                 {
                     "moduleName": "forum/sub/ForumPostRevisionsModule",
@@ -193,6 +194,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                 }
             ]
         )[0]
+        if response is None:
+            raise exceptions.UnexpectedException(f"Cannot retrieve forum post revisions for post: {post.id}")
 
         body = response.json()["body"]
         html = BeautifulSoup(body, "lxml")
@@ -230,7 +233,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         site = posts[0].thread.site
 
         # Step 1: Get revision lists for all posts
-        responses = site.amc_request(
+        responses = site.amc_request_with_retry(
             [
                 {
                     "moduleName": "forum/sub/ForumPostRevisionsModule",
@@ -242,6 +245,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
 
         # Step 2: Parse revision lists
         for post, response in zip(posts, responses, strict=True):
+            if response is None:
+                raise exceptions.UnexpectedException(f"Cannot retrieve forum post revisions for post: {post.id}")
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
             revisions = ForumPostRevisionCollection._parse(post, html)
@@ -256,7 +261,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                         all_revisions.append(revision)
 
             if len(all_revisions) > 0:
-                html_responses = site.amc_request(
+                html_responses = site.amc_request_with_retry(
                     [
                         {
                             "moduleName": "forum/sub/ForumPostRevisionModule",
@@ -267,6 +272,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                 )
 
                 for revision, response in zip(all_revisions, html_responses, strict=True):
+                    if response is None:
+                        continue
                     data = response.json()
                     revision._html = str(data.get("content", ""))
 
@@ -286,11 +293,13 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         if len(target_revisions) == 0:
             return self
 
-        responses = self.post.thread.site.amc_request(
+        responses = self.post.thread.site.amc_request_with_retry(
             [{"moduleName": "forum/sub/ForumPostRevisionModule", "revisionId": r.id} for r in target_revisions]
         )
 
         for revision, response in zip(target_revisions, responses, strict=True):
+            if response is None:
+                continue
             data = response.json()
             revision._html = str(data.get("content", ""))
 
