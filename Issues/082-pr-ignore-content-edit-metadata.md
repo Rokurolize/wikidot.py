@@ -74,3 +74,5 @@ Forum post bodies can render user content that resembles Wikidot forum UI fragme
 ## Additional Notes
 
 This slice does not change forum post candidate selection, field extraction for authorship and creation time, nested reply parent detection, pagination, retry policy, source retrieval, edit actions, or reply actions. It only narrows edit metadata lookup to the direct structural location where Wikidot emits it.
+
+Follow-up [083-pr-ignore-content-post-containers.md](083-pr-ignore-content-post-containers.md) keeps this metadata guard and also prevents complete `post-container` fragments inside authored post content from becoming false forum posts.
