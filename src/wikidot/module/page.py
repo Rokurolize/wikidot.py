@@ -833,36 +833,41 @@ class PageCollection(list["Page"]):
         for page_id, response in zip(target_pages_by_id, responses, strict=True):
             if response is None:
                 continue
+            target_pages_for_id = target_pages_by_id[page_id]
+            first_page = target_pages_for_id[0]
             body = response.json()["body"]
-            for page in target_pages_by_id[page_id]:
-                revs = []
-                body_html = BeautifulSoup(body, "lxml")
-                for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
-                    rev_id = int(str(rev_element["id"]).removeprefix("revision-row-"))
+            body_html = BeautifulSoup(body, "lxml")
+            parsed_revisions: list[tuple[int, int, Any, datetime, str]] = []
+            for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
+                rev_id = int(str(rev_element["id"]).removeprefix("revision-row-"))
 
-                    tds = rev_element.select("td")
-                    if len(tds) < 7:
-                        raise exceptions.NoElementException(
-                            f"Cannot find revision cells for page: {page.fullname}, revision: {rev_id}"
-                        )
-                    rev_no = int(tds[0].text.strip().removesuffix("."))
-                    created_by_elem = tds[4].select_one("span.printuser")
-                    if created_by_elem is None:
-                        raise exceptions.NoElementException(
-                            f"Cannot find created by element for page: {page.fullname}, revision: {rev_id}"
-                        )
-                    created_by = user_parser(page.site.client, created_by_elem)
+                tds = rev_element.select("td")
+                if len(tds) < 7:
+                    raise exceptions.NoElementException(
+                        f"Cannot find revision cells for page: {first_page.fullname}, revision: {rev_id}"
+                    )
+                rev_no = int(tds[0].text.strip().removesuffix("."))
+                created_by_elem = tds[4].select_one("span.printuser")
+                if created_by_elem is None:
+                    raise exceptions.NoElementException(
+                        f"Cannot find created by element for page: {first_page.fullname}, revision: {rev_id}"
+                    )
+                created_by = user_parser(site.client, created_by_elem)
 
-                    created_at_elem = tds[5].select_one("span.odate")
-                    if created_at_elem is None:
-                        raise exceptions.NoElementException(
-                            f"Cannot find created at element for page: {page.fullname}, revision: {rev_id}"
-                        )
-                    created_at = odate_parser(created_at_elem)
+                created_at_elem = tds[5].select_one("span.odate")
+                if created_at_elem is None:
+                    raise exceptions.NoElementException(
+                        f"Cannot find created at element for page: {first_page.fullname}, revision: {rev_id}"
+                    )
+                created_at = odate_parser(created_at_elem)
 
-                    comment = tds[6].text.strip()
+                comment = tds[6].text.strip()
+                parsed_revisions.append((rev_id, rev_no, created_by, created_at, comment))
 
-                    revs.append(
+            for page in target_pages_for_id:
+                page.revisions = PageRevisionCollection(
+                    page,
+                    [
                         PageRevision(
                             page=page,
                             id=rev_id,
@@ -871,8 +876,9 @@ class PageCollection(list["Page"]):
                             created_at=created_at,
                             comment=comment,
                         )
-                    )
-                page.revisions = PageRevisionCollection(page, revs)
+                        for rev_id, rev_no, created_by, created_at, comment in parsed_revisions
+                    ],
+                )
 
         return pages
 

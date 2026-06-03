@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -721,14 +722,24 @@ class TestPageCollectionAcquire:
         duplicate_page.id = mock_page_with_id.id
         collection = PageCollection(mock_site_no_http, [mock_page_with_id, duplicate_page])
 
+        response = self._json_response(page_revisionlist)
         mock_site_no_http.amc_request = MagicMock()
-        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(page_revisionlist),))
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
 
-        collection.get_page_revisions()
+        parsed_user = MagicMock()
+        parsed_at = datetime(2023, 11, 14, tzinfo=timezone.utc)
+        with (
+            patch("wikidot.module.page.user_parser", return_value=parsed_user) as mock_user_parser,
+            patch("wikidot.module.page.odate_parser", return_value=parsed_at) as mock_odate_parser,
+        ):
+            collection.get_page_revisions()
 
         mock_site_no_http.amc_request.assert_not_called()
         request_bodies = mock_site_no_http.amc_request_with_retry.call_args.args[0]
         assert [body["page_id"] for body in request_bodies] == [mock_page_with_id.id]
+        assert response.json.call_count == 1
+        assert mock_user_parser.call_count == 3
+        assert mock_odate_parser.call_count == 3
         assert mock_page_with_id._revisions is not None
         assert duplicate_page._revisions is not None
         assert len(mock_page_with_id._revisions) == len(duplicate_page._revisions)
