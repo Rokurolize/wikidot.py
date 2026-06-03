@@ -114,43 +114,53 @@ class ForumCategoryCollection(list["ForumCategory"]):
         body = response.json()["body"]
         html = BeautifulSoup(body, "lxml")
 
-        for row in html.select("table tr.head~tr"):
-            name_elem = row.select_one("td.name")
-            if name_elem is None:
-                raise NoElementException("Name element is not found.")
-            name_link_elem = name_elem.select_one("a")
-            if name_link_elem is None:
-                raise NoElementException("Name link element is not found.")
-            name_link_href = name_link_elem.get("href")
-            if name_link_href is None:
-                raise NoElementException("Name link href is not found.")
-            thread_count_elem = row.select_one("td.threads")
-            if thread_count_elem is None:
-                raise NoElementException("Thread count element is not found.")
-            post_count_elem = row.select_one("td.posts")
-            if post_count_elem is None:
-                raise NoElementException("Post count element is not found.")
-            category_id_match = re.search(r"c-(\d+)", str(name_link_href))
-            if category_id_match is None:
-                raise NoElementException("Category ID is not found.")
-            category_id_str = category_id_match.group(1)
-            title_elem = name_elem.select_one("a")
-            if title_elem is None:
-                raise NoElementException("Title element is not found.")
-            description_elem = name_elem.select_one("div.description")
-            if description_elem is None:
-                raise NoElementException("Description element is not found.")
+        for table in html.select("div.forum-group > div:not(.head) > table"):
+            for row in table.find_all("tr", recursive=False):
+                row_class = row.get("class")
+                if isinstance(row_class, list) and "head" in row_class:
+                    continue
 
-            category = ForumCategory(
-                site=site,
-                id=int(category_id_str),
-                title=title_elem.text,
-                description=description_elem.text,
-                threads_count=int(thread_count_elem.text),
-                posts_count=int(post_count_elem.text),
-            )
+                cells = row.find_all("td", recursive=False)
+                if len(cells) < 3:
+                    raise NoElementException("Category row is malformed.")
 
-            categories.append(category)
+                name_elem = cells[0]
+                if "name" not in name_elem.get("class", []):
+                    raise NoElementException("Name element is not found.")
+                thread_count_elem = cells[1]
+                if "threads" not in thread_count_elem.get("class", []):
+                    raise NoElementException("Thread count element is not found.")
+                post_count_elem = cells[2]
+                if "posts" not in post_count_elem.get("class", []):
+                    raise NoElementException("Post count element is not found.")
+
+                title_container = name_elem.find("div", class_="title", recursive=False)
+                if title_container is None:
+                    raise NoElementException("Title element is not found.")
+                name_link_elem = title_container.find("a", recursive=False)
+                if name_link_elem is None:
+                    raise NoElementException("Name link element is not found.")
+                name_link_href = name_link_elem.get("href")
+                if name_link_href is None:
+                    raise NoElementException("Name link href is not found.")
+                category_id_match = re.search(r"c-(\d+)", str(name_link_href))
+                if category_id_match is None:
+                    raise NoElementException("Category ID is not found.")
+                category_id_str = category_id_match.group(1)
+                description_elem = name_elem.find("div", class_="description", recursive=False)
+                if description_elem is None:
+                    raise NoElementException("Description element is not found.")
+
+                category = ForumCategory(
+                    site=site,
+                    id=int(category_id_str),
+                    title=name_link_elem.text,
+                    description=description_elem.text,
+                    threads_count=int(thread_count_elem.text),
+                    posts_count=int(post_count_elem.text),
+                )
+
+                categories.append(category)
 
         return ForumCategoryCollection(site=site, categories=categories)
 

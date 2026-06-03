@@ -104,6 +104,60 @@ class TestForumCategoryCollectionAcquireAll:
         assert category2.id == 1002
         assert category2.title == "Another Category"
 
+    def test_acquire_all_ignores_nested_category_tables(self, mock_site_no_http: Site) -> None:
+        """カテゴリ説明内のネストテーブルをカテゴリ行として扱わない"""
+        response_body = {
+            "status": "ok",
+            "body": """
+                <div class="forum-start-box">
+                    <div class="forum-group">
+                        <div class="head"><div class="title">Test Group</div></div>
+                        <div>
+                            <table>
+                                <tr class="head"><td>Category</td><td>Threads</td><td>Posts</td></tr>
+                                <tr>
+                                    <td class="name">
+                                        <div class="title">
+                                            <a href="/forum/c-1001/test-category">Test Category</a>
+                                        </div>
+                                        <div class="description">
+                                            Real description
+                                            <table>
+                                                <tr class="head">
+                                                    <td>Category</td><td>Threads</td><td>Posts</td>
+                                                </tr>
+                                                <tr>
+                                                    <td class="name">
+                                                        <div class="title">
+                                                            <a href="/forum/c-9999/fake-category">Fake Category</a>
+                                                        </div>
+                                                        <div class="description">Fake nested category</div>
+                                                    </td>
+                                                    <td class="threads">999</td>
+                                                    <td class="posts">888</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </td>
+                                    <td class="threads">10</td>
+                                    <td class="posts">50</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            """,
+        }
+        mock_response = MagicMock()
+        mock_response.json.return_value = response_body
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+        assert [category.id for category in collection] == [1001]
+        assert collection[0].threads_count == 10
+        assert collection[0].posts_count == 50
+
     def test_acquire_all_empty(self, mock_site_no_http: Site, forum_start_empty: dict[str, Any]) -> None:
         """空のカテゴリ一覧を取得できる"""
         mock_response = MagicMock()
