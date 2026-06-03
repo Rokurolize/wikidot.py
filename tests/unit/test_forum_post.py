@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 from unittest.mock import MagicMock
 
@@ -182,6 +183,55 @@ class TestForumPostCollectionParse:
         assert posts[0].edited_by.name == "edit_user"
         assert posts[0].edited_by.id == 54322
         assert posts[0].edited_at is not None
+
+    def test_parse_scopes_post_info_metadata_to_direct_children(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """投稿情報内のネストしたユーザー/日時風マークアップを投稿メタデータとして扱わない"""
+        body = forum_posts_in_thread["body"].replace(
+            '<div class="info"><span class="printuser">',
+            (
+                '<div class="info"><span class="preview">'
+                '<span class="printuser"><a href="http://www.wikidot.com/user:info/fake-user" '
+                'onclick="WIKIDOT.page.listeners.userInfo(99999); return false;">fake_user</a></span>'
+                '<span class="odate time_1700000999">17 Dec 2025</span></span><span class="printuser">'
+            ),
+            1,
+        )
+        html = BeautifulSoup(body, "lxml")
+
+        posts = ForumPostCollection._parse(mock_forum_thread_no_http, html)
+
+        assert posts[0].created_by.name == "test_user"
+        assert posts[0].created_by.id == 12345
+        assert posts[0].created_at == datetime.fromtimestamp(1700000000)
+
+    def test_parse_scopes_post_edit_metadata_to_direct_children(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """編集情報内のネストしたユーザー/日時風マークアップを編集メタデータとして扱わない"""
+        body = forum_posts_in_thread["body"].replace(
+            '<div class="content" id="post-content-5001"><p>Test post content</p></div>',
+            (
+                '<div class="content" id="post-content-5001"><p>Test post content</p></div>'
+                '<div class="changes"><span class="preview">'
+                '<span class="printuser"><a href="http://www.wikidot.com/user:info/fake-editor" '
+                'onclick="WIKIDOT.page.listeners.userInfo(99998); return false;">fake_editor</a></span>'
+                '<span class="odate time_1700000998">17 Dec 2025</span></span>'
+                '<span class="printuser"><a href="http://www.wikidot.com/user:info/edit-user" '
+                'onclick="WIKIDOT.page.listeners.userInfo(54322); return false;">edit_user</a></span> '
+                '<span class="odate time_1700000500">17 Dec 2025</span></div>'
+            ),
+            1,
+        )
+        html = BeautifulSoup(body, "lxml")
+
+        posts = ForumPostCollection._parse(mock_forum_thread_no_http, html)
+
+        assert posts[0].edited_by is not None
+        assert posts[0].edited_by.name == "edit_user"
+        assert posts[0].edited_by.id == 54322
+        assert posts[0].edited_at == datetime.fromtimestamp(1700000500)
 
 
 class TestForumPostCollectionAcquireAll:

@@ -191,12 +191,12 @@ class ForumPostCollection(list["ForumPost"]):
             if info_elem is None:
                 raise NoElementException("Post info element is not found.")
 
-            user_elem = info_elem.select_one("span.printuser")
+            user_elem = info_elem.select_one(":scope > span.printuser")
             if user_elem is None:
                 raise NoElementException("Post user element is not found.")
             created_by = user_parser(thread.site.client, user_elem)
 
-            odate_elem = info_elem.select_one("span.odate")
+            odate_elem = info_elem.select_one(":scope > span.odate")
             if odate_elem is None:
                 raise NoElementException("Post odate element is not found.")
             created_at = odate_parser(odate_elem)
@@ -206,8 +206,8 @@ class ForumPostCollection(list["ForumPost"]):
             edited_at = None
             changes_elem = wrapper.select_one(":scope > div.changes")
             if changes_elem is not None:
-                edit_user_elem = changes_elem.select_one("span.printuser")
-                edit_odate_elem = changes_elem.select_one("span.odate")
+                edit_user_elem = changes_elem.select_one(":scope > span.printuser")
+                edit_odate_elem = changes_elem.select_one(":scope > span.odate")
                 if edit_user_elem is not None and edit_odate_elem is not None:
                     edited_by = user_parser(thread.site.client, edit_user_elem)
                     edited_at = odate_parser(edit_odate_elem)
