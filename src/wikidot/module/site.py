@@ -96,12 +96,16 @@ class PageSourceResult:
     ----------
     page : Page
         Page associated with the source attempt.
+    fullname : str
+        Page fullname associated with the source attempt.
     source : PageSource | None
         Page source when retrieval succeeded.
     wiki_text : str | None
         Page source text when retrieval succeeded. None when retrieval failed.
     error : Exception | None
         Error describing why source retrieval did not produce a source for this page.
+    error_message : str | None
+        String representation of the error when source retrieval failed. None when retrieval succeeded.
     """
 
     page: "Page"
@@ -114,11 +118,23 @@ class PageSourceResult:
         return self.source is not None and self.error is None
 
     @property
+    def fullname(self) -> str:
+        """Page fullname associated with this source result."""
+        return self.page.fullname
+
+    @property
     def wiki_text(self) -> str | None:
         """Source wiki text when retrieval succeeded."""
         if self.source is None:
             return None
         return self.source.wiki_text
+
+    @property
+    def error_message(self) -> str | None:
+        """String error message when source retrieval failed."""
+        if self.error is None:
+            return None
+        return str(self.error)
 
 
 class SitePagesAccessor:
