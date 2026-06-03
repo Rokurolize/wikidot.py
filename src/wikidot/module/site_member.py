@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ..common.exceptions import (
     TargetErrorException,
@@ -64,29 +64,39 @@ class SiteMember:
         """
         members: list[SiteMember] = []
 
-        for row in html.select("table tr"):
-            tds = row.select("td")
-            if not tds:
+        for table in html.find_all("table"):
+            if not isinstance(table, Tag) or table.find_parent("table") is not None:
                 continue
 
-            user_elem = tds[0].select_one(".printuser")
+            tbody = table.find("tbody", recursive=False)
+            row_container = tbody if isinstance(tbody, Tag) else table
 
-            if user_elem is None:
-                continue
+            for row in row_container.find_all("tr", recursive=False):
+                if not isinstance(row, Tag):
+                    continue
 
-            user = user_parser(site.client, user_elem)
+                tds = [td for td in row.find_all("td", recursive=False) if isinstance(td, Tag)]
+                if not tds:
+                    continue
 
-            # tdsが2つあったら加入日時がある
-            if len(tds) == 2:
-                joined_at_elem = tds[1].select_one(".odate")
-                if joined_at_elem is None:
-                    joined_at = None
+                user_elem = tds[0].find("span", class_="printuser", recursive=False)
+
+                if not isinstance(user_elem, Tag):
+                    continue
+
+                user = user_parser(site.client, user_elem)
+
+                # tdsが2つあったら加入日時がある
+                if len(tds) == 2:
+                    joined_at_elem = tds[1].find("span", class_="odate", recursive=False)
+                    if not isinstance(joined_at_elem, Tag):
+                        joined_at = None
+                    else:
+                        joined_at = odate_parser(joined_at_elem)
                 else:
-                    joined_at = odate_parser(joined_at_elem)
-            else:
-                joined_at = None
+                    joined_at = None
 
-            members.append(SiteMember(site, user, joined_at))
+                members.append(SiteMember(site, user, joined_at))
 
         return members
 

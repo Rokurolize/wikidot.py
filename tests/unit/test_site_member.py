@@ -156,6 +156,47 @@ class TestSiteMemberParse:
 
             assert len(members) == 1
 
+    def test_parse_ignores_nested_member_tables(self):
+        """ネストしたメンバー風テーブルは構造上のメンバーとして扱わない"""
+        html = BeautifulSoup(
+            """
+            <table>
+                <tr>
+                    <td>
+                        <table>
+                            <tr>
+                                <td><span class="printuser">
+                                    <a onclick="WIKIDOT.page.listeners.userInfo(99999)" href="#">Fake User</a>
+                                </span></td>
+                                <td><span class="odate time_111111111">Fake Date</span></td>
+                            </tr>
+                        </table>
+                        <span class="printuser">
+                            <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">Real User</a>
+                        </span>
+                    </td>
+                    <td><span class="odate time_123456789">2024-01-01</span></td>
+                </tr>
+            </table>
+            """,
+            "lxml",
+        )
+        site = MagicMock()
+        real_joined_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+        with (
+            patch("wikidot.module.site_member.user_parser") as mock_user_parser,
+            patch("wikidot.module.site_member.odate_parser") as mock_odate_parser,
+        ):
+            mock_user_parser.side_effect = lambda _client, elem: elem.get_text(strip=True)
+            mock_odate_parser.return_value = real_joined_at
+
+            members = SiteMember._parse(site, html)
+
+            assert len(members) == 1
+            assert members[0].user == "Real User"
+            assert members[0].joined_at == real_joined_at
+
 
 class TestSiteMemberGet:
     """SiteMember.getのテスト"""
