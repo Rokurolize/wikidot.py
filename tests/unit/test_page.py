@@ -1111,10 +1111,10 @@ class TestPageCollectionAcquire:
         assert mock_page_with_id._votes is not None
         assert [vote.value for vote in mock_page_with_id._votes] == [1, 1, -1]
 
-    def test_acquire_votes_mismatch_includes_page_context(
+    def test_acquire_votes_mismatch_includes_site_context(
         self, mock_site_no_http: Site, mock_page_with_id: Page
     ) -> None:
-        """WhoRated構造のuser/value件数不一致は対象ページ名と件数を含めて失敗する"""
+        """WhoRated構造のuser/value件数不一致は対象サイト・ページ名・件数を含めて失敗する"""
         collection = PageCollection(mock_site_no_http, [mock_page_with_id])
         response = self._json_response(
             {
@@ -1132,7 +1132,7 @@ class TestPageCollectionAcquire:
 
         with pytest.raises(
             exceptions.UnexpectedException,
-            match="User and value count mismatch for page: test-page \\(users=1, values=2\\)",
+            match="User and value count mismatch for site: test-site, page: test-page \\(users=1, values=2\\)",
         ):
             collection.get_page_votes()
 
