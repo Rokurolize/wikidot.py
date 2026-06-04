@@ -810,11 +810,14 @@ class TestForumPostSource:
         assert mock_forum_post_no_http.source == "cached source"
 
     def test_source_property_raises_when_retry_is_exhausted(self, mock_forum_post_no_http: ForumPost) -> None:
-        """sourceプロパティはリトライ枯渇時に投稿IDつきの未取得例外を返す"""
+        """sourceプロパティはリトライ枯渇時にsite/post付きの未取得例外を返す"""
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
         mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.NoElementException, match="Source textarea is not found for post: 5001"):
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Source textarea is not found for site: test-site, post: 5001",
+        ):
             _ = mock_forum_post_no_http.source
 
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()

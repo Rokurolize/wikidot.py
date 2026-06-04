@@ -634,7 +634,9 @@ class ForumPost:
             ForumPostCollection(self.thread, [self]).get_post_sources()
 
         if self._source is None:
-            raise NoElementException(f"Source textarea is not found for post: {self.id}")
+            raise NoElementException(
+                f"Source textarea is not found for site: {self.thread.site.unix_name}, post: {self.id}"
+            )
 
         return self._source
 
