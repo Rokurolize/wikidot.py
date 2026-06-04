@@ -581,6 +581,15 @@ class PageCollection(list["Page"]):
         ) from last_exception
 
     @staticmethod
+    def _listpages_response_body(site: "Site", response: httpx.Response, offset: int | None) -> str:
+        body = response.json().get("body")
+        if body is None:
+            raise exceptions.NoElementException(
+                f"ListPages response body is not found for site: {site.unix_name}, offset: {offset}"
+            )
+        return body
+
+    @staticmethod
     def search_pages(site: "Site", query: SearchPagesQuery | None = None) -> "PageCollection":
         """
         Search for pages within a site
@@ -633,7 +642,7 @@ class PageCollection(list["Page"]):
 
         response = PageCollection._request_listpages_page(site, query_dict, query.offset)
 
-        body = response.json()["body"]
+        body = PageCollection._listpages_response_body(site, response, query.offset)
 
         first_page_html_body = BeautifulSoup(body, "lxml")
 
@@ -668,12 +677,13 @@ class PageCollection(list["Page"]):
             if request_bodies:
                 responses = site.amc_request_with_retry(request_bodies)
                 for index, additional_response in enumerate(responses):
+                    offset = request_bodies[index].get("offset")
                     if additional_response is None:
-                        offset = request_bodies[index].get("offset")
                         raise exceptions.UnexpectedException(
                             f"Failed to get ListPages page for site: {site.unix_name}, offset: {offset}"
                         )
-                    html_bodies.append(BeautifulSoup(additional_response.json()["body"], "lxml"))
+                    body = PageCollection._listpages_response_body(site, additional_response, offset)
+                    html_bodies.append(BeautifulSoup(body, "lxml"))
 
         pages: list[Page] = []
         for html_body in html_bodies:

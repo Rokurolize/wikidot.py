@@ -315,6 +315,22 @@ class TestPageCollectionSearchPages:
 
         assert mock_site_no_http.amc_request.call_count == 2
 
+    def test_search_pages_missing_first_response_body_includes_site_and_offset_context(
+        self, mock_site_no_http: Site
+    ) -> None:
+        """初回ListPages応答にbodyがない場合はsite/offset付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="ListPages response body is not found for site: test-site, offset: 500",
+        ):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500))
+
+        mock_site_no_http.amc_request.assert_called_once()
+
     def test_search_pages_preserves_private_site_status_mapping(self, mock_site_no_http: Site) -> None:
         """private siteのnot_okは従来どおりForbiddenExceptionに変換する"""
         mock_site_no_http.amc_request = MagicMock(
@@ -460,6 +476,30 @@ class TestPageCollectionSearchPages:
         with pytest.raises(
             exceptions.UnexpectedException,
             match="Failed to get ListPages page for site: test-site, offset: 600",
+        ):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500, perPage=100))
+
+        mock_site_no_http.amc_request.assert_called_once()
+        mock_site_no_http.amc_request_with_retry.assert_called_once()
+
+    def test_search_pages_missing_additional_response_body_includes_site_and_offset_context(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """追加ListPages応答にbodyがない場合はsite/offset付きで失敗する"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            **page_listpages_single,
+            "body": page_listpages_single["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target"><a>2</a></span></div>',
+        }
+        second_response = MagicMock()
+        second_response.json.return_value = {"status": "ok"}
+        mock_site_no_http.amc_request = MagicMock(return_value=[first_response])
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(second_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="ListPages response body is not found for site: test-site, offset: 600",
         ):
             PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500, perPage=100))
 
