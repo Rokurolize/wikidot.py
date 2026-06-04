@@ -186,6 +186,8 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [180-pr-forum-post-revision-lazy-html-context.md](180-pr-forum-post-revision-lazy-html-context.md): upstream PR draft for the committed lazy forum post revision HTML failure context fix.
 - [181-pr-page-file-direct-fetch-context.md](181-pr-page-file-direct-fetch-context.md): upstream PR draft for the committed direct page-file fetch failure context fix.
 - [182-pr-recent-changes-fetch-failure-context.md](182-pr-recent-changes-fetch-failure-context.md): upstream PR draft for the committed recent-changes fetch failure context fix.
+- [183-pr-listpages-fetch-failure-context.md](183-pr-listpages-fetch-failure-context.md): upstream PR draft for the committed ListPages fetch failure context fix.
+- [184-pr-private-message-detail-fetch-context.md](184-pr-private-message-detail-fetch-context.md): upstream PR draft for the committed private-message detail fetch failure context fix.
 
 ## Local Evidence Index
 
@@ -280,5 +282,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 85: `6479c6d fix(page_file): include page in direct fetch failures`
 - Local implementation commits, continued 86: `30aaa07 fix(site): include site in recent changes fetch failures`
 - Local implementation commits, continued 87: `7d27caa fix(page): include site in listpages fetch failures`
+- Local implementation commits, continued 88: `329bfe0 fix(private_message): include module in detail failures`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
