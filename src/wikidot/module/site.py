@@ -83,6 +83,8 @@ class PagePublishResult:
         Audit-friendly operation name derived from created.
     url : str
         Page URL derived from the returned page object.
+    metadata_update_count : int
+        Number of metadata update categories requested by the publish call.
     metadata_updated : bool
         True when any metadata update was requested by the publish call.
     source_verification_requested : bool
@@ -102,6 +104,11 @@ class PagePublishResult:
     parent_updated: bool
     metas_updated: bool
     created: bool = False
+
+    @property
+    def metadata_update_count(self) -> int:
+        """Number of metadata update categories requested by publish."""
+        return sum((self.tags_updated, self.parent_updated, self.metas_updated))
 
     @property
     def metadata_updated(self) -> bool:
@@ -152,6 +159,7 @@ class PagePublishResult:
             "tags_updated": self.tags_updated,
             "parent_updated": self.parent_updated,
             "metas_updated": self.metas_updated,
+            "metadata_update_count": self.metadata_update_count,
             "metadata_updated": self.metadata_updated,
         }
 

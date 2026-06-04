@@ -827,14 +827,17 @@ class TestSitePageAccessor:
         )
 
         assert verified_with_metadata.metadata_updated is True
+        assert verified_with_metadata.metadata_update_count == 1
         assert verified_with_metadata.source_verification_requested is True
         assert verified_with_metadata.source_verified is True
         assert verified_with_metadata.source_verification_status == "matched"
         assert skipped_optional_steps.metadata_updated is False
+        assert skipped_optional_steps.metadata_update_count == 0
         assert skipped_optional_steps.source_verification_requested is False
         assert skipped_optional_steps.source_verified is False
         assert skipped_optional_steps.source_verification_status == "skipped"
         assert failed_source_check.metadata_updated is True
+        assert failed_source_check.metadata_update_count == 1
         assert failed_source_check.source_verification_requested is True
         assert failed_source_check.source_verified is False
         assert failed_source_check.source_verification_status == "mismatched"
@@ -869,6 +872,7 @@ class TestSitePageAccessor:
             "tags_updated": True,
             "parent_updated": False,
             "metas_updated": True,
+            "metadata_update_count": 2,
             "metadata_updated": True,
         }
 
