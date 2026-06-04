@@ -924,12 +924,12 @@ class TestForumPostEdit:
         save_request = mock_forum_post_no_http.thread.site.amc_request.call_args.args[0][0]
         assert save_request["currentRevisionId"] == 9001
 
-    def test_edit_missing_current_revision_id_includes_post_context(
+    def test_edit_missing_current_revision_id_includes_site_and_post_context(
         self,
         mock_forum_post_no_http: ForumPost,
         forum_editpost_form: dict[str, Any],
     ) -> None:
-        """currentRevisionId欠落時は投稿IDつきの例外を返す"""
+        """currentRevisionId欠落時はsite/postつきの例外を返す"""
         mock_forum_post_no_http.thread.site.client.is_logged_in = True
         mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
         form_without_revision_id = {
@@ -948,7 +948,7 @@ class TestForumPostEdit:
 
         with pytest.raises(
             exceptions.NoElementException,
-            match="Current revision ID input is not found for post: 5001",
+            match="Current revision ID input is not found for site: test-site, post: 5001",
         ):
             mock_forum_post_no_http.edit(source="Updated source")
 

@@ -694,7 +694,9 @@ class ForumPost:
             edit_form.select_one(":scope > input[name='currentRevisionId']") if isinstance(edit_form, Tag) else None
         )
         if revision_elem is None:
-            raise NoElementException(f"Current revision ID input is not found for post: {self.id}")
+            raise NoElementException(
+                f"Current revision ID input is not found for site: {self.thread.site.unix_name}, post: {self.id}"
+            )
         current_revision_id = int(str(revision_elem["value"]))
 
         # 編集を保存
