@@ -14,6 +14,7 @@ from wikidot.common.exceptions import (
     LoginRequiredException,
     NoElementException,
     UnexpectedException,
+    WikidotStatusCodeException,
 )
 from wikidot.module.client import Client
 from wikidot.module.private_message import (
@@ -698,6 +699,10 @@ class TestPrivateMessage:
 
     def test_send_success(self, mock_client, mock_user):
         """送信成功"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
         PrivateMessage.send(mock_client, mock_user, "Test Subject", "Test Body")
 
         mock_client.amc_client.request.assert_called_once()
@@ -706,3 +711,31 @@ class TestPrivateMessage:
         assert call_args["subject"] == "Test Subject"
         assert call_args["to_user_id"] == mock_user.id
         assert call_args["event"] == "send"
+
+    def test_send_missing_action_status_includes_recipient_event_and_field_context(self, mock_client, mock_user):
+        """送信応答のstatus欠落は文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Private message send action response is malformed for recipient: test-user "
+                r"\(id=12345, event=send, field=status\)"
+            ),
+        ):
+            PrivateMessage.send(mock_client, mock_user, "Test Subject", "Test Body")
+
+        assert mock_response.json.call_count == 1
+
+    def test_send_explicit_non_ok_action_status_raises_status_exception(self, mock_client, mock_user):
+        """送信応答の明示的な非ok statusはWikidotStatusCodeException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "not_ok"}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(WikidotStatusCodeException) as exc_info:
+            PrivateMessage.send(mock_client, mock_user, "Test Subject", "Test Body")
+
+        assert exc_info.value.status_code == "not_ok"

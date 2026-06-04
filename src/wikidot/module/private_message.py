@@ -24,6 +24,23 @@ if TYPE_CHECKING:
     from .user import AbstractUser, User
 
 
+def _require_private_message_send_action_status(recipient: "User", event: str, data: dict[str, Any]) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Private message send action response is malformed for recipient: {recipient.name} "
+            f"(id={recipient.id}, event={event}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            f"Failed to send private message to recipient: {recipient.name}, event: {event}",
+            status,
+        )
+    return status
+
+
 class PrivateMessageCollection(list["PrivateMessage"]):
     """
     Base class representing a collection of private messages
@@ -639,7 +656,7 @@ class PrivateMessage:
         LoginRequiredException
             If not logged in
         """
-        client.amc_client.request(
+        response = client.amc_client.request(
             [
                 {
                     "source": body,
@@ -650,4 +667,5 @@ class PrivateMessage:
                     "moduleName": "Empty",
                 }
             ]
-        )
+        )[0]
+        _require_private_message_send_action_status(recipient, "send", response.json())
