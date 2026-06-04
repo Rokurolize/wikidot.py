@@ -17,7 +17,7 @@ from wikidot.common.exceptions import (
 )
 from wikidot.module.client import Client
 from wikidot.module.page import Page, PageCollection
-from wikidot.module.site import PagePublishResult, Site
+from wikidot.module.site import PagePublishResult, PageSourceResult, Site
 
 
 def create_mock_client(is_logged_in: bool = True) -> MagicMock:
@@ -470,6 +470,17 @@ class TestSitePagesAccessor:
         assert results[1].error_type == "NotFoundException"
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_source_result_page_id_does_not_trigger_lookup(self, mock_site_no_http: Site) -> None:
+        """PageSourceResult.page_idは未取得IDを通信で補完しない"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page._id = None
+        mock_site_no_http.amc_request = MagicMock()
+
+        result = PageSourceResult(page=page, source=None, error=NotFoundException("missing"))
+
+        assert result.page_id is None
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_iter_sources_result_exports_ledger_record(self, mock_site_no_http: Site) -> None:
         """PageSourceResultは永続化しやすい辞書形式に変換できる"""
         pages = [
@@ -504,6 +515,7 @@ class TestSitePagesAccessor:
         assert [result.as_dict() for result in results] == [
             {
                 "fullname": "page-one",
+                "page_id": 371,
                 "ok": True,
                 "wiki_text": "source 371",
                 "error_type": None,
@@ -511,6 +523,7 @@ class TestSitePagesAccessor:
             },
             {
                 "fullname": "page-two",
+                "page_id": 372,
                 "ok": False,
                 "wiki_text": None,
                 "error_type": "NotFoundException",

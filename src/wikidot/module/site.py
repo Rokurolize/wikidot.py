@@ -122,6 +122,8 @@ class PageSourceResult:
         Page associated with the source attempt.
     fullname : str
         Page fullname associated with the source attempt.
+    page_id : int | None
+        Page ID already associated with the source attempt. None when the page ID is not loaded.
     source : PageSource | None
         Page source when retrieval succeeded.
     wiki_text : str | None
@@ -132,8 +134,8 @@ class PageSourceResult:
         Exception class name when source retrieval failed. None when retrieval succeeded.
     error_message : str | None
         String representation of the error when source retrieval failed. None when retrieval succeeded.
-    as_dict : dict[str, str | bool | None]
-        Ledger-friendly dictionary containing fullname, ok, wiki_text, error_type, and error_message.
+    as_dict : dict[str, str | int | bool | None]
+        Ledger-friendly dictionary containing fullname, page_id, ok, wiki_text, error_type, and error_message.
     """
 
     page: "Page"
@@ -149,6 +151,11 @@ class PageSourceResult:
     def fullname(self) -> str:
         """Page fullname associated with this source result."""
         return self.page.fullname
+
+    @property
+    def page_id(self) -> int | None:
+        """Page ID associated with this source result when already loaded."""
+        return self.page._id
 
     @property
     def wiki_text(self) -> str | None:
@@ -171,10 +178,11 @@ class PageSourceResult:
             return None
         return self.error.__class__.__name__
 
-    def as_dict(self) -> dict[str, str | bool | None]:
+    def as_dict(self) -> dict[str, str | int | bool | None]:
         """Return a compact ledger-friendly representation of this source result."""
         return {
             "fullname": self.fullname,
+            "page_id": self.page_id,
             "ok": self.ok,
             "wiki_text": self.wiki_text,
             "error_type": self.error_type,
