@@ -1789,7 +1789,7 @@ class Page:
             When deletion fails
         """
         self.site.client.login_check()
-        self.site.amc_request(
+        response = self.site.amc_request(
             [
                 {
                     "action": "WikiPageAction",
@@ -1798,7 +1798,8 @@ class Page:
                     "moduleName": "Empty",
                 }
             ]
-        )
+        )[0]
+        _require_page_action_status(self.site, self, "deletePage", response.json())
 
     @property
     def metas(self) -> dict[str, str]:

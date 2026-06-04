@@ -1998,6 +1998,26 @@ class TestPageWriteMethods:
         with pytest.raises(exceptions.LoginRequiredException):
             mock_page_with_id.destroy()
 
+    def test_destroy_missing_action_status_includes_site_page_event_and_field_context(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """削除応答のstatus欠落は文脈付きNoElementException"""
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"body": ""}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=deletePage, field=status\)"
+            ),
+        ):
+            mock_page_with_id.destroy()
+
     def test_commit_tags_success(self, mock_page_with_id: Page, page_savetags_success: dict[str, Any]) -> None:
         """タグを正常に保存できる"""
         mock_response = MagicMock()
