@@ -164,6 +164,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [158-pr-forum-thread-list-parse-context.md](158-pr-forum-thread-list-parse-context.md): upstream PR draft for the committed category thread-list parse failure context fix.
 - [159-pr-forum-thread-detail-parse-context.md](159-pr-forum-thread-detail-parse-context.md): upstream PR draft for the committed direct thread-detail parse failure context fix.
 - [160-pr-forum-post-list-parse-context.md](160-pr-forum-post-list-parse-context.md): upstream PR draft for the committed forum post-list parse failure context fix.
+- [161-pr-forum-post-source-error-context.md](161-pr-forum-post-source-error-context.md): upstream PR draft for the committed lazy forum post source error context fix.
 
 ## Local Evidence Index
 
@@ -235,5 +236,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 62: `c633c85 fix(forum_thread): include context in list parse errors`
 - Local implementation commits, continued 63: `61ae2b1 fix(forum_thread): include context in detail parse errors`
 - Local implementation commits, continued 64: `536220b fix(forum_post): include context in post list parse errors`
+- Local implementation commits, continued 65: `1546b41 fix(forum_post): include post id in lazy source errors`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
