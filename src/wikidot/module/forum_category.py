@@ -120,7 +120,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
 
         response = site.amc_request_with_retry([{"moduleName": "forum/ForumStartModule", "hidden": "true"}])[0]
         if response is None:
-            raise UnexpectedException("Cannot retrieve forum categories")
+            raise UnexpectedException(f"Cannot retrieve forum categories for site: {site.unix_name}")
 
         body = response.json()["body"]
         html = BeautifulSoup(body, "lxml")

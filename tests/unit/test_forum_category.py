@@ -242,7 +242,7 @@ class TestForumCategoryCollectionAcquireAll:
         mock_site_no_http.amc_request = MagicMock()
         mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(UnexpectedException, match="Cannot retrieve forum categories"):
+        with pytest.raises(UnexpectedException, match="Cannot retrieve forum categories for site: test-site"):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
 
         mock_site_no_http.amc_request.assert_not_called()
