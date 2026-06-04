@@ -622,6 +622,17 @@ class TestSitePageAccessor:
 
         assert page is None
 
+    def test_get_surfaces_unexpected_direct_page_id_probe_errors(self, mock_site_no_http: Site) -> None:
+        """直接pageId取得の構造エラーはページ欠落として隠さない"""
+        direct_error = UnexpectedException("Unexpected response type for page: stale-page")
+
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])),
+            patch.object(PageCollection, "_acquire_page_ids", side_effect=direct_error),
+            pytest.raises(UnexpectedException, match="Unexpected response type for page: stale-page"),
+        ):
+            mock_site_no_http.page.get("stale-page", raise_when_not_found=False)
+
     def test_create_force_edit_updates_existing_page(self, mock_site_no_http: Site) -> None:
         """force_edit=Trueでは既存ページを編集する"""
         existing_page = MagicMock()

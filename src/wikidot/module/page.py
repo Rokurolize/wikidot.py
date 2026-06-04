@@ -703,8 +703,10 @@ class PageCollection(list["Page"]):
 
         Raises
         ------
+        NotFoundException
+            When page ID is not found
         UnexpectedException
-            When page ID is not found or response type is unexpected
+            When response type is unexpected
         """
         acquired_ids_by_url: dict[str, int] = {}
         for page in pages:
@@ -747,7 +749,7 @@ class PageCollection(list["Page"]):
 
             id_match = re.search(r"WIKIREQUEST\.info\.pageId = (\d+);", source)
             if id_match is None:
-                raise exceptions.UnexpectedException(f"Cannot find page id: {target_pages_for_url[0].fullname}")
+                raise exceptions.NotFoundException(f"Cannot find page id: {target_pages_for_url[0].fullname}")
             page_id = int(id_match.group(1))
             for page in target_pages_for_url:
                 page.id = page_id

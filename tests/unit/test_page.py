@@ -608,6 +608,20 @@ class TestPageCollectionAcquire:
 
         request.assert_called_once()
 
+    def test_acquire_page_ids_missing_id_raises_not_found_with_page_context(
+        self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
+    ) -> None:
+        """page_id欠落は構造エラーではなく対象ページ不在として扱う"""
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        response = httpx.Response(200, text="<html><body>missing page id</body></html>")
+        request = MagicMock(return_value=[response])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        with pytest.raises(exceptions.NotFoundException, match="Cannot find page id: test-page"):
+            collection.get_page_ids()
+
+        request.assert_called_once()
+
     def test_acquire_sources_success(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:

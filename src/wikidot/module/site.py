@@ -463,7 +463,7 @@ class SitePageAccessor:
             if exc.response.status_code == 404:
                 return None
             raise
-        except exceptions.UnexpectedException:
+        except exceptions.NotFoundException:
             return None
         return page
 
