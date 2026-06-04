@@ -738,12 +738,14 @@ class PageCollection(list["Page"]):
 
         # "WIKIREQUEST.info.pageId = xxx;"の値をidに設定
         for index, response in enumerate(responses):
+            target_pages_for_url = target_pages_by_url[request_urls[index]]
             if not isinstance(response, httpx.Response):
-                raise exceptions.UnexpectedException(f"Unexpected response type: {type(response)}")
+                raise exceptions.UnexpectedException(
+                    f"Unexpected response type for page: {target_pages_for_url[0].fullname}, type: {type(response)}"
+                )
             source = response.text
 
             id_match = re.search(r"WIKIREQUEST\.info\.pageId = (\d+);", source)
-            target_pages_for_url = target_pages_by_url[request_urls[index]]
             if id_match is None:
                 raise exceptions.UnexpectedException(f"Cannot find page id: {target_pages_for_url[0].fullname}")
             page_id = int(id_match.group(1))

@@ -595,6 +595,19 @@ class TestPageCollectionAcquire:
         assert mock_page_no_http.id == 333
         assert duplicate_page._id == 333
 
+    def test_acquire_page_ids_unexpected_response_type_includes_page_context(
+        self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
+    ) -> None:
+        """page_id lookupの非HTTPレスポンス例外は対象ページを示す"""
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        request = MagicMock(return_value=[exceptions.UnexpectedException("transient failure")])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        with pytest.raises(exceptions.UnexpectedException, match="Unexpected response type for page: test-page"):
+            collection.get_page_ids()
+
+        request.assert_called_once()
+
     def test_acquire_sources_success(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:
