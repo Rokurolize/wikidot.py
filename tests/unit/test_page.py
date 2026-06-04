@@ -2019,6 +2019,26 @@ class TestPageWriteMethods:
         with pytest.raises(exceptions.LoginRequiredException):
             mock_page_with_id.commit_tags()
 
+    def test_commit_tags_missing_action_status_includes_site_page_event_and_field_context(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """タグ保存応答のstatus欠落は文脈付きNoElementException"""
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"body": ""}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page metadata action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=saveTags, field=status\)"
+            ),
+        ):
+            mock_page_with_id.commit_tags()
+
     def test_set_parent_success(self, mock_page_with_id: Page, page_setparent_success: dict[str, Any]) -> None:
         """親ページを正常に設定できる"""
         mock_response = MagicMock()
@@ -2040,6 +2060,26 @@ class TestPageWriteMethods:
 
         result = mock_page_with_id.set_parent(None)
         assert result.parent_fullname is None
+
+    def test_set_parent_missing_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
+        """親ページ更新応答のstatus欠落は文脈付きで失敗しローカル状態を更新しない"""
+        mock_page_with_id.parent_fullname = "old-parent"
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"body": ""}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page metadata action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=setParentPage, field=status\)"
+            ),
+        ):
+            mock_page_with_id.set_parent("new-parent")
+
+        assert mock_page_with_id.parent_fullname == "old-parent"
 
     def test_rename_success(self, mock_page_with_id: Page, page_rename_success: dict[str, Any]) -> None:
         """ページ名を正常に変更できる"""

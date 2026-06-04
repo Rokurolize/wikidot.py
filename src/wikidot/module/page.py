@@ -2196,7 +2196,7 @@ class Page:
             When saving tags fails
         """
         self.site.client.login_check()
-        self.site.amc_request(
+        response = self.site.amc_request(
             [
                 {
                     "tags": " ".join(self.tags),
@@ -2206,7 +2206,8 @@ class Page:
                     "moduleName": "Empty",
                 }
             ]
-        )
+        )[0]
+        _require_page_metadata_action_status(self.site, self, "saveTags", response.json())
         return self
 
     def set_parent(self, parent_fullname: str | None) -> "Page":
@@ -2234,7 +2235,7 @@ class Page:
             When setting the parent page fails
         """
         self.site.client.login_check()
-        self.site.amc_request(
+        response = self.site.amc_request(
             [
                 {
                     "action": "WikiPageAction",
@@ -2244,7 +2245,8 @@ class Page:
                     "parentName": parent_fullname or "",
                 }
             ]
-        )
+        )[0]
+        _require_page_metadata_action_status(self.site, self, "setParentPage", response.json())
         self.parent_fullname = parent_fullname
         return self
 
