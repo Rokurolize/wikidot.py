@@ -8,7 +8,7 @@ It enables operations such as retrieving post information and display.
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup, Tag
 
@@ -142,6 +142,16 @@ class ForumPostCollection(list["ForumPost"]):
                 continue
             return pager
         return None
+
+    @staticmethod
+    def _post_list_response_body(response: Any, thread: "ForumThread", page: int) -> str:
+        body = response.json().get("body")
+        if body is None:
+            raise NoElementException(
+                "Forum post list response body is not found "
+                f"for site: {thread.site.unix_name}, thread: {thread.id}, page: {page}"
+            )
+        return body
 
     @staticmethod
     def _is_inside_post_content(post_elem: Tag) -> bool:
@@ -374,7 +384,7 @@ class ForumPostCollection(list["ForumPost"]):
                 raise UnexpectedException(
                     f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread.id}, page: 1"
                 )
-            body = response.json()["body"]
+            body = ForumPostCollection._post_list_response_body(response, thread, 1)
             html = BeautifulSoup(body, "lxml")
 
             posts = ForumPostCollection._parse(thread, html, page=1)
@@ -411,7 +421,7 @@ class ForumPostCollection(list["ForumPost"]):
                     raise UnexpectedException(
                         f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread.id}, page: {page}"
                     )
-                body = response.json()["body"]
+                body = ForumPostCollection._post_list_response_body(response, thread, page)
                 html = BeautifulSoup(body, "lxml")
                 posts = ForumPostCollection._parse(thread, html, page=page)
                 result[thread.id].extend(posts)

@@ -294,6 +294,23 @@ class TestForumPostCollectionAcquireAll:
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_missing_first_page_response_body_includes_thread_and_page_context(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """初回投稿一覧応答のbody欠落はsite/thread/page付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Forum post list response body is not found for site: test-site, thread: 3001, page: 1",
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_ignores_content_pager_markup(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
@@ -548,6 +565,32 @@ class TestForumPostCollectionAcquireAll:
         with pytest.raises(
             exceptions.UnexpectedException,
             match="Cannot retrieve forum posts for site: test-site, thread: 3001, page: 2",
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_acquire_all_missing_paginated_response_body_includes_thread_and_page_context(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """追加投稿一覧応答のbody欠落はsite/thread/page付きで失敗する"""
+        body_with_pager = (
+            forum_posts_in_thread["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target">2</span></div>'
+        )
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+        second_response = MagicMock()
+        second_response.json.return_value = {}
+
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(
+            side_effect=[(first_response,), (second_response,)]
+        )
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Forum post list response body is not found for site: test-site, thread: 3001, page: 2",
         ):
             ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
 
