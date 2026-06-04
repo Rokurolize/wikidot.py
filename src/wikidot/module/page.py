@@ -1804,6 +1804,13 @@ class Page:
             ]
         )[0]
         _require_page_action_status(self.site, self, "deletePage", response.json())
+        self._source = None
+        self._revisions = None
+        self._votes = None
+        self._metas = None
+        self._discussion = None
+        self._discussion_checked = False
+        self._files = None
 
     @property
     def metas(self) -> dict[str, str]:

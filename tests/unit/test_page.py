@@ -1988,6 +1988,60 @@ class TestPageWriteMethods:
         mock_page_with_id.destroy()
         mock_page_with_id.site.amc_request.assert_called_once()
 
+    def test_destroy_success_clears_page_bound_caches(
+        self, mock_page_with_id: Page, page_delete_success: dict[str, Any]
+    ) -> None:
+        """destroy成功後は削除前に取得したページ付属キャッシュを再利用しない"""
+        mock_page_with_id._source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id._revisions = PageRevisionCollection(
+            mock_page_with_id,
+            [
+                PageRevision(
+                    page=mock_page_with_id,
+                    id=1,
+                    rev_no=1,
+                    created_by=mock_page_with_id.created_by,
+                    created_at=mock_page_with_id.created_at,
+                    comment="cached revision",
+                )
+            ],
+        )
+        mock_page_with_id._votes = PageVoteCollection(
+            mock_page_with_id,
+            [PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)],
+        )
+        mock_page_with_id._metas = {"cached": "meta"}
+        mock_page_with_id._discussion = MagicMock()
+        mock_page_with_id._discussion_checked = True
+        mock_page_with_id._files = PageFileCollection(
+            mock_page_with_id,
+            [
+                PageFile(
+                    page=mock_page_with_id,
+                    id=1,
+                    name="cached.txt",
+                    url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+                    mime_type="text/plain",
+                    size=10,
+                )
+            ],
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = page_delete_success
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        mock_page_with_id.destroy()
+
+        assert mock_page_with_id._source is None
+        assert mock_page_with_id._revisions is None
+        assert mock_page_with_id._votes is None
+        assert mock_page_with_id._metas is None
+        assert mock_page_with_id._discussion is None
+        assert mock_page_with_id._discussion_checked is False
+        assert mock_page_with_id._files is None
+
     def test_destroy_not_logged_in(self, mock_page_with_id: Page) -> None:
         """ログインしていない場合に例外"""
         mock_page_with_id.site.client.is_logged_in = False
