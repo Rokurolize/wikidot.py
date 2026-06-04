@@ -1466,7 +1466,9 @@ class Page:
             if revision.rev_no == self.revisions_count:
                 return revision
 
-        raise exceptions.NotFoundException("Cannot find latest revision")
+        raise exceptions.NotFoundException(
+            f"Cannot find latest revision: {self.fullname} (rev_no={self.revisions_count})"
+        )
 
     @property
     def votes(self) -> PageVoteCollection:

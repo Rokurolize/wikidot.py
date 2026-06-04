@@ -1365,8 +1365,8 @@ class TestPageProperties:
         latest = mock_page_with_id.latest_revision
         assert latest.rev_no == 3
 
-    def test_latest_revision_not_found(self, mock_page_with_id: Page) -> None:
-        """最新リビジョンが見つからない場合に例外"""
+    def test_latest_revision_includes_page_context_when_not_found(self, mock_page_with_id: Page) -> None:
+        """最新リビジョンが見つからない場合は対象ページ名と期待rev_noを含めて失敗する"""
         from wikidot.module.page import PageRevision, PageRevisionCollection
 
         # revisions_countと一致しないrev_noのリビジョンを設定
@@ -1385,7 +1385,7 @@ class TestPageProperties:
             ],
         )
 
-        with pytest.raises(exceptions.NotFoundException):
+        with pytest.raises(exceptions.NotFoundException, match="Cannot find latest revision: test-page \\(rev_no=5\\)"):
             _ = mock_page_with_id.latest_revision
 
     def test_discussion_retries_transient_fetch_failures(
