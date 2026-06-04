@@ -22,6 +22,26 @@ if TYPE_CHECKING:
     from .user import AbstractUser
 
 
+def _site_name(site: object) -> str:
+    site_unix_name = getattr(site, "unix_name", None)
+    return site_unix_name if isinstance(site_unix_name, str) else str(site)
+
+
+def _post_list_parse_context(
+    thread: "ForumThread",
+    page: int | None,
+    post_index: int,
+    post_id: int | None = None,
+) -> str:
+    context = [f"thread={thread.id}"]
+    if page is not None:
+        context.append(f"page={page}")
+    context.append(f"post={post_index}")
+    if post_id is not None:
+        context.append(f"post_id={post_id}")
+    return f"for site: {_site_name(thread.site)} ({', '.join(context)})"
+
+
 class ForumPostCollection(list["ForumPost"]):
     """
     Class representing a collection of forum posts
@@ -140,7 +160,7 @@ class ForumPostCollection(list["ForumPost"]):
         return False
 
     @staticmethod
-    def _parse(thread: "ForumThread", html: BeautifulSoup) -> list["ForumPost"]:
+    def _parse(thread: "ForumThread", html: BeautifulSoup, page: int | None = None) -> list["ForumPost"]:
         """
         Parse post list from HTML
 
@@ -150,6 +170,8 @@ class ForumPostCollection(list["ForumPost"]):
             The thread the posts belong to
         html : BeautifulSoup
             HTML to parse
+        page : int | None, default None
+            Post-list page number when available
 
         Returns
         -------
@@ -165,14 +187,18 @@ class ForumPostCollection(list["ForumPost"]):
         # Wikidot forum posts are direct children of post containers; content can contain post-like markup.
         post_elements = html.select("div.post-container > div.post[id^='post-']")
 
+        post_index = 0
         for post_elem in post_elements:
             if ForumPostCollection._is_inside_post_content(post_elem):
                 continue
 
+            post_index += 1
+            parse_context = _post_list_parse_context(thread, page, post_index)
             post_id_attr = post_elem.get("id")
             if post_id_attr is None:
-                raise NoElementException("Post ID attribute is not found.")
+                raise NoElementException(f"Post ID attribute is not found {parse_context}")
             post_id = int(str(post_id_attr).removeprefix("post-"))
+            parse_context = _post_list_parse_context(thread, page, post_index, post_id)
 
             # 親Post IDの取得
             parent_id: int | None = None
@@ -192,35 +218,35 @@ class ForumPostCollection(list["ForumPost"]):
             # Use :scope > to get direct children only (avoid matching nested pseudo-posts)
             wrapper = post_elem.select_one(":scope > div.long")
             if wrapper is None:
-                raise NoElementException("Post wrapper element is not found.")
+                raise NoElementException(f"Post wrapper element is not found {parse_context}")
 
             head = wrapper.select_one(":scope > div.head")
             if head is None:
-                raise NoElementException("Post head element is not found.")
+                raise NoElementException(f"Post head element is not found {parse_context}")
 
             title_elem = head.select_one(":scope > div.title")
             if title_elem is None:
-                raise NoElementException("Post title element is not found.")
+                raise NoElementException(f"Post title element is not found {parse_context}")
             title = title_elem.get_text(" ", strip=True)
 
             content_elem = wrapper.select_one(":scope > div.content")
             if content_elem is None:
-                raise NoElementException("Post content element is not found.")
+                raise NoElementException(f"Post content element is not found {parse_context}")
             text = str(content_elem)
 
             # 投稿者と日時
             info_elem = head.select_one(":scope > div.info")
             if info_elem is None:
-                raise NoElementException("Post info element is not found.")
+                raise NoElementException(f"Post info element is not found {parse_context}")
 
             user_elem = info_elem.select_one(":scope > span.printuser")
             if user_elem is None:
-                raise NoElementException("Post user element is not found.")
+                raise NoElementException(f"Post user element is not found {parse_context}")
             created_by = user_parser(thread.site.client, user_elem)
 
             odate_elem = info_elem.select_one(":scope > span.odate")
             if odate_elem is None:
-                raise NoElementException("Post odate element is not found.")
+                raise NoElementException(f"Post odate element is not found {parse_context}")
             created_at = odate_parser(odate_elem)
 
             # 編集情報（存在する場合）
@@ -349,7 +375,7 @@ class ForumPostCollection(list["ForumPost"]):
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
 
-            posts = ForumPostCollection._parse(thread, html)
+            posts = ForumPostCollection._parse(thread, html, page=1)
             result[thread.id] = ForumPostCollection(thread=thread, posts=posts)
 
             # Check pagination
@@ -383,7 +409,7 @@ class ForumPostCollection(list["ForumPost"]):
                     raise UnexpectedException(f"Cannot retrieve forum posts for thread {thread.id} page: {page}")
                 body = response.json()["body"]
                 html = BeautifulSoup(body, "lxml")
-                posts = ForumPostCollection._parse(thread, html)
+                posts = ForumPostCollection._parse(thread, html, page=page)
                 result[thread.id].extend(posts)
 
         return result

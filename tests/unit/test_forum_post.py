@@ -269,6 +269,31 @@ class TestForumPostCollectionAcquireAll:
         assert collection[0].title == "First part Second part"
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_missing_post_title_includes_thread_page_and_post_context(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """投稿一覧の構造欠損はサイト・スレッド・ページ・投稿位置を含めて失敗する"""
+        body = forum_posts_in_thread["body"].replace(
+            '<div class="title" id="post-title-5001">Test Post Title</div>',
+            "",
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_posts_in_thread, "body": body}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Post title element is not found for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5001\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_ignores_content_pager_markup(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
