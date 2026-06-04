@@ -359,5 +359,6 @@ class ForumCategory:
 
         thread_id: int = response["threadId"]
         _require_forum_category_action_status(self, "newThread", response)
+        self._threads = None
 
         return ForumThread.get_from_id(self.site, thread_id, self)

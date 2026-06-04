@@ -10,6 +10,7 @@ import pytest
 from wikidot.common import exceptions
 from wikidot.common.exceptions import UnexpectedException
 from wikidot.module.forum_category import ForumCategory, ForumCategoryCollection
+from wikidot.module.forum_thread import ForumThread, ForumThreadCollection
 
 if TYPE_CHECKING:
     from wikidot.module.site import Site
@@ -362,6 +363,34 @@ class TestForumCategoryCreateThread:
 
         assert thread.id == 3001
         assert thread.category == mock_forum_category_no_http
+
+    def test_create_thread_success_invalidates_cached_threads(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        forum_newthread_success: dict[str, Any],
+        forum_thread_detail: dict[str, Any],
+    ) -> None:
+        """スレッド作成成功後は古いthreads一覧キャッシュを使い回さない"""
+        mock_forum_category_no_http.site.client.is_logged_in = True
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+
+        create_response = MagicMock()
+        create_response.json.return_value = forum_newthread_success
+        detail_response = MagicMock()
+        detail_response.json.return_value = forum_thread_detail
+        mock_forum_category_no_http.site.amc_request = MagicMock(side_effect=[[create_response], [detail_response]])
+
+        thread = mock_forum_category_no_http.create_thread(
+            title="Test Thread",
+            description="Test description",
+            source="Test content",
+        )
+
+        assert thread.id == 3001
+        assert mock_forum_category_no_http._threads is None
 
     @pytest.mark.parametrize("response_body", [{}, {"threadId": "3001"}])
     def test_create_thread_missing_or_invalid_thread_id_raises(
