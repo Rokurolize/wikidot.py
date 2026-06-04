@@ -2955,12 +2955,41 @@ class TestPageEdit:
         mock_page_with_id._revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
         edited_page = MagicMock()
         edited_page.title = "Updated Title"
+        edited_page.revisions_count = mock_page_with_id.revisions_count
 
         with patch.object(Page, "create_or_edit", return_value=edited_page):
             page = mock_page_with_id.edit(title="Updated Title", source="Updated source")
 
         assert page is edited_page
         assert mock_page_with_id._revisions is None
+
+    def test_edit_updates_local_revisions_count_from_result(self, mock_page_with_id: Page) -> None:
+        """編集結果が新しいrevision件数を返す場合は呼び出し元にも反映する"""
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.revisions_count = 2
+        edited_page = MagicMock()
+        edited_page.title = "Updated Title"
+        edited_page.revisions_count = 3
+
+        with patch.object(Page, "create_or_edit", return_value=edited_page):
+            page = mock_page_with_id.edit(title="Updated Title", source="Updated source")
+
+        assert page is edited_page
+        assert mock_page_with_id.revisions_count == 3
+
+    def test_edit_keeps_local_revisions_count_when_result_is_stale(self, mock_page_with_id: Page) -> None:
+        """編集結果の検索が古い場合は既知のrevision件数を巻き戻さない"""
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.revisions_count = 5
+        edited_page = MagicMock()
+        edited_page.title = "Updated Title"
+        edited_page.revisions_count = 1
+
+        with patch.object(Page, "create_or_edit", return_value=edited_page):
+            page = mock_page_with_id.edit(title="Updated Title", source="Updated source")
+
+        assert page is edited_page
+        assert mock_page_with_id.revisions_count == 5
 
     def test_edit_allows_empty_source(
         self,

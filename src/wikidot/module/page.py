@@ -2202,6 +2202,8 @@ class Page:
             force_edit,
         )
         self.title = page.title
+        if page.revisions_count > self.revisions_count:
+            self.revisions_count = page.revisions_count
         self._revisions = None
         self.source = PageSource(self, source)
         return page
