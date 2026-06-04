@@ -837,7 +837,8 @@ class PageCollection(list["Page"]):
                 if source_error is None:
                     first_page = target_pages_for_id[0]
                     source_error = exceptions.NoElementException(
-                        f"Cannot find source element for page: {first_page.fullname} (id={first_page.id})"
+                        f"Cannot find source element for site: {site.unix_name}, page: {first_page.fullname} "
+                        f"(id={first_page.id})"
                     )
                 continue
             source = extract_page_source_text(source_element)

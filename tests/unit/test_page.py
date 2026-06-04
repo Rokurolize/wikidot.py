@@ -744,7 +744,10 @@ class TestPageCollectionAcquire:
             )
         )
 
-        with pytest.raises(exceptions.NoElementException, match="malformed-page"):
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Cannot find source element for site: test-site, page: malformed-page \(id=222\)",
+        ):
             collection.get_page_sources()
 
         mock_site_no_http.amc_request.assert_not_called()
