@@ -287,6 +287,25 @@ class TestSiteApplicationAcquireAll:
 
         site.amc_request.assert_not_called()
 
+    def test_acquire_all_missing_response_body_includes_site_context(self):
+        """申請リスト応答のbody欠落時はサイト名付きで失敗する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+        site.unix_name = "test-site"
+
+        response = MagicMock()
+        response.json.return_value = {}
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            NoElementException,
+            match="Site application list response body is not found for site: test-site",
+        ):
+            SiteApplication.acquire_all(site)
+
+        site.amc_request.assert_not_called()
+
     def test_acquire_all_forbidden(self):
         """権限がない場合ForbiddenException"""
         mock_client = create_mock_client(is_logged_in=True)

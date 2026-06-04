@@ -6,7 +6,7 @@ It enables operations such as retrieving, accepting, and declining applications.
 """
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup, Tag
 
@@ -100,7 +100,7 @@ class SiteApplication:
         if response is None:
             raise exceptions.UnexpectedException(f"Cannot retrieve site applications for site: {_site_name(site)}")
 
-        body = response.json()["body"]
+        body = SiteApplication._application_list_response_body(response, site)
 
         if "WIKIDOT.page.listeners.loginClick(event)" in body:
             raise exceptions.ForbiddenException("You are not allowed to access this page")
@@ -152,6 +152,15 @@ class SiteApplication:
             applications.append(SiteApplication(site, user, text))
 
         return applications
+
+    @staticmethod
+    def _application_list_response_body(response: Any, site: "Site") -> str:
+        body = response.json().get("body")
+        if body is None:
+            raise exceptions.NoElementException(
+                f"Site application list response body is not found for site: {_site_name(site)}"
+            )
+        return body
 
     @login_required
     def _process(self, action: str) -> None:
