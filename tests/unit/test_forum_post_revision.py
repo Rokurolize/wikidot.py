@@ -208,11 +208,14 @@ class TestForumPostRevisionCollectionAcquireAll:
         )
 
     def test_acquire_all_raises_when_retry_is_exhausted(self, mock_forum_post_no_http: ForumPost) -> None:
-        """リビジョン一覧取得のretryを使い切った場合はpost ID付きで失敗する"""
+        """リビジョン一覧取得のretryを使い切った場合はsite/post付きで失敗する"""
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
         mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve forum post revisions for post: 5001"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve forum post revisions for site: test-site, post: 5001",
+        ):
             ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
 
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
@@ -446,14 +449,17 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
     def test_acquire_all_for_posts_raises_when_retry_is_exhausted(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
-        """複数postのリビジョン一覧取得のretryを使い切った場合はpost ID付きで失敗する"""
+        """複数postのリビジョン一覧取得のretryを使い切った場合はsite/post付きで失敗する"""
         post2 = self._post_with_id(mock_forum_post_no_http, 5002)
         response1 = MagicMock()
         response1.json.return_value = forum_post_revisions
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
         mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(response1, None))
 
-        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve forum post revisions for post: 5002"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve forum post revisions for site: test-site, post: 5002",
+        ):
             ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, post2])
 
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()

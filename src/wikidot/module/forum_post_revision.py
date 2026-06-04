@@ -210,7 +210,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             ]
         )[0]
         if response is None:
-            raise exceptions.UnexpectedException(f"Cannot retrieve forum post revisions for post: {post.id}")
+            raise exceptions.UnexpectedException(
+                f"Cannot retrieve forum post revisions for site: {post.thread.site.unix_name}, post: {post.id}"
+            )
 
         body = response.json()["body"]
         html = BeautifulSoup(body, "lxml")
@@ -287,7 +289,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
 
             for post, response in zip(target_posts, responses, strict=True):
                 if response is None:
-                    raise exceptions.UnexpectedException(f"Cannot retrieve forum post revisions for post: {post.id}")
+                    raise exceptions.UnexpectedException(
+                        f"Cannot retrieve forum post revisions for site: {site.unix_name}, post: {post.id}"
+                    )
                 body = response.json()["body"]
                 html = BeautifulSoup(body, "lxml")
                 revisions = ForumPostRevisionCollection._parse(post, html)
