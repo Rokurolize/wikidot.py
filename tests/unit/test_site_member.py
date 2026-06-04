@@ -588,6 +588,39 @@ class TestSiteMemberChangeGroup:
         call_args = site.amc_request.call_args[0][0][0]
         assert call_args["event"] == "removeAdmin"
 
+    @pytest.mark.parametrize(
+        ("method_name", "cleared_cache", "preserved_cache"),
+        [
+            ("to_moderator", "_moderators", "_admins"),
+            ("remove_moderator", "_moderators", "_admins"),
+            ("to_admin", "_admins", "_moderators"),
+            ("remove_admin", "_admins", "_moderators"),
+        ],
+    )
+    def test_change_group_success_invalidates_affected_role_cache(
+        self, method_name: str, cleared_cache: str, preserved_cache: str
+    ):
+        """権限変更成功後は対象ロールのメンバー一覧キャッシュを再取得させる"""
+        site = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
+        cached_members = [object()]
+        cached_moderators = [object()]
+        cached_admins = [object()]
+        site._members = cached_members
+        site._moderators = cached_moderators
+        site._admins = cached_admins
+        user = MagicMock()
+        user.id = 12345
+        member = SiteMember(site=site, user=user, joined_at=None)
+
+        getattr(member, method_name)()
+
+        assert getattr(site, cleared_cache) is None
+        assert getattr(site, preserved_cache) is (cached_admins if preserved_cache == "_admins" else cached_moderators)
+        assert site._members is cached_members
+
     def test_change_group_already_moderator_error(self):
         """既にモデレーターの場合のエラー"""
         site = MagicMock()
@@ -649,6 +682,10 @@ class TestSiteMemberChangeGroup:
         """権限変更応答のstatus欠落は文脈付きNoElementException"""
         site = MagicMock()
         site.unix_name = "test-site"
+        cached_moderators = [object()]
+        cached_admins = [object()]
+        site._moderators = cached_moderators
+        site._admins = cached_admins
         mock_response = MagicMock()
         mock_response.json.return_value = {}
         site.amc_request.return_value = (mock_response,)
@@ -667,6 +704,8 @@ class TestSiteMemberChangeGroup:
             member.to_moderator()
 
         assert mock_response.json.call_count == 1
+        assert site._moderators is cached_moderators
+        assert site._admins is cached_admins
 
     def test_change_group_not_logged_in_raises_before_request(self):
         """未ログイン時は権限変更リクエストを送らない"""

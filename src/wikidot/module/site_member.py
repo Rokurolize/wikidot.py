@@ -286,6 +286,10 @@ class SiteMember:
                 ]
             )[0]
             _require_site_member_action_status(self, event, response.json())
+            if event in ("toModerators", "removeModerator"):
+                self.site._moderators = None
+            else:
+                self.site._admins = None
         except WikidotStatusCodeException as e:
             if e.status_code == "not_already":
                 raise TargetErrorException(f"User is not moderator/admin: {self.user.name}") from e
