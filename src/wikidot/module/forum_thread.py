@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -424,7 +424,7 @@ class ForumThreadCollection(list["ForumThread"]):
                 f"Cannot retrieve forum threads for site: {category.site.unix_name}, category: {category.id}, page: 1"
             )
 
-        first_body = first_response.json()["body"]
+        first_body = ForumThreadCollection._thread_list_response_body(first_response, category, 1)
         first_html = BeautifulSoup(first_body, "lxml")
 
         threads.extend(ForumThreadCollection._parse_list_in_category(category.site, first_html, category, page=1))
@@ -460,11 +460,21 @@ class ForumThreadCollection(list["ForumThread"]):
                 raise UnexpectedException(
                     f"Cannot retrieve forum threads for site: {category.site.unix_name}, category: {category.id}, page: {page}"
                 )
-            body = response.json()["body"]
+            body = ForumThreadCollection._thread_list_response_body(response, category, page)
             html = BeautifulSoup(body, "lxml")
             threads.extend(ForumThreadCollection._parse_list_in_category(category.site, html, category, page=page))
 
         return ForumThreadCollection(site=category.site, threads=threads)
+
+    @staticmethod
+    def _thread_list_response_body(response: Any, category: "ForumCategory", page: int) -> str:
+        body = response.json().get("body")
+        if body is None:
+            raise NoElementException(
+                "Forum thread list response body is not found "
+                f"for site: {category.site.unix_name}, category: {category.id}, page: {page}"
+            )
+        return body
 
     @staticmethod
     def acquire_from_thread_ids(
@@ -510,7 +520,7 @@ class ForumThreadCollection(list["ForumThread"]):
                 raise UnexpectedException(
                     f"Cannot retrieve forum thread for site: {_site_name(site)}, thread: {thread_id}"
                 )
-            body = response.json()["body"]
+            body = ForumThreadCollection._thread_detail_response_body(response, site, thread_id)
             html = BeautifulSoup(body, "lxml")
 
             thread = ForumThreadCollection._parse_thread_page(site, html, category, thread_id=thread_id)
@@ -524,6 +534,15 @@ class ForumThreadCollection(list["ForumThread"]):
         threads = [threads_by_id[thread_id] for thread_id in thread_ids]
 
         return ForumThreadCollection(site=site, threads=threads)
+
+    @staticmethod
+    def _thread_detail_response_body(response: Any, site: "Site", thread_id: int) -> str:
+        body = response.json().get("body")
+        if body is None:
+            raise NoElementException(
+                f"Forum thread detail response body is not found for site: {_site_name(site)}, thread: {thread_id}"
+            )
+        return body
 
 
 @dataclass
