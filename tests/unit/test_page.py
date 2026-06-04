@@ -1406,6 +1406,26 @@ class TestPageCollectionAcquire:
         assert mock_page_with_id._files is not None
         assert second_page._files is None
 
+    def test_acquire_files_missing_response_body_includes_site_page_context(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        """file応答にbodyがない場合はsite/page/id文脈付きで失敗する"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response({"status": "ok"}),))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                rf"Page file response body is not found for site: test-site, "
+                rf"page: test-page \(id={mock_page_with_id.id}\)"
+            ),
+        ):
+            collection.get_page_files()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._files is None
+
     def test_acquire_files_deduplicates_duplicate_page_ids(
         self, mock_site_no_http: Site, mock_page_with_id: Page
     ) -> None:

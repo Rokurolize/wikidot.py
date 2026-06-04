@@ -1218,7 +1218,13 @@ class PageCollection(list["Page"]):
         for page_id, response in zip(target_pages_by_id, responses, strict=True):
             if response is None:
                 continue
-            body = response.json()["body"]
+            body = response.json().get("body")
+            if body is None:
+                first_page = target_pages_by_id[page_id][0]
+                raise exceptions.NoElementException(
+                    f"Page file response body is not found for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} (id={first_page.id})"
+                )
             html = BeautifulSoup(body, "lxml")
             file_fields = PageFileCollection._parse_file_fields_from_html(site.url, html)
             for page in target_pages_by_id[page_id]:
