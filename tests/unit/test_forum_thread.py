@@ -596,7 +596,7 @@ class TestForumThreadPosts:
 
         with pytest.raises(
             exceptions.UnexpectedException,
-            match="Cannot retrieve forum posts for thread 3001 page: 1",
+            match="Cannot retrieve forum posts for site: test-site, thread: 3001, page: 1",
         ):
             _ = mock_forum_thread_no_http.posts
 

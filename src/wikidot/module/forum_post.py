@@ -371,7 +371,9 @@ class ForumPostCollection(list["ForumPost"]):
 
         for thread, response in zip(target_threads, first_page_responses, strict=True):
             if response is None:
-                raise UnexpectedException(f"Cannot retrieve forum posts for thread {thread.id} page: 1")
+                raise UnexpectedException(
+                    f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread.id}, page: 1"
+                )
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
 
@@ -406,7 +408,9 @@ class ForumPostCollection(list["ForumPost"]):
 
             for (thread, page), response in zip(additional_requests, additional_responses, strict=True):
                 if response is None:
-                    raise UnexpectedException(f"Cannot retrieve forum posts for thread {thread.id} page: {page}")
+                    raise UnexpectedException(
+                        f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread.id}, page: {page}"
+                    )
                 body = response.json()["body"]
                 html = BeautifulSoup(body, "lxml")
                 posts = ForumPostCollection._parse(thread, html, page=page)

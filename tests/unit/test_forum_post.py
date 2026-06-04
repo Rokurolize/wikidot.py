@@ -525,7 +525,7 @@ class TestForumPostCollectionAcquireAll:
 
         with pytest.raises(
             exceptions.UnexpectedException,
-            match="Cannot retrieve forum posts for thread 3001 page: 1",
+            match="Cannot retrieve forum posts for site: test-site, thread: 3001, page: 1",
         ):
             ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
 
@@ -547,7 +547,7 @@ class TestForumPostCollectionAcquireAll:
 
         with pytest.raises(
             exceptions.UnexpectedException,
-            match="Cannot retrieve forum posts for thread 3001 page: 2",
+            match="Cannot retrieve forum posts for site: test-site, thread: 3001, page: 2",
         ):
             ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
 
