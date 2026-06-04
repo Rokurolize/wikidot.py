@@ -2090,6 +2090,25 @@ class TestPageWriteMethods:
         new_rating = mock_page_with_id.vote(-1)
         assert new_rating == 9
 
+    def test_vote_missing_points_includes_site_page_event_and_field_context(self, mock_page_with_id: Page) -> None:
+        """投票応答のpoints欠落はsite/page/event/field文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "type": "P"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page rating response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=ratePage, field=points\)"
+            ),
+        ):
+            mock_page_with_id.vote(1)
+
+        assert mock_page_with_id.rating == 10
+
     def test_vote_invalid_value_raises(self, mock_page_with_id: Page) -> None:
         """1/-1以外の投票値は送信前に拒否する"""
         mock_page_with_id.site.amc_request = MagicMock()
@@ -2119,6 +2138,27 @@ class TestPageWriteMethods:
 
         new_rating = mock_page_with_id.cancel_vote()
         assert new_rating == 10
+        assert mock_page_with_id.rating == 10
+
+    def test_cancel_vote_malformed_points_includes_site_page_event_field_and_value_context(
+        self, mock_page_with_id: Page
+    ) -> None:
+        """投票取消応答のpoints値が壊れている場合は文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "type": "P", "points": "not-a-number"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page rating response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=cancelVote, field=points, value=not-a-number\)"
+            ),
+        ):
+            mock_page_with_id.cancel_vote()
+
         assert mock_page_with_id.rating == 10
 
     def test_metas_getter_parses_decoded_flexible_markup(self, mock_page_with_id: Page) -> None:

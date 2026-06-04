@@ -150,6 +150,25 @@ def _require_page_save_status(site: "Site", fullname: str, data: dict[str, Any])
         ) from exc
 
 
+def _parse_page_rating_points(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> int:
+    try:
+        value = data["points"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=points)"
+        ) from exc
+
+    value_text = str(value).strip()
+    try:
+        return int(value_text)
+    except (TypeError, ValueError) as exc:
+        raise exceptions.NoElementException(
+            f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=points, value={value_text})"
+        ) from exc
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -2291,7 +2310,7 @@ class Page:
                 }
             ]
         )[0]
-        new_rating = int(response.json()["points"])
+        new_rating = _parse_page_rating_points(self.site, self, "ratePage", response.json())
         self.rating = new_rating
         return new_rating
 
@@ -2324,6 +2343,6 @@ class Page:
                 }
             ]
         )[0]
-        new_rating = int(response.json()["points"])
+        new_rating = _parse_page_rating_points(self.site, self, "cancelVote", response.json())
         self.rating = new_rating
         return new_rating
