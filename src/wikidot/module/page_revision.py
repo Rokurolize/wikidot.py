@@ -364,7 +364,8 @@ class PageRevision:
             PageRevisionCollection(self.page, [self]).get_sources()
         if self._source is None:
             raise UnexpectedException(
-                f"Cannot retrieve page revision source for page: {self.page.fullname}, revision: {self.id}"
+                f"Cannot retrieve page revision source for site: {self.page.site.unix_name}, "
+                f"page: {self.page.fullname}, revision: {self.id}"
             )
         return self._source
 
@@ -396,7 +397,8 @@ class PageRevision:
             PageRevisionCollection(self.page, [self]).get_htmls()
         if self._html is None:
             raise UnexpectedException(
-                f"Cannot retrieve page revision HTML for page: {self.page.fullname}, revision: {self.id}"
+                f"Cannot retrieve page revision HTML for site: {self.page.site.unix_name}, "
+                f"page: {self.page.fullname}, revision: {self.id}"
             )
         return self._html
 

@@ -401,12 +401,13 @@ class TestPageRevision:
 
     def test_source_property_raises_when_retry_is_exhausted(self, mock_page, sample_revision):
         """sourceプロパティは再試行失敗をNoneとして返さない"""
+        mock_page.site.unix_name = "test-site"
         mock_page.fullname = "test-page"
         mock_page.site.amc_request_with_retry.return_value = (None,)
 
         with pytest.raises(
             UnexpectedException,
-            match="Cannot retrieve page revision source for page: test-page, revision: 100",
+            match="Cannot retrieve page revision source for site: test-site, page: test-page, revision: 100",
         ):
             _ = sample_revision.source
 
@@ -446,12 +447,13 @@ class TestPageRevision:
 
     def test_html_property_raises_when_retry_is_exhausted(self, mock_page, sample_revision):
         """htmlプロパティは再試行失敗をNoneとして返さない"""
+        mock_page.site.unix_name = "test-site"
         mock_page.fullname = "test-page"
         mock_page.site.amc_request_with_retry.return_value = (None,)
 
         with pytest.raises(
             UnexpectedException,
-            match="Cannot retrieve page revision HTML for page: test-page, revision: 100",
+            match="Cannot retrieve page revision HTML for site: test-site, page: test-page, revision: 100",
         ):
             _ = sample_revision.html
 
