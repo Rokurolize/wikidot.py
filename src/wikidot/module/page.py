@@ -838,7 +838,15 @@ class PageCollection(list["Page"]):
             if response is None:
                 continue
             target_pages_for_id = target_pages_by_id[page_id]
-            body = response.json()["body"]
+            body = response.json().get("body")
+            if body is None:
+                if source_error is None:
+                    first_page = target_pages_for_id[0]
+                    source_error = exceptions.NoElementException(
+                        f"Page source response body is not found for site: {site.unix_name}, "
+                        f"page: {first_page.fullname} (id={first_page.id})"
+                    )
+                continue
             # nbspをスペースに置換
             body = body.replace("&nbsp;", " ")
             html = BeautifulSoup(body, "lxml")
