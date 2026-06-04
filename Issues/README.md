@@ -261,6 +261,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [255-pr-site-member-change-group-action-status-context.md](255-pr-site-member-change-group-action-status-context.md): upstream PR draft for the committed site member permission-change action status context fix.
 - [256-pr-site-application-process-action-status-context.md](256-pr-site-application-process-action-status-context.md): upstream PR draft for the committed site application accept/decline action status context fix.
 - [257-pr-publish-source-verification-status.md](257-pr-publish-source-verification-status.md): upstream PR draft for the committed publish source verification status ledger improvement.
+- [258-pr-publish-metadata-update-count.md](258-pr-publish-metadata-update-count.md): upstream PR draft for the committed publish metadata update count ledger improvement.
 
 ## Local Evidence Index
 
@@ -429,5 +430,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 159: `f31b977 fix(site_member): guard change group action status`
 - Local implementation commits, continued 160: `08432b6 fix(site_application): guard process action status`
 - Local implementation commits, continued 161: `d049e9d feat(site): expose publish source verification status`
+- Local implementation commits, continued 162: `deae40c feat(site): expose publish metadata update count`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
