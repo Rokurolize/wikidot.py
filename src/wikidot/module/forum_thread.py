@@ -728,6 +728,9 @@ class ForumThread:
         # キャッシュをクリアして次回アクセス時に再取得
         self._posts = None
         self.post_count += 1
+        if self.category is not None:
+            self.category.posts_count += 1
+            self.category._threads = None
         return self
 
     @staticmethod
