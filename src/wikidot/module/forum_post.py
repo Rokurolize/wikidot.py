@@ -805,5 +805,6 @@ class ForumPost:
             self.title = title
         self._source = source
         self._revisions = None
+        self.thread._posts = None
 
         return self

@@ -1045,6 +1045,43 @@ class TestForumPostEdit:
         assert mock_forum_post_no_http._source == "Updated source"
         assert mock_forum_post_no_http._revisions is None
 
+    def test_edit_success_invalidates_thread_posts_cache(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+        amc_ok_response: dict[str, Any],
+    ) -> None:
+        """編集成功後はスレッド側の投稿一覧キャッシュも再取得させる"""
+        cached_post = ForumPost(
+            thread=mock_forum_post_no_http.thread,
+            id=mock_forum_post_no_http.id,
+            title="Cached title",
+            text="Cached text",
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=mock_forum_post_no_http.edited_by,
+            edited_at=mock_forum_post_no_http.edited_at,
+            _parent_id=mock_forum_post_no_http._parent_id,
+            _source="cached source",
+        )
+        mock_forum_post_no_http.thread._posts = ForumPostCollection(mock_forum_post_no_http.thread, [cached_post])
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+
+        form_response = MagicMock()
+        form_response.json.return_value = forum_editpost_form
+        save_response = MagicMock()
+        save_response.json.return_value = amc_ok_response
+
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[save_response])
+
+        result = mock_forum_post_no_http.edit(source="Updated source", title="Updated title")
+
+        assert result == mock_forum_post_no_http
+        assert mock_forum_post_no_http.thread._posts is None
+
     def test_edit_scopes_current_revision_id_to_edit_form_direct_child(
         self,
         mock_forum_post_no_http: ForumPost,
@@ -1240,6 +1277,8 @@ class TestForumPostEdit:
         mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
         mock_forum_post_no_http.title = "Original Title"
         mock_forum_post_no_http._source = "Original source"
+        cached_posts = ForumPostCollection(mock_forum_post_no_http.thread, [mock_forum_post_no_http])
+        mock_forum_post_no_http.thread._posts = cached_posts
 
         form_response = MagicMock()
         form_response.json.return_value = forum_editpost_form
@@ -1260,6 +1299,7 @@ class TestForumPostEdit:
 
         assert mock_forum_post_no_http.title == "Original Title"
         assert mock_forum_post_no_http._source == "Original source"
+        assert mock_forum_post_no_http.thread._posts is cached_posts
 
     def test_edit_with_new_title(
         self,
