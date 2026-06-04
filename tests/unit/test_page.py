@@ -1341,6 +1341,20 @@ class TestPageProperties:
         )
         assert mock_page_with_id._revisions is None
 
+    def test_votes_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """投票取得リトライが尽きた場合は対象ページ名を含めて失敗する"""
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.NotFoundException, match="Cannot find page votes: test-page"):
+            _ = mock_page_with_id.votes
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": 12345}]
+        )
+        assert mock_page_with_id._votes is None
+
     def test_latest_revision(self, mock_page_with_id: Page, page_revisionlist: dict[str, Any]) -> None:
         """最新リビジョンを取得できる"""
         mock_response = MagicMock()

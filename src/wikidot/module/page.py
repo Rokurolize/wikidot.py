@@ -1489,7 +1489,7 @@ class Page:
             PageCollection(self.site, [self]).get_page_votes()
 
         if self._votes is None:
-            raise exceptions.NotFoundException("Cannot find page votes")
+            raise exceptions.NotFoundException(f"Cannot find page votes: {self.fullname}")
 
         return self._votes
 
