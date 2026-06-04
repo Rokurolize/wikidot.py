@@ -38,6 +38,31 @@ def _application_parse_context(
     return f"for site: {_site_name(site)} ({', '.join(context)})"
 
 
+def _require_site_application_action_status(
+    application: "SiteApplication",
+    event: str,
+    action: str,
+    data: dict[str, Any],
+) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Site application action response is malformed for site: {_site_name(application.site)}, "
+            f"user: {application.user.name} "
+            f"(id={application.user.id}, event={event}, type={action}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            "Failed to complete site application action for "
+            f"site: {_site_name(application.site)}, user: {application.user.name}, "
+            f"event: {event}, type: {action}",
+            status,
+        )
+    return status
+
+
 @dataclass
 class SiteApplication:
     """
@@ -189,20 +214,22 @@ class SiteApplication:
             raise ValueError(f"Invalid action: {action}")
 
         status_text = {"accept": "accepted", "decline": "declined"}[action]
+        event = "acceptApplication"
 
         try:
-            self.site.amc_request(
+            response = self.site.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
-                        "event": "acceptApplication",
+                        "event": event,
                         "user_id": self.user.id,
                         "text": f"your application has been {status_text}",
                         "type": action,
                         "moduleName": "Empty",
                     }
                 ]
-            )
+            )[0]
+            _require_site_application_action_status(self, event, action, response.json())
         except exceptions.WikidotStatusCodeException as e:
             if e.status_code == "no_application":
                 raise exceptions.NotFoundException(f"Application not found: {self.user}") from e

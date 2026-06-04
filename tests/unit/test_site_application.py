@@ -399,6 +399,9 @@ class TestSiteApplicationProcess:
         mock_client = create_mock_client(is_logged_in=True)
         site = MagicMock()
         site.client = mock_client
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
         user = MagicMock()
         user.id = 12345
 
@@ -409,12 +412,16 @@ class TestSiteApplicationProcess:
         assert call_args["action"] == "ManageSiteMembershipAction"
         assert call_args["type"] == "accept"
         assert call_args["user_id"] == 12345
+        assert mock_response.json.call_count == 1
 
     def test_decline_success(self):
         """拒否成功"""
         mock_client = create_mock_client(is_logged_in=True)
         site = MagicMock()
         site.client = mock_client
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
         user = MagicMock()
         user.id = 12345
 
@@ -424,6 +431,53 @@ class TestSiteApplicationProcess:
         call_args = site.amc_request.call_args[0][0][0]
         assert call_args["type"] == "decline"
         assert call_args["text"] == "your application has been declined"
+        assert mock_response.json.call_count == 1
+
+    def test_accept_missing_action_status_includes_site_user_event_type_and_field_context(self):
+        """申請承認応答のstatus欠落は文脈付きNoElementException"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+        site.unix_name = "test-site"
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        site.amc_request.return_value = (mock_response,)
+        user = MagicMock()
+        user.id = 12345
+        user.name = "TestUser"
+
+        app = SiteApplication(site=site, user=user, text="")
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site application action response is malformed for site: test-site, user: TestUser "
+                r"\(id=12345, event=acceptApplication, type=accept, field=status\)"
+            ),
+        ):
+            app.accept()
+
+        assert mock_response.json.call_count == 1
+
+    def test_accept_explicit_non_ok_action_status_raises_status_exception(self):
+        """申請承認応答の非ok statusは成功扱いしない"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+        site.unix_name = "test-site"
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "other_error"}
+        site.amc_request.return_value = (mock_response,)
+        user = MagicMock()
+        user.id = 12345
+        user.name = "TestUser"
+
+        app = SiteApplication(site=site, user=user, text="")
+
+        with pytest.raises(WikidotStatusCodeException) as exc_info:
+            app.accept()
+
+        assert exc_info.value.status_code == "other_error"
 
     def test_process_invalid_action(self):
         """無効なアクションでValueError"""
