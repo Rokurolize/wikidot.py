@@ -272,6 +272,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [266-pr-page-rename-file-cache-invalidation.md](266-pr-page-rename-file-cache-invalidation.md): upstream PR draft for the committed Page.rename file-cache invalidation fix.
 - [267-pr-page-destroy-cache-invalidation.md](267-pr-page-destroy-cache-invalidation.md): upstream PR draft for the committed Page.destroy cache invalidation fix.
 - [268-pr-forum-thread-reply-category-cache-sync.md](268-pr-forum-thread-reply-category-cache-sync.md): upstream PR draft for the committed ForumThread.reply category cache sync fix.
+- [269-pr-forum-post-edit-thread-cache-invalidation.md](269-pr-forum-post-edit-thread-cache-invalidation.md): upstream PR draft for the committed ForumPost.edit thread post-cache invalidation fix.
 
 ## Local Evidence Index
 
@@ -451,5 +452,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 170: `9460adf fix(page): invalidate file cache after rename`
 - Local implementation commits, continued 171: `9c2fe8e fix(page): clear caches after destroy`
 - Local implementation commits, continued 172: `142248a fix(forum_thread): sync category cache on reply`
+- Local implementation commits, continued 173: `249d3da fix(forum_post): invalidate thread posts on edit`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
