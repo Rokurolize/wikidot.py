@@ -1325,7 +1325,7 @@ class Page:
             PageCollection(self.site, [self]).get_page_ids()
 
         if self._id is None:
-            raise exceptions.NotFoundException("Cannot find page id")
+            raise exceptions.NotFoundException(f"Cannot find page id: {self.fullname}")
 
         return self._id
 

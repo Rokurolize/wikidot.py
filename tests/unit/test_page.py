@@ -1288,6 +1288,20 @@ class TestPageProperties:
         """取得済みIDが返される"""
         assert mock_page_with_id.id == 12345
 
+    def test_id_property_includes_page_context_when_acquire_leaves_id_missing(self, mock_page_no_http: Page) -> None:
+        """id取得後もIDが未設定なら対象ページ名を含めて失敗する"""
+        with (
+            patch.object(
+                PageCollection,
+                "get_page_ids",
+                return_value=PageCollection(mock_page_no_http.site, [mock_page_no_http]),
+            ) as get_page_ids,
+            pytest.raises(exceptions.NotFoundException, match="Cannot find page id: test-page"),
+        ):
+            _ = mock_page_no_http.id
+
+        get_page_ids.assert_called_once()
+
     def test_source_property_auto_acquire(self, mock_page_with_id: Page, page_viewsource: dict[str, Any]) -> None:
         """ソースが未取得の場合自動取得する"""
         mock_response = MagicMock()
