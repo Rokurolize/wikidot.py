@@ -194,6 +194,34 @@ class TestPageFileCollectionAcquire:
         assert len(collection) == 0
         assert collection.page == page
 
+    def test_acquire_populates_page_files_cache(self, mock_page_with_id):
+        """直接ファイル取得の成功結果はpage.filesキャッシュにも保存する"""
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-100">
+                            <td><a href="/local--files/test-page/file1.txt">file1.txt</a></td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>500 Bytes</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection = PageFileCollection.acquire(mock_page_with_id)
+
+        assert mock_page_with_id._files is collection
+        assert mock_page_with_id.files is collection
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "files/PageFilesModule", "page_id": mock_page_with_id.id}]
+        )
+
     def test_acquire_raises_when_retry_is_exhausted(self):
         """直接ファイル取得リトライが尽きた場合は明示的に失敗する"""
         page = MagicMock()

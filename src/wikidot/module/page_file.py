@@ -252,8 +252,10 @@ class PageFileCollection(list["PageFile"]):
 
         html = BeautifulSoup(body, "lxml")
         files = PageFileCollection._parse_from_html(page, html)
+        collection = PageFileCollection(page=page, files=files)
+        page._files = collection
 
-        return PageFileCollection(page=page, files=files)
+        return collection
 
 
 @dataclass
