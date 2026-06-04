@@ -308,7 +308,7 @@ class ForumCategory:
 
         # responseからthreadIdを取得
         if not isinstance(response.get("threadId"), int):
-            raise NoElementException("Thread ID is not found.")
+            raise NoElementException(f"Thread ID is not found for site: {self.site.unix_name}, category: {self.id}")
 
         thread_id: int = response["threadId"]
 

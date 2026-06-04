@@ -330,7 +330,10 @@ class TestForumCategoryCreateThread:
         create_response.json.return_value = response_body
         mock_forum_category_no_http.site.amc_request = MagicMock(return_value=[create_response])
 
-        with pytest.raises(exceptions.NoElementException, match="Thread ID"):
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Thread ID is not found for site: test-site, category: 1001",
+        ):
             mock_forum_category_no_http.create_thread(
                 title="Test Thread",
                 description="Test description",
