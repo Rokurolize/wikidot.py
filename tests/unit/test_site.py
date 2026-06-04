@@ -1559,6 +1559,30 @@ Real edit comment
 
         assert changes[0].page_title == "First part Second part"
 
+    def test_get_recent_changes_missing_title_includes_site_page_and_item_context(
+        self, site_changes: dict[str, Any]
+    ) -> None:
+        """変更履歴の必須要素欠落はサイト・ページ・項目位置を含める"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = site_changes["body"].replace('<td class="title">', '<td class="missing-title">', 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Title element is not found for site: test \(page=1, change=1\)",
+        ):
+            site.get_recent_changes()
+
     def test_get_recent_changes_empty(self, site_changes_empty: dict[str, Any]) -> None:
         """変更履歴が空の場合"""
         mock_client = create_mock_client()

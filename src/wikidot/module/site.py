@@ -1221,18 +1221,21 @@ class Site:
         changes: list[SiteChange] = []
         per_page = min(limit, 1000) if limit is not None else 1000
 
-        def iter_changes(html: BeautifulSoup) -> Iterator[SiteChange]:
+        def iter_changes(html: BeautifulSoup, page_no: int) -> Iterator[SiteChange]:
+            change_index = 0
             for item in html.select("div.changes-list-item"):
                 if item.find_parent("table") is not None:
                     continue
 
+                change_index += 1
+                parse_context = f"for site: {self.unix_name} (page={page_no}, change={change_index})"
                 table_elem = item.find("table", recursive=False)
                 if not isinstance(table_elem, Tag):
-                    raise NoElementException("Change table element is not found.")
+                    raise NoElementException(f"Change table element is not found {parse_context}")
 
                 rows = table_elem.find_all("tr", recursive=False)
                 if not rows:
-                    raise NoElementException("Change row element is not found.")
+                    raise NoElementException(f"Change row element is not found {parse_context}")
 
                 metadata_row = rows[0]
 
@@ -1244,7 +1247,7 @@ class Site:
                 title_cell = metadata_row.find("td", class_="title", recursive=False)
                 title_elem = title_cell.find("a", recursive=False) if isinstance(title_cell, Tag) else None
                 if not isinstance(title_elem, Tag):
-                    raise NoElementException("Title element is not found.")
+                    raise NoElementException(f"Title element is not found {parse_context}")
 
                 page_title = title_elem.get_text(" ", strip=True)
                 href = title_elem.get("href", "")
@@ -1255,16 +1258,16 @@ class Site:
                     date_cell.find("span", class_="odate", recursive=False) if isinstance(date_cell, Tag) else None
                 )
                 if not isinstance(odate_elem, Tag):
-                    raise NoElementException("Odate element is not found.")
+                    raise NoElementException(f"Odate element is not found {parse_context}")
                 changed_at = odate_parser(odate_elem)
 
                 rev_elem = metadata_row.find("td", class_="revision-no", recursive=False)
                 if rev_elem is None:
-                    raise NoElementException("Revision number element is not found.")
+                    raise NoElementException(f"Revision number element is not found {parse_context}")
                 rev_text = rev_elem.get_text()
                 rev_match = re.search(r"(\d+)", rev_text)
                 if rev_match is None:
-                    raise NoElementException("Revision number is not found.")
+                    raise NoElementException(f"Revision number is not found {parse_context}")
                 revision_no = int(rev_match.group(1))
 
                 user_cell = metadata_row.find("td", class_="mod-by", recursive=False)
@@ -1272,7 +1275,7 @@ class Site:
                     user_cell.find("span", class_="printuser", recursive=False) if isinstance(user_cell, Tag) else None
                 )
                 if user_elem is None:
-                    raise NoElementException("User element is not found.")
+                    raise NoElementException(f"User element is not found {parse_context}")
                 changed_by = user_parser(self.client, user_elem)
 
                 flags_cell = metadata_row.find("td", class_="flags", recursive=False)
@@ -1331,7 +1334,7 @@ class Site:
             raise exceptions.UnexpectedException("Cannot retrieve recent changes page: 1")
 
         html = BeautifulSoup(response.json()["body"], "lxml")
-        page_changes = list(iter_changes(html))
+        page_changes = list(iter_changes(html, 1))
         if not page_changes:
             return changes
 
@@ -1357,7 +1360,7 @@ class Site:
                 raise exceptions.UnexpectedException(f"Cannot retrieve recent changes page: {page_no}")
 
             html = BeautifulSoup(response.json()["body"], "lxml")
-            page_changes = list(iter_changes(html))
+            page_changes = list(iter_changes(html, page_no))
             if not page_changes:
                 break
 
