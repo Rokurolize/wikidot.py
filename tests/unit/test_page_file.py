@@ -200,11 +200,15 @@ class TestPageFileCollectionAcquire:
         page.id = 12345
         page.fullname = "test-page"
         site = MagicMock()
+        site.unix_name = "test-site"
         page.site = site
         site.amc_request = MagicMock()
         site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve page files: test-page"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve page files for site: test-site, page: test-page",
+        ):
             PageFileCollection.acquire(page)
 
         site.amc_request.assert_not_called()
