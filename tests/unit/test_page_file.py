@@ -148,6 +148,32 @@ class TestPageFileCollectionParseSize:
 class TestPageFileCollectionAcquire:
     """PageFileCollection.acquireのテスト"""
 
+    def test_acquire_skips_cached_page_files(self):
+        """取得済みpage.filesは直接取得でも再取得しない"""
+        page = MagicMock()
+        page.id = 12345
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        page.site = site
+        cached_file = PageFile(
+            page=page,
+            id=100,
+            name="cached.txt",
+            url="https://test.wikidot.com/local--files/test-page/cached.txt",
+            mime_type="text/plain",
+            size=100,
+        )
+        cached_collection = PageFileCollection(page=page, files=[cached_file])
+        page._files = cached_collection
+        site.amc_request = MagicMock()
+        site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        collection = PageFileCollection.acquire(page)
+
+        assert collection is cached_collection
+        site.amc_request.assert_not_called()
+        site.amc_request_with_retry.assert_not_called()
+
     def test_acquire_uses_retry_aware_amc(self):
         """直接ファイル取得でもリトライ対応AMCを使う"""
         page = MagicMock()
