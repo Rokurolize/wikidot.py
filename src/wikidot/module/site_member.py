@@ -25,6 +25,24 @@ if TYPE_CHECKING:
     from .user import AbstractUser
 
 
+def _require_site_member_action_status(member: "SiteMember", event: str, data: dict[str, Any]) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise NoElementException(
+            f"Site member action response is malformed for site: {member.site.unix_name}, "
+            f"user: {member.user.name} (id={member.user.id}, event={event}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise WikidotStatusCodeException(
+            f"Failed to complete site member action for site: {member.site.unix_name}, "
+            f"user: {member.user.name}, event: {event}",
+            status,
+        )
+    return status
+
+
 @dataclass
 class SiteMember:
     """
@@ -257,7 +275,7 @@ class SiteMember:
         self.site.client.login_check()
 
         try:
-            self.site.amc_request(
+            response = self.site.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
@@ -266,7 +284,8 @@ class SiteMember:
                         "moduleName": "",
                     }
                 ]
-            )
+            )[0]
+            _require_site_member_action_status(self, event, response.json())
         except WikidotStatusCodeException as e:
             if e.status_code == "not_already":
                 raise TargetErrorException(f"User is not moderator/admin: {self.user.name}") from e

@@ -529,6 +529,9 @@ class TestSiteMemberChangeGroup:
     def test_to_moderator_success(self):
         """モデレーター昇格成功"""
         site = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
         user = MagicMock()
         user.id = 12345
         member = SiteMember(site=site, user=user, joined_at=None)
@@ -543,6 +546,9 @@ class TestSiteMemberChangeGroup:
     def test_remove_moderator_success(self):
         """モデレーター降格成功"""
         site = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
         user = MagicMock()
         user.id = 12345
         member = SiteMember(site=site, user=user, joined_at=None)
@@ -555,6 +561,9 @@ class TestSiteMemberChangeGroup:
     def test_to_admin_success(self):
         """管理者昇格成功"""
         site = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
         user = MagicMock()
         user.id = 12345
         member = SiteMember(site=site, user=user, joined_at=None)
@@ -567,6 +576,9 @@ class TestSiteMemberChangeGroup:
     def test_remove_admin_success(self):
         """管理者降格成功"""
         site = MagicMock()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
         user = MagicMock()
         user.id = 12345
         member = SiteMember(site=site, user=user, joined_at=None)
@@ -632,6 +644,29 @@ class TestSiteMemberChangeGroup:
 
         with pytest.raises(ValueError, match="Invalid event"):
             member._change_group("invalidEvent")
+
+    def test_change_group_missing_action_status_includes_site_user_event_and_field_context(self):
+        """権限変更応答のstatus欠落は文脈付きNoElementException"""
+        site = MagicMock()
+        site.unix_name = "test-site"
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        site.amc_request.return_value = (mock_response,)
+        user = MagicMock()
+        user.id = 12345
+        user.name = "TestUser"
+        member = SiteMember(site=site, user=user, joined_at=None)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site member action response is malformed for site: test-site, user: TestUser "
+                r"\(id=12345, event=toModerators, field=status\)"
+            ),
+        ):
+            member.to_moderator()
+
+        assert mock_response.json.call_count == 1
 
     def test_change_group_not_logged_in_raises_before_request(self):
         """未ログイン時は権限変更リクエストを送らない"""
