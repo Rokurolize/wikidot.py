@@ -680,7 +680,9 @@ class ForumPost:
             ]
         )[0]
         if form_response is None:
-            raise UnexpectedException(f"Cannot retrieve forum post edit form: {self.id}")
+            raise UnexpectedException(
+                f"Cannot retrieve forum post edit form for site: {self.thread.site.unix_name}, post: {self.id}"
+            )
 
         html = BeautifulSoup(form_response.json()["body"], "lxml")
         edit_form = html.select_one("form#edit-post-form")

@@ -945,7 +945,7 @@ class TestForumPostEdit:
         assert amc_request.call_count == 3
 
     def test_edit_raises_when_form_fetch_retry_is_exhausted(self, mock_forum_post_no_http: ForumPost) -> None:
-        """編集フォーム取得のリトライが尽きた場合は保存しない"""
+        """編集フォーム取得のリトライが尽きた場合はsite/post付きで保存せず失敗する"""
         mock_forum_post_no_http.thread.site.client.is_logged_in = True
         mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
         mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(None,))
@@ -953,7 +953,7 @@ class TestForumPostEdit:
 
         with pytest.raises(
             exceptions.UnexpectedException,
-            match="Cannot retrieve forum post edit form: 5001",
+            match="Cannot retrieve forum post edit form for site: test-site, post: 5001",
         ):
             mock_forum_post_no_http.edit(source="Updated source")
 
