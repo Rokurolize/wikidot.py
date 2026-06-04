@@ -316,6 +316,23 @@ class TestForumThreadCollectionAcquireAll:
         assert collection[0].title == "First part Second part"
         mock_forum_category_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_missing_name_cell_class_includes_category_context(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド一覧の構造セル欠損はサイト・カテゴリ・行を含めて失敗する"""
+        body_with_bad_name_cell = forum_threads_in_category["body"].replace(
+            '<td class="name">', '<td class="wrong">', 1
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body_with_bad_name_cell}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Thread name element is not found for site: test-site \(category=1001, page=1, row=1, cells=4\)",
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
     def test_acquire_all_pagination(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:

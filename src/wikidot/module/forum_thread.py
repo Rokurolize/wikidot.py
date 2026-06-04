@@ -24,6 +24,28 @@ if TYPE_CHECKING:
     from .user import AbstractUser
 
 
+def _site_name(site: "Site") -> str:
+    site_unix_name = getattr(site, "unix_name", None)
+    return site_unix_name if isinstance(site_unix_name, str) else str(site)
+
+
+def _thread_list_parse_context(
+    site: "Site",
+    category: Optional["ForumCategory"],
+    row_index: int,
+    page: int | None = None,
+    **counts: int,
+) -> str:
+    context = []
+    if category is not None:
+        context.append(f"category={category.id}")
+    if page is not None:
+        context.append(f"page={page}")
+    context.append(f"row={row_index}")
+    context.extend(f"{name}={value}" for name, value in counts.items())
+    return f"for site: {_site_name(site)} ({', '.join(context)})"
+
+
 class ForumThreadCollection(list["ForumThread"]):
     """
     Class representing a collection of forum threads
@@ -146,7 +168,7 @@ class ForumThreadCollection(list["ForumThread"]):
 
     @staticmethod
     def _parse_list_in_category(
-        site: "Site", html: BeautifulSoup, category: Optional["ForumCategory"] = None
+        site: "Site", html: BeautifulSoup, category: Optional["ForumCategory"] = None, page: int | None = None
     ) -> "ForumThreadCollection":
         """
         Internal method to extract thread information from forum page HTML
@@ -176,6 +198,7 @@ class ForumThreadCollection(list["ForumThread"]):
         threads = []
         for table in html.select("div.forum-category-box > table.table"):
             rows = table.find_all("tr", recursive=False)
+            row_index = 0
             for info in rows:
                 row_class = info.get("class")
                 if isinstance(row_class, list) and "head" in row_class:
@@ -185,6 +208,8 @@ class ForumThreadCollection(list["ForumThread"]):
                 if len(cells) < 3:
                     continue
 
+                row_index += 1
+                parse_context = _thread_list_parse_context(site, category, row_index, page, cells=len(cells))
                 name_elem = cells[0]
                 started_elem = cells[1]
                 posts_count_elem = cells[2]
@@ -193,23 +218,23 @@ class ForumThreadCollection(list["ForumThread"]):
                 started_class = started_elem.get("class")
                 posts_count_class = posts_count_elem.get("class")
                 if not (isinstance(name_class, list) and "name" in name_class):
-                    raise NoElementException("Thread name element is not found.")
+                    raise NoElementException(f"Thread name element is not found {parse_context}")
                 if not (isinstance(started_class, list) and "started" in started_class):
-                    raise NoElementException("Thread started element is not found.")
+                    raise NoElementException(f"Thread started element is not found {parse_context}")
                 if not (isinstance(posts_count_class, list) and "posts" in posts_count_class):
-                    raise NoElementException("Posts count element is not found.")
+                    raise NoElementException(f"Posts count element is not found {parse_context}")
 
                 title = name_elem.select_one(":scope > div.title > a")
                 if title is None:
-                    raise NoElementException("Title element is not found.")
+                    raise NoElementException(f"Title element is not found {parse_context}")
 
                 title_href = title.get("href")
                 if title_href is None:
-                    raise NoElementException("Title href is not found.")
+                    raise NoElementException(f"Title href is not found {parse_context}")
 
                 thread_id_match = re.search(r"t-(\d+)", str(title_href))
                 if thread_id_match is None:
-                    raise NoElementException("Thread ID is not found.")
+                    raise NoElementException(f"Thread ID is not found {parse_context}")
 
                 thread_id = int(thread_id_match.group(1))
 
@@ -218,11 +243,11 @@ class ForumThreadCollection(list["ForumThread"]):
                 odate_elem = started_elem.select_one(":scope > span.odate")
 
                 if description_elem is None:
-                    raise NoElementException("Description element is not found.")
+                    raise NoElementException(f"Description element is not found {parse_context}")
                 if user_elem is None:
-                    raise NoElementException("User element is not found.")
+                    raise NoElementException(f"User element is not found {parse_context}")
                 if odate_elem is None:
-                    raise NoElementException("Odate element is not found.")
+                    raise NoElementException(f"Odate element is not found {parse_context}")
 
                 thread = ForumThread(
                     site=site,
@@ -382,7 +407,7 @@ class ForumThreadCollection(list["ForumThread"]):
         first_body = first_response.json()["body"]
         first_html = BeautifulSoup(first_body, "lxml")
 
-        threads.extend(ForumThreadCollection._parse_list_in_category(category.site, first_html, category))
+        threads.extend(ForumThreadCollection._parse_list_in_category(category.site, first_html, category, page=1))
 
         # pager検索
         pager = ForumThreadCollection._pager_from_html(first_html)
@@ -415,7 +440,7 @@ class ForumThreadCollection(list["ForumThread"]):
                 raise UnexpectedException(f"Cannot retrieve forum threads page: {page}")
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
-            threads.extend(ForumThreadCollection._parse_list_in_category(category.site, html, category))
+            threads.extend(ForumThreadCollection._parse_list_in_category(category.site, html, category, page=page))
 
         return ForumThreadCollection(site=category.site, threads=threads)
 
