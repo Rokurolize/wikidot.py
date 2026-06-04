@@ -251,6 +251,26 @@ class TestPageCollectionParse:
         ):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    def test_parse_malformed_integer_field_includes_site_page_and_value_context(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """整数フィールドが壊れている場合はsite/page/field/value文脈付きNoElementException"""
+        body = page_listpages_single["body"].replace(
+            '<span class="set comments"><span class="name">comments</span> <span class="value">0</span></span>',
+            '<span class="set comments"><span class="name">comments</span> '
+            '<span class="value">not-a-number</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"ListPages integer field is malformed for site: test-site, page: scp-001 "
+                r"\(field=comments, value=not-a-number\)"
+            ),
+        ):
+            PageCollection._parse(mock_site_no_http, html_body)
+
 
 class TestPageCollectionSearchPages:
     """PageCollection.search_pagesのテスト"""

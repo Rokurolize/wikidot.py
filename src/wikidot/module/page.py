@@ -95,6 +95,17 @@ def _parse_revision_number(site: "Site", page: "Page", rev_id: int, value: objec
         ) from exc
 
 
+def _parse_listpages_integer_field(site: "Site", page_name: str, key: str, value: object) -> int:
+    value_text = str(value).strip()
+    try:
+        return int(value_text)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"ListPages integer field is malformed for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={value_text})"
+        ) from exc
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -526,7 +537,8 @@ class PageCollection(list["Page"]):
                     value = value_element.text.split()
 
                 elif key in ["rating_votes", "comments", "size", "children", "revisions"]:
-                    value = int(value_element.text.strip())
+                    page_name = str(page_params.get("fullname", "unknown"))
+                    value = _parse_listpages_integer_field(site, page_name, key, value_element.text)
 
                 elif key in ["rating"]:
                     if is_5star_rating:
