@@ -191,6 +191,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [185-pr-forum-post-edit-revision-site-context.md](185-pr-forum-post-edit-revision-site-context.md): upstream PR draft for the committed forum post edit revision parser context fix.
 - [186-pr-page-id-response-type-context.md](186-pr-page-id-response-type-context.md): upstream PR draft for the committed page ID response-type context fix.
 - [187-pr-page-id-property-context.md](187-pr-page-id-property-context.md): upstream PR draft for the committed page ID property fallback context fix.
+- [188-pr-private-message-detail-parse-context.md](188-pr-private-message-detail-parse-context.md): upstream PR draft for the committed private-message detail parser context fix.
 
 ## Local Evidence Index
 
@@ -289,5 +290,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 89: `5938960 fix(forum_post): include site in edit revision errors`
 - Local implementation commits, continued 90: `0a73e68 fix(page): include context in page id response errors`
 - Local implementation commits, continued 91: `dbb3755 fix(page): include page in id fallback errors`
+- Local implementation commits, continued 92: `3047a93 fix(private_message): include module in detail parse errors`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
