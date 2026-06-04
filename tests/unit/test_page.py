@@ -287,11 +287,14 @@ class TestPageCollectionSearchPages:
         assert mock_site_no_http.amc_request.call_count == 2
 
     def test_search_pages_raises_when_first_page_retry_is_exhausted(self, mock_site_no_http: Site) -> None:
-        """初回ListPagesページのretryを使い切った場合はoffset付きで失敗する"""
+        """初回ListPagesページのretryを使い切った場合はsite/offset付きで失敗する"""
         mock_site_no_http.client.amc_client.config.retry_max_retries = 1
         mock_site_no_http.amc_request = MagicMock(return_value=(RuntimeError("temporary failure"),))
 
-        with pytest.raises(exceptions.UnexpectedException, match="offset: 500"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Failed to get ListPages page for site: test-site, offset: 500",
+        ):
             PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500))
 
         assert mock_site_no_http.amc_request.call_count == 2
@@ -438,7 +441,10 @@ class TestPageCollectionSearchPages:
         mock_site_no_http.amc_request = MagicMock(return_value=[first_response])
         mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.UnexpectedException, match="offset: 600"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Failed to get ListPages page for site: test-site, offset: 600",
+        ):
             PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500, perPage=100))
 
         mock_site_no_http.amc_request.assert_called_once()

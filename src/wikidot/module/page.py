@@ -573,7 +573,9 @@ class PageCollection(list["Page"]):
 
             last_exception = response_or_exception
 
-        raise exceptions.UnexpectedException(f"Failed to get ListPages page at offset: {offset}") from last_exception
+        raise exceptions.UnexpectedException(
+            f"Failed to get ListPages page for site: {site.unix_name}, offset: {offset}"
+        ) from last_exception
 
     @staticmethod
     def search_pages(site: "Site", query: SearchPagesQuery | None = None) -> "PageCollection":
@@ -665,7 +667,9 @@ class PageCollection(list["Page"]):
                 for index, additional_response in enumerate(responses):
                     if additional_response is None:
                         offset = request_bodies[index].get("offset")
-                        raise exceptions.UnexpectedException(f"Failed to get ListPages page at offset: {offset}")
+                        raise exceptions.UnexpectedException(
+                            f"Failed to get ListPages page for site: {site.unix_name}, offset: {offset}"
+                        )
                     html_bodies.append(BeautifulSoup(additional_response.json()["body"], "lxml"))
 
         pages: list[Page] = []
