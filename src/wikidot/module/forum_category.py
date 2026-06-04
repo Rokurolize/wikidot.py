@@ -8,7 +8,7 @@ It enables operations such as retrieving category information and thread lists.
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup
 
@@ -94,6 +94,13 @@ class ForumCategoryCollection(list["ForumCategory"]):
         return None
 
     @staticmethod
+    def _category_list_response_body(response: Any, site: "Site") -> str:
+        body = response.json().get("body")
+        if body is None:
+            raise NoElementException(f"Forum category list response body is not found for site: {_site_name(site)}")
+        return body
+
+    @staticmethod
     def acquire_all(site: "Site") -> "ForumCategoryCollection":
         """
         Retrieve all forum categories of a site
@@ -122,7 +129,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
         if response is None:
             raise UnexpectedException(f"Cannot retrieve forum categories for site: {site.unix_name}")
 
-        body = response.json()["body"]
+        body = ForumCategoryCollection._category_list_response_body(response, site)
         html = BeautifulSoup(body, "lxml")
 
         for table in html.select("div.forum-group > div:not(.head) > table"):
