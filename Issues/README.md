@@ -218,6 +218,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [212-pr-site-application-list-response-body-context.md](212-pr-site-application-list-response-body-context.md): upstream PR draft for the committed site application list response body validation fix.
 - [213-pr-site-member-list-response-body-context.md](213-pr-site-member-list-response-body-context.md): upstream PR draft for the committed site member list response body validation fix.
 - [214-pr-forum-thread-response-body-context.md](214-pr-forum-thread-response-body-context.md): upstream PR draft for the committed forum thread response body validation fix.
+- [215-pr-page-file-response-body-context.md](215-pr-page-file-response-body-context.md): upstream PR draft for the committed direct page file response body validation fix.
 
 ## Local Evidence Index
 
