@@ -279,5 +279,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 84: `413a5a2 fix(forum_post_revision): include context in lazy html failures`
 - Local implementation commits, continued 85: `6479c6d fix(page_file): include page in direct fetch failures`
 - Local implementation commits, continued 86: `30aaa07 fix(site): include site in recent changes fetch failures`
+- Local implementation commits, continued 87: `7d27caa fix(page): include site in listpages fetch failures`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
