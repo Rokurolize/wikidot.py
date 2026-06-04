@@ -135,7 +135,9 @@ class PageFileCollection(list["PageFile"]):
         return int(value * multiplier)
 
     @staticmethod
-    def _parse_file_fields_from_html(site_url: str, html: BeautifulSoup) -> list[tuple[int, str, str, str, int]]:
+    def _parse_file_fields_from_html(
+        site_url: str, html: BeautifulSoup, *, context: str = ""
+    ) -> list[tuple[int, str, str, str, int]]:
         files_table = html.select_one("table.page-files")
 
         if not isinstance(files_table, Tag):
@@ -167,7 +169,13 @@ class PageFileCollection(list["PageFile"]):
             url = urljoin(f"{site_url}/", str(href))
 
             mime_elem = tds[1].find("span", recursive=False)
-            mime_type = str(mime_elem.get("title", "")) if isinstance(mime_elem, Tag) else ""
+            mime_title = mime_elem.get("title") if isinstance(mime_elem, Tag) else None
+            if mime_title is None:
+                location = f"{context}, file: {name}" if context else f"for file: {name}"
+                raise exceptions.NoElementException(
+                    f"Page file MIME type title is not found {location} (id={file_id}, field=mime_type)"
+                )
+            mime_type = str(mime_title)
 
             size_text = tds[2].get_text().strip()
             size = PageFileCollection._parse_size(size_text)
@@ -209,7 +217,8 @@ class PageFileCollection(list["PageFile"]):
         list[PageFile]
             List of parsed PageFile objects
         """
-        file_fields = PageFileCollection._parse_file_fields_from_html(page.site.url, html)
+        context = f"for site: {page.site.unix_name}, page: {page.fullname}"
+        file_fields = PageFileCollection._parse_file_fields_from_html(page.site.url, html, context=context)
         return PageFileCollection._build_page_files(page, file_fields)
 
     @staticmethod
