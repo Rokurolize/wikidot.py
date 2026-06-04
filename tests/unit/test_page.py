@@ -2144,6 +2144,29 @@ class TestPageWriteMethods:
         assert result.name == "new-name"
         assert result.category == "component"
 
+    def test_rename_success_invalidates_cached_files(
+        self, mock_page_with_id: Page, page_rename_success: dict[str, Any]
+    ) -> None:
+        """rename成功後は旧ページ名由来のfilesキャッシュを再利用しない"""
+        cached_file = PageFile(
+            page=mock_page_with_id,
+            id=1,
+            name="cached.txt",
+            url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+            mime_type="text/plain",
+            size=10,
+        )
+        mock_page_with_id._files = PageFileCollection(mock_page_with_id, [cached_file])
+        mock_response = MagicMock()
+        mock_response.json.return_value = page_rename_success
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        mock_page_with_id.rename("component:new-name")
+
+        assert mock_page_with_id._files is None
+
     def test_rename_missing_action_status_does_not_update_local_name(self, mock_page_with_id: Page) -> None:
         """rename応答のstatus欠落は文脈付きで失敗しローカルページ名を更新しない"""
         malformed_response = MagicMock()

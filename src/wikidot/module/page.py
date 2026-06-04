@@ -2330,6 +2330,7 @@ class Page:
         else:
             self.category = "_default"
             self.name = new_fullname
+        self._files = None
         return self
 
     def vote(self, value: int) -> int:
