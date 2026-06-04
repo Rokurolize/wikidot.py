@@ -150,6 +150,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [144-pr-skip-cached-direct-page-files.md](144-pr-skip-cached-direct-page-files.md): upstream PR draft for the committed cached direct page file-list fetch skip.
 - [145-pr-surface-lazy-page-revision-fetch-failures.md](145-pr-surface-lazy-page-revision-fetch-failures.md): upstream PR draft for the committed lazy page revision source/HTML failure visibility fix.
 - [146-pr-surface-lazy-forum-post-revision-html-failures.md](146-pr-surface-lazy-forum-post-revision-html-failures.md): upstream PR draft for the committed lazy forum post revision HTML failure visibility fix.
+- [147-pr-source-result-error-type.md](147-pr-source-result-error-type.md): upstream PR draft for the committed source result error-type ledger field.
 
 ## Local Evidence Index
 
@@ -207,5 +208,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 48: `60f156d perf(page_file): skip cached direct page files`
 - Local implementation commits, continued 49: `33d0e15 fix(page_revision): surface lazy revision fetch failures`
 - Local implementation commits, continued 50: `3f0ebc1 fix(forum_post_revision): surface lazy html fetch failures`
+- Local implementation commits, continued 51: `c8673a5 feat(site): expose source result error type`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
