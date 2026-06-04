@@ -421,5 +421,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 155: `a599374 fix(forum_thread): guard reply action status`
 - Local implementation commits, continued 156: `69edf40 fix(forum_category): guard create thread action status`
 - Local implementation commits, continued 157: `578f334 fix(site): guard invite action status`
+- Local implementation commits, continued 158: `f81e038 fix(private_message): guard send action status`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
