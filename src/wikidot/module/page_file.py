@@ -244,7 +244,13 @@ class PageFileCollection(list["PageFile"]):
                 f"Cannot retrieve page files for site: {page.site.unix_name}, page: {page.fullname}"
             )
 
-        html = BeautifulSoup(response.json()["body"], "lxml")
+        body = response.json().get("body")
+        if body is None:
+            raise exceptions.NoElementException(
+                f"Page file list response body is not found for site: {page.site.unix_name}, page: {page.fullname}"
+            )
+
+        html = BeautifulSoup(body, "lxml")
         files = PageFileCollection._parse_from_html(page, html)
 
         return PageFileCollection(page=page, files=files)

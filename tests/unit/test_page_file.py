@@ -214,6 +214,28 @@ class TestPageFileCollectionAcquire:
         site.amc_request.assert_not_called()
         site.amc_request_with_retry.assert_called_once_with([{"moduleName": "files/PageFilesModule", "page_id": 12345}])
 
+    def test_acquire_missing_response_body_includes_page_context(self):
+        """直接ファイル一覧応答のbody欠落時はsite/page付きで失敗する"""
+        page = MagicMock()
+        page.id = 12345
+        page.fullname = "test-page"
+        site = MagicMock()
+        site.unix_name = "test-site"
+        page.site = site
+        response = MagicMock()
+        response.json.return_value = {}
+        site.amc_request = MagicMock()
+        site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Page file list response body is not found for site: test-site, page: test-page",
+        ):
+            PageFileCollection.acquire(page)
+
+        site.amc_request.assert_not_called()
+        site.amc_request_with_retry.assert_called_once_with([{"moduleName": "files/PageFilesModule", "page_id": 12345}])
+
     def test_acquire_success(self):
         """ファイル取得成功"""
         page = MagicMock()
