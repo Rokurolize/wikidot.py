@@ -150,6 +150,23 @@ def _require_page_save_status(site: "Site", fullname: str, data: dict[str, Any])
         ) from exc
 
 
+def _require_page_action_status(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            f"Failed to complete page action for site: {site.unix_name}, page: {page.fullname}, event: {event}",
+            status,
+        )
+    return status
+
+
 def _parse_page_rating_points(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> int:
     try:
         value = data["points"]
@@ -2275,7 +2292,7 @@ class Page:
             When renaming the page fails (e.g., when a page with the same name exists)
         """
         self.site.client.login_check()
-        self.site.amc_request(
+        response = self.site.amc_request(
             [
                 {
                     "action": "WikiPageAction",
@@ -2285,7 +2302,8 @@ class Page:
                     "new_name": new_fullname,
                 }
             ]
-        )
+        )[0]
+        _require_page_action_status(self.site, self, "renamePage", response.json())
         self.fullname = new_fullname
         if ":" in new_fullname:
             self.category, self.name = new_fullname.split(":", 1)

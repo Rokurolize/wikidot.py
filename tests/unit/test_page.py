@@ -2107,6 +2107,27 @@ class TestPageWriteMethods:
         assert result.name == "new-name"
         assert result.category == "component"
 
+    def test_rename_missing_action_status_does_not_update_local_name(self, mock_page_with_id: Page) -> None:
+        """rename応答のstatus欠落は文脈付きで失敗しローカルページ名を更新しない"""
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"body": ""}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=renamePage, field=status\)"
+            ),
+        ):
+            mock_page_with_id.rename("component:new-name")
+
+        assert mock_page_with_id.fullname == "test-page"
+        assert mock_page_with_id.category == "_default"
+        assert mock_page_with_id.name == "test-page"
+
     def test_vote_positive(self, mock_page_with_id: Page, page_ratepage_success: dict[str, Any]) -> None:
         """正の投票ができる"""
         mock_response = MagicMock()
