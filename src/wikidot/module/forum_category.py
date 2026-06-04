@@ -19,6 +19,17 @@ if TYPE_CHECKING:
     from .site import Site
 
 
+def _site_name(site: "Site") -> str:
+    site_unix_name = getattr(site, "unix_name", None)
+    return site_unix_name if isinstance(site_unix_name, str) else str(site)
+
+
+def _category_parse_context(site: "Site", row_index: int, **counts: int) -> str:
+    context = [f"row={row_index}"]
+    context.extend(f"{name}={value}" for name, value in counts.items())
+    return f"for site: {_site_name(site)} ({', '.join(context)})"
+
+
 class ForumCategoryCollection(list["ForumCategory"]):
     """
     Class representing a collection of forum categories
@@ -115,41 +126,45 @@ class ForumCategoryCollection(list["ForumCategory"]):
         html = BeautifulSoup(body, "lxml")
 
         for table in html.select("div.forum-group > div:not(.head) > table"):
+            row_index = 0
             for row in table.find_all("tr", recursive=False):
                 row_class = row.get("class")
                 if isinstance(row_class, list) and "head" in row_class:
                     continue
 
+                row_index += 1
+                parse_context = _category_parse_context(site, row_index)
                 cells = row.find_all("td", recursive=False)
                 if len(cells) < 3:
-                    raise NoElementException("Category row is malformed.")
+                    parse_context = _category_parse_context(site, row_index, cells=len(cells))
+                    raise NoElementException(f"Category row is malformed {parse_context}")
 
                 name_elem = cells[0]
                 if "name" not in name_elem.get("class", []):
-                    raise NoElementException("Name element is not found.")
+                    raise NoElementException(f"Name element is not found {parse_context}")
                 thread_count_elem = cells[1]
                 if "threads" not in thread_count_elem.get("class", []):
-                    raise NoElementException("Thread count element is not found.")
+                    raise NoElementException(f"Thread count element is not found {parse_context}")
                 post_count_elem = cells[2]
                 if "posts" not in post_count_elem.get("class", []):
-                    raise NoElementException("Post count element is not found.")
+                    raise NoElementException(f"Post count element is not found {parse_context}")
 
                 title_container = name_elem.find("div", class_="title", recursive=False)
                 if title_container is None:
-                    raise NoElementException("Title element is not found.")
+                    raise NoElementException(f"Title element is not found {parse_context}")
                 name_link_elem = title_container.find("a", recursive=False)
                 if name_link_elem is None:
-                    raise NoElementException("Name link element is not found.")
+                    raise NoElementException(f"Name link element is not found {parse_context}")
                 name_link_href = name_link_elem.get("href")
                 if name_link_href is None:
-                    raise NoElementException("Name link href is not found.")
+                    raise NoElementException(f"Name link href is not found {parse_context}")
                 category_id_match = re.search(r"c-(\d+)", str(name_link_href))
                 if category_id_match is None:
-                    raise NoElementException("Category ID is not found.")
+                    raise NoElementException(f"Category ID is not found {parse_context}")
                 category_id_str = category_id_match.group(1)
                 description_elem = name_elem.find("div", class_="description", recursive=False)
                 if description_elem is None:
-                    raise NoElementException("Description element is not found.")
+                    raise NoElementException(f"Description element is not found {parse_context}")
 
                 category = ForumCategory(
                     site=site,

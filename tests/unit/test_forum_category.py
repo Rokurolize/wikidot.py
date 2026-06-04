@@ -192,6 +192,42 @@ class TestForumCategoryCollectionAcquireAll:
         assert collection[0].threads_count == 10
         assert collection[0].posts_count == 50
 
+    def test_acquire_all_malformed_row_includes_site_context(self, mock_site_no_http: Site) -> None:
+        """カテゴリ行が壊れている場合はサイト名と行位置を含めて失敗する"""
+        response_body = {
+            "status": "ok",
+            "body": """
+                <div class="forum-start-box">
+                    <div class="forum-group">
+                        <div class="head"><div class="title">Test Group</div></div>
+                        <div>
+                            <table>
+                                <tr class="head"><td>Category</td><td>Threads</td><td>Posts</td></tr>
+                                <tr>
+                                    <td class="name">
+                                        <div class="title">
+                                            <a href="/forum/c-1001/test-category">Test Category</a>
+                                        </div>
+                                        <div class="description">Test description</div>
+                                    </td>
+                                    <td class="threads">10</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            """,
+        }
+        mock_response = MagicMock()
+        mock_response.json.return_value = response_body
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Category row is malformed for site: test-site \(row=1, cells=2\)",
+        ):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
     def test_acquire_all_empty(self, mock_site_no_http: Site, forum_start_empty: dict[str, Any]) -> None:
         """空のカテゴリ一覧を取得できる"""
         mock_response = MagicMock()
