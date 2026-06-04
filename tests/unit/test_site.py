@@ -622,6 +622,22 @@ class TestSitePageAccessor:
 
         assert page is None
 
+    def test_get_not_found_raises_with_site_context(self, mock_site_no_http: Site) -> None:
+        """ListPagesにも直接URLにもないページの例外はサイト名とページ名を含む"""
+        request = httpx.Request("GET", "https://test-site.wikidot.com/missing")
+        response = httpx.Response(404, request=request)
+        not_found = httpx.HTTPStatusError("not found", request=request, response=response)
+
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])),
+            patch.object(PageCollection, "_acquire_page_ids", side_effect=not_found),
+            pytest.raises(
+                NotFoundException,
+                match="Page is not found for site: test-site, page: missing",
+            ),
+        ):
+            mock_site_no_http.page.get("missing")
+
     def test_get_surfaces_unexpected_direct_page_id_probe_errors(self, mock_site_no_http: Site) -> None:
         """直接pageId取得の構造エラーはページ欠落として隠さない"""
         direct_error = UnexpectedException("Unexpected response type for page: stale-page")

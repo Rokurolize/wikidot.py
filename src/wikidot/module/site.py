@@ -427,7 +427,9 @@ class SitePageAccessor:
             page = self._get_by_direct_page_id(fullname)
         if page is None:
             if raise_when_not_found:
-                raise exceptions.NotFoundException(f"Page is not found: {fullname}")
+                raise exceptions.NotFoundException(
+                    f"Page is not found for site: {self.site.unix_name}, page: {fullname}"
+                )
             return None
         return page
 
