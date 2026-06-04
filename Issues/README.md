@@ -202,6 +202,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [196-pr-page-property-site-context.md](196-pr-page-property-site-context.md): upstream PR draft for the committed direct page property site context fix.
 - [197-pr-page-id-site-context.md](197-pr-page-id-site-context.md): upstream PR draft for the committed page ID site context fix.
 - [198-pr-page-source-parse-site-context.md](198-pr-page-source-parse-site-context.md): upstream PR draft for the committed page source parser site context fix.
+- [199-pr-page-revision-row-site-context.md](199-pr-page-revision-row-site-context.md): upstream PR draft for the committed page revision row parser site context fix.
 
 ## Local Evidence Index
 
@@ -311,5 +312,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 100: `bac092a fix(page): include site in page property failures`
 - Local implementation commits, continued 101: `1ad1996 fix(page): include site in page id failures`
 - Local implementation commits, continued 102: `343d502 fix(page): include site in source parse failures`
+- Local implementation commits, continued 103: `baea31f fix(page): include site in revision parse failures`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
