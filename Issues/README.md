@@ -232,6 +232,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [226-pr-publish-visibility-404-context.md](226-pr-publish-visibility-404-context.md): upstream PR draft for the committed publish visibility 404 context fix.
 - [227-pr-cache-direct-category-thread-acquisition.md](227-pr-cache-direct-category-thread-acquisition.md): upstream PR draft for the committed direct category thread acquisition cache consistency improvement.
 - [228-pr-cache-direct-thread-post-acquisition.md](228-pr-cache-direct-thread-post-acquisition.md): upstream PR draft for the committed direct thread post acquisition cache consistency improvement.
+- [229-pr-cache-direct-post-revision-acquisition.md](229-pr-cache-direct-post-revision-acquisition.md): upstream PR draft for the committed direct post revision acquisition cache consistency improvement.
 
 ## Local Evidence Index
 
@@ -371,5 +372,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 130: `1f8b83e fix(site): report publish visibility 404 context`
 - Local implementation commits, continued 131: `31b833c perf(forum_thread): cache direct category thread acquisition`
 - Local implementation commits, continued 132: `a9d6a68 perf(forum_post): cache direct thread post acquisition`
+- Local implementation commits, continued 133: `cb778c3 perf(forum_post_revision): cache direct revision acquisition`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
