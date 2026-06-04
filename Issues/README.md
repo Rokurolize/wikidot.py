@@ -234,6 +234,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [228-pr-cache-direct-thread-post-acquisition.md](228-pr-cache-direct-thread-post-acquisition.md): upstream PR draft for the committed direct thread post acquisition cache consistency improvement.
 - [229-pr-cache-direct-post-revision-acquisition.md](229-pr-cache-direct-post-revision-acquisition.md): upstream PR draft for the committed direct post revision acquisition cache consistency improvement.
 - [230-pr-cache-direct-page-file-acquisition.md](230-pr-cache-direct-page-file-acquisition.md): upstream PR draft for the committed direct page file acquisition cache consistency improvement.
+- [231-pr-publish-result-url.md](231-pr-publish-result-url.md): upstream PR draft for the committed publish result URL audit-record improvement.
 
 ## Local Evidence Index
 
@@ -375,5 +376,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 132: `a9d6a68 perf(forum_post): cache direct thread post acquisition`
 - Local implementation commits, continued 133: `cb778c3 perf(forum_post_revision): cache direct revision acquisition`
 - Local implementation commits, continued 134: `240c3fe perf(page_file): cache direct file acquisition`
+- Local implementation commits, continued 135: `4fd8986 feat(site): expose publish result URL`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
