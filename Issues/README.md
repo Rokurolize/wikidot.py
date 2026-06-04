@@ -245,6 +245,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [239-pr-listpages-integer-field-parse-context.md](239-pr-listpages-integer-field-parse-context.md): upstream PR draft for the committed ListPages integer field parse-context fix.
 - [240-pr-listpages-rating-field-parse-context.md](240-pr-listpages-rating-field-parse-context.md): upstream PR draft for the committed ListPages rating field parse-context fix.
 - [241-pr-whorated-vote-value-parse-context.md](241-pr-whorated-vote-value-parse-context.md): upstream PR draft for the committed WhoRated vote value parse-context fix.
+- [242-pr-page-edit-lock-field-context.md](242-pr-page-edit-lock-field-context.md): upstream PR draft for the committed page edit-lock field context fix.
 
 ## Local Evidence Index
 
@@ -397,5 +398,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 143: `ac8a924 fix(page): report malformed listpages integer fields`
 - Local implementation commits, continued 144: `bcaa9d9 fix(page): report malformed listpages rating fields`
 - Local implementation commits, continued 145: `70f5b66 fix(page): report malformed whorated vote values`
+- Local implementation commits, continued 146: `cd6f26a fix(page): report malformed edit lock fields`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
