@@ -435,6 +435,9 @@ class ForumPostCollection(list["ForumPost"]):
                 posts = ForumPostCollection._parse(thread, html, page=page)
                 result[thread.id].extend(posts)
 
+        for thread in target_threads:
+            thread._posts = result[thread.id]
+
         return result
 
     @staticmethod

@@ -250,6 +250,20 @@ class TestForumPostCollectionAcquireAll:
         assert len(collection) == 2
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_populates_thread_posts_cache(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """直接取得したスレッド内投稿一覧はthread.postsのキャッシュとして保持する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_posts_in_thread
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        assert mock_forum_thread_no_http._posts is collection
+        assert mock_forum_thread_no_http.posts is collection
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_called_once()
+
     def test_acquire_all_preserves_title_text_spacing(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
