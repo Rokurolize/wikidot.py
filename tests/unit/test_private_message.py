@@ -397,6 +397,58 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
+    def test_from_ids_missing_subject_includes_module_message_and_field_context(self, mock_client):
+        """メッセージ詳細の件名要素欠損は空文字補完ではなく文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                    <span class="odate time_1234567890">01 Jan 2023 12:00</span>
+                </div>
+                <div class="body">Test Body</div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                "Message subject element is not found for module: dashboard/messages/DMViewMessageModule, "
+                "message: 1, field=subject"
+            ),
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
+    def test_from_ids_missing_body_includes_module_message_and_field_context(self, mock_client):
+        """メッセージ詳細の本文要素欠損は空文字補完ではなく文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                    <span class="subject">Test Subject</span>
+                    <span class="odate time_1234567890">01 Jan 2023 12:00</span>
+                </div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                "Message body element is not found for module: dashboard/messages/DMViewMessageModule, "
+                "message: 1, field=body"
+            ),
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
     def test_acquire_missing_first_page_response_body_includes_module_and_page_context(self, mock_client):
         """一覧初回ページレスポンスのbody欠損はmodule/page文脈付きNoElementException"""
         mock_response = MagicMock()
