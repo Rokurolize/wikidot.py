@@ -265,6 +265,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [259-pr-page-edit-local-cache-sync.md](259-pr-page-edit-local-cache-sync.md): upstream PR draft for the committed Page.edit local title/source cache synchronization fix.
 - [260-pr-page-edit-revision-cache-invalidation.md](260-pr-page-edit-revision-cache-invalidation.md): upstream PR draft for the committed Page.edit revision-cache invalidation fix.
 - [261-pr-page-vote-cache-invalidation.md](261-pr-page-vote-cache-invalidation.md): upstream PR draft for the committed page vote cache invalidation fix.
+- [262-pr-page-edit-revision-count-sync.md](262-pr-page-edit-revision-count-sync.md): upstream PR draft for the committed Page.edit revision-count sync fix.
 
 ## Local Evidence Index
 
@@ -437,5 +438,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 163: `464b830 fix(page): sync edit local source cache`
 - Local implementation commits, continued 164: `32fd2f0 fix(page): invalidate edit revision cache`
 - Local implementation commits, continued 165: `2ede1b7 fix(page): invalidate vote cache after voting`
+- Local implementation commits, continued 166: `6209dd8 fix(page): sync edit revision count`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
