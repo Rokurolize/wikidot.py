@@ -370,6 +370,23 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
+    def test_acquire_missing_first_page_response_body_includes_module_and_page_context(self, mock_client):
+        """一覧初回ページレスポンスのbody欠損はmodule/page文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(
+                NoElementException,
+                match="Message list response body is not found for module: dashboard/messages/DMInboxModule, page: 1",
+            ),
+        ):
+            PrivateMessageInbox.acquire(mock_client)
+
+        mock_from_ids.assert_not_called()
+
     def test_acquire_missing_message_href_raises(self, mock_client):
         """メッセージ行のdata-href欠損はNoElementException"""
         mock_response = MagicMock()
@@ -569,6 +586,30 @@ class TestPrivateMessageCollection:
             pytest.raises(
                 UnexpectedException,
                 match="Cannot retrieve private messages for module: dashboard/messages/DMInboxModule, page: 2",
+            ),
+        ):
+            PrivateMessageInbox.acquire(mock_client)
+
+        mock_from_ids.assert_not_called()
+
+    def test_acquire_missing_paginated_response_body_includes_module_and_page_context(self, mock_client):
+        """一覧追加ページレスポンスのbody欠損はmodule/page文脈付きNoElementException"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            "body": """
+            <div class="pager"><span class="target">1</span><span class="target">2</span></div>
+            <table><tr class="message" data-href="/account/messages/view/123"></tr></table>
+            """
+        }
+        second_response = MagicMock()
+        second_response.json.return_value = {}
+        mock_client.amc_client.request.side_effect = [(first_response,), (second_response,)]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(
+                NoElementException,
+                match="Message list response body is not found for module: dashboard/messages/DMInboxModule, page: 2",
             ),
         ):
             PrivateMessageInbox.acquire(mock_client)

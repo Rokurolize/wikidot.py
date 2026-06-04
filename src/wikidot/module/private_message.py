@@ -155,6 +155,16 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         return f"for module: {module_name}, page: {page}"
 
     @staticmethod
+    def _message_list_response_body(response: Any, module_name: str, page: int) -> str:
+        response_body = response.json().get("body")
+        if response_body is None:
+            raise exceptions.NoElementException(
+                "Message list response body is not found "
+                f"{PrivateMessageCollection._message_list_fetch_context(module_name, page)}"
+            )
+        return response_body
+
+    @staticmethod
     def _message_detail_fetch_context(module_name: str, message_id: int) -> str:
         return f"for module: {module_name}, message: {message_id}"
 
@@ -325,7 +335,8 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         if isinstance(first_response, Exception):
             raise first_response
 
-        first_html = BeautifulSoup(first_response.json()["body"], "lxml")
+        first_body = PrivateMessageCollection._message_list_response_body(first_response, module_name, 1)
+        first_html = BeautifulSoup(first_body, "lxml")
         # pagerの最後から2番目の要素を取得
         # pageが存在しない場合は1ページのみ
         pager = PrivateMessageCollection._pager_targets_from_html(first_html)
@@ -362,7 +373,8 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             if page == 1:
                 html = first_html
             else:
-                html = BeautifulSoup(response.json()["body"], "lxml")
+                body = PrivateMessageCollection._message_list_response_body(response, module_name, page)
+                html = BeautifulSoup(body, "lxml")
             row_index = 0
             for message_row in html.select("tr.message"):
                 if PrivateMessageCollection._is_inside_message_row(message_row):
