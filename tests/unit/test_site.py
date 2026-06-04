@@ -1711,6 +1711,27 @@ Real edit comment
         ):
             site.get_recent_changes()
 
+    def test_get_recent_changes_first_page_missing_response_body_includes_site_context(self) -> None:
+        """変更履歴初回レスポンスのbody欠損はサイト名とページ番号を含める"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Recent changes response body is not found for site: test, page: 1",
+        ):
+            site.get_recent_changes()
+
     def test_get_recent_changes_paginated_retry_exhaustion_includes_site_context(self) -> None:
         """変更履歴の後続ページ取得失敗はサイト名とページ番号を含める"""
         mock_client = create_mock_client()
@@ -1740,6 +1761,39 @@ Real edit comment
             with pytest.raises(
                 UnexpectedException,
                 match=r"Cannot retrieve recent changes for site: test, page: 2",
+            ):
+                site.get_recent_changes()
+
+    def test_get_recent_changes_paginated_missing_response_body_includes_site_context(self) -> None:
+        """変更履歴後続レスポンスのbody欠損はサイト名とページ番号を含める"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        first_page_response = self._site_change_response(1, last_page=2)
+        second_page_response = MagicMock()
+        second_page_response.json.return_value = {}
+
+        def request_side_effect(bodies: list[dict[str, Any]], *_args: Any) -> tuple[MagicMock, ...]:
+            pages = [int(body["page"]) for body in bodies]
+            if pages == [1]:
+                return (first_page_response,)
+            if pages == [2]:
+                return (second_page_response,)
+            raise AssertionError(f"Unexpected recent changes pages: {pages}")
+
+        mock_client.amc_client.request.side_effect = request_side_effect
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+            with pytest.raises(
+                NoElementException,
+                match=r"Recent changes response body is not found for site: test, page: 2",
             ):
                 site.get_recent_changes()
 

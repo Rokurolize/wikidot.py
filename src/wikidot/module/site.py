@@ -1340,7 +1340,10 @@ class Site:
         if response is None:
             raise exceptions.UnexpectedException(f"Cannot retrieve recent changes for site: {self.unix_name}, page: 1")
 
-        html = BeautifulSoup(response.json()["body"], "lxml")
+        body = response.json().get("body")
+        if body is None:
+            raise NoElementException(f"Recent changes response body is not found for site: {self.unix_name}, page: 1")
+        html = BeautifulSoup(body, "lxml")
         page_changes = list(iter_changes(html, 1))
         if not page_changes:
             return changes
@@ -1368,7 +1371,12 @@ class Site:
                     f"Cannot retrieve recent changes for site: {self.unix_name}, page: {page_no}"
                 )
 
-            html = BeautifulSoup(response.json()["body"], "lxml")
+            body = response.json().get("body")
+            if body is None:
+                raise NoElementException(
+                    f"Recent changes response body is not found for site: {self.unix_name}, page: {page_no}"
+                )
+            html = BeautifulSoup(body, "lxml")
             page_changes = list(iter_changes(html, page_no))
             if not page_changes:
                 break
