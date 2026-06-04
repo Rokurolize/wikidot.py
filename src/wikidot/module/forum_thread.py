@@ -46,6 +46,19 @@ def _thread_list_parse_context(
     return f"for site: {_site_name(site)} ({', '.join(context)})"
 
 
+def _thread_detail_parse_context(
+    site: "Site", thread_id: int | None = None, category: Optional["ForumCategory"] = None
+) -> str:
+    context = []
+    if thread_id is not None:
+        context.append(f"thread={thread_id}")
+    if category is not None:
+        context.append(f"category={category.id}")
+    if context:
+        return f"for site: {_site_name(site)} ({', '.join(context)})"
+    return f"for site: {_site_name(site)}"
+
+
 class ForumThreadCollection(list["ForumThread"]):
     """
     Class representing a collection of forum threads
@@ -266,7 +279,10 @@ class ForumThreadCollection(list["ForumThread"]):
 
     @staticmethod
     def _parse_thread_page(
-        site: "Site", html: BeautifulSoup, category: Optional["ForumCategory"] = None
+        site: "Site",
+        html: BeautifulSoup,
+        category: Optional["ForumCategory"] = None,
+        thread_id: int | None = None,
     ) -> "ForumThread":
         """
         Internal method to extract thread information from thread page HTML
@@ -293,49 +309,51 @@ class ForumThreadCollection(list["ForumThread"]):
         NoElementException
             If required HTML elements are not found
         """
+        parse_context = _thread_detail_parse_context(site, thread_id, category)
+
         # title取得処理
         # forum-breadcrumbsの最後のNavigableStringを取得
         bc_elem = html.select_one("div.forum-breadcrumbs")
         if bc_elem is None:
-            raise NoElementException("Breadcrumbs element is not found.")
+            raise NoElementException(f"Breadcrumbs element is not found {parse_context}")
         title = ForumThreadCollection._thread_title_from_breadcrumbs(bc_elem)
         if not title:
-            raise NoElementException("Thread title is not found.")
+            raise NoElementException(f"Thread title is not found {parse_context}")
 
         # description取得処理
         description_block_elem = html.select_one("div.description-block")
         if description_block_elem is None:
-            raise NoElementException("Description block element is not found.")
+            raise NoElementException(f"Description block element is not found {parse_context}")
         statistics_elems = description_block_elem.find_all("div", class_="statistics", recursive=False)
         if not statistics_elems:
-            raise NoElementException("Statistics element is not found.")
+            raise NoElementException(f"Statistics element is not found {parse_context}")
         statistics_elem = statistics_elems[-1]
         description = ForumThreadCollection._description_text_from_block(description_block_elem, statistics_elem)
 
         # created_by取得処理
         user_elem = statistics_elem.find("span", class_="printuser", recursive=False)
         if user_elem is None:
-            raise NoElementException("User element is not found.")
+            raise NoElementException(f"User element is not found {parse_context}")
         created_by = user_parser(site.client, user_elem)
 
         # created_at取得処理
         odate_elem = statistics_elem.find("span", class_="odate", recursive=False)
         if odate_elem is None:
-            raise NoElementException("Odate element is not found.")
+            raise NoElementException(f"Odate element is not found {parse_context}")
         created_at = odate_parser(odate_elem)
 
         # post_count取得処理
         # 3番目のbrの前のテキスト
         br_tags = statistics_elem.find_all("br", recursive=False)
         if len(br_tags) < 3:
-            raise NoElementException("Br tags are not enough.")
+            raise NoElementException(f"Br tags are not enough {parse_context}")
         post_count_elem = br_tags[2].previous_sibling
         if post_count_elem is None:
-            raise NoElementException("Posts count element is not found.")
+            raise NoElementException(f"Posts count element is not found {parse_context}")
         post_count_text = str(post_count_elem)
         post_count_match = re.search(r"(\d+)", post_count_text)
         if post_count_match is None:
-            raise NoElementException("Post count is not found.")
+            raise NoElementException(f"Post count is not found {parse_context}")
         post_count = int(post_count_match.group(1))
 
         # id取得処理
@@ -347,15 +365,15 @@ class ForumThreadCollection(list["ForumThread"]):
                 script_elem = script
                 break
         if script_elem is None or script_elem.string is None:
-            raise NoElementException("Script element is not found.")
+            raise NoElementException(f"Script element is not found {parse_context}")
         thread_id_match = re.search(r"(\d+)", script_elem.string)
         if thread_id_match is None:
-            raise NoElementException("Thread ID is not found in script.")
-        thread_id = int(thread_id_match.group(1))
+            raise NoElementException(f"Thread ID is not found in script {parse_context}")
+        parsed_thread_id = int(thread_id_match.group(1))
 
         return ForumThread(
             site=site,
-            id=thread_id,
+            id=parsed_thread_id,
             title=title,
             description=description,
             created_by=created_by,
@@ -489,9 +507,12 @@ class ForumThreadCollection(list["ForumThread"]):
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
 
-            thread = ForumThreadCollection._parse_thread_page(site, html, category)
+            thread = ForumThreadCollection._parse_thread_page(site, html, category, thread_id=thread_id)
             if thread_id != thread.id:
-                raise NoElementException("Thread ID is not matched.")
+                raise NoElementException(
+                    f"Thread ID is not matched for site: {_site_name(site)} "
+                    f"(requested_thread={thread_id}, parsed_thread={thread.id})"
+                )
             threads_by_id[thread_id] = thread
 
         threads = [threads_by_id[thread_id] for thread_id in thread_ids]
