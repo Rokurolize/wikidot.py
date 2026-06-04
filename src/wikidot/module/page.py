@@ -1342,6 +1342,9 @@ class Page:
         """
         return self._id is not None
 
+    def _source_not_found_exception(self) -> exceptions.NotFoundException:
+        return exceptions.NotFoundException(f"Cannot find page source: {self.fullname}")
+
     @property
     def source(self) -> PageSource:
         """
@@ -1363,7 +1366,7 @@ class Page:
             PageCollection(self.site, [self]).get_page_sources()
 
         if self._source is None:
-            raise exceptions.NotFoundException("Cannot find page source")
+            raise self._source_not_found_exception()
 
         return self._source
 
@@ -1397,7 +1400,7 @@ class Page:
         PageCollection(self.site, [self]).get_page_sources()
 
         if self._source is None:
-            raise exceptions.NotFoundException("Cannot find page source")
+            raise self._source_not_found_exception()
 
         return self._source
 

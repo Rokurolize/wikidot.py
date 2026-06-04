@@ -1250,6 +1250,20 @@ class TestPageProperties:
         source = mock_page_with_id.source
         assert "page content" in source.wiki_text
 
+    def test_source_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """source取得リトライが尽きた場合は対象ページ名を含めて失敗する"""
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.NotFoundException, match="Cannot find page source: test-page"):
+            _ = mock_page_with_id.source
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "viewsource/ViewSourceModule", "page_id": 12345}]
+        )
+        assert mock_page_with_id._source is None
+
     def test_refresh_source_forces_remote_source_fetch(
         self, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:
@@ -1268,6 +1282,21 @@ class TestPageProperties:
         )
         assert source == mock_page_with_id.source
         assert "page content" in source.wiki_text
+
+    def test_refresh_source_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """明示的なsource再取得失敗も対象ページ名を含めて失敗する"""
+        mock_page_with_id._source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.NotFoundException, match="Cannot find page source: test-page"):
+            mock_page_with_id.refresh_source()
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "viewsource/ViewSourceModule", "page_id": 12345}]
+        )
+        assert mock_page_with_id._source is None
 
     def test_revisions_property(self, mock_page_with_id: Page, page_revisionlist: dict[str, Any]) -> None:
         """リビジョンプロパティが正しく動作する"""
