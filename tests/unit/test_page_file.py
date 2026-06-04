@@ -198,12 +198,13 @@ class TestPageFileCollectionAcquire:
         """直接ファイル取得リトライが尽きた場合は明示的に失敗する"""
         page = MagicMock()
         page.id = 12345
+        page.fullname = "test-page"
         site = MagicMock()
         page.site = site
         site.amc_request = MagicMock()
         site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve page files"):
+        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve page files: test-page"):
             PageFileCollection.acquire(page)
 
         site.amc_request.assert_not_called()

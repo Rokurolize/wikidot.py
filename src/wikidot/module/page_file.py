@@ -240,7 +240,7 @@ class PageFileCollection(list["PageFile"]):
             ]
         )[0]
         if response is None:
-            raise exceptions.UnexpectedException("Cannot retrieve page files")
+            raise exceptions.UnexpectedException(f"Cannot retrieve page files: {page.fullname}")
 
         html = BeautifulSoup(response.json()["body"], "lxml")
         files = PageFileCollection._parse_from_html(page, html)
