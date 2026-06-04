@@ -362,7 +362,9 @@ class PageRevision:
         if not self.is_source_acquired():
             PageRevisionCollection(self.page, [self]).get_sources()
         if self._source is None:
-            raise UnexpectedException(f"Cannot retrieve page revision source: {self.id}")
+            raise UnexpectedException(
+                f"Cannot retrieve page revision source for page: {self.page.fullname}, revision: {self.id}"
+            )
         return self._source
 
     @source.setter
@@ -392,7 +394,9 @@ class PageRevision:
         if not self.is_html_acquired():
             PageRevisionCollection(self.page, [self]).get_htmls()
         if self._html is None:
-            raise UnexpectedException(f"Cannot retrieve page revision HTML: {self.id}")
+            raise UnexpectedException(
+                f"Cannot retrieve page revision HTML for page: {self.page.fullname}, revision: {self.id}"
+            )
         return self._html
 
     @html.setter
