@@ -220,6 +220,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [214-pr-forum-thread-response-body-context.md](214-pr-forum-thread-response-body-context.md): upstream PR draft for the committed forum thread response body validation fix.
 - [215-pr-page-file-response-body-context.md](215-pr-page-file-response-body-context.md): upstream PR draft for the committed direct page file response body validation fix.
 - [216-pr-page-revision-response-body-context.md](216-pr-page-revision-response-body-context.md): upstream PR draft for the committed page revision source and HTML response body validation fix.
+- [217-pr-forum-post-revision-response-body-context.md](217-pr-forum-post-revision-response-body-context.md): upstream PR draft for the committed forum post revision-list response body validation fix.
 
 ## Local Evidence Index
 
@@ -347,5 +348,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 118: `ebe9b4c fix(forum_thread): validate thread response bodies`
 - Local implementation commits, continued 119: `9d01b97 fix(page_file): validate file response bodies`
 - Local implementation commits, continued 120: `ead2941 fix(page_revision): validate revision response bodies`
+- Local implementation commits, continued 121: `aaa341f fix(forum_post_revision): validate revision list response bodies`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
