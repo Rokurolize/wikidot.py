@@ -479,6 +479,23 @@ class TestPrivateMessageCollection:
         assert mock_client.amc_client.request.call_count == 2
         mock_from_ids.assert_called_once_with(mock_client, [123])
 
+    def test_acquire_raises_when_first_page_retry_is_exhausted(self, mock_client):
+        """初回ページのリトライが尽きた場合はmodule/page付きで失敗する"""
+        mock_client.amc_client.config.retry_max_retries = 1
+        mock_client.amc_client.request.return_value = (RuntimeError("temporary failure"),)
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(
+                UnexpectedException,
+                match="Cannot retrieve private messages for module: dashboard/messages/DMInboxModule, page: 1",
+            ),
+        ):
+            PrivateMessageInbox.acquire(mock_client)
+
+        mock_from_ids.assert_not_called()
+        assert mock_client.amc_client.request.call_count == 2
+
     def test_acquire_deduplicates_message_ids_preserving_order(self, mock_client):
         """ページをまたいで重複したメッセージIDは詳細取得前に順序保持で重複排除する"""
         first_response = MagicMock()
@@ -526,7 +543,10 @@ class TestPrivateMessageCollection:
 
         with (
             patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
-            pytest.raises(UnexpectedException, match="Cannot retrieve private messages page: 2"),
+            pytest.raises(
+                UnexpectedException,
+                match="Cannot retrieve private messages for module: dashboard/messages/DMInboxModule, page: 2",
+            ),
         ):
             PrivateMessageInbox.acquire(mock_client)
 

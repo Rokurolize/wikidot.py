@@ -151,6 +151,10 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         return f"for module: {module_name} (page={page}, row={row_index})"
 
     @staticmethod
+    def _message_list_fetch_context(module_name: str, page: int) -> str:
+        return f"for module: {module_name}, page: {page}"
+
+    @staticmethod
     def _pager_targets_from_html(html: BeautifulSoup) -> list[Tag]:
         for pager in html.select("div.pager"):
             if PrivateMessageCollection._is_inside_message_row(pager):
@@ -301,7 +305,9 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         # pager取得
         first_response = PrivateMessageCollection._amc_request_with_retry(client, [{"moduleName": module_name}])[0]
         if first_response is None:
-            raise exceptions.UnexpectedException("Cannot retrieve private messages page: 1")
+            raise exceptions.UnexpectedException(
+                f"Cannot retrieve private messages {PrivateMessageCollection._message_list_fetch_context(module_name, 1)}"
+            )
         if isinstance(first_response, Exception):
             raise first_response
 
@@ -333,7 +339,10 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         seen_message_ids: set[int] = set()
         for page, response in zip(response_pages, responses, strict=True):
             if response is None:
-                raise exceptions.UnexpectedException(f"Cannot retrieve private messages page: {page}")
+                raise exceptions.UnexpectedException(
+                    "Cannot retrieve private messages "
+                    f"{PrivateMessageCollection._message_list_fetch_context(module_name, page)}"
+                )
             if isinstance(response, Exception):
                 raise response
             if page == 1:
