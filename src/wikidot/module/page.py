@@ -84,6 +84,17 @@ def _parse_revision_row_id(site: "Site", page: "Page", value: object) -> int:
     return int(raw_id)
 
 
+def _parse_revision_number(site: "Site", page: "Page", rev_id: int, value: object) -> int:
+    value_text = str(value).strip()
+    try:
+        return int(value_text.removesuffix("."))
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Revision number is malformed for site: {site.unix_name}, page: {page.fullname}, "
+            f"revision: {rev_id} (id={page.id}, field=revision_number, value={value_text})"
+        ) from exc
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -992,7 +1003,7 @@ class PageCollection(list["Page"]):
                         f"Cannot find revision cells for site: {site.unix_name}, "
                         f"page: {first_page.fullname}, revision: {rev_id}"
                     )
-                rev_no = int(tds[0].text.strip().removesuffix("."))
+                rev_no = _parse_revision_number(site, first_page, rev_id, tds[0].text)
                 created_by_elem = tds[4].find("span", class_="printuser", recursive=False)
                 if not isinstance(created_by_elem, Tag):
                     raise exceptions.NoElementException(
