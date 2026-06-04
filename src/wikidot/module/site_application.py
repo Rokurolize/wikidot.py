@@ -19,6 +19,25 @@ if TYPE_CHECKING:
     from ..module.user import AbstractUser
 
 
+def _site_name(site: "Site") -> str:
+    site_unix_name = getattr(site, "unix_name", None)
+    return site_unix_name if isinstance(site_unix_name, str) else str(site)
+
+
+def _application_parse_context(
+    site: "Site",
+    application_index: int,
+    applications_count: int,
+    **counts: int,
+) -> str:
+    context = [
+        f"application={application_index}",
+        f"applications={applications_count}",
+    ]
+    context.extend(f"{name}={value}" for name, value in counts.items())
+    return f"for site: {_site_name(site)} ({', '.join(context)})"
+
+
 @dataclass
 class SiteApplication:
     """
@@ -97,29 +116,35 @@ class SiteApplication:
         ]
         used_text_tables: set[int] = set()
 
-        for header in application_headers:
+        for application_index, header in enumerate(application_headers, start=1):
             user_element = header.find("span", class_="printuser", recursive=False)
             if user_element is None:
                 continue
 
+            parse_context = _application_parse_context(site, application_index, len(application_headers))
             text_wrapper_element = header.find_next_sibling("table")
             if not isinstance(text_wrapper_element, Tag):
-                raise exceptions.NoElementException("Application text table is not found")
+                raise exceptions.NoElementException(f"Application text table is not found {parse_context}")
             if id(text_wrapper_element) in used_text_tables:
-                site_name = site.unix_name if isinstance(site.unix_name, str) else str(site)
                 raise exceptions.UnexpectedException(
                     "Length of application users and text tables are different for site: "
-                    f"{site_name} (users={len(application_headers)}, text_tables={len(used_text_tables)})"
+                    f"{_site_name(site)} (users={len(application_headers)}, text_tables={len(used_text_tables)})"
                 )
             used_text_tables.add(id(text_wrapper_element))
 
             text_row = text_wrapper_element.find("tr", recursive=False)
             if not isinstance(text_row, Tag):
-                raise exceptions.NoElementException("Application text row is not found")
+                raise exceptions.NoElementException(f"Application text row is not found {parse_context}")
 
             text_cells = text_row.find_all("td", recursive=False)
             if len(text_cells) < 2:
-                raise exceptions.NoElementException("Application text cell is not found")
+                parse_context = _application_parse_context(
+                    site,
+                    application_index,
+                    len(application_headers),
+                    cells=len(text_cells),
+                )
+                raise exceptions.NoElementException(f"Application text cell is not found {parse_context}")
 
             user = user_parser(site.client, user_element)
             text = text_cells[1].get_text(" ", strip=True)

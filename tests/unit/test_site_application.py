@@ -344,10 +344,11 @@ class TestSiteApplicationAcquireAll:
             SiteApplication.acquire_all(site)
 
     def test_acquire_all_missing_text_cell(self):
-        """申請本文セルがない場合NoElementException"""
+        """申請本文セルがない場合はサイト名と申請位置を含めて失敗する"""
         mock_client = create_mock_client(is_logged_in=True)
         site = MagicMock()
         site.client = mock_client
+        site.unix_name = "test-site"
 
         response = MagicMock()
         response.json.return_value = {
@@ -362,7 +363,11 @@ class TestSiteApplicationAcquireAll:
         }
         site.amc_request_with_retry.return_value = (response,)
 
-        with pytest.raises(NoElementException, match="text cell"):
+        with pytest.raises(
+            NoElementException,
+            match="Application text cell is not found for site: test-site "
+            r"\(application=1, applications=1, cells=1\)",
+        ):
             SiteApplication.acquire_all(site)
 
 
