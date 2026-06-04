@@ -235,6 +235,22 @@ class TestPageCollectionParse:
         with pytest.raises(exceptions.NoElementException):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    def test_parse_missing_key_element_includes_site_page_and_field_context(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """構造フィールド名が欠けた場合はサイト・ページ・フィールド文脈を含める"""
+        body = page_listpages_single["body"].replace(
+            '<span class="set title"><span class="name">title</span> <span class="value">SCP-001</span></span>',
+            '<span class="set title"><span class="value">SCP-001</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Cannot find key element in set for site: test-site, page: scp-001, field: 4",
+        ):
+            PageCollection._parse(mock_site_no_http, html_body)
+
 
 class TestPageCollectionSearchPages:
     """PageCollection.search_pagesのテスト"""

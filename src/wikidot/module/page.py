@@ -460,11 +460,14 @@ class PageCollection(list["Page"]):
             )
 
             # 各値を取得
-            for set_element in set_elements:
+            for field_index, set_element in enumerate(set_elements, start=1):
                 key_element = set_element.find("span", class_="name", recursive=False)
                 if key_element is None:
                     page_name = page_params.get("fullname", "unknown")
-                    raise exceptions.NoElementException(f"Cannot find key element in set for page: {page_name}")
+                    raise exceptions.NoElementException(
+                        "Cannot find key element in set "
+                        f"for site: {site.unix_name}, page: {page_name}, field: {field_index}"
+                    )
                 key = key_element.text.strip()
                 value_element = set_element.find("span", class_="value", recursive=False)
 
