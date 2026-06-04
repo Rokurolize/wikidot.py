@@ -2081,6 +2081,23 @@ class TestPageWriteMethods:
         result = mock_page_with_id.set_parent(None)
         assert result.parent_fullname is None
 
+    def test_set_parent_empty_string_clears_local_parent(
+        self, mock_page_with_id: Page, page_setparent_success: dict[str, Any]
+    ) -> None:
+        """空文字で親ページをクリアした場合もローカル状態はNoneに正規化する"""
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_response = MagicMock()
+        mock_response.json.return_value = page_setparent_success
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        result = mock_page_with_id.set_parent("")
+
+        assert result.parent_fullname is None
+        request_body = mock_page_with_id.site.amc_request.call_args.args[0][0]
+        assert request_body["parentName"] == ""
+
     def test_set_parent_missing_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
         """親ページ更新応答のstatus欠落は文脈付きで失敗しローカル状態を更新しない"""
         mock_page_with_id.parent_fullname = "old-parent"
@@ -2540,6 +2557,29 @@ class TestPageWriteMethods:
         mock_page_with_id.site.amc_request = MagicMock(return_value=(ok_response,))
 
         mock_page_with_id.set_metadata(parent_fullname=None)
+
+        mock_page_with_id.site.amc_request.assert_called_once_with(
+            [
+                {
+                    "action": "WikiPageAction",
+                    "event": "setParentPage",
+                    "moduleName": "Empty",
+                    "pageId": "12345",
+                    "parentName": "",
+                }
+            ]
+        )
+        assert mock_page_with_id.parent_fullname is None
+
+    def test_set_metadata_empty_parent_string_clears_local_parent(self, mock_page_with_id: Page) -> None:
+        """parent_fullname=""はリモート同様にローカル状態もNoneへ正規化する"""
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id.site.client.login_check = MagicMock()
+        ok_response = MagicMock()
+        ok_response.json.return_value = {"status": "ok"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=(ok_response,))
+
+        mock_page_with_id.set_metadata(parent_fullname="")
 
         mock_page_with_id.site.amc_request.assert_called_once_with(
             [

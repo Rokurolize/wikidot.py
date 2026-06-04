@@ -36,6 +36,10 @@ class _UnsetParentType:
 _UNSET_PARENT = _UnsetParentType()
 
 
+def _normalize_parent_fullname(parent_fullname: str | None) -> str | None:
+    return parent_fullname or None
+
+
 class PageConstants:
     """
     A class for centrally managing constants used in the page module
@@ -1972,8 +1976,9 @@ class Page:
                 }
             )
 
+        parent_value: str | None = None
         if parent_fullname is not _UNSET_PARENT:
-            parent_value = parent_fullname if isinstance(parent_fullname, str) else None
+            parent_value = _normalize_parent_fullname(parent_fullname if isinstance(parent_fullname, str) else None)
             request_bodies.append(
                 {
                     "action": "WikiPageAction",
@@ -2000,7 +2005,7 @@ class Page:
         if tags is not None:
             self.tags = list(tags)
         if parent_fullname is not _UNSET_PARENT:
-            self.parent_fullname = parent_fullname if isinstance(parent_fullname, str) else None
+            self.parent_fullname = parent_value
         if metas is not None:
             self._metas = dict(metas)
 
@@ -2266,6 +2271,7 @@ class Page:
             When setting the parent page fails
         """
         self.site.client.login_check()
+        parent_value = _normalize_parent_fullname(parent_fullname)
         response = self.site.amc_request(
             [
                 {
@@ -2273,12 +2279,12 @@ class Page:
                     "event": "setParentPage",
                     "moduleName": "Empty",
                     "pageId": str(self.id),
-                    "parentName": parent_fullname or "",
+                    "parentName": parent_value or "",
                 }
             ]
         )[0]
         _require_page_metadata_action_status(self.site, self, "setParentPage", response.json())
-        self.parent_fullname = parent_fullname
+        self.parent_fullname = parent_value
         return self
 
     def rename(self, new_fullname: str) -> "Page":
