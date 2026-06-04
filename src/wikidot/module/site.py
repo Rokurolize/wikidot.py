@@ -41,6 +41,23 @@ class _UnsetPublishParentType:
 _UNSET_PUBLISH_PARENT = _UnsetPublishParentType()
 
 
+def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", event: str, data: dict[str, Any]) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Site invitation action response is malformed for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            f"Failed to complete site invitation action for site: {site.unix_name}, user: {user.name}, event: {event}",
+            status,
+        )
+    return status
+
+
 @dataclass(frozen=True)
 class PagePublishResult:
     """
@@ -1092,7 +1109,7 @@ class Site:
             When not logged in (by @login_required decorator)
         """
         try:
-            self.amc_request(
+            response = self.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
@@ -1102,7 +1119,8 @@ class Site:
                         "moduleName": "Empty",
                     }
                 ]
-            )
+            )[0]
+            _require_site_invitation_action_status(self, user, "inviteMember", response.json())
         except exceptions.WikidotStatusCodeException as e:
             if e.status_code == "already_invited":
                 raise exceptions.TargetErrorException(
