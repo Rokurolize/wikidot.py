@@ -2202,6 +2202,7 @@ class Page:
             force_edit,
         )
         self.title = page.title
+        self._revisions = None
         self.source = PageSource(self, source)
         return page
 

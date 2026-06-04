@@ -2907,6 +2907,27 @@ class TestPageEdit:
         assert mock_page_with_id._source.wiki_text == "Updated source"
         assert mock_page_with_id._source.page is mock_page_with_id
 
+    def test_edit_invalidates_local_revision_cache(self, mock_page_with_id: Page) -> None:
+        """編集成功後は古いrevision一覧キャッシュを使い回さない"""
+        mock_page_with_id.site.client.login_check = MagicMock()
+        cached_revision = PageRevision(
+            page=mock_page_with_id,
+            id=1,
+            rev_no=1,
+            created_by=mock_page_with_id.updated_by,
+            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            comment="Old revision",
+        )
+        mock_page_with_id._revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        edited_page = MagicMock()
+        edited_page.title = "Updated Title"
+
+        with patch.object(Page, "create_or_edit", return_value=edited_page):
+            page = mock_page_with_id.edit(title="Updated Title", source="Updated source")
+
+        assert page is edited_page
+        assert mock_page_with_id._revisions is None
+
     def test_edit_allows_empty_source(
         self,
         mock_page_with_id: Page,
