@@ -357,5 +357,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 125: `0d3a700 fix(page): validate batched source response bodies`
 - Local implementation commits, continued 126: `b54f1ff fix(page): validate batched revision response bodies`
 - Local implementation commits, continued 127: `91111ec fix(page): validate batched vote response bodies`
+- Local implementation commits, continued 128: `7e90d3f fix(page): validate batched file response bodies`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
