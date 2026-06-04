@@ -1409,6 +1409,35 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request.assert_not_called()
         assert mock_page_with_id._votes is None
 
+    def test_acquire_votes_malformed_value_includes_site_page_and_value_context(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+        page_whorated: dict[str, Any],
+    ) -> None:
+        """WhoRatedのvote値が壊れている場合はsite/page/id/field/value文脈付きNoElementException"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        body = page_whorated["body"].replace(
+            "+              </span>",
+            "not-a-vote              </span>",
+            1,
+        )
+        response = self._json_response({**page_whorated, "body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                rf"WhoRated vote value is malformed for site: test-site, page: test-page "
+                rf"\(id={mock_page_with_id.id}, field=vote_value, value=not-a-vote\)"
+            ),
+        ):
+            collection.get_page_votes()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._votes is None
+
     def test_acquire_votes_batches_missing_page_ids(
         self,
         monkeypatch: pytest.MonkeyPatch,

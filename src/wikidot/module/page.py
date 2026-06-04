@@ -117,6 +117,21 @@ def _parse_listpages_float_field(site: "Site", page_name: str, key: str, value: 
         ) from exc
 
 
+def _parse_who_rated_vote_value(site: "Site", page: "Page", value: object) -> int:
+    value_text = str(value).strip()
+    if value_text == "+":
+        return 1
+    if value_text == "-":
+        return -1
+    try:
+        return int(value_text)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"WhoRated vote value is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, field=vote_value, value={value_text})"
+        ) from exc
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -1182,15 +1197,8 @@ class PageCollection(list["Page"]):
                 )
 
             users = [user_parser(site.client, user_elem) for user_elem in user_elems]
-            values = []
-            for value in value_elems:
-                _v = value.text.strip()
-                if _v == "+":
-                    values.append(1)
-                elif _v == "-":
-                    values.append(-1)
-                else:
-                    values.append(int(_v))
+            first_page = target_pages_by_id[page_id][0]
+            values = [_parse_who_rated_vote_value(site, first_page, value.text) for value in value_elems]
 
             for page in target_pages_by_id[page_id]:
                 votes = [PageVote(page, user, vote) for user, vote in zip(users, values, strict=True)]
