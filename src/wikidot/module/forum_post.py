@@ -486,7 +486,9 @@ class ForumPostCollection(list["ForumPost"]):
                 edit_form.select_one(":scope > textarea[name='source']") if isinstance(edit_form, Tag) else None
             )
             if source_elem is None:
-                raise NoElementException(f"Source textarea is not found for post: {post.id}")
+                raise NoElementException(
+                    f"Source textarea is not found for site: {thread.site.unix_name}, post: {post.id}"
+                )
             source = source_elem.get_text()
             for target_post in target_posts_by_id[post.id]:
                 target_post._source = source

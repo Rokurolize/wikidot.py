@@ -605,6 +605,37 @@ class TestForumPostCollectionGetSources:
         assert mock_forum_post_no_http._source == "Test source content in wikidot syntax"
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_get_post_sources_missing_direct_source_textarea_includes_context(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """編集フォーム直下のsource textarea欠落はsite/post付きで失敗する"""
+        malformed_form = {
+            **forum_editpost_form,
+            "body": forum_editpost_form["body"].replace(
+                '<textarea id="np-text" name="source">Test source content in wikidot syntax</textarea>',
+                '<div><textarea id="np-text" name="source">Nested source</textarea></div>',
+                1,
+            ),
+        }
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = malformed_form
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Source textarea is not found for site: test-site, post: 5001",
+        ):
+            collection.get_post_sources()
+
+        assert mock_forum_post_no_http._source is None
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_get_post_sources_retries_transient_fetch_failures(
         self,
         mock_forum_thread_no_http: ForumThread,
