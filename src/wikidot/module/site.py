@@ -64,6 +64,8 @@ class PagePublishResult:
         True when publish created a new page. False when publish edited an existing page.
     operation : Literal["create", "edit"]
         Audit-friendly operation name derived from created.
+    url : str
+        Page URL derived from the returned page object.
     metadata_updated : bool
         True when any metadata update was requested by the publish call.
     source_verified : bool
@@ -95,10 +97,16 @@ class PagePublishResult:
         """Create/edit operation name for audit records."""
         return "create" if self.created else "edit"
 
+    @property
+    def url(self) -> str:
+        """Page URL for audit records."""
+        return self.page.get_url()
+
     def as_dict(self) -> dict[str, str | int | bool | None]:
         """Return a compact audit-friendly representation of this publish result."""
         return {
             "fullname": self.page.fullname,
+            "url": self.url,
             "page_id": self.page_id,
             "created": self.created,
             "operation": self.operation,

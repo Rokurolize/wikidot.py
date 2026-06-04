@@ -837,6 +837,7 @@ class TestSitePageAccessor:
         """PagePublishResultは監査ledger向けの辞書形式に変換できる"""
         page = MagicMock()
         page.fullname = "test-page"
+        page.get_url.return_value = "https://test-site.wikidot.com/test-page"
         result = PagePublishResult(
             page=page,
             page_id=12345,
@@ -847,8 +848,10 @@ class TestSitePageAccessor:
             created=False,
         )
 
+        assert result.url == "https://test-site.wikidot.com/test-page"
         assert result.as_dict() == {
             "fullname": "test-page",
+            "url": "https://test-site.wikidot.com/test-page",
             "page_id": 12345,
             "created": False,
             "operation": "edit",
