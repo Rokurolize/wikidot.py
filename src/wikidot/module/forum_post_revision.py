@@ -423,7 +423,7 @@ class ForumPostRevision:
         return self._html is not None
 
     @property
-    def html(self) -> str | None:
+    def html(self) -> str:
         """
         Get the revision's HTML content
 
@@ -431,11 +431,13 @@ class ForumPostRevision:
 
         Returns
         -------
-        str | None
+        str
             The revision's HTML content
         """
         if not self.is_html_acquired():
             ForumPostRevisionCollection(self.post, [self]).get_htmls()
+        if self._html is None:
+            raise exceptions.UnexpectedException(f"Cannot retrieve forum post revision HTML: {self.id}")
         return self._html
 
     @html.setter

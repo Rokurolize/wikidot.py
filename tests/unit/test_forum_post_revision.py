@@ -788,6 +788,26 @@ class TestForumPostRevisionHtml:
         )
         assert revision.html == "<p>Cached HTML</p>"
 
+    def test_html_property_raises_when_retry_is_exhausted(self, mock_forum_post_no_http: ForumPost) -> None:
+        """htmlプロパティは再試行失敗をNoneとして返さない"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=None,
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve forum post revision HTML: 9001"):
+            _ = revision.html
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "forum/sub/ForumPostRevisionModule", "revisionId": 9001}]
+        )
+
     def test_html_setter(self, mock_forum_post_no_http: ForumPost) -> None:
         """htmlセッターが正しく動作する"""
         revision = ForumPostRevision(
