@@ -960,7 +960,12 @@ class PageCollection(list["Page"]):
                 continue
             target_pages_for_id = target_pages_by_id[page_id]
             first_page = target_pages_for_id[0]
-            body = response.json()["body"]
+            body = response.json().get("body")
+            if body is None:
+                raise exceptions.NoElementException(
+                    f"Page revision list response body is not found for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} (id={first_page.id})"
+                )
             body_html = BeautifulSoup(body, "lxml")
             parsed_revisions: list[tuple[int, int, Any, datetime, str]] = []
             for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
