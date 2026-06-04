@@ -353,5 +353,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 121: `aaa341f fix(forum_post_revision): validate revision list response bodies`
 - Local implementation commits, continued 122: `f700e69 fix(site): validate recent changes response bodies`
 - Local implementation commits, continued 123: `28b2745 fix(page): validate auxiliary response bodies`
+- Local implementation commits, continued 124: `9a0f172 fix(page): validate ListPages response bodies`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
