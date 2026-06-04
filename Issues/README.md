@@ -229,6 +229,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [223-pr-page-vote-batch-response-body-context.md](223-pr-page-vote-batch-response-body-context.md): upstream PR draft for the committed batched page vote response body validation fix.
 - [224-pr-page-file-batch-response-body-context.md](224-pr-page-file-batch-response-body-context.md): upstream PR draft for the committed batched page file response body validation fix.
 - [225-pr-source-result-page-id-ledger.md](225-pr-source-result-page-id-ledger.md): upstream PR draft for the committed source result page ID ledger improvement.
+- [226-pr-publish-visibility-404-context.md](226-pr-publish-visibility-404-context.md): upstream PR draft for the committed publish visibility 404 context fix.
 
 ## Local Evidence Index
 
@@ -365,5 +366,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 127: `91111ec fix(page): validate batched vote response bodies`
 - Local implementation commits, continued 128: `7e90d3f fix(page): validate batched file response bodies`
 - Local implementation commits, continued 129: `14a81f7 feat(site): expose source result page ids`
+- Local implementation commits, continued 130: `1f8b83e fix(site): report publish visibility 404 context`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
