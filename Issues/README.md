@@ -254,6 +254,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [248-pr-page-delete-action-status-context.md](248-pr-page-delete-action-status-context.md): upstream PR draft for the committed page delete action status context fix.
 - [249-pr-page-metas-setter-action-status-context.md](249-pr-page-metas-setter-action-status-context.md): upstream PR draft for the committed page metas setter action status context fix.
 - [250-pr-forum-post-edit-action-status-context.md](250-pr-forum-post-edit-action-status-context.md): upstream PR draft for the committed forum post edit action status context fix.
+- [251-pr-forum-thread-reply-action-status-context.md](251-pr-forum-thread-reply-action-status-context.md): upstream PR draft for the committed forum thread reply action status context fix.
 
 ## Local Evidence Index
 
@@ -415,5 +416,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 152: `8966a7e fix(page): guard delete action status`
 - Local implementation commits, continued 153: `f5463a6 fix(page): guard meta setter action status`
 - Local implementation commits, continued 154: `3b753a8 fix(forum_post): guard edit action status`
+- Local implementation commits, continued 155: `a599374 fix(forum_thread): guard reply action status`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
