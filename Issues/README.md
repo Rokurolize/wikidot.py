@@ -170,6 +170,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [164-pr-page-revision-source-parse-context.md](164-pr-page-revision-source-parse-context.md): upstream PR draft for the committed page revision source parse failure context fix.
 - [165-pr-recent-change-parse-context.md](165-pr-recent-change-parse-context.md): upstream PR draft for the committed recent-change parse failure context fix.
 - [166-pr-user-profile-parse-context.md](166-pr-user-profile-parse-context.md): upstream PR draft for the committed user profile parse failure context fix.
+- [167-pr-forum-thread-create-result-context.md](167-pr-forum-thread-create-result-context.md): upstream PR draft for the committed forum thread create result context fix.
 
 ## Local Evidence Index
 
@@ -247,5 +248,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 68: `53d6770 fix(page_revision): include context in source parse errors`
 - Local implementation commits, continued 69: `0b78eee fix(site): include context in recent change parse errors`
 - Local implementation commits, continued 70: `4ee791e fix(user): include context in profile parse errors`
+- Local implementation commits, continued 71: `f7c0f1c fix(forum_category): include context in create-thread errors`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
