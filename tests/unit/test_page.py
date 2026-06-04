@@ -1418,11 +1418,14 @@ class TestPageProperties:
         assert len(revisions) == 3
 
     def test_revisions_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
-        """リビジョン取得リトライが尽きた場合は対象ページ名を含めて失敗する"""
+        """リビジョン取得リトライが尽きた場合は対象サイト名とページ名を含めて失敗する"""
         mock_page_with_id.site.amc_request = MagicMock()
         mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.NotFoundException, match="Cannot find page revisions: test-page"):
+        with pytest.raises(
+            exceptions.NotFoundException,
+            match="Cannot find page revisions for site: test-site, page: test-page",
+        ):
             _ = mock_page_with_id.revisions
 
         mock_page_with_id.site.amc_request.assert_not_called()
@@ -1439,11 +1442,14 @@ class TestPageProperties:
         assert mock_page_with_id._revisions is None
 
     def test_votes_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
-        """投票取得リトライが尽きた場合は対象ページ名を含めて失敗する"""
+        """投票取得リトライが尽きた場合は対象サイト名とページ名を含めて失敗する"""
         mock_page_with_id.site.amc_request = MagicMock()
         mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.NotFoundException, match="Cannot find page votes: test-page"):
+        with pytest.raises(
+            exceptions.NotFoundException,
+            match="Cannot find page votes for site: test-site, page: test-page",
+        ):
             _ = mock_page_with_id.votes
 
         mock_page_with_id.site.amc_request.assert_not_called()
@@ -1463,7 +1469,7 @@ class TestPageProperties:
         assert latest.rev_no == 3
 
     def test_latest_revision_includes_page_context_when_not_found(self, mock_page_with_id: Page) -> None:
-        """最新リビジョンが見つからない場合は対象ページ名と期待rev_noを含めて失敗する"""
+        """最新リビジョンが見つからない場合は対象サイト名、ページ名、期待rev_noを含めて失敗する"""
         from wikidot.module.page import PageRevision, PageRevisionCollection
 
         # revisions_countと一致しないrev_noのリビジョンを設定
@@ -1482,7 +1488,10 @@ class TestPageProperties:
             ],
         )
 
-        with pytest.raises(exceptions.NotFoundException, match="Cannot find latest revision: test-page \\(rev_no=5\\)"):
+        with pytest.raises(
+            exceptions.NotFoundException,
+            match="Cannot find latest revision for site: test-site, page: test-page \\(rev_no=5\\)",
+        ):
             _ = mock_page_with_id.latest_revision
 
     def test_discussion_retries_transient_fetch_failures(
@@ -1541,11 +1550,14 @@ class TestPageProperties:
         assert len(files) == 0
 
     def test_files_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
-        """ファイル取得リトライが尽きた場合は対象ページ名を含めて失敗する"""
+        """ファイル取得リトライが尽きた場合は対象サイト名とページ名を含めて失敗する"""
         mock_page_with_id.site.amc_request = MagicMock()
         mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.NotFoundException, match="Cannot find page files: test-page"):
+        with pytest.raises(
+            exceptions.NotFoundException,
+            match="Cannot find page files for site: test-site, page: test-page",
+        ):
             _ = mock_page_with_id.files
 
         mock_page_with_id.site.amc_request.assert_not_called()

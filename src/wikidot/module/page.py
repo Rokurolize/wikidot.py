@@ -1442,7 +1442,9 @@ class Page:
             PageCollection(self.site, [self]).get_page_revisions()
 
         if self._revisions is None:
-            raise exceptions.NotFoundException(f"Cannot find page revisions: {self.fullname}")
+            raise exceptions.NotFoundException(
+                f"Cannot find page revisions for site: {self.site.unix_name}, page: {self.fullname}"
+            )
 
         return self._revisions
 
@@ -1484,7 +1486,8 @@ class Page:
                 return revision
 
         raise exceptions.NotFoundException(
-            f"Cannot find latest revision: {self.fullname} (rev_no={self.revisions_count})"
+            f"Cannot find latest revision for site: {self.site.unix_name}, page: {self.fullname} "
+            f"(rev_no={self.revisions_count})"
         )
 
     @property
@@ -1508,7 +1511,9 @@ class Page:
             PageCollection(self.site, [self]).get_page_votes()
 
         if self._votes is None:
-            raise exceptions.NotFoundException(f"Cannot find page votes: {self.fullname}")
+            raise exceptions.NotFoundException(
+                f"Cannot find page votes for site: {self.site.unix_name}, page: {self.fullname}"
+            )
 
         return self._votes
 
@@ -1588,7 +1593,9 @@ class Page:
             PageCollection(self.site, [self]).get_page_files()
 
         if self._files is None:
-            raise exceptions.NotFoundException(f"Cannot find page files: {self.fullname}")
+            raise exceptions.NotFoundException(
+                f"Cannot find page files for site: {self.site.unix_name}, page: {self.fullname}"
+            )
 
         return self._files
 
