@@ -746,13 +746,16 @@ class PageCollection(list["Page"]):
             target_pages_for_url = target_pages_by_url[request_urls[index]]
             if not isinstance(response, httpx.Response):
                 raise exceptions.UnexpectedException(
-                    f"Unexpected response type for page: {target_pages_for_url[0].fullname}, type: {type(response)}"
+                    f"Unexpected response type for site: {site.unix_name}, "
+                    f"page: {target_pages_for_url[0].fullname}, type: {type(response)}"
                 )
             source = response.text
 
             id_match = re.search(r"WIKIREQUEST\.info\.pageId = (\d+);", source)
             if id_match is None:
-                raise exceptions.NotFoundException(f"Cannot find page id: {target_pages_for_url[0].fullname}")
+                raise exceptions.NotFoundException(
+                    f"Cannot find page id for site: {site.unix_name}, page: {target_pages_for_url[0].fullname}"
+                )
             page_id = int(id_match.group(1))
             for page in target_pages_for_url:
                 page.id = page_id
@@ -1330,7 +1333,9 @@ class Page:
             PageCollection(self.site, [self]).get_page_ids()
 
         if self._id is None:
-            raise exceptions.NotFoundException(f"Cannot find page id: {self.fullname}")
+            raise exceptions.NotFoundException(
+                f"Cannot find page id for site: {self.site.unix_name}, page: {self.fullname}"
+            )
 
         return self._id
 

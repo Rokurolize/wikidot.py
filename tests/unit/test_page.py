@@ -614,12 +614,15 @@ class TestPageCollectionAcquire:
     def test_acquire_page_ids_unexpected_response_type_includes_page_context(
         self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
     ) -> None:
-        """page_id lookupの非HTTPレスポンス例外は対象ページを示す"""
+        """page_id lookupの非HTTPレスポンス例外は対象サイト名とページ名を示す"""
         collection = PageCollection(mock_site_no_http, [mock_page_no_http])
         request = MagicMock(return_value=[exceptions.UnexpectedException("transient failure")])
         monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
 
-        with pytest.raises(exceptions.UnexpectedException, match="Unexpected response type for page: test-page"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Unexpected response type for site: test-site, page: test-page",
+        ):
             collection.get_page_ids()
 
         request.assert_called_once()
@@ -627,13 +630,16 @@ class TestPageCollectionAcquire:
     def test_acquire_page_ids_missing_id_raises_not_found_with_page_context(
         self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
     ) -> None:
-        """page_id欠落は構造エラーではなく対象ページ不在として扱う"""
+        """page_id欠落は構造エラーではなく対象サイト名とページ名つきの不在として扱う"""
         collection = PageCollection(mock_site_no_http, [mock_page_no_http])
         response = httpx.Response(200, text="<html><body>missing page id</body></html>")
         request = MagicMock(return_value=[response])
         monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
 
-        with pytest.raises(exceptions.NotFoundException, match="Cannot find page id: test-page"):
+        with pytest.raises(
+            exceptions.NotFoundException,
+            match="Cannot find page id for site: test-site, page: test-page",
+        ):
             collection.get_page_ids()
 
         request.assert_called_once()
@@ -1319,14 +1325,17 @@ class TestPageProperties:
         assert mock_page_with_id.id == 12345
 
     def test_id_property_includes_page_context_when_acquire_leaves_id_missing(self, mock_page_no_http: Page) -> None:
-        """id取得後もIDが未設定なら対象ページ名を含めて失敗する"""
+        """id取得後もIDが未設定なら対象サイト名とページ名を含めて失敗する"""
         with (
             patch.object(
                 PageCollection,
                 "get_page_ids",
                 return_value=PageCollection(mock_page_no_http.site, [mock_page_no_http]),
             ) as get_page_ids,
-            pytest.raises(exceptions.NotFoundException, match="Cannot find page id: test-page"),
+            pytest.raises(
+                exceptions.NotFoundException,
+                match="Cannot find page id for site: test-site, page: test-page",
+            ),
         ):
             _ = mock_page_no_http.id
 
