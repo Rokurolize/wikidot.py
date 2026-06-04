@@ -1079,7 +1079,11 @@ class PageCollection(list["Page"]):
                         value_elems.append(span)
 
             if len(user_elems) != len(value_elems):
-                raise exceptions.UnexpectedException("User and value count mismatch")
+                first_page = target_pages_by_id[page_id][0]
+                raise exceptions.UnexpectedException(
+                    "User and value count mismatch for page: "
+                    f"{first_page.fullname} (users={len(user_elems)}, values={len(value_elems)})"
+                )
 
             users = [user_parser(site.client, user_elem) for user_elem in user_elems]
             values = []
