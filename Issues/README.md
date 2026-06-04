@@ -263,6 +263,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [257-pr-publish-source-verification-status.md](257-pr-publish-source-verification-status.md): upstream PR draft for the committed publish source verification status ledger improvement.
 - [258-pr-publish-metadata-update-count.md](258-pr-publish-metadata-update-count.md): upstream PR draft for the committed publish metadata update count ledger improvement.
 - [259-pr-page-edit-local-cache-sync.md](259-pr-page-edit-local-cache-sync.md): upstream PR draft for the committed Page.edit local title/source cache synchronization fix.
+- [260-pr-page-edit-revision-cache-invalidation.md](260-pr-page-edit-revision-cache-invalidation.md): upstream PR draft for the committed Page.edit revision-cache invalidation fix.
 
 ## Local Evidence Index
 
@@ -433,5 +434,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 161: `d049e9d feat(site): expose publish source verification status`
 - Local implementation commits, continued 162: `deae40c feat(site): expose publish metadata update count`
 - Local implementation commits, continued 163: `464b830 fix(page): sync edit local source cache`
+- Local implementation commits, continued 164: `32fd2f0 fix(page): invalidate edit revision cache`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
