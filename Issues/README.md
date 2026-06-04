@@ -270,6 +270,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [264-pr-forum-category-create-thread-cache-invalidation.md](264-pr-forum-category-create-thread-cache-invalidation.md): upstream PR draft for the committed ForumCategory.create_thread thread-cache invalidation fix.
 - [265-pr-page-empty-parent-clear-normalization.md](265-pr-page-empty-parent-clear-normalization.md): upstream PR draft for the committed Page empty-parent clear normalization fix.
 - [266-pr-page-rename-file-cache-invalidation.md](266-pr-page-rename-file-cache-invalidation.md): upstream PR draft for the committed Page.rename file-cache invalidation fix.
+- [267-pr-page-destroy-cache-invalidation.md](267-pr-page-destroy-cache-invalidation.md): upstream PR draft for the committed Page.destroy cache invalidation fix.
 
 ## Local Evidence Index
 
@@ -447,5 +448,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 168: `eeb1721 fix(forum_category): invalidate thread cache on create`
 - Local implementation commits, continued 169: `2d1b5ba fix(page): normalize empty parent clears`
 - Local implementation commits, continued 170: `9460adf fix(page): invalidate file cache after rename`
+- Local implementation commits, continued 171: `9c2fe8e fix(page): clear caches after destroy`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
