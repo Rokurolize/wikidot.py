@@ -268,6 +268,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [262-pr-page-edit-revision-count-sync.md](262-pr-page-edit-revision-count-sync.md): upstream PR draft for the committed Page.edit revision-count sync fix.
 - [263-pr-forum-post-edit-revision-cache-invalidation.md](263-pr-forum-post-edit-revision-cache-invalidation.md): upstream PR draft for the committed ForumPost.edit revision-cache invalidation fix.
 - [264-pr-forum-category-create-thread-cache-invalidation.md](264-pr-forum-category-create-thread-cache-invalidation.md): upstream PR draft for the committed ForumCategory.create_thread thread-cache invalidation fix.
+- [265-pr-page-empty-parent-clear-normalization.md](265-pr-page-empty-parent-clear-normalization.md): upstream PR draft for the committed Page empty-parent clear normalization fix.
 
 ## Local Evidence Index
 
@@ -443,5 +444,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 166: `6209dd8 fix(page): sync edit revision count`
 - Local implementation commits, continued 167: `6dc5e1f fix(forum_post): invalidate edit revision cache`
 - Local implementation commits, continued 168: `eeb1721 fix(forum_category): invalidate thread cache on create`
+- Local implementation commits, continued 169: `2d1b5ba fix(page): normalize empty parent clears`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
