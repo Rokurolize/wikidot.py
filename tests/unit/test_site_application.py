@@ -309,10 +309,11 @@ class TestSiteApplicationAcquireAll:
             SiteApplication.acquire_all(site)
 
     def test_acquire_all_length_mismatch(self):
-        """ユーザー要素とテキスト要素の数が不一致でUnexpectedException"""
+        """ユーザー要素とテキスト要素の数が不一致の場合はサイト名と件数を含めて失敗する"""
         mock_client = create_mock_client(is_logged_in=True)
         site = MagicMock()
         site.client = mock_client
+        site.unix_name = "test-site"
 
         response = MagicMock()
         response.json.return_value = {
@@ -335,7 +336,11 @@ class TestSiteApplicationAcquireAll:
         }
         site.amc_request_with_retry.return_value = (response,)
 
-        with pytest.raises(UnexpectedException, match="Length"):
+        with pytest.raises(
+            UnexpectedException,
+            match="Length of application users and text tables are different for site: test-site "
+            r"\(users=2, text_tables=1\)",
+        ):
             SiteApplication.acquire_all(site)
 
     def test_acquire_all_missing_text_cell(self):

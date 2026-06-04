@@ -106,7 +106,11 @@ class SiteApplication:
             if not isinstance(text_wrapper_element, Tag):
                 raise exceptions.NoElementException("Application text table is not found")
             if id(text_wrapper_element) in used_text_tables:
-                raise exceptions.UnexpectedException("Length of application users and text tables are different")
+                site_name = site.unix_name if isinstance(site.unix_name, str) else str(site)
+                raise exceptions.UnexpectedException(
+                    "Length of application users and text tables are different for site: "
+                    f"{site_name} (users={len(application_headers)}, text_tables={len(used_text_tables)})"
+                )
             used_text_tables.add(id(text_wrapper_element))
 
             text_row = text_wrapper_element.find("tr", recursive=False)
