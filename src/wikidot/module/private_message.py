@@ -147,6 +147,10 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         return False
 
     @staticmethod
+    def _message_list_parse_context(module_name: str, page: int, row_index: int) -> str:
+        return f"for module: {module_name} (page={page}, row={row_index})"
+
+    @staticmethod
     def _pager_targets_from_html(html: BeautifulSoup) -> list[Tag]:
         for pager in html.select("div.pager"):
             if PrivateMessageCollection._is_inside_message_row(pager):
@@ -336,17 +340,22 @@ class PrivateMessageCollection(list["PrivateMessage"]):
                 html = first_html
             else:
                 html = BeautifulSoup(response.json()["body"], "lxml")
+            row_index = 0
             for message_row in html.select("tr.message"):
                 if PrivateMessageCollection._is_inside_message_row(message_row):
                     continue
 
+                row_index += 1
+                parse_context = PrivateMessageCollection._message_list_parse_context(module_name, page, row_index)
                 data_href = message_row.get("data-href")
                 if data_href is None:
-                    raise exceptions.NoElementException("Message data-href attribute is not found")
+                    raise exceptions.NoElementException(f"Message data-href attribute is not found {parse_context}")
 
                 message_id_match = re.search(r"(\d+)(?:[/?#].*)?$", str(data_href))
                 if message_id_match is None:
-                    raise exceptions.NoElementException(f"Message ID is not found in data-href: {data_href}")
+                    raise exceptions.NoElementException(
+                        f"Message ID is not found in data-href: {data_href} {parse_context}"
+                    )
 
                 message_id = int(message_id_match.group(1))
                 if message_id in seen_message_ids:

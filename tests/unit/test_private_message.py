@@ -353,7 +353,11 @@ class TestPrivateMessageCollection:
         mock_response.json.return_value = {"body": '<table><tr class="message"></tr></table>'}
         mock_client.amc_client.request.return_value = [mock_response]
 
-        with pytest.raises(NoElementException, match="data-href"):
+        with pytest.raises(
+            NoElementException,
+            match=r"Message data-href attribute is not found for module: dashboard/messages/DMInboxModule "
+            r"\(page=1, row=1\)",
+        ):
             PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
 
     def test_acquire_malformed_message_href_raises(self, mock_client):
@@ -364,7 +368,11 @@ class TestPrivateMessageCollection:
         }
         mock_client.amc_client.request.return_value = [mock_response]
 
-        with pytest.raises(NoElementException, match="Message ID"):
+        with pytest.raises(
+            NoElementException,
+            match=r"Message ID is not found in data-href: /account/messages/view "
+            r"for module: dashboard/messages/DMInboxModule \(page=1, row=1\)",
+        ):
             PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
 
     def test_acquire_ignores_non_numeric_pager_targets(self, mock_client):
