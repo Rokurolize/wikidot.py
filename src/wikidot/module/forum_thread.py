@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
-from ..common.exceptions import NoElementException, UnexpectedException
+from ..common.exceptions import NoElementException, UnexpectedException, WikidotStatusCodeException
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 
@@ -79,6 +79,24 @@ def _parse_thread_detail_post_count(
         parse_context = _thread_detail_parse_context(site, thread_id, category, field="posts", value=value_text)
         raise NoElementException(f"Post count is malformed {parse_context}")
     return int(post_count_match.group(1))
+
+
+def _require_forum_thread_action_status(thread: "ForumThread", event: str, data: dict[str, Any]) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise NoElementException(
+            f"Forum thread action response is malformed for site: {thread.site.unix_name}, thread: {thread.id} "
+            f"(event={event}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise WikidotStatusCodeException(
+            f"Failed to complete forum thread action for site: {thread.site.unix_name}, thread: {thread.id}, "
+            f"event: {event}",
+            status,
+        )
+    return status
 
 
 class ForumThreadCollection(list["ForumThread"]):
@@ -693,7 +711,7 @@ class ForumThread:
             If posting fails
         """
         self.site.client.login_check()
-        self.site.amc_request(
+        response = self.site.amc_request(
             [
                 {
                     "threadId": str(self.id),
@@ -705,7 +723,8 @@ class ForumThread:
                     "moduleName": "Empty",
                 }
             ]
-        )
+        )[0]
+        _require_forum_thread_action_status(self, "savePost", response.json())
         # キャッシュをクリアして次回アクセス時に再取得
         self._posts = None
         self.post_count += 1

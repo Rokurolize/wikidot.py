@@ -776,6 +776,32 @@ class TestForumThreadReply:
         call_args = mock_forum_thread_no_http.site.amc_request.call_args[0][0][0]
         assert call_args["parentId"] == "5001"
 
+    def test_reply_missing_action_status_does_not_update_local_state(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """返信応答のstatus欠落は文脈付きで失敗しローカル状態を更新しない"""
+        mock_forum_thread_no_http.site.client.is_logged_in = True
+        mock_forum_thread_no_http.site.client.login_check = MagicMock()
+        initial_count = mock_forum_thread_no_http.post_count
+        cached_posts = MagicMock()
+        mock_forum_thread_no_http._posts = cached_posts
+
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"body": ""}
+        mock_forum_thread_no_http.site.amc_request = MagicMock(return_value=[malformed_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread action response is malformed for site: test-site, thread: 3001 "
+                r"\(event=savePost, field=status\)"
+            ),
+        ):
+            mock_forum_thread_no_http.reply(source="Test reply")
+
+        assert mock_forum_thread_no_http.post_count == initial_count
+        assert mock_forum_thread_no_http._posts is cached_posts
+
 
 class TestForumThreadGetFromId:
     """ForumThread.get_from_idのテスト"""
