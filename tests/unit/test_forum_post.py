@@ -1119,6 +1119,27 @@ class TestForumPostEdit:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         assert mock_forum_post_no_http._source is None
 
+    def test_edit_missing_form_response_body_includes_site_and_post_context(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """編集フォーム応答のbody欠落時はsite/post付きで保存せず失敗する"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+
+        form_response = MagicMock()
+        form_response.json.return_value = {}
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Forum post edit form response body is not found for site: test-site, post: 5001",
+        ):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
     def test_edit_with_new_title(
         self,
         mock_forum_post_no_http: ForumPost,

@@ -661,6 +661,15 @@ class ForumPost:
 
         return self._source
 
+    @staticmethod
+    def _edit_form_response_body(response: Any, post: "ForumPost") -> str:
+        body = response.json().get("body")
+        if body is None:
+            raise NoElementException(
+                f"Forum post edit form response body is not found for site: {post.thread.site.unix_name}, post: {post.id}"
+            )
+        return body
+
     def edit(self, source: str, title: str | None = None) -> "ForumPost":
         """
         Edit the post
@@ -707,7 +716,7 @@ class ForumPost:
                 f"Cannot retrieve forum post edit form for site: {self.thread.site.unix_name}, post: {self.id}"
             )
 
-        html = BeautifulSoup(form_response.json()["body"], "lxml")
+        html = BeautifulSoup(ForumPost._edit_form_response_body(form_response, self), "lxml")
         edit_form = html.select_one("form#edit-post-form")
         revision_elem = (
             edit_form.select_one(":scope > input[name='currentRevisionId']") if isinstance(edit_form, Tag) else None
