@@ -155,6 +155,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [149-pr-page-source-failure-context.md](149-pr-page-source-failure-context.md): upstream PR draft for the committed direct page source failure context fix.
 - [150-pr-page-revision-failure-context.md](150-pr-page-revision-failure-context.md): upstream PR draft for the committed direct page revision failure context fix.
 - [151-pr-page-file-failure-context.md](151-pr-page-file-failure-context.md): upstream PR draft for the committed direct page file failure context fix.
+- [152-pr-page-vote-failure-context.md](152-pr-page-vote-failure-context.md): upstream PR draft for the committed direct page vote failure context fix.
 
 ## Local Evidence Index
 
@@ -217,5 +218,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 53: `df7d0fd fix(page): include page name in source failures`
 - Local implementation commits, continued 54: `05f2e40 fix(page): include page name in revision failures`
 - Local implementation commits, continued 55: `7eb1a4e fix(page): include page name in file failures`
+- Local implementation commits, continued 56: `8e7e29f fix(page): include page name in vote failures`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
