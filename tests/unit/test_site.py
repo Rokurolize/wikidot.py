@@ -745,6 +745,7 @@ class TestSitePageAccessor:
         edited_result = mock_site_no_http.page.publish("existing-page")
 
         assert edited_result.created is False
+        assert edited_result.operation == "edit"
 
         created_page = MagicMock()
         created_page.id = 22222
@@ -754,6 +755,7 @@ class TestSitePageAccessor:
             created_result = mock_site_no_http.page.publish("new-page")
 
         assert created_result.created is True
+        assert created_result.operation == "create"
 
     def test_publish_result_exposes_aggregate_operation_statuses(self) -> None:
         """publishの戻り値は集約した後続処理ステータスも判別できる"""
@@ -809,6 +811,7 @@ class TestSitePageAccessor:
             "fullname": "test-page",
             "page_id": 12345,
             "created": False,
+            "operation": "edit",
             "source_matches": True,
             "source_verified": True,
             "tags_updated": True,

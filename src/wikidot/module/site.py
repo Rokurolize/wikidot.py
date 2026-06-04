@@ -62,6 +62,8 @@ class PagePublishResult:
         Whether the publish call requested a meta-tag update.
     created : bool
         True when publish created a new page. False when publish edited an existing page.
+    operation : Literal["create", "edit"]
+        Audit-friendly operation name derived from created.
     metadata_updated : bool
         True when any metadata update was requested by the publish call.
     source_verified : bool
@@ -88,12 +90,18 @@ class PagePublishResult:
         """Whether publish source verification matched."""
         return self.source_matches is True
 
+    @property
+    def operation(self) -> Literal["create", "edit"]:
+        """Create/edit operation name for audit records."""
+        return "create" if self.created else "edit"
+
     def as_dict(self) -> dict[str, str | int | bool | None]:
         """Return a compact audit-friendly representation of this publish result."""
         return {
             "fullname": self.page.fullname,
             "page_id": self.page_id,
             "created": self.created,
+            "operation": self.operation,
             "source_matches": self.source_matches,
             "source_verified": self.source_verified,
             "tags_updated": self.tags_updated,
