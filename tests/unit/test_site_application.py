@@ -279,9 +279,10 @@ class TestSiteApplicationAcquireAll:
         mock_client = create_mock_client(is_logged_in=True)
         site = MagicMock()
         site.client = mock_client
+        site.unix_name = "test-site"
         site.amc_request_with_retry.return_value = (None,)
 
-        with pytest.raises(UnexpectedException, match="Cannot retrieve site applications"):
+        with pytest.raises(UnexpectedException, match="Cannot retrieve site applications for site: test-site"):
             SiteApplication.acquire_all(site)
 
         site.amc_request.assert_not_called()

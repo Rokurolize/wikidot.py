@@ -98,7 +98,7 @@ class SiteApplication:
         """
         response = site.amc_request_with_retry([{"moduleName": "managesite/ManageSiteMembersApplicationsModule"}])[0]
         if response is None:
-            raise exceptions.UnexpectedException("Cannot retrieve site applications")
+            raise exceptions.UnexpectedException(f"Cannot retrieve site applications for site: {_site_name(site)}")
 
         body = response.json()["body"]
 
