@@ -178,6 +178,20 @@ class TestForumThreadCollectionAcquireAll:
         assert len(collection) == 2
         assert all(thread.category == mock_forum_category_no_http for thread in collection)
 
+    def test_acquire_all_populates_category_threads_cache(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """直接取得したカテゴリ内スレッド一覧はcategory.threadsのキャッシュとして保持する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_threads_in_category
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        assert mock_forum_category_no_http._threads is collection
+        assert mock_forum_category_no_http.threads is collection
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_called_once()
+
     def test_acquire_all_missing_first_page_response_body_includes_context(
         self, mock_forum_category_no_http: ForumCategory
     ) -> None:

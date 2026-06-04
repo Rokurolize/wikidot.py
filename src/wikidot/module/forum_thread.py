@@ -410,6 +410,11 @@ class ForumThreadCollection(list["ForumThread"]):
 
         threads: list[ForumThread] = []
 
+        def cache_threads() -> ForumThreadCollection:
+            collection = ForumThreadCollection(site=category.site, threads=threads)
+            category._threads = collection
+            return collection
+
         first_response = category.site.amc_request_with_retry(
             [
                 {
@@ -432,7 +437,7 @@ class ForumThreadCollection(list["ForumThread"]):
         # pager検索
         pager = ForumThreadCollection._pager_from_html(first_html)
         if pager is None:
-            return ForumThreadCollection(site=category.site, threads=threads)
+            return cache_threads()
 
         last_page = 1
         for link in reversed(pager.select("a")):
@@ -441,7 +446,7 @@ class ForumThreadCollection(list["ForumThread"]):
                 last_page = int(page_text)
                 break
         if last_page == 1:
-            return ForumThreadCollection(site=category.site, threads=threads)
+            return cache_threads()
 
         page_numbers = list(range(2, last_page + 1))
         responses = category.site.amc_request_with_retry(
@@ -464,7 +469,7 @@ class ForumThreadCollection(list["ForumThread"]):
             html = BeautifulSoup(body, "lxml")
             threads.extend(ForumThreadCollection._parse_list_in_category(category.site, html, category, page=page))
 
-        return ForumThreadCollection(site=category.site, threads=threads)
+        return cache_threads()
 
     @staticmethod
     def _thread_list_response_body(response: Any, category: "ForumCategory", page: int) -> str:
