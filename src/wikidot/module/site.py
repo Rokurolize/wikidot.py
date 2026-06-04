@@ -120,10 +120,12 @@ class PageSourceResult:
         Page source text when retrieval succeeded. None when retrieval failed.
     error : Exception | None
         Error describing why source retrieval did not produce a source for this page.
+    error_type : str | None
+        Exception class name when source retrieval failed. None when retrieval succeeded.
     error_message : str | None
         String representation of the error when source retrieval failed. None when retrieval succeeded.
     as_dict : dict[str, str | bool | None]
-        Ledger-friendly dictionary containing fullname, ok, wiki_text, and error_message.
+        Ledger-friendly dictionary containing fullname, ok, wiki_text, error_type, and error_message.
     """
 
     page: "Page"
@@ -154,12 +156,20 @@ class PageSourceResult:
             return None
         return str(self.error)
 
+    @property
+    def error_type(self) -> str | None:
+        """Exception class name when source retrieval failed."""
+        if self.error is None:
+            return None
+        return self.error.__class__.__name__
+
     def as_dict(self) -> dict[str, str | bool | None]:
         """Return a compact ledger-friendly representation of this source result."""
         return {
             "fullname": self.fullname,
             "ok": self.ok,
             "wiki_text": self.wiki_text,
+            "error_type": self.error_type,
             "error_message": self.error_message,
         }
 

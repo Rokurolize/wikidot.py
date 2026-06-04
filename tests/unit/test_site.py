@@ -465,7 +465,9 @@ class TestSitePagesAccessor:
 
         assert [result.fullname for result in results] == ["page-one", "page-two"]
         assert results[0].error_message is None
+        assert results[0].error_type is None
         assert results[1].error_message == "Cannot find page source: page-two"
+        assert results[1].error_type == "NotFoundException"
         mock_site_no_http.amc_request.assert_not_called()
 
     def test_iter_sources_result_exports_ledger_record(self, mock_site_no_http: Site) -> None:
@@ -500,11 +502,18 @@ class TestSitePagesAccessor:
             )
 
         assert [result.as_dict() for result in results] == [
-            {"fullname": "page-one", "ok": True, "wiki_text": "source 371", "error_message": None},
+            {
+                "fullname": "page-one",
+                "ok": True,
+                "wiki_text": "source 371",
+                "error_type": None,
+                "error_message": None,
+            },
             {
                 "fullname": "page-two",
                 "ok": False,
                 "wiki_text": None,
+                "error_type": "NotFoundException",
                 "error_message": "Cannot find page source: page-two",
             },
         ]
