@@ -371,6 +371,32 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
+    def test_from_ids_missing_odate_includes_module_message_and_field_context(self, mock_client):
+        """メッセージ詳細の日時要素欠損はepoch補完ではなく文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                    <span class="subject">Test Subject</span>
+                </div>
+                <div class="body">Test Body</div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                "Message odate element is not found for module: dashboard/messages/DMViewMessageModule, "
+                "message: 1, field=odate"
+            ),
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
     def test_acquire_missing_first_page_response_body_includes_module_and_page_context(self, mock_client):
         """一覧初回ページレスポンスのbody欠損はmodule/page文脈付きNoElementException"""
         mock_response = MagicMock()

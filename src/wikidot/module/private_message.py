@@ -291,13 +291,15 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             subject_element = header_element.select_one(":scope > span.subject")
             body_element = message_element.select_one(":scope > div.body")
             odate_element = header_element.select_one(":scope > span.odate")
+            if odate_element is None:
+                raise exceptions.NoElementException(f"Message odate element is not found {parse_context}, field=odate")
 
             parsed_messages_by_id[message_id] = (
                 user_parser(client, sender),
                 user_parser(client, recipient),
                 subject_element.get_text(" ", strip=True) if subject_element else "",
                 body_element.get_text(" ", strip=True) if body_element else "",
-                odate_parser(odate_element) if odate_element else datetime.fromtimestamp(0),
+                odate_parser(odate_element),
             )
 
         messages = []
