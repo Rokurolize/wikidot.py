@@ -154,6 +154,15 @@ class ForumPostCollection(list["ForumPost"]):
         return body
 
     @staticmethod
+    def _source_response_body(response: Any, post: "ForumPost") -> str:
+        body = response.json().get("body")
+        if body is None:
+            raise NoElementException(
+                f"Forum post source response body is not found for site: {post.thread.site.unix_name}, post: {post.id}"
+            )
+        return body
+
+    @staticmethod
     def _is_inside_post_content(post_elem: Tag) -> bool:
         for ancestor in post_elem.parents:
             if not isinstance(ancestor, Tag):
@@ -490,7 +499,7 @@ class ForumPostCollection(list["ForumPost"]):
         for post, response in zip(target_posts, responses, strict=True):
             if response is None:
                 continue
-            html = BeautifulSoup(response.json()["body"], "lxml")
+            html = BeautifulSoup(ForumPostCollection._source_response_body(response, post), "lxml")
             edit_form = html.select_one("form#edit-post-form")
             source_elem = (
                 edit_form.select_one(":scope > textarea[name='source']") if isinstance(edit_form, Tag) else None
