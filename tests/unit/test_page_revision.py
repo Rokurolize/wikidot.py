@@ -125,8 +125,9 @@ class TestPageRevisionCollection:
         assert sample_revision._source is not None
         assert sample_revision._source.wiki_text == "+ Source from revision\n\nFoundation line."
 
-    def test_get_sources_missing_wiki_text_includes_page_and_revision_context(self, mock_page, sample_revision):
-        """source解析失敗は対象ページとリビジョンIDを含める"""
+    def test_get_sources_missing_wiki_text_includes_site_page_and_revision_context(self, mock_page, sample_revision):
+        """source解析失敗はsite、対象ページ、リビジョンIDを含める"""
+        mock_page.site.unix_name = "test-site"
         mock_page.fullname = "test-page"
         mock_response = MagicMock()
         mock_response.json.return_value = {"body": "<div>missing source wrapper</div>"}
@@ -136,7 +137,7 @@ class TestPageRevisionCollection:
 
         with pytest.raises(
             NoElementException,
-            match=r"Wiki text element not found for page: test-page, revision: 100",
+            match=r"Wiki text element not found for site: test-site, page: test-page, revision: 100",
         ):
             collection.get_sources()
 

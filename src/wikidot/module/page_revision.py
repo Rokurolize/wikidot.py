@@ -185,7 +185,8 @@ class PageRevisionCollection(list["PageRevision"]):
             wiki_text_elem = body_html.select_one("div.page-source")
             if wiki_text_elem is None:
                 raise NoElementException(
-                    f"Wiki text element not found for page: {page.fullname}, revision: {revision_id}"
+                    f"Wiki text element not found for site: {page.site.unix_name}, "
+                    f"page: {page.fullname}, revision: {revision_id}"
                 )
             wiki_text = extract_page_source_text(wiki_text_elem)
 
