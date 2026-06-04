@@ -236,6 +236,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [230-pr-cache-direct-page-file-acquisition.md](230-pr-cache-direct-page-file-acquisition.md): upstream PR draft for the committed direct page file acquisition cache consistency improvement.
 - [231-pr-publish-result-url.md](231-pr-publish-result-url.md): upstream PR draft for the committed publish result URL audit-record improvement.
 - [232-pr-publish-verification-request-status.md](232-pr-publish-verification-request-status.md): upstream PR draft for the committed publish verification request-status ledger improvement.
+- [233-pr-forum-category-count-parse-context.md](233-pr-forum-category-count-parse-context.md): upstream PR draft for the committed forum category count parse-context fix.
 
 ## Local Evidence Index
 
@@ -379,5 +380,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 134: `240c3fe perf(page_file): cache direct file acquisition`
 - Local implementation commits, continued 135: `4fd8986 feat(site): expose publish result URL`
 - Local implementation commits, continued 136: `7e4762c feat(site): expose publish verification request status`
+- Local implementation commits, continued 137: `39ea5c7 fix(forum_category): report malformed count context`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
