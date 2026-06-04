@@ -195,6 +195,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [189-pr-page-edit-login-guard-before-source-fetch.md](189-pr-page-edit-login-guard-before-source-fetch.md): upstream PR draft for the committed page edit login guard before source fetch fix.
 - [190-pr-site-page-get-direct-id-error-surface.md](190-pr-site-page-get-direct-id-error-surface.md): upstream PR draft for the committed direct page ID probe error-surfacing fix.
 - [191-pr-listpages-key-parse-context.md](191-pr-listpages-key-parse-context.md): upstream PR draft for the committed ListPages field-key parser context fix.
+- [192-pr-page-auxiliary-fetch-site-context.md](192-pr-page-auxiliary-fetch-site-context.md): upstream PR draft for the committed page discussion/meta exhausted-fetch site context fix.
 
 ## Local Evidence Index
 
@@ -297,5 +298,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 93: `81ed463 fix(page): guard edit before source fetch`
 - Local implementation commits, continued 94: `2f7490d fix(site): surface direct page id probe errors`
 - Local implementation commits, continued 95: `4cf4b9b fix(page): include context in listpages key errors`
+- Local implementation commits, continued 96: `9298a3c fix(page): include site in auxiliary fetch failures`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
