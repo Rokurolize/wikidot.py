@@ -167,6 +167,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [161-pr-forum-post-source-error-context.md](161-pr-forum-post-source-error-context.md): upstream PR draft for the committed lazy forum post source error context fix.
 - [162-pr-forum-post-edit-revision-error-context.md](162-pr-forum-post-edit-revision-error-context.md): upstream PR draft for the committed forum post edit revision error context fix.
 - [163-pr-private-message-list-row-error-context.md](163-pr-private-message-list-row-error-context.md): upstream PR draft for the committed private-message list-row error context fix.
+- [164-pr-page-revision-source-parse-context.md](164-pr-page-revision-source-parse-context.md): upstream PR draft for the committed page revision source parse failure context fix.
 
 ## Local Evidence Index
 
@@ -241,5 +242,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 65: `1546b41 fix(forum_post): include post id in lazy source errors`
 - Local implementation commits, continued 66: `887b04d fix(forum_post): include post id in edit revision errors`
 - Local implementation commits, continued 67: `14bf330 fix(private_message): include context in list row errors`
+- Local implementation commits, continued 68: `53d6770 fix(page_revision): include context in source parse errors`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
