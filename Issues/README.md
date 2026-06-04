@@ -247,6 +247,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [241-pr-whorated-vote-value-parse-context.md](241-pr-whorated-vote-value-parse-context.md): upstream PR draft for the committed WhoRated vote value parse-context fix.
 - [242-pr-page-edit-lock-field-context.md](242-pr-page-edit-lock-field-context.md): upstream PR draft for the committed page edit-lock field context fix.
 - [243-pr-page-save-status-context.md](243-pr-page-save-status-context.md): upstream PR draft for the committed page save status context fix.
+- [244-pr-page-rating-points-context.md](244-pr-page-rating-points-context.md): upstream PR draft for the committed page rating points context fix.
 
 ## Local Evidence Index
 
@@ -401,5 +402,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 145: `70f5b66 fix(page): report malformed whorated vote values`
 - Local implementation commits, continued 146: `cd6f26a fix(page): report malformed edit lock fields`
 - Local implementation commits, continued 147: `ff9f26d fix(page): report malformed save status`
+- Local implementation commits, continued 148: `def85c8 fix(page): report malformed rating points`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
