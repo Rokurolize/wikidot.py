@@ -827,10 +827,13 @@ class TestSitePageAccessor:
         )
 
         assert verified_with_metadata.metadata_updated is True
+        assert verified_with_metadata.source_verification_requested is True
         assert verified_with_metadata.source_verified is True
         assert skipped_optional_steps.metadata_updated is False
+        assert skipped_optional_steps.source_verification_requested is False
         assert skipped_optional_steps.source_verified is False
         assert failed_source_check.metadata_updated is True
+        assert failed_source_check.source_verification_requested is True
         assert failed_source_check.source_verified is False
 
     def test_publish_result_exports_audit_record(self) -> None:
@@ -849,6 +852,7 @@ class TestSitePageAccessor:
         )
 
         assert result.url == "https://test-site.wikidot.com/test-page"
+        assert result.source_verification_requested is True
         assert result.as_dict() == {
             "fullname": "test-page",
             "url": "https://test-site.wikidot.com/test-page",
@@ -856,6 +860,7 @@ class TestSitePageAccessor:
             "created": False,
             "operation": "edit",
             "source_matches": True,
+            "source_verification_requested": True,
             "source_verified": True,
             "tags_updated": True,
             "parent_updated": False,

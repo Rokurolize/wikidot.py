@@ -68,6 +68,8 @@ class PagePublishResult:
         Page URL derived from the returned page object.
     metadata_updated : bool
         True when any metadata update was requested by the publish call.
+    source_verification_requested : bool
+        True when source verification was requested by the publish call.
     source_verified : bool
         True when source verification was requested and matched.
     as_dict : dict[str, str | int | bool | None]
@@ -93,6 +95,11 @@ class PagePublishResult:
         return self.source_matches is True
 
     @property
+    def source_verification_requested(self) -> bool:
+        """Whether publish requested source verification."""
+        return self.source_matches is not None
+
+    @property
     def operation(self) -> Literal["create", "edit"]:
         """Create/edit operation name for audit records."""
         return "create" if self.created else "edit"
@@ -111,6 +118,7 @@ class PagePublishResult:
             "created": self.created,
             "operation": self.operation,
             "source_matches": self.source_matches,
+            "source_verification_requested": self.source_verification_requested,
             "source_verified": self.source_verified,
             "tags_updated": self.tags_updated,
             "parent_updated": self.parent_updated,
