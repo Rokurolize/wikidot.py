@@ -1658,6 +1658,58 @@ Real edit comment
         assert mock_client.amc_client.request.call_count == 2
         assert [call.args[1] for call in mock_client.amc_client.request.call_args_list] == [True, True]
 
+    def test_get_recent_changes_first_page_retry_exhaustion_includes_site_context(self) -> None:
+        """変更履歴の初回取得失敗はサイト名とページ番号を含める"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        mock_client.amc_client.config.retry_max_retries = 0
+        mock_client.amc_client.request.return_value = (RuntimeError("temporary failure"),)
+
+        with pytest.raises(
+            UnexpectedException,
+            match=r"Cannot retrieve recent changes for site: test, page: 1",
+        ):
+            site.get_recent_changes()
+
+    def test_get_recent_changes_paginated_retry_exhaustion_includes_site_context(self) -> None:
+        """変更履歴の後続ページ取得失敗はサイト名とページ番号を含める"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        mock_client.amc_client.config.retry_max_retries = 0
+        first_page_response = self._site_change_response(1, last_page=2)
+
+        def request_side_effect(bodies: list[dict[str, Any]], *_args: Any) -> tuple[MagicMock | RuntimeError, ...]:
+            pages = [int(body["page"]) for body in bodies]
+            if pages == [1]:
+                return (first_page_response,)
+            if pages == [2]:
+                return (RuntimeError("temporary failure"),)
+            raise AssertionError(f"Unexpected recent changes pages: {pages}")
+
+        mock_client.amc_client.request.side_effect = request_side_effect
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+            with pytest.raises(
+                UnexpectedException,
+                match=r"Cannot retrieve recent changes for site: test, page: 2",
+            ):
+                site.get_recent_changes()
+
     def test_get_recent_changes_zero_limit_returns_empty(self) -> None:
         """limit=0ではリクエストせず空リストを返す"""
         mock_client = create_mock_client()

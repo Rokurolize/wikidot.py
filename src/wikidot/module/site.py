@@ -1331,7 +1331,7 @@ class Site:
 
         response = self.amc_request_with_retry([request_body(1)])[0]
         if response is None:
-            raise exceptions.UnexpectedException("Cannot retrieve recent changes page: 1")
+            raise exceptions.UnexpectedException(f"Cannot retrieve recent changes for site: {self.unix_name}, page: 1")
 
         html = BeautifulSoup(response.json()["body"], "lxml")
         page_changes = list(iter_changes(html, 1))
@@ -1357,7 +1357,9 @@ class Site:
         responses = self.amc_request_with_retry([request_body(page_no) for page_no in page_numbers])
         for page_no, response in zip(page_numbers, responses, strict=True):
             if response is None:
-                raise exceptions.UnexpectedException(f"Cannot retrieve recent changes page: {page_no}")
+                raise exceptions.UnexpectedException(
+                    f"Cannot retrieve recent changes for site: {self.unix_name}, page: {page_no}"
+                )
 
             html = BeautifulSoup(response.json()["body"], "lxml")
             page_changes = list(iter_changes(html, page_no))
