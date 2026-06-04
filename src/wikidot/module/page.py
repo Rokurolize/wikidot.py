@@ -73,6 +73,17 @@ DEFAULT_MODULE_BODY = [
 ]
 
 
+def _parse_revision_row_id(site: "Site", page: "Page", value: object) -> int:
+    value_text = str(value)
+    raw_id = value_text.removeprefix("revision-row-")
+    if value_text == raw_id or not raw_id.isdigit():
+        raise exceptions.NoElementException(
+            f"Revision ID is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, field=revision_row_id, value={value_text})"
+        )
+    return int(raw_id)
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -969,7 +980,7 @@ class PageCollection(list["Page"]):
             body_html = BeautifulSoup(body, "lxml")
             parsed_revisions: list[tuple[int, int, Any, datetime, str]] = []
             for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
-                rev_id = int(str(rev_element["id"]).removeprefix("revision-row-"))
+                rev_id = _parse_revision_row_id(site, first_page, rev_element["id"])
 
                 tds = [
                     td_element
