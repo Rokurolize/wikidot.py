@@ -308,6 +308,56 @@ class TestForumPostCollectionAcquireAll:
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_post_id_includes_thread_page_and_value_context(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """投稿一覧の投稿IDが壊れている場合はサイト・スレッド・ページ・投稿位置・値を含めて失敗する"""
+        body = forum_posts_in_thread["body"].replace(
+            '<div class="post" id="post-5001">',
+            '<div class="post" id="post-not-a-number">',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_posts_in_thread, "body": body}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Post ID is malformed for site: test-site "
+                r"\(thread=3001, page=1, post=1, field=post_id, value=post-not-a-number\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_acquire_all_malformed_parent_post_id_includes_child_post_context(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_nested: dict[str, Any]
+    ) -> None:
+        """返信の親投稿IDが壊れている場合は子投稿の文脈と値を含めて失敗する"""
+        body = forum_posts_nested["body"].replace(
+            '<div class="post" id="post-5001">',
+            '<div class="post" id="bad-parent">',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_posts_nested, "body": body}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Post ID is malformed for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5002, field=parent_post_id, value=bad-parent\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_missing_first_page_response_body_includes_thread_and_page_context(
         self, mock_forum_thread_no_http: ForumThread
     ) -> None:

@@ -32,6 +32,7 @@ def _post_list_parse_context(
     page: int | None,
     post_index: int,
     post_id: int | None = None,
+    **details: object,
 ) -> str:
     context = [f"thread={thread.id}"]
     if page is not None:
@@ -39,7 +40,25 @@ def _post_list_parse_context(
     context.append(f"post={post_index}")
     if post_id is not None:
         context.append(f"post_id={post_id}")
+    context.extend(f"{name}={value}" for name, value in details.items())
     return f"for site: {_site_name(thread.site)} ({', '.join(context)})"
+
+
+def _parse_post_id_value(
+    thread: "ForumThread",
+    page: int | None,
+    post_index: int,
+    value: object,
+    *,
+    field: str,
+    post_id: int | None = None,
+) -> int:
+    value_text = str(value)
+    raw_id = value_text.removeprefix("post-")
+    if value_text == raw_id or not raw_id.isdigit():
+        parse_context = _post_list_parse_context(thread, page, post_index, post_id, field=field, value=value_text)
+        raise NoElementException(f"Post ID is malformed {parse_context}")
+    return int(raw_id)
 
 
 class ForumPostCollection(list["ForumPost"]):
@@ -216,7 +235,7 @@ class ForumPostCollection(list["ForumPost"]):
             post_id_attr = post_elem.get("id")
             if post_id_attr is None:
                 raise NoElementException(f"Post ID attribute is not found {parse_context}")
-            post_id = int(str(post_id_attr).removeprefix("post-"))
+            post_id = _parse_post_id_value(thread, page, post_index, post_id_attr, field="post_id")
             parse_context = _post_list_parse_context(thread, page, post_index, post_id)
 
             # 親Post IDの取得
@@ -231,7 +250,14 @@ class ForumPostCollection(list["ForumPost"]):
                         if parent_post is not None and hasattr(parent_post, "get"):
                             parent_id_attr = parent_post.get("id")
                             if parent_id_attr is not None:
-                                parent_id = int(str(parent_id_attr).removeprefix("post-"))
+                                parent_id = _parse_post_id_value(
+                                    thread,
+                                    page,
+                                    post_index,
+                                    parent_id_attr,
+                                    field="parent_post_id",
+                                    post_id=post_id,
+                                )
 
             # タイトルと本文の取得
             # Use :scope > to get direct children only (avoid matching nested pseudo-posts)
