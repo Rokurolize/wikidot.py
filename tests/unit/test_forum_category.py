@@ -386,3 +386,33 @@ class TestForumCategoryCreateThread:
                 description="Test description",
                 source="Test content",
             )
+
+    def test_create_thread_missing_action_status_does_not_fetch_created_thread(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        forum_thread_detail: dict[str, Any],
+    ) -> None:
+        """スレッド作成応答のstatus欠落は文脈付きで失敗し作成済みスレッドを取得しない"""
+        mock_forum_category_no_http.site.client.is_logged_in = True
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+
+        create_response = MagicMock()
+        create_response.json.return_value = {"threadId": 3001}
+        detail_response = MagicMock()
+        detail_response.json.return_value = forum_thread_detail
+        mock_forum_category_no_http.site.amc_request = MagicMock(side_effect=[[create_response], [detail_response]])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum category action response is malformed for site: test-site, category: 1001 "
+                r"\(event=newThread, field=status\)"
+            ),
+        ):
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )
+
+        assert mock_forum_category_no_http.site.amc_request.call_count == 1

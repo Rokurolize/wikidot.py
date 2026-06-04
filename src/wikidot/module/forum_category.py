@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup
 
-from ..common.exceptions import NoElementException, UnexpectedException
+from ..common.exceptions import NoElementException, UnexpectedException, WikidotStatusCodeException
 from .forum_thread import ForumThread, ForumThreadCollection
 
 if TYPE_CHECKING:
@@ -36,6 +36,24 @@ def _parse_category_count(site: "Site", row_index: int, field: str, label: str, 
     except ValueError as exc:
         parse_context = _category_parse_context(site, row_index, field=field, value=value)
         raise NoElementException(f"{label} is malformed {parse_context}") from exc
+
+
+def _require_forum_category_action_status(category: "ForumCategory", event: str, data: dict[str, Any]) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise NoElementException(
+            f"Forum category action response is malformed for site: {category.site.unix_name}, "
+            f"category: {category.id} (event={event}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise WikidotStatusCodeException(
+            f"Failed to complete forum category action for site: {category.site.unix_name}, "
+            f"category: {category.id}, event: {event}",
+            status,
+        )
+    return status
 
 
 class ForumCategoryCollection(list["ForumCategory"]):
@@ -340,5 +358,6 @@ class ForumCategory:
             raise NoElementException(f"Thread ID is not found for site: {self.site.unix_name}, category: {self.id}")
 
         thread_id: int = response["threadId"]
+        _require_forum_category_action_status(self, "newThread", response)
 
         return ForumThread.get_from_id(self.site, thread_id, self)
