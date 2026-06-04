@@ -158,6 +158,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [152-pr-page-vote-failure-context.md](152-pr-page-vote-failure-context.md): upstream PR draft for the committed direct page vote failure context fix.
 - [153-pr-latest-revision-failure-context.md](153-pr-latest-revision-failure-context.md): upstream PR draft for the committed latest page revision failure context fix.
 - [154-pr-page-vote-mismatch-context.md](154-pr-page-vote-mismatch-context.md): upstream PR draft for the committed WhoRated mismatch failure context fix.
+- [155-pr-site-application-mismatch-context.md](155-pr-site-application-mismatch-context.md): upstream PR draft for the committed pending application mismatch failure context fix.
 
 ## Local Evidence Index
 
@@ -223,5 +224,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 56: `8e7e29f fix(page): include page name in vote failures`
 - Local implementation commits, continued 57: `ea1ac96 fix(page): include page name in latest revision failures`
 - Local implementation commits, continued 58: `0e9e1be fix(page): include page context in vote mismatch errors`
+- Local implementation commits, continued 59: `009a913 fix(site_application): include site context in mismatch errors`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
