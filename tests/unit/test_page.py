@@ -2868,6 +2868,45 @@ class TestPageEdit:
         lock_call = call_args_list[0]  # 1回目がロック取得
         assert lock_call[0][0][0].get("force_lock") == "yes"
 
+    def test_edit_updates_local_title_and_source_cache(
+        self,
+        mock_page_with_id: Page,
+        page_pageedit_existing: dict[str, Any],
+        page_savepage_success: dict[str, Any],
+        page_listpages_single: dict[str, Any],
+    ) -> None:
+        """編集成功後は呼び出し元Pageのローカルtitle/sourceも更新する"""
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.title = "Original Title"
+        mock_page_with_id._source = None
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_existing
+
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = page_savepage_success
+
+        mock_search_response = MagicMock()
+        mock_search_response.json.return_value = page_listpages_single
+
+        mock_page_with_id.site.amc_request = MagicMock(
+            side_effect=[
+                [mock_lock_response],
+                [mock_save_response],
+                [mock_search_response],
+            ]
+        )
+
+        page = mock_page_with_id.edit(title="Updated Title", source="Updated source")
+
+        assert page.title == "Updated Title"
+        assert page.source.wiki_text == "Updated source"
+        assert mock_page_with_id.title == "Updated Title"
+        assert mock_page_with_id._source is not None
+        assert mock_page_with_id._source.wiki_text == "Updated source"
+        assert mock_page_with_id._source.page is mock_page_with_id
+
     def test_edit_allows_empty_source(
         self,
         mock_page_with_id: Page,

@@ -2192,7 +2192,7 @@ class Page:
         if comment is None:
             comment = ""
 
-        return Page.create_or_edit(
+        page = Page.create_or_edit(
             self.site,
             self.fullname,
             self.id,
@@ -2201,6 +2201,9 @@ class Page:
             comment,
             force_edit,
         )
+        self.title = page.title
+        self.source = PageSource(self, source)
+        return page
 
     def commit_tags(self) -> "Page":
         """
