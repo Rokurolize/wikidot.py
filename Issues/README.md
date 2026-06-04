@@ -205,6 +205,9 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [199-pr-page-revision-row-site-context.md](199-pr-page-revision-row-site-context.md): upstream PR draft for the committed page revision row parser site context fix.
 - [200-pr-page-revision-source-parse-site-context.md](200-pr-page-revision-source-parse-site-context.md): upstream PR draft for the committed page revision source parser site context fix.
 - [201-pr-page-revision-lazy-site-context.md](201-pr-page-revision-lazy-site-context.md): upstream PR draft for the committed lazy page revision fetch site context fix.
+- [202-pr-page-vote-mismatch-site-context.md](202-pr-page-vote-mismatch-site-context.md): upstream PR draft for the committed page vote mismatch site context fix.
+- [203-pr-site-page-get-miss-site-context.md](203-pr-site-page-get-miss-site-context.md): upstream PR draft for the committed site page lookup miss context fix.
+- [204-pr-publish-source-verification-site-context.md](204-pr-publish-source-verification-site-context.md): upstream PR draft for the committed publish source verification site context fix.
 
 ## Local Evidence Index
 
@@ -319,5 +322,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 105: `4ac707e fix(page_revision): include site in lazy fetch failures`
 - Local implementation commits, continued 106: `f082274 fix(page): include site in vote mismatch errors`
 - Local implementation commits, continued 107: `8c08582 fix(site): include site in page lookup misses`
+- Local implementation commits, continued 108: `c1a181c fix(site): include site in publish verification failures`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
