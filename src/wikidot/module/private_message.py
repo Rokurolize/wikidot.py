@@ -155,6 +155,10 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         return f"for module: {module_name}, page: {page}"
 
     @staticmethod
+    def _message_detail_fetch_context(module_name: str, message_id: int) -> str:
+        return f"for module: {module_name}, message: {message_id}"
+
+    @staticmethod
     def _pager_targets_from_html(html: BeautifulSoup) -> list[Tag]:
         for pager in html.select("div.pager"):
             if PrivateMessageCollection._is_inside_message_row(pager):
@@ -201,13 +205,14 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             seen_message_ids.add(message_id)
             unique_message_ids.append(message_id)
 
+        message_detail_module_name = "dashboard/messages/DMViewMessageModule"
         bodies = []
 
         for message_id in unique_message_ids:
             bodies.append(
                 {
                     "item": message_id,
-                    "moduleName": "dashboard/messages/DMViewMessageModule",
+                    "moduleName": message_detail_module_name,
                 }
             )
 
@@ -217,13 +222,16 @@ class PrivateMessageCollection(list["PrivateMessage"]):
 
         for index, response in enumerate(responses):
             message_id = unique_message_ids[index]
+            fetch_context = PrivateMessageCollection._message_detail_fetch_context(
+                message_detail_module_name, message_id
+            )
 
             if isinstance(response, exceptions.WikidotStatusCodeException):
                 if response.status_code == "no_message":
-                    raise exceptions.ForbiddenException(f"Failed to get message: {message_id}") from response
+                    raise exceptions.ForbiddenException(f"Failed to get private message {fetch_context}") from response
 
             if response is None:
-                raise exceptions.UnexpectedException(f"Cannot retrieve private message: {message_id}")
+                raise exceptions.UnexpectedException(f"Cannot retrieve private message {fetch_context}")
 
             if isinstance(response, Exception):
                 raise response

@@ -315,7 +315,10 @@ class TestPrivateMessageCollection:
 
         mock_client.amc_client.request.return_value = [mock_exception]
 
-        with pytest.raises(ForbiddenException):
+        with pytest.raises(
+            ForbiddenException,
+            match="Failed to get private message for module: dashboard/messages/DMViewMessageModule, message: 1",
+        ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
     def test_from_ids_raises_when_detail_retry_is_exhausted(self, mock_client):
@@ -323,7 +326,10 @@ class TestPrivateMessageCollection:
         mock_client.amc_client.config.retry_max_retries = 1
         mock_client.amc_client.request.return_value = (RuntimeError("temporary failure"),)
 
-        with pytest.raises(UnexpectedException, match="Cannot retrieve private message: 1"):
+        with pytest.raises(
+            UnexpectedException,
+            match=("Cannot retrieve private message for module: dashboard/messages/DMViewMessageModule, message: 1"),
+        ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
         assert mock_client.amc_client.request.call_count == 2
