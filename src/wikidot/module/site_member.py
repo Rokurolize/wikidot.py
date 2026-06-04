@@ -155,6 +155,7 @@ class SiteMember:
         if group not in ["admins", "moderators", ""]:
             raise ValueError("Invalid group")
 
+        group_label = group or "members"
         members: list[SiteMember] = []
 
         first_response = site.amc_request_with_retry(
@@ -167,7 +168,9 @@ class SiteMember:
             ]
         )[0]
         if first_response is None:
-            raise UnexpectedException("Cannot retrieve site members page: 1")
+            raise UnexpectedException(
+                f"Cannot retrieve site members for site: {site.unix_name}, group: {group_label}, page: 1"
+            )
 
         first_body = first_response.json()["body"]
         first_html = BeautifulSoup(first_body, "lxml")
@@ -201,7 +204,9 @@ class SiteMember:
 
         for page, response in zip(page_numbers, responses, strict=True):
             if response is None:
-                raise UnexpectedException(f"Cannot retrieve site members page: {page}")
+                raise UnexpectedException(
+                    f"Cannot retrieve site members for site: {site.unix_name}, group: {group_label}, page: {page}"
+                )
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
             members.extend(SiteMember._parse(site, html))

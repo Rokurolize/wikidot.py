@@ -271,6 +271,20 @@ class TestSiteMemberGet:
         assert mock_client.amc_client.request.call_count == 2
         assert [call.args[1] for call in mock_client.amc_client.request.call_args_list] == [True, True]
 
+    def test_get_members_raises_when_first_page_retry_is_exhausted(self):
+        """初回ページの再試行失敗はsite/group/page付きで失敗する"""
+        site = MagicMock()
+        site.unix_name = "test-site"
+        site.amc_request_with_retry.return_value = (None,)
+
+        with pytest.raises(
+            UnexpectedException,
+            match="Cannot retrieve site members for site: test-site, group: members, page: 1",
+        ):
+            SiteMember.get(site, "")
+
+        site.amc_request.assert_not_called()
+
     def test_get_members_with_pagination(self):
         """ページネーション付きのメンバー取得"""
         site = MagicMock()
@@ -320,6 +334,7 @@ class TestSiteMemberGet:
     def test_get_members_raises_when_paginated_retry_is_exhausted(self):
         """ページネーション中の再試行失敗は部分的な一覧を返さない"""
         site = MagicMock()
+        site.unix_name = "test-site"
         first_response = self._members_response(
             """
                 <table>
@@ -339,7 +354,10 @@ class TestSiteMemberGet:
 
         with (
             patch("wikidot.module.site_member.user_parser") as mock_user_parser,
-            pytest.raises(UnexpectedException, match="Cannot retrieve site members page: 2"),
+            pytest.raises(
+                UnexpectedException,
+                match="Cannot retrieve site members for site: test-site, group: members, page: 2",
+            ),
         ):
             mock_user_parser.return_value = MagicMock()
             SiteMember.get(site, "")
