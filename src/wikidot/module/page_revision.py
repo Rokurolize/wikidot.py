@@ -92,7 +92,7 @@ class PageRevisionCollection(list["PageRevision"]):
         revisions: list["PageRevision"],
         check_acquired_func: Callable[["PageRevision"], bool],
         module_name: str,
-        process_response_func: Callable[[httpx.Response, "Page"], Callable[["PageRevision"], None]],
+        process_response_func: Callable[[httpx.Response, "Page", int], Callable[["PageRevision"], None]],
         copy_acquired_func: Callable[["PageRevision", "PageRevision"], None] | None = None,
     ) -> list["PageRevision"]:
         """
@@ -144,7 +144,7 @@ class PageRevisionCollection(list["PageRevision"]):
         for revision_id, response in zip(target_revisions_by_id, responses, strict=True):
             if response is None:
                 continue
-            apply_response = process_response_func(response, page)
+            apply_response = process_response_func(response, page, revision_id)
             for revision in target_revisions_by_id[revision_id]:
                 apply_response(revision)
 
@@ -175,14 +175,18 @@ class PageRevisionCollection(list["PageRevision"]):
             If source element is not found
         """
 
-        def process_source_response(response: httpx.Response, page: "Page") -> Callable[["PageRevision"], None]:
+        def process_source_response(
+            response: httpx.Response, page: "Page", revision_id: int
+        ) -> Callable[["PageRevision"], None]:
             body = response.json()["body"]
             # Replace nbsp with space
             body = body.replace("&nbsp;", " ")
             body_html = BeautifulSoup(body, "lxml")
             wiki_text_elem = body_html.select_one("div.page-source")
             if wiki_text_elem is None:
-                raise NoElementException("Wiki text element not found")
+                raise NoElementException(
+                    f"Wiki text element not found for page: {page.fullname}, revision: {revision_id}"
+                )
             wiki_text = extract_page_source_text(wiki_text_elem)
 
             def apply_source(revision: "PageRevision") -> None:
@@ -236,7 +240,9 @@ class PageRevisionCollection(list["PageRevision"]):
             List of revisions with updated HTML information
         """
 
-        def process_html_response(response: httpx.Response, page: "Page") -> Callable[["PageRevision"], None]:
+        def process_html_response(
+            response: httpx.Response, page: "Page", revision_id: int
+        ) -> Callable[["PageRevision"], None]:
             body = response.json()["body"]
             marker = "onclick=\"document.getElementById('page-version-info').style.display='none'\">"
             _, separator, source = body.partition(marker)

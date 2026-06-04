@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from wikidot.common.exceptions import UnexpectedException
+from wikidot.common.exceptions import NoElementException, UnexpectedException
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 
@@ -124,6 +124,23 @@ class TestPageRevisionCollection:
 
         assert sample_revision._source is not None
         assert sample_revision._source.wiki_text == "+ Source from revision\n\nFoundation line."
+
+    def test_get_sources_missing_wiki_text_includes_page_and_revision_context(self, mock_page, sample_revision):
+        """source解析失敗は対象ページとリビジョンIDを含める"""
+        mock_page.fullname = "test-page"
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "<div>missing source wrapper</div>"}
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Wiki text element not found for page: test-page, revision: 100",
+        ):
+            collection.get_sources()
+
+        assert sample_revision._source is None
 
     def test_get_sources_skips_failed_retry_response(self, mock_page, sample_revision, mock_user):
         """source取得の一部失敗は成功リビジョンを保持し失敗リビジョンを未取得にする"""
