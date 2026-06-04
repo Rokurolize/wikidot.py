@@ -414,6 +414,30 @@ class TestSiteApplicationProcess:
         assert call_args["user_id"] == 12345
         assert mock_response.json.call_count == 1
 
+    def test_accept_success_invalidates_members_cache(self):
+        """申請承認成功後はサイトメンバー一覧キャッシュを再取得させる"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
+        cached_members = [object()]
+        cached_moderators = [object()]
+        cached_admins = [object()]
+        site._members = cached_members
+        site._moderators = cached_moderators
+        site._admins = cached_admins
+        user = MagicMock()
+        user.id = 12345
+
+        app = SiteApplication(site=site, user=user, text="")
+        app.accept()
+
+        assert site._members is None
+        assert site._moderators is cached_moderators
+        assert site._admins is cached_admins
+
     def test_decline_success(self):
         """拒否成功"""
         mock_client = create_mock_client(is_logged_in=True)
@@ -433,12 +457,32 @@ class TestSiteApplicationProcess:
         assert call_args["text"] == "your application has been declined"
         assert mock_response.json.call_count == 1
 
+    def test_decline_success_preserves_members_cache(self):
+        """申請拒否成功後はメンバー一覧キャッシュを維持する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
+        cached_members = [object()]
+        site._members = cached_members
+        user = MagicMock()
+        user.id = 12345
+
+        app = SiteApplication(site=site, user=user, text="")
+        app.decline()
+
+        assert site._members is cached_members
+
     def test_accept_missing_action_status_includes_site_user_event_type_and_field_context(self):
         """申請承認応答のstatus欠落は文脈付きNoElementException"""
         mock_client = create_mock_client(is_logged_in=True)
         site = MagicMock()
         site.client = mock_client
         site.unix_name = "test-site"
+        cached_members = [object()]
+        site._members = cached_members
         mock_response = MagicMock()
         mock_response.json.return_value = {}
         site.amc_request.return_value = (mock_response,)
@@ -458,6 +502,7 @@ class TestSiteApplicationProcess:
             app.accept()
 
         assert mock_response.json.call_count == 1
+        assert site._members is cached_members
 
     def test_accept_explicit_non_ok_action_status_raises_status_exception(self):
         """申請承認応答の非ok statusは成功扱いしない"""

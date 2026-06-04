@@ -230,6 +230,8 @@ class SiteApplication:
                 ]
             )[0]
             _require_site_application_action_status(self, event, action, response.json())
+            if action == "accept":
+                self.site._members = None
         except exceptions.WikidotStatusCodeException as e:
             if e.status_code == "no_application":
                 raise exceptions.NotFoundException(f"Application not found: {self.user}") from e
