@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Optional
 import httpx
 from bs4 import BeautifulSoup
 
-from ..common.exceptions import NoElementException
+from ..common.exceptions import NoElementException, UnexpectedException
 from .page_source import PageSource, extract_page_source_text
 
 if TYPE_CHECKING:
@@ -342,7 +342,7 @@ class PageRevision:
         return self._html is not None
 
     @property
-    def source(self) -> Optional["PageSource"]:
+    def source(self) -> "PageSource":
         """
         Get the revision's source code
 
@@ -350,11 +350,13 @@ class PageRevision:
 
         Returns
         -------
-        PageSource | None
+        PageSource
             The revision's source code
         """
         if not self.is_source_acquired():
             PageRevisionCollection(self.page, [self]).get_sources()
+        if self._source is None:
+            raise UnexpectedException(f"Cannot retrieve page revision source: {self.id}")
         return self._source
 
     @source.setter
@@ -370,7 +372,7 @@ class PageRevision:
         self._source = value
 
     @property
-    def html(self) -> str | None:
+    def html(self) -> str:
         """
         Get the revision's HTML display
 
@@ -378,11 +380,13 @@ class PageRevision:
 
         Returns
         -------
-        str | None
+        str
             The revision's HTML display
         """
         if not self.is_html_acquired():
             PageRevisionCollection(self.page, [self]).get_htmls()
+        if self._html is None:
+            raise UnexpectedException(f"Cannot retrieve page revision HTML: {self.id}")
         return self._html
 
     @html.setter

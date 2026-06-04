@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from wikidot.common.exceptions import UnexpectedException
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 
@@ -380,6 +381,18 @@ class TestPageRevision:
         mock_page.site.amc_request_with_retry.assert_called_once()
         assert result is not None
 
+    def test_source_property_raises_when_retry_is_exhausted(self, mock_page, sample_revision):
+        """sourceプロパティは再試行失敗をNoneとして返さない"""
+        mock_page.site.amc_request_with_retry.return_value = (None,)
+
+        with pytest.raises(UnexpectedException, match="Cannot retrieve page revision source: 100"):
+            _ = sample_revision.source
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "history/PageSourceModule", "revision_id": 100}]
+        )
+
     def test_source_property_uses_cache(self, sample_revision):
         """sourceプロパティがキャッシュを使用"""
         mock_source = MagicMock()
@@ -408,6 +421,18 @@ class TestPageRevision:
         mock_page.site.amc_request.assert_not_called()
         mock_page.site.amc_request_with_retry.assert_called_once()
         assert result is not None
+
+    def test_html_property_raises_when_retry_is_exhausted(self, mock_page, sample_revision):
+        """htmlプロパティは再試行失敗をNoneとして返さない"""
+        mock_page.site.amc_request_with_retry.return_value = (None,)
+
+        with pytest.raises(UnexpectedException, match="Cannot retrieve page revision HTML: 100"):
+            _ = sample_revision.html
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "history/PageVersionModule", "revision_id": 100}]
+        )
 
     def test_html_property_uses_cache(self, sample_revision):
         """htmlプロパティがキャッシュを使用"""
