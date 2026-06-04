@@ -507,7 +507,9 @@ class ForumThreadCollection(list["ForumThread"]):
 
         for response, thread_id in zip(responses, target_thread_ids, strict=True):
             if response is None:
-                raise UnexpectedException(f"Cannot retrieve forum thread: {thread_id}")
+                raise UnexpectedException(
+                    f"Cannot retrieve forum thread for site: {_site_name(site)}, thread: {thread_id}"
+                )
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
 

@@ -537,7 +537,10 @@ class TestForumThreadCollectionAcquireFromIds:
         mock_site_no_http.amc_request = MagicMock()
         mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve forum thread: 3001"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve forum thread for site: test-site, thread: 3001",
+        ):
             ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
 
         mock_site_no_http.amc_request.assert_not_called()
