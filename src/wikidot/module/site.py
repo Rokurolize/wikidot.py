@@ -537,8 +537,13 @@ class SitePageAccessor:
             try:
                 return page.id
             except httpx.HTTPStatusError as exc:
-                if exc.response.status_code != 404 or attempt == attempts - 1:
+                if exc.response.status_code != 404:
                     raise
+                if attempt == attempts - 1:
+                    raise exceptions.NotFoundException(
+                        "Cannot resolve published page id for "
+                        f"site: {page.site.unix_name}, page: {page.fullname} after {attempts} attempts"
+                    ) from exc
             except (exceptions.NotFoundException, exceptions.UnexpectedException):
                 if attempt == attempts - 1:
                     raise

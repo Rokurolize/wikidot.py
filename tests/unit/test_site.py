@@ -967,6 +967,86 @@ class TestSitePageAccessor:
         assert result.page is created_page
         assert result.page_id == 24680
 
+    def test_publish_reports_context_when_post_save_visibility_404_exhausts(
+        self,
+        mock_site_no_http: Site,
+    ) -> None:
+        """保存後の直接pageId取得が404のまま尽きたらサイト・ページ文脈付きで失敗する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+
+        class NeverVisiblePage:
+            def __init__(self) -> None:
+                self.site = mock_site_no_http
+                self.fullname = "new-page"
+                self.id_attempts = 0
+                self.set_metadata = MagicMock()
+                self.refresh_source = MagicMock()
+
+            @property
+            def id(self) -> int:
+                self.id_attempts += 1
+                request = httpx.Request("GET", "https://test-site.wikidot.com/new-page")
+                response = httpx.Response(404, request=request)
+                raise httpx.HTTPStatusError("not found", request=request, response=response)
+
+        created_page = NeverVisiblePage()
+
+        with (
+            patch.object(Page, "create_or_edit", return_value=created_page),
+            pytest.raises(
+                NotFoundException,
+                match="Cannot resolve published page id for site: test-site, page: new-page after 2 attempts",
+            ),
+        ):
+            mock_site_no_http.page.publish(
+                "new-page",
+                title="New Title",
+                source="New source",
+                post_save_visibility_attempts=2,
+                post_save_visibility_interval=0,
+            )
+
+        assert created_page.id_attempts == 2
+        created_page.set_metadata.assert_not_called()
+        created_page.refresh_source.assert_not_called()
+
+    def test_publish_surfaces_non_404_post_save_visibility_http_errors(self, mock_site_no_http: Site) -> None:
+        """保存後のpageId取得で404以外のHTTP失敗はvisibility lagとして隠さない"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+
+        class ServerErrorPage:
+            def __init__(self) -> None:
+                self.id_attempts = 0
+                self.set_metadata = MagicMock()
+                self.refresh_source = MagicMock()
+
+            @property
+            def id(self) -> int:
+                self.id_attempts += 1
+                request = httpx.Request("GET", "https://test-site.wikidot.com/new-page")
+                response = httpx.Response(500, request=request)
+                raise httpx.HTTPStatusError("server error", request=request, response=response)
+
+        created_page = ServerErrorPage()
+
+        with (
+            patch.object(Page, "create_or_edit", return_value=created_page),
+            pytest.raises(httpx.HTTPStatusError, match="server error"),
+        ):
+            mock_site_no_http.page.publish(
+                "new-page",
+                title="New Title",
+                source="New source",
+                post_save_visibility_attempts=2,
+                post_save_visibility_interval=0,
+            )
+
+        assert created_page.id_attempts == 1
+        created_page.set_metadata.assert_not_called()
+        created_page.refresh_source.assert_not_called()
+
 
 class TestSiteFromUnixName:
     """Site.from_unix_name のテスト"""
