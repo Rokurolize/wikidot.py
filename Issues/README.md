@@ -147,6 +147,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [141-pr-reuse-cached-duplicate-thread-posts.md](141-pr-reuse-cached-duplicate-thread-posts.md): upstream PR draft for the committed cached duplicate thread post-list reuse fix.
 - [142-pr-reuse-cached-duplicate-post-revisions.md](142-pr-reuse-cached-duplicate-post-revisions.md): upstream PR draft for the committed cached duplicate post revision-list reuse fix.
 - [143-pr-skip-cached-direct-post-revisions.md](143-pr-skip-cached-direct-post-revisions.md): upstream PR draft for the committed cached direct post revision-list fetch skip.
+- [144-pr-skip-cached-direct-page-files.md](144-pr-skip-cached-direct-page-files.md): upstream PR draft for the committed cached direct page file-list fetch skip.
 
 ## Local Evidence Index
 
@@ -201,5 +202,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 45: `04ada52 perf(forum_post): reuse cached duplicate thread posts`
 - Local implementation commits, continued 46: `69b53a0 perf(forum_post_revision): reuse cached duplicate post revisions`
 - Local implementation commits, continued 47: `1dbd300 perf(forum_post_revision): skip cached direct post revisions`
+- Local implementation commits, continued 48: `60f156d perf(page_file): skip cached direct page files`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
