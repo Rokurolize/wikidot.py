@@ -208,6 +208,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [202-pr-page-vote-mismatch-site-context.md](202-pr-page-vote-mismatch-site-context.md): upstream PR draft for the committed page vote mismatch site context fix.
 - [203-pr-site-page-get-miss-site-context.md](203-pr-site-page-get-miss-site-context.md): upstream PR draft for the committed site page lookup miss context fix.
 - [204-pr-publish-source-verification-site-context.md](204-pr-publish-source-verification-site-context.md): upstream PR draft for the committed publish source verification site context fix.
+- [205-pr-forum-post-edit-revision-value-context.md](205-pr-forum-post-edit-revision-value-context.md): upstream PR draft for the committed forum post edit revision ID value validation fix.
 
 ## Local Evidence Index
 
@@ -323,5 +324,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 106: `f082274 fix(page): include site in vote mismatch errors`
 - Local implementation commits, continued 107: `8c08582 fix(site): include site in page lookup misses`
 - Local implementation commits, continued 108: `c1a181c fix(site): include site in publish verification failures`
+- Local implementation commits, continued 109: `c15ad8d fix(forum_post): validate edit revision id values`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
