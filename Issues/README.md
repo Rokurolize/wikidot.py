@@ -173,6 +173,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [167-pr-forum-thread-create-result-context.md](167-pr-forum-thread-create-result-context.md): upstream PR draft for the committed forum thread create result context fix.
 - [168-pr-forum-category-fetch-failure-context.md](168-pr-forum-category-fetch-failure-context.md): upstream PR draft for the committed forum category fetch failure context fix.
 - [169-pr-forum-thread-list-fetch-failure-context.md](169-pr-forum-thread-list-fetch-failure-context.md): upstream PR draft for the committed forum thread-list fetch failure context fix.
+- [170-pr-forum-thread-detail-fetch-failure-context.md](170-pr-forum-thread-detail-fetch-failure-context.md): upstream PR draft for the committed forum thread detail fetch failure context fix.
 
 ## Local Evidence Index
 
@@ -253,5 +254,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 71: `f7c0f1c fix(forum_category): include context in create-thread errors`
 - Local implementation commits, continued 72: `8369597 fix(forum_category): include site in fetch failures`
 - Local implementation commits, continued 73: `765a00a fix(forum_thread): include context in thread list fetch failures`
+- Local implementation commits, continued 74: `d6a7a37 fix(forum_thread): include site in thread detail fetch failures`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
