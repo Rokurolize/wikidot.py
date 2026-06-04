@@ -244,7 +244,10 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             parse_context = PrivateMessageCollection._message_detail_fetch_context(
                 message_detail_module_name, message_id
             )
-            html = BeautifulSoup(response.json()["body"], "lxml")
+            response_body = response.json().get("body")
+            if response_body is None:
+                raise exceptions.NoElementException(f"Message response body is not found {parse_context}")
+            html = BeautifulSoup(response_body, "lxml")
 
             message_element = html.select_one("div.pmessage")
             if message_element is None:

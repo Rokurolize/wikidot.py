@@ -358,6 +358,18 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
+    def test_from_ids_missing_detail_response_body_includes_module_and_message_context(self, mock_client):
+        """メッセージ詳細レスポンスのbody欠損はmodule/message文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(
+            NoElementException,
+            match=("Message response body is not found for module: dashboard/messages/DMViewMessageModule, message: 1"),
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
     def test_acquire_missing_message_href_raises(self, mock_client):
         """メッセージ行のdata-href欠損はNoElementException"""
         mock_response = MagicMock()
