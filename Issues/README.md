@@ -238,6 +238,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [232-pr-publish-verification-request-status.md](232-pr-publish-verification-request-status.md): upstream PR draft for the committed publish verification request-status ledger improvement.
 - [233-pr-forum-category-count-parse-context.md](233-pr-forum-category-count-parse-context.md): upstream PR draft for the committed forum category count parse-context fix.
 - [234-pr-forum-thread-list-count-parse-context.md](234-pr-forum-thread-list-count-parse-context.md): upstream PR draft for the committed forum thread-list count parse-context fix.
+- [235-pr-forum-post-id-parse-context.md](235-pr-forum-post-id-parse-context.md): upstream PR draft for the committed forum post ID parse-context fix.
 
 ## Local Evidence Index
 
@@ -383,5 +384,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 136: `7e4762c feat(site): expose publish verification request status`
 - Local implementation commits, continued 137: `39ea5c7 fix(forum_category): report malformed count context`
 - Local implementation commits, continued 138: `d78dc35 fix(forum_thread): report malformed post count context`
+- Local implementation commits, continued 139: `538cb8a fix(forum_post): report malformed post id context`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
