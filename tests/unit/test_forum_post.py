@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
 from wikidot.module.forum_post import ForumPost, ForumPostCollection
+from wikidot.module.forum_post_revision import ForumPostRevisionCollection
 from wikidot.module.forum_thread import ForumThread
 
 # ============================================================
@@ -1018,6 +1019,31 @@ class TestForumPostEdit:
         assert mock_forum_post_no_http._source == "Updated source"
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
         mock_forum_post_no_http.thread.site.amc_request.assert_called_once()
+
+    def test_edit_success_invalidates_cached_revisions(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+        amc_ok_response: dict[str, Any],
+    ) -> None:
+        """編集成功後は古いrevision一覧キャッシュを使い回さない"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http._revisions = ForumPostRevisionCollection(mock_forum_post_no_http, [])
+
+        form_response = MagicMock()
+        form_response.json.return_value = forum_editpost_form
+        save_response = MagicMock()
+        save_response.json.return_value = amc_ok_response
+
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[save_response])
+
+        result = mock_forum_post_no_http.edit(source="Updated source")
+
+        assert result == mock_forum_post_no_http
+        assert mock_forum_post_no_http._source == "Updated source"
+        assert mock_forum_post_no_http._revisions is None
 
     def test_edit_scopes_current_revision_id_to_edit_form_direct_child(
         self,

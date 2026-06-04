@@ -804,5 +804,6 @@ class ForumPost:
         if title is not None:
             self.title = title
         self._source = source
+        self._revisions = None
 
         return self
