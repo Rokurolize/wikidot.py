@@ -955,6 +955,68 @@ class TestForumPostEdit:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         assert mock_forum_post_no_http._source is None
 
+    def test_edit_missing_current_revision_id_value_includes_site_and_post_context(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """currentRevisionId value欠落時はsite/postつきで保存せず失敗する"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        form_without_revision_value = {
+            **forum_editpost_form,
+            "body": forum_editpost_form["body"].replace(
+                '<input type="hidden" name="currentRevisionId" value="9001"/>',
+                '<input type="hidden" name="currentRevisionId"/>',
+                1,
+            ),
+        }
+
+        form_response = MagicMock()
+        form_response.json.return_value = form_without_revision_value
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Current revision ID value is not found for site: test-site, post: 5001",
+        ):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
+    def test_edit_malformed_current_revision_id_value_includes_site_and_post_context(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """currentRevisionId valueが数値でない場合はsite/postつきで保存せず失敗する"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        form_with_malformed_revision_value = {
+            **forum_editpost_form,
+            "body": forum_editpost_form["body"].replace(
+                '<input type="hidden" name="currentRevisionId" value="9001"/>',
+                '<input type="hidden" name="currentRevisionId" value="not-a-number"/>',
+                1,
+            ),
+        }
+
+        form_response = MagicMock()
+        form_response.json.return_value = form_with_malformed_revision_value
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Current revision ID value is malformed for site: test-site, post: 5001",
+        ):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
     def test_edit_retries_transient_form_fetch_failures(
         self,
         mock_forum_post_no_http: ForumPost,

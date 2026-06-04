@@ -697,7 +697,17 @@ class ForumPost:
             raise NoElementException(
                 f"Current revision ID input is not found for site: {self.thread.site.unix_name}, post: {self.id}"
             )
-        current_revision_id = int(str(revision_elem["value"]))
+        revision_value = revision_elem.get("value")
+        if revision_value is None:
+            raise NoElementException(
+                f"Current revision ID value is not found for site: {self.thread.site.unix_name}, post: {self.id}"
+            )
+        try:
+            current_revision_id = int(str(revision_value))
+        except ValueError as exc:
+            raise NoElementException(
+                f"Current revision ID value is malformed for site: {self.thread.site.unix_name}, post: {self.id}"
+            ) from exc
 
         # 編集を保存
         self.thread.site.amc_request(
