@@ -1003,21 +1003,80 @@ class TestPageCollectionAcquire:
         assert duplicate_page._revisions[0]._source.wiki_text == "cached revision source"
         assert duplicate_page._revisions[0]._html == "<p>cached revision html</p>"
 
-    def test_acquire_revisions_missing_cells_raises(
+    def test_acquire_revisions_missing_cells_includes_site_context(
         self,
         mock_site_no_http: Site,
         mock_page_with_id: Page,
     ) -> None:
-        """履歴行の列が足りない場合はNoElementException"""
+        """履歴行の列が足りない場合はsite/page/revision文脈付きNoElementException"""
         collection = PageCollection(mock_site_no_http, [mock_page_with_id])
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
             "body": '<table class="page-history"><tr id="revision-row-1"><td>1.</td></tr></table>'
         }
-        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
-        with pytest.raises(exceptions.NoElementException, match="revision cells"):
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Cannot find revision cells for site: test-site, page: test-page, revision: 1",
+        ):
+            collection.get_page_revisions()
+
+    def test_acquire_revisions_missing_created_by_includes_site_context(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+    ) -> None:
+        """履歴行の作成者が欠けた場合はsite/page/revision文脈付きNoElementException"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+
+        body = """
+            <table class="page-history">
+              <tr id="revision-row-123">
+                <td>1.</td><td></td><td></td><td></td><td></td>
+                <td><span class="odate">1700000000</span></td><td>comment</td>
+              </tr>
+            </table>
+        """
+        mock_response = self._json_response({"body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Cannot find created by element for site: test-site, page: test-page, revision: 123",
+        ):
+            collection.get_page_revisions()
+
+    def test_acquire_revisions_missing_created_at_includes_site_context(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+    ) -> None:
+        """履歴行の作成日時が欠けた場合はsite/page/revision文脈付きNoElementException"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+
+        body = """
+            <table class="page-history">
+              <tr id="revision-row-456">
+                <td>1.</td><td></td><td></td><td></td>
+                <td><span class="printuser">User</span></td><td></td><td>comment</td>
+              </tr>
+            </table>
+        """
+        mock_response = self._json_response({"body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with (
+            patch("wikidot.module.page.user_parser", return_value=MagicMock()),
+            pytest.raises(
+                exceptions.NoElementException,
+                match="Cannot find created at element for site: test-site, page: test-page, revision: 456",
+            ),
+        ):
             collection.get_page_revisions()
 
     def test_acquire_votes_success(

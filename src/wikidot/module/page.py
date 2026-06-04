@@ -955,20 +955,23 @@ class PageCollection(list["Page"]):
                 ]
                 if len(tds) < 7:
                     raise exceptions.NoElementException(
-                        f"Cannot find revision cells for page: {first_page.fullname}, revision: {rev_id}"
+                        f"Cannot find revision cells for site: {site.unix_name}, "
+                        f"page: {first_page.fullname}, revision: {rev_id}"
                     )
                 rev_no = int(tds[0].text.strip().removesuffix("."))
                 created_by_elem = tds[4].find("span", class_="printuser", recursive=False)
                 if not isinstance(created_by_elem, Tag):
                     raise exceptions.NoElementException(
-                        f"Cannot find created by element for page: {first_page.fullname}, revision: {rev_id}"
+                        f"Cannot find created by element for site: {site.unix_name}, "
+                        f"page: {first_page.fullname}, revision: {rev_id}"
                     )
                 created_by = user_parser(site.client, created_by_elem)
 
                 created_at_elem = tds[5].find("span", class_="odate", recursive=False)
                 if not isinstance(created_at_elem, Tag):
                     raise exceptions.NoElementException(
-                        f"Cannot find created at element for page: {first_page.fullname}, revision: {rev_id}"
+                        f"Cannot find created at element for site: {site.unix_name}, "
+                        f"page: {first_page.fullname}, revision: {rev_id}"
                     )
                 created_at = odate_parser(created_at_elem)
 
