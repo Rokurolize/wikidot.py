@@ -34,7 +34,7 @@ def _thread_list_parse_context(
     category: Optional["ForumCategory"],
     row_index: int,
     page: int | None = None,
-    **counts: int,
+    **details: object,
 ) -> str:
     context = []
     if category is not None:
@@ -42,8 +42,18 @@ def _thread_list_parse_context(
     if page is not None:
         context.append(f"page={page}")
     context.append(f"row={row_index}")
-    context.extend(f"{name}={value}" for name, value in counts.items())
+    context.extend(f"{name}={value}" for name, value in details.items())
     return f"for site: {_site_name(site)} ({', '.join(context)})"
+
+
+def _parse_thread_list_count(
+    site: "Site", category: Optional["ForumCategory"], row_index: int, page: int | None, value: str
+) -> int:
+    try:
+        return int(value)
+    except ValueError as exc:
+        parse_context = _thread_list_parse_context(site, category, row_index, page, field="posts", value=value)
+        raise NoElementException(f"Posts count is malformed {parse_context}") from exc
 
 
 def _thread_detail_parse_context(
@@ -261,6 +271,13 @@ class ForumThreadCollection(list["ForumThread"]):
                     raise NoElementException(f"User element is not found {parse_context}")
                 if odate_elem is None:
                     raise NoElementException(f"Odate element is not found {parse_context}")
+                post_count = _parse_thread_list_count(
+                    site,
+                    category,
+                    row_index,
+                    page,
+                    posts_count_elem.get_text("", strip=True),
+                )
 
                 thread = ForumThread(
                     site=site,
@@ -269,7 +286,7 @@ class ForumThreadCollection(list["ForumThread"]):
                     description=description_elem.get_text(" ", strip=True),
                     created_by=user_parser(site.client, user_elem),
                     created_at=odate_parser(odate_elem),
-                    post_count=int(posts_count_elem.text),
+                    post_count=post_count,
                     category=category,
                 )
 

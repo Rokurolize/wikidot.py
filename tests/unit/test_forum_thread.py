@@ -364,6 +364,28 @@ class TestForumThreadCollectionAcquireAll:
         ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
 
+    def test_acquire_all_malformed_post_count_includes_category_context(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド一覧の投稿数が壊れている場合はサイト・カテゴリ・行・値を含めて失敗する"""
+        body_with_bad_count = forum_threads_in_category["body"].replace(
+            '<td class="posts">5</td>',
+            '<td class="posts">not-a-number</td>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body_with_bad_count}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Posts count is malformed for site: test-site "
+                r"\(category=1001, page=1, row=1, field=posts, value=not-a-number\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
     def test_acquire_all_pagination(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
