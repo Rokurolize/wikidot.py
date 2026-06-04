@@ -204,6 +204,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [198-pr-page-source-parse-site-context.md](198-pr-page-source-parse-site-context.md): upstream PR draft for the committed page source parser site context fix.
 - [199-pr-page-revision-row-site-context.md](199-pr-page-revision-row-site-context.md): upstream PR draft for the committed page revision row parser site context fix.
 - [200-pr-page-revision-source-parse-site-context.md](200-pr-page-revision-source-parse-site-context.md): upstream PR draft for the committed page revision source parser site context fix.
+- [201-pr-page-revision-lazy-site-context.md](201-pr-page-revision-lazy-site-context.md): upstream PR draft for the committed lazy page revision fetch site context fix.
 
 ## Local Evidence Index
 
@@ -315,5 +316,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 102: `343d502 fix(page): include site in source parse failures`
 - Local implementation commits, continued 103: `baea31f fix(page): include site in revision parse failures`
 - Local implementation commits, continued 104: `1fc8f82 fix(page_revision): include site in source parse failures`
+- Local implementation commits, continued 105: `4ac707e fix(page_revision): include site in lazy fetch failures`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
