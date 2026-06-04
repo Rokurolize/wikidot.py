@@ -87,6 +87,8 @@ class PagePublishResult:
         True when any metadata update was requested by the publish call.
     source_verification_requested : bool
         True when source verification was requested by the publish call.
+    source_verification_status : Literal["matched", "mismatched", "skipped"]
+        Low-cardinality source verification status for audit records.
     source_verified : bool
         True when source verification was requested and matched.
     as_dict : dict[str, str | int | bool | None]
@@ -117,6 +119,15 @@ class PagePublishResult:
         return self.source_matches is not None
 
     @property
+    def source_verification_status(self) -> Literal["matched", "mismatched", "skipped"]:
+        """Low-cardinality source verification status for audit records."""
+        if self.source_matches is True:
+            return "matched"
+        if self.source_matches is False:
+            return "mismatched"
+        return "skipped"
+
+    @property
     def operation(self) -> Literal["create", "edit"]:
         """Create/edit operation name for audit records."""
         return "create" if self.created else "edit"
@@ -136,6 +147,7 @@ class PagePublishResult:
             "operation": self.operation,
             "source_matches": self.source_matches,
             "source_verification_requested": self.source_verification_requested,
+            "source_verification_status": self.source_verification_status,
             "source_verified": self.source_verified,
             "tags_updated": self.tags_updated,
             "parent_updated": self.parent_updated,

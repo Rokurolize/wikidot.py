@@ -829,12 +829,15 @@ class TestSitePageAccessor:
         assert verified_with_metadata.metadata_updated is True
         assert verified_with_metadata.source_verification_requested is True
         assert verified_with_metadata.source_verified is True
+        assert verified_with_metadata.source_verification_status == "matched"
         assert skipped_optional_steps.metadata_updated is False
         assert skipped_optional_steps.source_verification_requested is False
         assert skipped_optional_steps.source_verified is False
+        assert skipped_optional_steps.source_verification_status == "skipped"
         assert failed_source_check.metadata_updated is True
         assert failed_source_check.source_verification_requested is True
         assert failed_source_check.source_verified is False
+        assert failed_source_check.source_verification_status == "mismatched"
 
     def test_publish_result_exports_audit_record(self) -> None:
         """PagePublishResultは監査ledger向けの辞書形式に変換できる"""
@@ -861,6 +864,7 @@ class TestSitePageAccessor:
             "operation": "edit",
             "source_matches": True,
             "source_verification_requested": True,
+            "source_verification_status": "matched",
             "source_verified": True,
             "tags_updated": True,
             "parent_updated": False,
