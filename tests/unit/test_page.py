@@ -2066,6 +2066,21 @@ class TestPageCreateOrEdit:
 class TestPageEdit:
     """Page.editのテスト"""
 
+    def test_edit_not_logged_in_does_not_fetch_current_source(self, mock_page_with_id: Page) -> None:
+        """未ログイン時は現在source取得より前に失敗する"""
+        mock_page_with_id.site.client.login_check = MagicMock(
+            side_effect=exceptions.LoginRequiredException("Login required")
+        )
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(exceptions.LoginRequiredException):
+            mock_page_with_id.edit(title="Updated Title")
+
+        mock_page_with_id.site.client.login_check.assert_called_once()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
     def test_edit_existing_page(
         self,
         mock_page_with_id: Page,

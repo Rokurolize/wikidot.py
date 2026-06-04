@@ -1970,6 +1970,8 @@ class Page:
         ------
         Same as above (same as create_or_edit method)
         """
+        self.site.client.login_check()
+
         # Noneならそのままにする
         if title is None:
             title = self.title
