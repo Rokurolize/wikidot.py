@@ -1320,12 +1320,12 @@ class TestPageProperties:
         )
         assert len(revisions) == 3
 
-    def test_revisions_property_raises_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
-        """リビジョン取得リトライが尽きた場合は空履歴に見せかけない"""
+    def test_revisions_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """リビジョン取得リトライが尽きた場合は対象ページ名を含めて失敗する"""
         mock_page_with_id.site.amc_request = MagicMock()
         mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.NotFoundException, match="Cannot find page revisions"):
+        with pytest.raises(exceptions.NotFoundException, match="Cannot find page revisions: test-page"):
             _ = mock_page_with_id.revisions
 
         mock_page_with_id.site.amc_request.assert_not_called()

@@ -1425,7 +1425,7 @@ class Page:
             PageCollection(self.site, [self]).get_page_revisions()
 
         if self._revisions is None:
-            raise exceptions.NotFoundException("Cannot find page revisions")
+            raise exceptions.NotFoundException(f"Cannot find page revisions: {self.fullname}")
 
         return self._revisions
 
