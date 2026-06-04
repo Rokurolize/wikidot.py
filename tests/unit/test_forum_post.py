@@ -1204,6 +1204,37 @@ class TestForumPostEdit:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         assert mock_forum_post_no_http._source is None
 
+    def test_edit_missing_save_action_status_does_not_update_local_state(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """編集保存応答のstatus欠落は文脈付きで失敗しローカル状態を更新しない"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http.title = "Original Title"
+        mock_forum_post_no_http._source = "Original source"
+
+        form_response = MagicMock()
+        form_response.json.return_value = forum_editpost_form
+        malformed_save_response = MagicMock()
+        malformed_save_response.json.return_value = {"body": ""}
+
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[malformed_save_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post action response is malformed for site: test-site, post: 5001 "
+                r"\(event=saveEditPost, field=status\)"
+            ),
+        ):
+            mock_forum_post_no_http.edit(source="Updated source", title="New Title")
+
+        assert mock_forum_post_no_http.title == "Original Title"
+        assert mock_forum_post_no_http._source == "Original source"
+
     def test_edit_with_new_title(
         self,
         mock_forum_post_no_http: ForumPost,

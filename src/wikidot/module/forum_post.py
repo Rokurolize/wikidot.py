@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup, Tag
 
-from ..common.exceptions import NoElementException, UnexpectedException
+from ..common.exceptions import NoElementException, UnexpectedException, WikidotStatusCodeException
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 
@@ -59,6 +59,24 @@ def _parse_post_id_value(
         parse_context = _post_list_parse_context(thread, page, post_index, post_id, field=field, value=value_text)
         raise NoElementException(f"Post ID is malformed {parse_context}")
     return int(raw_id)
+
+
+def _require_forum_post_action_status(post: "ForumPost", event: str, data: dict[str, Any]) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise NoElementException(
+            f"Forum post action response is malformed for site: {post.thread.site.unix_name}, post: {post.id} "
+            f"(event={event}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise WikidotStatusCodeException(
+            f"Failed to complete forum post action for site: {post.thread.site.unix_name}, post: {post.id}, "
+            f"event: {event}",
+            status,
+        )
+    return status
 
 
 class ForumPostCollection(list["ForumPost"]):
@@ -767,7 +785,7 @@ class ForumPost:
             ) from exc
 
         # 編集を保存
-        self.thread.site.amc_request(
+        save_response = self.thread.site.amc_request(
             [
                 {
                     "action": "ForumAction",
@@ -779,7 +797,8 @@ class ForumPost:
                     "source": source,
                 }
             ]
-        )
+        )[0]
+        _require_forum_post_action_status(self, "saveEditPost", save_response.json())
 
         # ローカル状態を更新
         if title is not None:
