@@ -180,6 +180,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [174-pr-forum-post-lazy-source-failure-context.md](174-pr-forum-post-lazy-source-failure-context.md): upstream PR draft for the committed forum post lazy source failure context fix.
 - [175-pr-forum-post-source-form-parse-context.md](175-pr-forum-post-source-form-parse-context.md): upstream PR draft for the committed forum post source form parse failure context fix.
 - [176-pr-site-member-fetch-failure-context.md](176-pr-site-member-fetch-failure-context.md): upstream PR draft for the committed site member-list fetch failure context fix.
+- [177-pr-site-application-fetch-failure-context.md](177-pr-site-application-fetch-failure-context.md): upstream PR draft for the committed site application-list fetch failure context fix.
 
 ## Local Evidence Index
 
@@ -267,5 +268,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 78: `4c7fc20 fix(forum_post): include site in lazy source failures`
 - Local implementation commits, continued 79: `5f45759 fix(forum_post): include site in source form parse errors`
 - Local implementation commits, continued 80: `3089eed fix(site_member): include context in member fetch failures`
+- Local implementation commits, continued 81: `312c015 fix(site_application): include site in fetch failures`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
