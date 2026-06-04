@@ -1550,7 +1550,9 @@ class Page:
                 ]
             )[0]
             if response is None:
-                raise exceptions.UnexpectedException(f"Cannot retrieve page discussion: {self.fullname}")
+                raise exceptions.UnexpectedException(
+                    f"Cannot retrieve page discussion for site: {self.site.unix_name}, page: {self.fullname}"
+                )
 
             body = response.json()["body"]
             match = re.search(r"WIKIDOT\.forumThreadId = (\d+);", body)
@@ -1640,7 +1642,9 @@ class Page:
                 ]
             )[0]
             if response is None:
-                raise exceptions.UnexpectedException(f"Cannot retrieve page metas: {self.fullname}")
+                raise exceptions.UnexpectedException(
+                    f"Cannot retrieve page metas for site: {self.site.unix_name}, page: {self.fullname}"
+                )
 
             # レスポンス解析
             body = response.json()["body"]

@@ -1508,7 +1508,10 @@ class TestPageProperties:
         mock_page_with_id.site.client.amc_client.config.retry_max_retries = 1
         mock_page_with_id.site.amc_request = MagicMock(return_value=(RuntimeError("temporary failure"),))
 
-        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve page discussion: test-page"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve page discussion for site: test-site, page: test-page",
+        ):
             _ = mock_page_with_id.discussion
 
         assert mock_page_with_id.site.amc_request.call_count == 2
@@ -1750,7 +1753,10 @@ class TestPageWriteMethods:
         mock_page_with_id.site.client.amc_client.config.retry_max_retries = 1
         mock_page_with_id.site.amc_request = MagicMock(return_value=(RuntimeError("temporary failure"),))
 
-        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve page metas: test-page"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve page metas for site: test-site, page: test-page",
+        ):
             _ = mock_page_with_id.metas
 
         assert mock_page_with_id.site.amc_request.call_count == 2
