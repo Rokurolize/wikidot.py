@@ -141,6 +141,15 @@ def _require_page_edit_lock_field(site: "Site", fullname: str, data: dict[str, A
         ) from exc
 
 
+def _require_page_save_status(site: "Site", fullname: str, data: dict[str, Any]) -> Any:
+    try:
+        return data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page save response is malformed for site: {site.unix_name}, page: {fullname} (field=status)"
+        ) from exc
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -2035,11 +2044,10 @@ class Page:
         }
         response = site.amc_request([edit_request_body])[0]
         response_data = response.json()
+        save_status = _require_page_save_status(site, fullname, response_data)
 
-        if response_data["status"] != "ok":
-            raise exceptions.WikidotStatusCodeException(
-                f"Failed to create or edit page: {fullname}", response_data["status"]
-            )
+        if save_status != "ok":
+            raise exceptions.WikidotStatusCodeException(f"Failed to create or edit page: {fullname}", save_status)
 
         page = PageCollection.get_by_fullname(site, fullname)
         if page is None:

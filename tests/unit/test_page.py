@@ -2554,6 +2554,32 @@ class TestPageCreateOrEdit:
 
         assert mock_save_response.json.call_count == 1
 
+    def test_create_or_edit_missing_save_status_includes_site_page_and_field_context(
+        self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
+    ) -> None:
+        """保存レスポンスのstatus欠落はsite/page/field文脈付きで失敗する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_success
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = {}
+
+        mock_site_no_http.amc_request = MagicMock(side_effect=[[mock_lock_response], [mock_save_response]])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page save response is malformed for site: test-site, page: new-page "
+                r"\(field=status\)"
+            ),
+        ):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        assert mock_save_response.json.call_count == 1
+        assert mock_site_no_http.amc_request.call_count == 2
+
     def test_edit_not_logged_in(self, mock_site_no_http: Site) -> None:
         """ログインしていない場合に例外"""
         mock_site_no_http.client.is_logged_in = False
