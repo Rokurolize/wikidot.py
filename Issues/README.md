@@ -318,5 +318,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 104: `1fc8f82 fix(page_revision): include site in source parse failures`
 - Local implementation commits, continued 105: `4ac707e fix(page_revision): include site in lazy fetch failures`
 - Local implementation commits, continued 106: `f082274 fix(page): include site in vote mismatch errors`
+- Local implementation commits, continued 107: `8c08582 fix(site): include site in page lookup misses`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
