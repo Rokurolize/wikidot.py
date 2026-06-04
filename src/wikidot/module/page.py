@@ -132,6 +132,15 @@ def _parse_who_rated_vote_value(site: "Site", page: "Page", value: object) -> in
         ) from exc
 
 
+def _require_page_edit_lock_field(site: "Site", fullname: str, data: dict[str, Any], field: str) -> Any:
+    try:
+        return data[field]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} (field={field})"
+        ) from exc
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -2005,8 +2014,8 @@ class Page:
             raise ValueError("page_id must be specified when editing existing page")
 
         # lock_idとlock_secret、page_revision_id（あれば）を取得
-        lock_id = page_lock_response_data["lock_id"]
-        lock_secret = page_lock_response_data["lock_secret"]
+        lock_id = _require_page_edit_lock_field(site, fullname, page_lock_response_data, "lock_id")
+        lock_secret = _require_page_edit_lock_field(site, fullname, page_lock_response_data, "lock_secret")
         page_revision_id = page_lock_response_data.get("page_revision_id")
 
         # ページの作成または編集

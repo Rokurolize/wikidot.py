@@ -2510,6 +2510,31 @@ class TestPageCreateOrEdit:
         with pytest.raises(exceptions.TargetExistsException):
             Page.create_or_edit(mock_site_no_http, "existing-page", raise_on_exists=True)
 
+    @pytest.mark.parametrize("missing_field", ["lock_id", "lock_secret"])
+    def test_create_or_edit_missing_lock_field_includes_site_page_and_field_context(
+        self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any], missing_field: str
+    ) -> None:
+        """編集ロックレスポンスの必須フィールド欠落は文脈付きで失敗する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        malformed_lock_data = dict(page_pageedit_success)
+        malformed_lock_data.pop(missing_field)
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = malformed_lock_data
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_lock_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page edit lock response is malformed for site: test-site, page: new-page "
+                rf"\(field={missing_field}\)"
+            ),
+        ):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        mock_site_no_http.amc_request.assert_called_once()
+
     def test_create_or_edit_save_failure_decodes_response_once(
         self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
     ) -> None:
