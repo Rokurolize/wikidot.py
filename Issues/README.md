@@ -250,6 +250,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [244-pr-page-rating-points-context.md](244-pr-page-rating-points-context.md): upstream PR draft for the committed page rating points context fix.
 - [245-pr-page-metadata-action-status-context.md](245-pr-page-metadata-action-status-context.md): upstream PR draft for the committed page metadata action status context fix.
 - [246-pr-page-direct-metadata-action-status-context.md](246-pr-page-direct-metadata-action-status-context.md): upstream PR draft for the committed page direct metadata action status context fix.
+- [247-pr-page-rename-action-status-context.md](247-pr-page-rename-action-status-context.md): upstream PR draft for the committed page rename action status context fix.
 
 ## Local Evidence Index
 
@@ -407,5 +408,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 148: `def85c8 fix(page): report malformed rating points`
 - Local implementation commits, continued 149: `13fc978 fix(page): guard metadata action status`
 - Local implementation commits, continued 150: `8cb2e42 fix(page): guard direct metadata action status`
+- Local implementation commits, continued 151: `627dbf3 fix(page): guard rename action status`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
