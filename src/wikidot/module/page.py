@@ -1567,7 +1567,7 @@ class Page:
             PageCollection(self.site, [self]).get_page_files()
 
         if self._files is None:
-            raise exceptions.NotFoundException("Cannot find page files")
+            raise exceptions.NotFoundException(f"Cannot find page files: {self.fullname}")
 
         return self._files
 

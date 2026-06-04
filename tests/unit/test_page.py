@@ -1426,12 +1426,12 @@ class TestPageProperties:
         assert files.page is mock_page_with_id
         assert len(files) == 0
 
-    def test_files_property_raises_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
-        """ファイル取得リトライが尽きた場合は空リストに見せかけない"""
+    def test_files_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """ファイル取得リトライが尽きた場合は対象ページ名を含めて失敗する"""
         mock_page_with_id.site.amc_request = MagicMock()
         mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.NotFoundException, match="Cannot find page files"):
+        with pytest.raises(exceptions.NotFoundException, match="Cannot find page files: test-page"):
             _ = mock_page_with_id.files
 
         mock_page_with_id.site.amc_request.assert_not_called()
