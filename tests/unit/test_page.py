@@ -271,6 +271,74 @@ class TestPageCollectionParse:
         ):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    def test_parse_malformed_rating_percent_includes_site_page_and_value_context(
+        self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any]
+    ) -> None:
+        """5-star評価率が壊れている場合はsite/page/field/value文脈付きNoElementException"""
+        body = (
+            page_listpages_pm_rating["body"]
+            .replace(
+                '<span class="set rating"><span class="name">rating</span> <span class="value">75</span></span>',
+                '<span class="set rating"><span class="page-rate-list-pages-start"></span>'
+                '<span class="name">rating</span> <span class="value">4.0</span></span>',
+            )
+            .replace(
+                '<span class="set rating_percent"><span class="name">rating_percent</span> '
+                '<span class="value">75%</span></span>',
+                '<span class="set rating_percent"><span class="name">rating_percent</span> '
+                '<span class="value">not-a-percent</span></span>',
+            )
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"ListPages float field is malformed for site: test-site, page: test-page "
+                r"\(field=rating_percent, value=not-a-percent\)"
+            ),
+        ):
+            PageCollection._parse(mock_site_no_http, html_body)
+
+    def test_parse_malformed_5star_rating_includes_site_page_and_value_context(
+        self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any]
+    ) -> None:
+        """5-star評価値が壊れている場合はsite/page/field/value文脈付きNoElementException"""
+        body = page_listpages_pm_rating["body"].replace(
+            '<span class="set rating"><span class="name">rating</span> <span class="value">75</span></span>',
+            '<span class="set rating"><span class="page-rate-list-pages-start"></span>'
+            '<span class="name">rating</span> <span class="value">not-a-rating</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"ListPages float field is malformed for site: test-site, page: test-page "
+                r"\(field=rating, value=not-a-rating\)"
+            ),
+        ):
+            PageCollection._parse(mock_site_no_http, html_body)
+
+    def test_parse_malformed_rating_includes_site_page_and_value_context(
+        self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any]
+    ) -> None:
+        """通常評価値が壊れている場合はsite/page/field/value文脈付きNoElementException"""
+        body = page_listpages_pm_rating["body"].replace(
+            '<span class="set rating"><span class="name">rating</span> <span class="value">75</span></span>',
+            '<span class="set rating"><span class="name">rating</span> <span class="value">not-a-rating</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"ListPages integer field is malformed for site: test-site, page: test-page "
+                r"\(field=rating, value=not-a-rating\)"
+            ),
+        ):
+            PageCollection._parse(mock_site_no_http, html_body)
+
 
 class TestPageCollectionSearchPages:
     """PageCollection.search_pagesのテスト"""

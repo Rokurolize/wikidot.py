@@ -106,6 +106,17 @@ def _parse_listpages_integer_field(site: "Site", page_name: str, key: str, value
         ) from exc
 
 
+def _parse_listpages_float_field(site: "Site", page_name: str, key: str, value: object) -> float:
+    value_text = str(value).strip()
+    try:
+        return float(value_text)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"ListPages float field is malformed for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={value_text})"
+        ) from exc
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -541,14 +552,17 @@ class PageCollection(list["Page"]):
                     value = _parse_listpages_integer_field(site, page_name, key, value_element.text)
 
                 elif key in ["rating"]:
+                    page_name = str(page_params.get("fullname", "unknown"))
                     if is_5star_rating:
-                        value = float(value_element.text.strip())
+                        value = _parse_listpages_float_field(site, page_name, key, value_element.text)
                     else:
-                        value = int(value_element.text.strip())
+                        value = _parse_listpages_integer_field(site, page_name, key, value_element.text)
 
                 elif key in ["rating_percent"]:
                     if is_5star_rating:
-                        value = float(value_element.text.strip().removesuffix("%")) / 100
+                        page_name = str(page_params.get("fullname", "unknown"))
+                        percent_text = value_element.text.strip().removesuffix("%")
+                        value = _parse_listpages_float_field(site, page_name, key, percent_text) / 100
                     else:
                         value = None
 
