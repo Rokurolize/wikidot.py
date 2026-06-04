@@ -214,7 +214,12 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                 f"Cannot retrieve forum post revisions for site: {post.thread.site.unix_name}, post: {post.id}"
             )
 
-        body = response.json()["body"]
+        body = response.json().get("body")
+        if body is None:
+            raise exceptions.NoElementException(
+                "Forum post revision list response body is not found "
+                f"for site: {post.thread.site.unix_name}, post: {post.id}"
+            )
         html = BeautifulSoup(body, "lxml")
 
         revisions = ForumPostRevisionCollection._parse(post, html)
@@ -292,7 +297,12 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     raise exceptions.UnexpectedException(
                         f"Cannot retrieve forum post revisions for site: {site.unix_name}, post: {post.id}"
                     )
-                body = response.json()["body"]
+                body = response.json().get("body")
+                if body is None:
+                    raise exceptions.NoElementException(
+                        "Forum post revision list response body is not found "
+                        f"for site: {site.unix_name}, post: {post.id}"
+                    )
                 html = BeautifulSoup(body, "lxml")
                 revisions = ForumPostRevisionCollection._parse(post, html)
                 result[post.id] = ForumPostRevisionCollection(post=post, revisions=revisions)

@@ -228,6 +228,31 @@ class TestForumPostRevisionCollectionAcquireAll:
             ]
         )
 
+    def test_acquire_all_missing_response_body_includes_site_and_post_context(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """リビジョン一覧レスポンスのbody欠損はsite/post付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Forum post revision list response body is not found for site: test-site, post: 5001",
+        ):
+            ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionsModule",
+                    "postId": 5001,
+                }
+            ]
+        )
+
     def test_acquire_all_skips_cached_post_revisions(self, mock_forum_post_no_http: ForumPost) -> None:
         """取得済みpost.revisionsは単一post取得でも再取得しない"""
         cached_revision = ForumPostRevision(
@@ -459,6 +484,27 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         with pytest.raises(
             exceptions.UnexpectedException,
             match="Cannot retrieve forum post revisions for site: test-site, post: 5002",
+        ):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, post2])
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
+
+    def test_acquire_all_for_posts_missing_response_body_includes_site_and_post_context(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """複数postのリビジョン一覧レスポンスbody欠損はsite/post付きNoElementException"""
+        post2 = self._post_with_id(mock_forum_post_no_http, 5002)
+        response1 = MagicMock()
+        response1.json.return_value = forum_post_revisions
+        response2 = MagicMock()
+        response2.json.return_value = {}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(response1, response2))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Forum post revision list response body is not found for site: test-site, post: 5002",
         ):
             ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, post2])
 
