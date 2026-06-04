@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 
 from wikidot.common.exceptions import (
     LoginRequiredException,
+    NoElementException,
     TargetErrorException,
     UnexpectedException,
     WikidotStatusCodeException,
@@ -285,6 +286,26 @@ class TestSiteMemberGet:
 
         site.amc_request.assert_not_called()
 
+    def test_get_members_missing_first_page_response_body_includes_context(self):
+        """初回ページのbody欠落はsite/group/page付きで失敗する"""
+        site = MagicMock()
+        site.unix_name = "test-site"
+        response = MagicMock()
+        response.json.return_value = {}
+        site.amc_request_with_retry.return_value = (response,)
+
+        with (
+            patch("wikidot.module.site_member.user_parser") as mock_user_parser,
+            pytest.raises(
+                NoElementException,
+                match="Site member list response body is not found for site: test-site, group: members, page: 1",
+            ),
+        ):
+            SiteMember.get(site, "")
+
+        site.amc_request.assert_not_called()
+        mock_user_parser.assert_not_called()
+
     def test_get_members_with_pagination(self):
         """ページネーション付きのメンバー取得"""
         site = MagicMock()
@@ -363,6 +384,42 @@ class TestSiteMemberGet:
             SiteMember.get(site, "")
 
         site.amc_request.assert_not_called()
+
+    def test_get_members_missing_paginated_response_body_includes_context(self):
+        """ページネーション中のbody欠落はsite/group/page付きで失敗する"""
+        site = MagicMock()
+        site.unix_name = "test-site"
+        first_response = self._members_response(
+            """
+                <table>
+                    <tr>
+                        <td><span class="printuser">
+                            <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                        </span></td>
+                    </tr>
+                </table>
+                <div class="pager">
+                    <a href="#">1</a>
+                    <a href="#">2</a>
+                </div>
+            """
+        )
+        second_response = MagicMock()
+        second_response.json.return_value = {}
+        site.amc_request_with_retry.side_effect = [(first_response,), (second_response,)]
+
+        with (
+            patch("wikidot.module.site_member.user_parser") as mock_user_parser,
+            pytest.raises(
+                NoElementException,
+                match="Site member list response body is not found for site: test-site, group: members, page: 2",
+            ),
+        ):
+            mock_user_parser.return_value = MagicMock()
+            SiteMember.get(site, "")
+
+        site.amc_request.assert_not_called()
+        assert mock_user_parser.call_count == 1
 
     def test_get_members_ignores_non_numeric_pager_links(self):
         """数値ページがないpagerでは単一ページとして扱う"""

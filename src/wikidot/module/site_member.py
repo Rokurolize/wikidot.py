@@ -7,11 +7,12 @@ It enables operations such as retrieving member information and changing permiss
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from bs4 import BeautifulSoup, Tag
 
 from ..common.exceptions import (
+    NoElementException,
     TargetErrorException,
     UnexpectedException,
     WikidotStatusCodeException,
@@ -172,7 +173,7 @@ class SiteMember:
                 f"Cannot retrieve site members for site: {site.unix_name}, group: {group_label}, page: 1"
             )
 
-        first_body = first_response.json()["body"]
+        first_body = SiteMember._member_list_response_body(first_response, site, group_label, 1)
         first_html = BeautifulSoup(first_body, "lxml")
 
         members.extend(SiteMember._parse(site, first_html))
@@ -207,11 +208,21 @@ class SiteMember:
                 raise UnexpectedException(
                     f"Cannot retrieve site members for site: {site.unix_name}, group: {group_label}, page: {page}"
                 )
-            body = response.json()["body"]
+            body = SiteMember._member_list_response_body(response, site, group_label, page)
             html = BeautifulSoup(body, "lxml")
             members.extend(SiteMember._parse(site, html))
 
         return members
+
+    @staticmethod
+    def _member_list_response_body(response: Any, site: "Site", group_label: str, page: int) -> str:
+        body = response.json().get("body")
+        if body is None:
+            raise NoElementException(
+                "Site member list response body is not found "
+                f"for site: {site.unix_name}, group: {group_label}, page: {page}"
+            )
+        return body
 
     def _change_group(self, event: str) -> None:
         """
