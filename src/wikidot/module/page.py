@@ -2368,6 +2368,7 @@ class Page:
         )[0]
         new_rating = _parse_page_rating_points(self.site, self, "ratePage", response.json())
         self.rating = new_rating
+        self._votes = None
         return new_rating
 
     def cancel_vote(self) -> int:
@@ -2401,4 +2402,5 @@ class Page:
         )[0]
         new_rating = _parse_page_rating_points(self.site, self, "cancelVote", response.json())
         self.rating = new_rating
+        self._votes = None
         return new_rating

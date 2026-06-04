@@ -2160,6 +2160,23 @@ class TestPageWriteMethods:
         assert new_rating == 11
         assert mock_page_with_id.rating == 11
 
+    def test_vote_success_invalidates_cached_votes(
+        self, mock_page_with_id: Page, page_ratepage_success: dict[str, Any]
+    ) -> None:
+        """投票成功後は古いvote一覧キャッシュを使い回さない"""
+        cached_vote = PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_response = MagicMock()
+        mock_response.json.return_value = page_ratepage_success
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        new_rating = mock_page_with_id.vote(1)
+
+        assert new_rating == 11
+        assert mock_page_with_id._votes is None
+
     def test_vote_negative(self, mock_page_with_id: Page) -> None:
         """負の投票ができる"""
         mock_response = MagicMock()
@@ -2220,6 +2237,23 @@ class TestPageWriteMethods:
         new_rating = mock_page_with_id.cancel_vote()
         assert new_rating == 10
         assert mock_page_with_id.rating == 10
+
+    def test_cancel_vote_success_invalidates_cached_votes(
+        self, mock_page_with_id: Page, page_cancelvote_success: dict[str, Any]
+    ) -> None:
+        """投票取り消し成功後は古いvote一覧キャッシュを使い回さない"""
+        cached_vote = PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_response = MagicMock()
+        mock_response.json.return_value = page_cancelvote_success
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        new_rating = mock_page_with_id.cancel_vote()
+
+        assert new_rating == 10
+        assert mock_page_with_id._votes is None
 
     def test_cancel_vote_malformed_points_includes_site_page_event_field_and_value_context(
         self, mock_page_with_id: Page
