@@ -1571,7 +1571,11 @@ class Page:
                     f"Cannot retrieve page discussion for site: {self.site.unix_name}, page: {self.fullname}"
                 )
 
-            body = response.json()["body"]
+            body = response.json().get("body")
+            if body is None:
+                raise exceptions.NoElementException(
+                    f"Page discussion response body is not found for site: {self.site.unix_name}, page: {self.fullname}"
+                )
             match = re.search(r"WIKIDOT\.forumThreadId = (\d+);", body)
             if match is not None:
                 from .forum_thread import ForumThread
@@ -1666,7 +1670,11 @@ class Page:
                 )
 
             # レスポンス解析
-            body = response.json()["body"]
+            body = response.json().get("body")
+            if body is None:
+                raise exceptions.NoElementException(
+                    f"Page metas response body is not found for site: {self.site.unix_name}, page: {self.fullname}"
+                )
 
             # タグ境界だけを戻してからHTMLとして解析し、属性値は取得後に復号する
             body = body.replace("&lt;", "<").replace("&gt;", ">").replace("&LT;", "<").replace("&GT;", ">")

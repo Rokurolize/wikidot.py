@@ -1603,6 +1603,22 @@ class TestPageProperties:
         assert mock_page_with_id.site.amc_request.call_count == 2
         assert mock_page_with_id._discussion_checked is False
 
+    def test_discussion_missing_response_body_includes_page_context(self, mock_page_with_id: Page) -> None:
+        """コメントスレッドIDレスポンスのbody欠損はサイト名とページ名を含める"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Page discussion response body is not found for site: test-site, page: test-page",
+        ):
+            _ = mock_page_with_id.discussion
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._discussion_checked is False
+
     def test_files_property_auto_acquire_empty_response(self, mock_page_with_id: Page) -> None:
         """ファイルなしの正常レスポンスは空のコレクションとして扱う"""
         mock_response = MagicMock()
@@ -1849,6 +1865,23 @@ class TestPageWriteMethods:
             _ = mock_page_with_id.metas
 
         assert mock_page_with_id.site.amc_request.call_count == 2
+        assert mock_page_with_id._metas is None
+
+    def test_metas_getter_missing_response_body_includes_page_context(self, mock_page_with_id: Page) -> None:
+        """metaタグレスポンスのbody欠損はサイト名とページ名を含める"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_page_with_id._metas = None
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Page metas response body is not found for site: test-site, page: test-page",
+        ):
+            _ = mock_page_with_id.metas
+
+        mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id._metas is None
 
     def test_metas_setter_batches_changes(self, mock_page_with_id: Page) -> None:
