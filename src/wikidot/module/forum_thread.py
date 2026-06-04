@@ -420,7 +420,9 @@ class ForumThreadCollection(list["ForumThread"]):
             ]
         )[0]
         if first_response is None:
-            raise UnexpectedException("Cannot retrieve forum threads page: 1")
+            raise UnexpectedException(
+                f"Cannot retrieve forum threads for site: {category.site.unix_name}, category: {category.id}, page: 1"
+            )
 
         first_body = first_response.json()["body"]
         first_html = BeautifulSoup(first_body, "lxml")
@@ -455,7 +457,9 @@ class ForumThreadCollection(list["ForumThread"]):
 
         for page, response in zip(page_numbers, responses, strict=True):
             if response is None:
-                raise UnexpectedException(f"Cannot retrieve forum threads page: {page}")
+                raise UnexpectedException(
+                    f"Cannot retrieve forum threads for site: {category.site.unix_name}, category: {category.id}, page: {page}"
+                )
             body = response.json()["body"]
             html = BeautifulSoup(body, "lxml")
             threads.extend(ForumThreadCollection._parse_list_in_category(category.site, html, category, page=page))

@@ -380,7 +380,10 @@ class TestForumThreadCollectionAcquireAll:
         mock_forum_category_no_http.site.amc_request = MagicMock()
         mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(side_effect=[(first_response,), (None,)])
 
-        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve forum threads page: 2"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=r"Cannot retrieve forum threads for site: test-site, category: 1001, page: 2",
+        ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
 
         mock_forum_category_no_http.site.amc_request.assert_not_called()
