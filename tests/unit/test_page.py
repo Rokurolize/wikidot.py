@@ -2299,7 +2299,12 @@ class TestPageWriteMethods:
             "change": "old",
         }
         mock_page_with_id.site.client.login_check = MagicMock()
-        mock_page_with_id.site.amc_request = MagicMock()
+        ok_responses = []
+        for _ in range(5):
+            ok_response = MagicMock()
+            ok_response.json.return_value = {"status": "ok"}
+            ok_responses.append(ok_response)
+        mock_page_with_id.site.amc_request = MagicMock(return_value=tuple(ok_responses))
 
         result = mock_page_with_id.set_metadata(
             tags=["tag-one", "tag-two"],
@@ -2358,11 +2363,36 @@ class TestPageWriteMethods:
         assert mock_page_with_id.parent_fullname == "new-parent"
         assert mock_page_with_id._metas == {"keep": "same", "add": "new", "change": "new"}
 
+    def test_set_metadata_missing_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
+        """metadata更新応答のstatus欠落は文脈付きで失敗しローカル状態を更新しない"""
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {"keep": "same"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"body": ""}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page metadata action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=saveTags, field=status\)"
+            ),
+        ):
+            mock_page_with_id.set_metadata(tags=["new-tag"])
+
+        assert mock_page_with_id.tags == ["old-tag"]
+        assert mock_page_with_id.parent_fullname == "old-parent"
+        assert mock_page_with_id._metas == {"keep": "same"}
+
     def test_set_metadata_can_clear_parent(self, mock_page_with_id: Page) -> None:
         """parent_fullname=Noneを明示すると親ページをクリアする"""
         mock_page_with_id.parent_fullname = "old-parent"
         mock_page_with_id.site.client.login_check = MagicMock()
-        mock_page_with_id.site.amc_request = MagicMock()
+        ok_response = MagicMock()
+        ok_response.json.return_value = {"status": "ok"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=(ok_response,))
 
         mock_page_with_id.set_metadata(parent_fullname=None)
 

@@ -169,6 +169,23 @@ def _parse_page_rating_points(site: "Site", page: "Page", event: str, data: dict
         ) from exc
 
 
+def _require_page_metadata_action_status(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page metadata action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            f"Failed to set page metadata for site: {site.unix_name}, page: {page.fullname}, event: {event}",
+            status,
+        )
+    return status
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -1946,7 +1963,14 @@ class Page:
             request_bodies.extend(self._meta_update_request_bodies(metas))
 
         if request_bodies:
-            self.site.amc_request(request_bodies)
+            responses = self.site.amc_request(request_bodies)
+            for request_body, response in zip(request_bodies, responses, strict=True):
+                _require_page_metadata_action_status(
+                    self.site,
+                    self,
+                    str(request_body.get("event", "unknown")),
+                    response.json(),
+                )
 
         if tags is not None:
             self.tags = list(tags)
