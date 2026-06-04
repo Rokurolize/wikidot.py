@@ -169,6 +169,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [163-pr-private-message-list-row-error-context.md](163-pr-private-message-list-row-error-context.md): upstream PR draft for the committed private-message list-row error context fix.
 - [164-pr-page-revision-source-parse-context.md](164-pr-page-revision-source-parse-context.md): upstream PR draft for the committed page revision source parse failure context fix.
 - [165-pr-recent-change-parse-context.md](165-pr-recent-change-parse-context.md): upstream PR draft for the committed recent-change parse failure context fix.
+- [166-pr-user-profile-parse-context.md](166-pr-user-profile-parse-context.md): upstream PR draft for the committed user profile parse failure context fix.
 
 ## Local Evidence Index
 
@@ -245,5 +246,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 67: `14bf330 fix(private_message): include context in list row errors`
 - Local implementation commits, continued 68: `53d6770 fix(page_revision): include context in source parse errors`
 - Local implementation commits, continued 69: `0b78eee fix(site): include context in recent change parse errors`
+- Local implementation commits, continued 70: `4ee791e fix(user): include context in profile parse errors`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
