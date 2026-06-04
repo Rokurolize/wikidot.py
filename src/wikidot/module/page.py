@@ -1358,7 +1358,9 @@ class Page:
         return self._id is not None
 
     def _source_not_found_exception(self) -> exceptions.NotFoundException:
-        return exceptions.NotFoundException(f"Cannot find page source: {self.fullname}")
+        return exceptions.NotFoundException(
+            f"Cannot find page source for site: {self.site.unix_name}, page: {self.fullname}"
+        )
 
     @property
     def source(self) -> PageSource:

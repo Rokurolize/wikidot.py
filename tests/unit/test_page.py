@@ -1341,12 +1341,15 @@ class TestPageProperties:
         source = mock_page_with_id.source
         assert "page content" in source.wiki_text
 
-    def test_source_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
-        """source取得リトライが尽きた場合は対象ページ名を含めて失敗する"""
+    def test_source_property_includes_site_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """source取得リトライが尽きた場合は対象サイトとページ名を含めて失敗する"""
         mock_page_with_id.site.amc_request = MagicMock()
         mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.NotFoundException, match="Cannot find page source: test-page"):
+        with pytest.raises(
+            exceptions.NotFoundException,
+            match="Cannot find page source for site: test-site, page: test-page",
+        ):
             _ = mock_page_with_id.source
 
         mock_page_with_id.site.amc_request.assert_not_called()
@@ -1374,13 +1377,16 @@ class TestPageProperties:
         assert source == mock_page_with_id.source
         assert "page content" in source.wiki_text
 
-    def test_refresh_source_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
-        """明示的なsource再取得失敗も対象ページ名を含めて失敗する"""
+    def test_refresh_source_includes_site_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
+        """明示的なsource再取得失敗も対象サイトとページ名を含めて失敗する"""
         mock_page_with_id._source = PageSource(mock_page_with_id, "cached source")
         mock_page_with_id.site.amc_request = MagicMock()
         mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.NotFoundException, match="Cannot find page source: test-page"):
+        with pytest.raises(
+            exceptions.NotFoundException,
+            match="Cannot find page source for site: test-site, page: test-page",
+        ):
             mock_page_with_id.refresh_source()
 
         mock_page_with_id.site.amc_request.assert_not_called()
