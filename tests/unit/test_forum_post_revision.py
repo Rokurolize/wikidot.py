@@ -282,6 +282,20 @@ class TestForumPostRevisionCollectionAcquireAll:
         collection = ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
         assert len(collection) == 3
 
+    def test_acquire_all_populates_post_revisions_cache(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """直接取得したpost revision一覧はpost.revisionsのキャッシュとして保持する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_post_revisions
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        assert mock_forum_post_no_http._revisions is collection
+        assert mock_forum_post_no_http.revisions is collection
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
+
 
 class TestForumPostRevisionCollectionAcquireAllForPosts:
     """ForumPostRevisionCollection.acquire_all_for_postsのテスト"""
@@ -319,6 +333,21 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         assert len(result[5001]) == 3
         assert len(result[5002]) == 3
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
+
+    def test_acquire_all_for_posts_populates_post_revisions_cache(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """複数post取得で直接取得したrevision一覧はpost.revisionsのキャッシュとして保持する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_post_revisions
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        result = ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http])
+        collection = result[mock_forum_post_no_http.id]
+
+        assert mock_forum_post_no_http._revisions is collection
+        assert mock_forum_post_no_http.revisions is collection
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
 
     def test_acquire_all_for_posts_deduplicates_duplicate_post_ids(

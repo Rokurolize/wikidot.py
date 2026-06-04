@@ -223,7 +223,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         html = BeautifulSoup(body, "lxml")
 
         revisions = ForumPostRevisionCollection._parse(post, html)
-        return ForumPostRevisionCollection(post=post, revisions=revisions)
+        collection = ForumPostRevisionCollection(post=post, revisions=revisions)
+        post._revisions = collection
+        return collection
 
     @staticmethod
     def _copy_for_post(post: "ForumPost", revisions: "ForumPostRevisionCollection") -> "ForumPostRevisionCollection":
@@ -338,6 +340,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     revision_html = str(data.get("content", ""))
                     for target_revision in all_revisions_by_id[revision.id]:
                         target_revision._html = revision_html
+
+        for post in target_posts:
+            post._revisions = result[post.id]
 
         return result
 
