@@ -371,7 +371,10 @@ class SitePagesAccessor:
                     page=page,
                     source=None,
                     error=source_errors.get(
-                        id(page), exceptions.NotFoundException(f"Cannot find page source: {page.fullname}")
+                        id(page),
+                        exceptions.NotFoundException(
+                            f"Cannot find page source for site: {page.site.unix_name}, page: {page.fullname}"
+                        ),
                     ),
                 )
             else:
