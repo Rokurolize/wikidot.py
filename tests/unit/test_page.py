@@ -2332,7 +2332,12 @@ class TestPageWriteMethods:
             "change": "old",
         }
         mock_page_with_id.site.client.login_check = MagicMock()
-        mock_page_with_id.site.amc_request = MagicMock()
+        ok_responses = []
+        for _ in range(3):
+            ok_response = MagicMock()
+            ok_response.json.return_value = {"status": "ok"}
+            ok_responses.append(ok_response)
+        mock_page_with_id.site.amc_request = MagicMock(return_value=tuple(ok_responses))
 
         mock_page_with_id.metas = {
             "keep": "same",
@@ -2369,6 +2374,31 @@ class TestPageWriteMethods:
             },
         ]
         assert mock_page_with_id._metas == {"keep": "same", "add": "new", "change": "new"}
+
+    def test_metas_setter_missing_action_status_does_not_update_local_state(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """metaタグsetter応答のstatus欠落は文脈付きで失敗しローカル状態を更新しない"""
+        mock_page_with_id._metas = {"old": "value"}
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"body": ""}
+        ok_response = MagicMock()
+        ok_response.json.return_value = {"status": "ok"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response, ok_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page metadata action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=deleteMetaTag, field=status\)"
+            ),
+        ):
+            mock_page_with_id.metas = {"new": "value"}
+
+        assert mock_page_with_id._metas == {"old": "value"}
 
     def test_set_metadata_batches_tags_parent_and_metas(self, mock_page_with_id: Page) -> None:
         """タグ・親・metaタグ更新を1つのAMCバッチで送信する"""

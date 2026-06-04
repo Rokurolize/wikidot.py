@@ -1872,7 +1872,14 @@ class Page:
         request_bodies = self._meta_update_request_bodies(value)
 
         if request_bodies:
-            self.site.amc_request(request_bodies)
+            responses = self.site.amc_request(request_bodies)
+            for request_body, response in zip(request_bodies, responses, strict=True):
+                _require_page_metadata_action_status(
+                    self.site,
+                    self,
+                    str(request_body.get("event", "unknown")),
+                    response.json(),
+                )
 
         self._metas = dict(value)
 
