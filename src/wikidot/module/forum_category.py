@@ -24,10 +24,18 @@ def _site_name(site: "Site") -> str:
     return site_unix_name if isinstance(site_unix_name, str) else str(site)
 
 
-def _category_parse_context(site: "Site", row_index: int, **counts: int) -> str:
+def _category_parse_context(site: "Site", row_index: int, **details: object) -> str:
     context = [f"row={row_index}"]
-    context.extend(f"{name}={value}" for name, value in counts.items())
+    context.extend(f"{name}={value}" for name, value in details.items())
     return f"for site: {_site_name(site)} ({', '.join(context)})"
+
+
+def _parse_category_count(site: "Site", row_index: int, field: str, label: str, value: str) -> int:
+    try:
+        return int(value)
+    except ValueError as exc:
+        parse_context = _category_parse_context(site, row_index, field=field, value=value)
+        raise NoElementException(f"{label} is malformed {parse_context}") from exc
 
 
 class ForumCategoryCollection(list["ForumCategory"]):
@@ -172,14 +180,28 @@ class ForumCategoryCollection(list["ForumCategory"]):
                 description_elem = name_elem.find("div", class_="description", recursive=False)
                 if description_elem is None:
                     raise NoElementException(f"Description element is not found {parse_context}")
+                threads_count = _parse_category_count(
+                    site,
+                    row_index,
+                    "threads",
+                    "Thread count",
+                    thread_count_elem.get_text("", strip=True),
+                )
+                posts_count = _parse_category_count(
+                    site,
+                    row_index,
+                    "posts",
+                    "Post count",
+                    post_count_elem.get_text("", strip=True),
+                )
 
                 category = ForumCategory(
                     site=site,
                     id=int(category_id_str),
                     title=name_link_elem.get_text(" ", strip=True),
                     description=description_elem.get_text(" ", strip=True),
-                    threads_count=int(thread_count_elem.text),
-                    posts_count=int(post_count_elem.text),
+                    threads_count=threads_count,
+                    posts_count=posts_count,
                 )
 
                 categories.append(category)
