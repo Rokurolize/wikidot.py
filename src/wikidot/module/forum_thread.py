@@ -57,16 +57,28 @@ def _parse_thread_list_count(
 
 
 def _thread_detail_parse_context(
-    site: "Site", thread_id: int | None = None, category: Optional["ForumCategory"] = None
+    site: "Site", thread_id: int | None = None, category: Optional["ForumCategory"] = None, **details: object
 ) -> str:
     context = []
     if thread_id is not None:
         context.append(f"thread={thread_id}")
     if category is not None:
         context.append(f"category={category.id}")
+    context.extend(f"{name}={value}" for name, value in details.items())
     if context:
         return f"for site: {_site_name(site)} ({', '.join(context)})"
     return f"for site: {_site_name(site)}"
+
+
+def _parse_thread_detail_post_count(
+    site: "Site", thread_id: int | None, category: Optional["ForumCategory"], value: object
+) -> int:
+    value_text = str(value).strip()
+    post_count_match = re.search(r"(\d+)", value_text)
+    if post_count_match is None:
+        parse_context = _thread_detail_parse_context(site, thread_id, category, field="posts", value=value_text)
+        raise NoElementException(f"Post count is malformed {parse_context}")
+    return int(post_count_match.group(1))
 
 
 class ForumThreadCollection(list["ForumThread"]):
@@ -368,10 +380,7 @@ class ForumThreadCollection(list["ForumThread"]):
         if post_count_elem is None:
             raise NoElementException(f"Posts count element is not found {parse_context}")
         post_count_text = str(post_count_elem)
-        post_count_match = re.search(r"(\d+)", post_count_text)
-        if post_count_match is None:
-            raise NoElementException(f"Post count is not found {parse_context}")
-        post_count = int(post_count_match.group(1))
+        post_count = _parse_thread_detail_post_count(site, thread_id, category, post_count_text)
 
         # id取得処理
         # WIKIDOT.forumThreadId = xxxxxx;を全体から検索
