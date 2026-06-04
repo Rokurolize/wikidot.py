@@ -441,7 +441,10 @@ class ForumPostRevision:
         if not self.is_html_acquired():
             ForumPostRevisionCollection(self.post, [self]).get_htmls()
         if self._html is None:
-            raise exceptions.UnexpectedException(f"Cannot retrieve forum post revision HTML: {self.id}")
+            raise exceptions.UnexpectedException(
+                "Cannot retrieve forum post revision HTML "
+                f"for site: {self.post.thread.site.unix_name}, post: {self.post.id}, revision: {self.id}"
+            )
         return self._html
 
     @html.setter

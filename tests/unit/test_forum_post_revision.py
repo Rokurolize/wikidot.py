@@ -806,7 +806,10 @@ class TestForumPostRevisionHtml:
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
         mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(None,))
 
-        with pytest.raises(exceptions.UnexpectedException, match="Cannot retrieve forum post revision HTML: 9001"):
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve forum post revision HTML for site: test-site, post: 5001, revision: 9001",
+        ):
             _ = revision.html
 
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
