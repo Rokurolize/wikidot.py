@@ -275,10 +275,11 @@ class TestUserCollection:
             text=html,
         )
 
-        with pytest.raises(NoElementException) as exc_info:
+        with pytest.raises(
+            NoElementException,
+            match=r"User ID element not found for requested user: bad \(index=1\)",
+        ):
             UserCollection.from_names(mock_client_no_http, ["bad"])
-
-        assert "ID" in str(exc_info.value)
 
     def test_from_names_malformed_id_href_raises(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
         """IDを含まないhrefはNoElementException"""
@@ -300,7 +301,10 @@ class TestUserCollection:
             text=html,
         )
 
-        with pytest.raises(NoElementException, match="User ID"):
+        with pytest.raises(
+            NoElementException,
+            match=r"User ID is not found for requested user: bad \(index=1\)",
+        ):
             UserCollection.from_names(mock_client_no_http, ["bad"])
 
     def test_from_names_missing_name_element(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
@@ -324,10 +328,11 @@ class TestUserCollection:
             text=html,
         )
 
-        with pytest.raises(NoElementException) as exc_info:
+        with pytest.raises(
+            NoElementException,
+            match=r"User name element not found for requested user: bad \(index=1\)",
+        ):
             UserCollection.from_names(mock_client_no_http, ["bad"])
-
-        assert "name" in str(exc_info.value)
 
     def test_iteration(self, mock_client_no_http: MagicMock) -> None:
         """UserCollectionはイテレート可能"""

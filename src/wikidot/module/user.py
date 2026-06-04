@@ -67,10 +67,11 @@ class UserCollection(list["AbstractUser"]):
 
         users: list[AbstractUser] = []
 
-        for response in responses:
+        for index, (name, response) in enumerate(zip(names, responses, strict=True), start=1):
             if isinstance(response, Exception):
                 raise response
 
+            parse_context = f"for requested user: {StringUtil.to_unix(name)} (index={index})"
             html = BeautifulSoup(response.text, "lxml")
 
             # 存在チェック
@@ -83,16 +84,16 @@ class UserCollection(list["AbstractUser"]):
             # id取得
             user_id_elem = html.select_one("a.btn.btn-default.btn-xs")
             if user_id_elem is None:
-                raise NoElementException("User ID element not found")
+                raise NoElementException(f"User ID element not found {parse_context}")
             user_id_match = re.search(r"(?:/new/|userkarma\.php/)(\d+)(?:[/?#].*)?$", str(user_id_elem.get("href", "")))
             if user_id_match is None:
-                raise NoElementException("User ID is not found")
+                raise NoElementException(f"User ID is not found {parse_context}")
             user_id = int(user_id_match.group(1))
 
             # name取得
             name_elem = html.select_one("h1.profile-title")
             if name_elem is None:
-                raise NoElementException("User name element not found")
+                raise NoElementException(f"User name element not found {parse_context}")
             name = name_elem.get_text(" ", strip=True)
 
             # avatar_url取得
