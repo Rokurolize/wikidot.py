@@ -642,7 +642,9 @@ class SitePageAccessor:
                 expected_source = source_normalizer(expected_source)
             source_matches = fetched_source == expected_source
             if not source_matches:
-                raise exceptions.UnexpectedException(f"Saved source verification failed for page: {fullname}")
+                raise exceptions.UnexpectedException(
+                    f"Saved source verification failed for site: {self.site.unix_name}, page: {fullname}"
+                )
 
         if tags_updated or parent_updated or metas_updated:
             if parent_updated:

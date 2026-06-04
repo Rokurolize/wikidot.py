@@ -856,7 +856,10 @@ class TestSitePageAccessor:
         existing_page.edit.return_value = saved_page
         mock_site_no_http.page.get = MagicMock(return_value=existing_page)
 
-        with pytest.raises(UnexpectedException, match="Saved source verification failed for page: test-page"):
+        with pytest.raises(
+            UnexpectedException,
+            match="Saved source verification failed for site: test-site, page: test-page",
+        ):
             mock_site_no_http.page.publish(
                 "test-page",
                 title="Updated Title",
@@ -877,7 +880,10 @@ class TestSitePageAccessor:
         existing_page.edit.return_value = saved_page
         mock_site_no_http.page.get = MagicMock(return_value=existing_page)
 
-        with pytest.raises(UnexpectedException, match="Saved source verification failed for page: test-page"):
+        with pytest.raises(
+            UnexpectedException,
+            match="Saved source verification failed for site: test-site, page: test-page",
+        ):
             mock_site_no_http.page.publish(
                 "test-page",
                 title="Updated Title",
