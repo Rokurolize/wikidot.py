@@ -275,6 +275,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [269-pr-forum-post-edit-thread-cache-invalidation.md](269-pr-forum-post-edit-thread-cache-invalidation.md): upstream PR draft for the committed ForumPost.edit thread post-cache invalidation fix.
 - [270-pr-site-member-role-cache-invalidation.md](270-pr-site-member-role-cache-invalidation.md): upstream PR draft for the committed SiteMember role-cache invalidation fix.
 - [271-pr-site-application-accept-member-cache-invalidation.md](271-pr-site-application-accept-member-cache-invalidation.md): upstream PR draft for the committed SiteApplication.accept member-cache invalidation fix.
+- [272-pr-private-message-detail-timestamp-context.md](272-pr-private-message-detail-timestamp-context.md): upstream PR draft for the committed PrivateMessage detail timestamp validation fix.
 
 ## Local Evidence Index
 
@@ -457,5 +458,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 173: `249d3da fix(forum_post): invalidate thread posts on edit`
 - Local implementation commits, continued 174: `0c53f7c fix(site_member): invalidate role caches on change`
 - Local implementation commits, continued 175: `40722ab fix(site_application): invalidate members cache on accept`
+- Local implementation commits, continued 176: `94b69c7 fix(private_message): require detail timestamp`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
