@@ -1188,6 +1188,26 @@ class TestPageCollectionAcquire:
         collection.get_page_votes()
         assert mock_page_with_id._votes is not None
 
+    def test_acquire_votes_missing_response_body_includes_site_page_context(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        """vote応答にbodyがない場合はsite/page/id文脈付きで失敗する"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response({"status": "ok"}),))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                rf"Page vote response body is not found for site: test-site, "
+                rf"page: test-page \(id={mock_page_with_id.id}\)"
+            ),
+        ):
+            collection.get_page_votes()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._votes is None
+
     def test_acquire_votes_ignores_non_vote_colored_spans(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_whorated: dict[str, Any]
     ) -> None:

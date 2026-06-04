@@ -1089,7 +1089,13 @@ class PageCollection(list["Page"]):
         for page_id, response in zip(target_pages_by_id, responses, strict=True):
             if response is None:
                 continue
-            body = response.json()["body"]
+            body = response.json().get("body")
+            if body is None:
+                first_page = target_pages_by_id[page_id][0]
+                raise exceptions.NoElementException(
+                    f"Page vote response body is not found for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} (id={first_page.id})"
+                )
             html = BeautifulSoup(body, "lxml")
             vote_container: Tag | None = None
             for element in html.find_all("div"):
