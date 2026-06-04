@@ -890,6 +890,37 @@ class TestForumPostEdit:
         save_request = mock_forum_post_no_http.thread.site.amc_request.call_args.args[0][0]
         assert save_request["currentRevisionId"] == 9001
 
+    def test_edit_missing_current_revision_id_includes_post_context(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """currentRevisionId欠落時は投稿IDつきの例外を返す"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        form_without_revision_id = {
+            **forum_editpost_form,
+            "body": forum_editpost_form["body"].replace(
+                '<input type="hidden" name="currentRevisionId" value="9001"/>',
+                "",
+                1,
+            ),
+        }
+
+        form_response = MagicMock()
+        form_response.json.return_value = form_without_revision_id
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Current revision ID input is not found for post: 5001",
+        ):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
     def test_edit_retries_transient_form_fetch_failures(
         self,
         mock_forum_post_no_http: ForumPost,
