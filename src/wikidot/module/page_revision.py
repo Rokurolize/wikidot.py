@@ -178,7 +178,12 @@ class PageRevisionCollection(list["PageRevision"]):
         def process_source_response(
             response: httpx.Response, page: "Page", revision_id: int
         ) -> Callable[["PageRevision"], None]:
-            body = response.json()["body"]
+            body = response.json().get("body")
+            if body is None:
+                raise NoElementException(
+                    f"Page revision source response body is not found for site: {page.site.unix_name}, "
+                    f"page: {page.fullname}, revision: {revision_id}"
+                )
             # Replace nbsp with space
             body = body.replace("&nbsp;", " ")
             body_html = BeautifulSoup(body, "lxml")
@@ -244,7 +249,12 @@ class PageRevisionCollection(list["PageRevision"]):
         def process_html_response(
             response: httpx.Response, page: "Page", revision_id: int
         ) -> Callable[["PageRevision"], None]:
-            body = response.json()["body"]
+            body = response.json().get("body")
+            if body is None:
+                raise NoElementException(
+                    f"Page revision HTML response body is not found for site: {page.site.unix_name}, "
+                    f"page: {page.fullname}, revision: {revision_id}"
+                )
             marker = "onclick=\"document.getElementById('page-version-info').style.display='none'\">"
             _, separator, source = body.partition(marker)
             if separator:
