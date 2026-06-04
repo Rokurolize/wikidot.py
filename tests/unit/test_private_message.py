@@ -350,7 +350,12 @@ class TestPrivateMessageCollection:
         }
         mock_client.amc_client.request.return_value = [mock_response]
 
-        with pytest.raises(NoElementException, match="sender and recipient"):
+        with pytest.raises(
+            NoElementException,
+            match=(
+                "Expected sender and recipient elements for module: dashboard/messages/DMViewMessageModule, message: 1"
+            ),
+        ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
     def test_acquire_missing_message_href_raises(self, mock_client):
