@@ -223,6 +223,12 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [217-pr-forum-post-revision-response-body-context.md](217-pr-forum-post-revision-response-body-context.md): upstream PR draft for the committed forum post revision-list response body validation fix.
 - [218-pr-recent-changes-response-body-context.md](218-pr-recent-changes-response-body-context.md): upstream PR draft for the committed recent changes response body validation fix.
 - [219-pr-page-auxiliary-response-body-context.md](219-pr-page-auxiliary-response-body-context.md): upstream PR draft for the committed page discussion and metas response body validation fix.
+- [220-pr-listpages-response-body-context.md](220-pr-listpages-response-body-context.md): upstream PR draft for the committed ListPages response body validation fix.
+- [221-pr-page-source-batch-response-body-context.md](221-pr-page-source-batch-response-body-context.md): upstream PR draft for the committed batched page source response body validation fix.
+- [222-pr-page-revision-batch-response-body-context.md](222-pr-page-revision-batch-response-body-context.md): upstream PR draft for the committed batched page revision response body validation fix.
+- [223-pr-page-vote-batch-response-body-context.md](223-pr-page-vote-batch-response-body-context.md): upstream PR draft for the committed batched page vote response body validation fix.
+- [224-pr-page-file-batch-response-body-context.md](224-pr-page-file-batch-response-body-context.md): upstream PR draft for the committed batched page file response body validation fix.
+- [225-pr-source-result-page-id-ledger.md](225-pr-source-result-page-id-ledger.md): upstream PR draft for the committed source result page ID ledger improvement.
 
 ## Local Evidence Index
 
@@ -358,5 +364,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 126: `b54f1ff fix(page): validate batched revision response bodies`
 - Local implementation commits, continued 127: `91111ec fix(page): validate batched vote response bodies`
 - Local implementation commits, continued 128: `7e90d3f fix(page): validate batched file response bodies`
+- Local implementation commits, continued 129: `14a81f7 feat(site): expose source result page ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
