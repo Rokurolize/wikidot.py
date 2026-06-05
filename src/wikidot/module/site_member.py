@@ -322,6 +322,12 @@ class SiteMember:
                 "Site member list response body is not found "
                 f"for site: {site.unix_name}, group: {group_label}, page: {page}"
             )
+        if not isinstance(body, str):
+            raise NoElementException(
+                "Site member list response body is malformed "
+                f"for site: {site.unix_name}, group: {group_label}, page: {page} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
+            )
         return body
 
     def _change_group(self, event: str) -> None:

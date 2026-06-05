@@ -306,6 +306,29 @@ class TestSiteMemberGet:
         site.amc_request.assert_not_called()
         mock_user_parser.assert_not_called()
 
+    def test_get_members_malformed_response_body_type_includes_context(self):
+        """初回ページのbody型異常はsite/group/page/type付きで失敗する"""
+        site = MagicMock()
+        site.unix_name = "test-site"
+        response = MagicMock()
+        response.json.return_value = {"body": ["not", "html"]}
+        site.amc_request_with_retry.return_value = (response,)
+
+        with (
+            patch("wikidot.module.site_member.user_parser") as mock_user_parser,
+            pytest.raises(
+                NoElementException,
+                match=(
+                    "Site member list response body is malformed for site: test-site, "
+                    "group: members, page: 1 \\(field=body, expected=str, actual=list\\)"
+                ),
+            ),
+        ):
+            SiteMember.get(site, "")
+
+        site.amc_request.assert_not_called()
+        mock_user_parser.assert_not_called()
+
     def test_get_members_with_pagination(self):
         """ページネーション付きのメンバー取得"""
         site = MagicMock()
