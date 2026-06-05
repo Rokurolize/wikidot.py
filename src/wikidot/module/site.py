@@ -1339,7 +1339,17 @@ class Site:
                 )
                 if not isinstance(odate_elem, Tag):
                     raise NoElementException(f"Odate element is not found {parse_context}")
-                changed_at = odate_parser(odate_elem)
+                try:
+                    changed_at = odate_parser(odate_elem)
+                except ValueError as exc:
+                    class_attr = odate_elem.get("class", [])
+                    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+                    odate_value = next((value for value in class_values if "time_" in value), " ".join(class_values))
+                    raise NoElementException(
+                        "Odate value is malformed "
+                        f"for site: {self.unix_name} "
+                        f"(page={page_no}, change={change_index}, field=changed_at, value={odate_value})"
+                    ) from exc
 
                 rev_elem = metadata_row.find("td", class_="revision-no", recursive=False)
                 if rev_elem is None:

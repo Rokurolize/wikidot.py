@@ -1863,6 +1863,29 @@ Real edit comment
         ):
             site.get_recent_changes()
 
+    def test_get_recent_changes_malformed_odate_includes_raw_class_context(self, site_changes: dict[str, Any]) -> None:
+        """変更履歴timestampの異常値はraw class値付きで失敗する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = site_changes["body"].replace("time_1700000000", "time_latest", 1)
+        assert body != site_changes["body"]
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Odate value is malformed for site: test \(page=1, change=1, field=changed_at, value=time_latest\)",
+        ):
+            site.get_recent_changes()
+
     def test_get_recent_changes_empty(self, site_changes_empty: dict[str, Any]) -> None:
         """変更履歴が空の場合"""
         mock_client = create_mock_client()
