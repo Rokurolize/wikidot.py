@@ -499,5 +499,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 194: `bc239e5 fix(site_member): report malformed member join dates`
 - Local implementation commits, continued 195: `cff541d fix(forum_thread): report malformed list users`
 - Local implementation commits, continued 196: `f306c99 fix(forum_thread): report malformed list timestamps`
+- Local implementation commits, continued 197: `43852b0 fix(forum_thread): report malformed detail users`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
