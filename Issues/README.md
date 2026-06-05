@@ -326,6 +326,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [320-pr-quickmodule-response-body-context.md](320-pr-quickmodule-response-body-context.md): upstream PR draft for the committed QuickModule response-body diagnostics fix.
 - [321-pr-private-message-response-body-type-context.md](321-pr-private-message-response-body-type-context.md): upstream PR draft for the committed private-message response-body type diagnostics fix.
 - [322-pr-forum-category-response-body-type-context.md](322-pr-forum-category-response-body-type-context.md): upstream PR draft for the committed forum-category response-body type diagnostics fix.
+- [323-pr-site-member-response-body-type-context.md](323-pr-site-member-response-body-type-context.md): upstream PR draft for the committed site-member response-body type diagnostics fix.
 
 ## Local Evidence Index
 
@@ -559,5 +560,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 224: `4df3147 fix(quick_module): report malformed response bodies`
 - Local implementation commits, continued 225: `31edf9a fix(private_message): report malformed body types`
 - Local implementation commits, continued 226: `eeb7816 fix(forum_category): report malformed body types`
+- Local implementation commits, continued 227: `7aaa390 fix(site_member): report malformed body types`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
