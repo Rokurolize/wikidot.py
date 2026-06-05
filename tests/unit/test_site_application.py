@@ -1,5 +1,6 @@
 """SiteApplicationモジュールのユニットテスト"""
 
+from typing import Any
 from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
@@ -16,6 +17,7 @@ from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.module.client import Client
 from wikidot.module.site import Site
 from wikidot.module.site_application import SiteApplication
+from wikidot.module.user import User
 
 
 def create_mock_client(is_logged_in: bool = True) -> MagicMock:
@@ -468,8 +470,7 @@ class TestSiteApplicationProcess:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = MagicMock()
-        user.id = 12345
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
         app.accept()
@@ -494,8 +495,7 @@ class TestSiteApplicationProcess:
         site._members = cached_members
         site._moderators = cached_moderators
         site._admins = cached_admins
-        user = MagicMock()
-        user.id = 12345
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
         app.accept()
@@ -512,8 +512,7 @@ class TestSiteApplicationProcess:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = MagicMock()
-        user.id = 12345
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
         app.decline()
@@ -533,12 +532,55 @@ class TestSiteApplicationProcess:
         site.amc_request.return_value = (mock_response,)
         cached_members = [object()]
         site._members = cached_members
-        user = MagicMock()
-        user.id = 12345
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
         app.decline()
 
+        assert site._members is cached_members
+
+    def test_accept_rejects_non_user_before_login(self) -> None:
+        """申請承認は申請者オブジェクト不正をログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+        cached_members = [object()]
+        site._members = cached_members
+        bad_user: Any = {"id": 12345, "name": "TestUser"}
+
+        app = SiteApplication(site=site, user=bad_user, text="")
+
+        with pytest.raises(ValueError, match="application.user must be an AbstractUser"):
+            app.accept()
+
+        mock_client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
+        assert site._members is cached_members
+
+    @pytest.mark.parametrize(
+        ("user_kwargs", "message"),
+        [
+            ({"id": None, "name": "TestUser"}, "application.user.id must be an integer"),
+            ({"id": True, "name": "TestUser"}, "application.user.id must be an integer"),
+            ({"id": 12345, "name": None}, "application.user.name must be a string"),
+        ],
+    )
+    def test_accept_rejects_malformed_user_before_login(self, user_kwargs: dict[str, Any], message: str) -> None:
+        """申請承認は申請者ID/名前不正をログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+        cached_members = [object()]
+        site._members = cached_members
+        bad_user = User(client=mock_client, **user_kwargs)
+
+        app = SiteApplication(site=site, user=bad_user, text="")
+
+        with pytest.raises(ValueError, match=message):
+            app.accept()
+
+        mock_client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
         assert site._members is cached_members
 
     def test_accept_missing_action_status_includes_site_user_event_type_and_field_context(self):
@@ -552,9 +594,7 @@ class TestSiteApplicationProcess:
         mock_response = MagicMock()
         mock_response.json.return_value = {}
         site.amc_request.return_value = (mock_response,)
-        user = MagicMock()
-        user.id = 12345
-        user.name = "TestUser"
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
 
@@ -579,9 +619,7 @@ class TestSiteApplicationProcess:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "other_error"}
         site.amc_request.return_value = (mock_response,)
-        user = MagicMock()
-        user.id = 12345
-        user.name = "TestUser"
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
 
@@ -595,7 +633,7 @@ class TestSiteApplicationProcess:
         mock_client = create_mock_client(is_logged_in=True)
         site = MagicMock()
         site.client = mock_client
-        user = MagicMock()
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
 
@@ -607,7 +645,7 @@ class TestSiteApplicationProcess:
         mock_client = create_mock_client(is_logged_in=False)
         site = MagicMock()
         site.client = mock_client
-        user = MagicMock()
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
 
@@ -619,9 +657,7 @@ class TestSiteApplicationProcess:
         mock_client = create_mock_client(is_logged_in=True)
         site = MagicMock()
         site.client = mock_client
-        user = MagicMock()
-        user.id = 12345
-        user.__str__ = lambda x: "TestUser"
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         site.amc_request.side_effect = WikidotStatusCodeException(
             "no_application",
@@ -638,8 +674,7 @@ class TestSiteApplicationProcess:
         mock_client = create_mock_client(is_logged_in=True)
         site = MagicMock()
         site.client = mock_client
-        user = MagicMock()
-        user.id = 12345
+        user = User(client=mock_client, id=12345, name="TestUser")
 
         site.amc_request.side_effect = WikidotStatusCodeException(
             "other_error",

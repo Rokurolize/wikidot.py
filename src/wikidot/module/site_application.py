@@ -12,11 +12,11 @@ from bs4 import BeautifulSoup, Tag
 
 from ..common import exceptions
 from ..common.decorators import login_required
+from ..module.user import AbstractUser
 from ..util.parser import user as user_parser
 
 if TYPE_CHECKING:
     from ..module.site import Site
-    from ..module.user import AbstractUser
 
 
 def _site_name(site: "Site") -> str:
@@ -64,6 +64,16 @@ def _parse_application_user(
             value=_user_onclick_value(user_element),
         )
         raise exceptions.NoElementException(f"Site application user is malformed {parse_context}") from exc
+
+
+def _validate_site_application_user(user: object) -> AbstractUser:
+    if not isinstance(user, AbstractUser):
+        raise ValueError("application.user must be an AbstractUser")
+    if not isinstance(user.id, int) or isinstance(user.id, bool):
+        raise ValueError("application.user.id must be an integer")
+    if not isinstance(user.name, str):
+        raise ValueError("application.user.name must be a string")
+    return user
 
 
 def _require_site_application_action_status(
@@ -220,7 +230,6 @@ class SiteApplication:
             )
         return body
 
-    @login_required
     def _process(self, action: str) -> None:
         """
         Internal method to process a site join application
@@ -237,7 +246,7 @@ class SiteApplication:
         LoginRequiredException
             If not logged in
         ValueError
-            If an invalid action is specified
+            If an invalid action or applicant user is specified
         NotFoundException
             If the specified application is not found
         WikidotStatusCodeException
@@ -245,6 +254,9 @@ class SiteApplication:
         """
         if action not in ["accept", "decline"]:
             raise ValueError(f"Invalid action: {action}")
+
+        user = _validate_site_application_user(self.user)
+        self.site.client.login_check()
 
         status_text = {"accept": "accepted", "decline": "declined"}[action]
         event = "acceptApplication"
@@ -255,7 +267,7 @@ class SiteApplication:
                     {
                         "action": "ManageSiteMembershipAction",
                         "event": event,
-                        "user_id": self.user.id,
+                        "user_id": user.id,
                         "text": f"your application has been {status_text}",
                         "type": action,
                         "moduleName": "Empty",
