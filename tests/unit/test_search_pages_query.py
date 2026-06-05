@@ -235,6 +235,27 @@ class TestSearchPagesQueryValidation:
         with pytest.raises(ValueError, match="offset must be non-negative"):
             SearchPagesQuery(offset=-1)
 
+    def test_offset_must_be_integer(self):
+        """offsetは整数だけ受け付ける"""
+        import pytest
+
+        with pytest.raises(ValueError, match="offset must be an integer or None"):
+            SearchPagesQuery(offset="0")
+
+    def test_limit_must_be_integer(self):
+        """limitは整数またはNoneだけ受け付ける"""
+        import pytest
+
+        with pytest.raises(ValueError, match="limit must be an integer or None"):
+            SearchPagesQuery(limit="50")
+
+    def test_per_page_must_be_integer(self):
+        """perPageは整数またはNoneだけ受け付ける"""
+        import pytest
+
+        with pytest.raises(ValueError, match="perPage must be an integer or None"):
+            SearchPagesQuery(perPage=50.5)
+
     def test_all_valid_parameters_work(self):
         """すべて有効なパラメータは正常に動作すること"""
         query = SearchPagesQuery(

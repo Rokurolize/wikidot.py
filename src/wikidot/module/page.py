@@ -442,6 +442,14 @@ class SearchPagesQuery:
         "wrapper",
     }
 
+    @staticmethod
+    def _validate_optional_integer(field: str, value: object) -> int | None:
+        if value is None:
+            return None
+        if not isinstance(value, int):
+            raise ValueError(f"{field} must be an integer or None")
+        return value
+
     def __init__(self, **kwargs: Unpack[SearchPagesQueryParams]) -> None:
         """
         Initialize SearchPagesQuery
@@ -484,9 +492,9 @@ class SearchPagesQuery:
         self.order: str = kwargs.get("order", "created_at desc")
 
         # pagination
-        self.offset: int | None = kwargs.get("offset", 0)
-        self.limit: int | None = kwargs.get("limit")
-        self.perPage: int | None = kwargs.get("perPage", PageConstants.DEFAULT_PER_PAGE)
+        self.offset = self._validate_optional_integer("offset", kwargs.get("offset", 0))
+        self.limit = self._validate_optional_integer("limit", kwargs.get("limit"))
+        self.perPage = self._validate_optional_integer("perPage", kwargs.get("perPage", PageConstants.DEFAULT_PER_PAGE))
         if self.offset is not None and self.offset < 0:
             raise ValueError("offset must be non-negative")
         if self.perPage is not None and self.perPage <= 0:
