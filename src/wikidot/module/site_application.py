@@ -213,6 +213,11 @@ class SiteApplication:
             raise exceptions.NoElementException(
                 f"Site application list response body is not found for site: {_site_name(site)}"
             )
+        if not isinstance(body, str):
+            raise exceptions.NoElementException(
+                "Site application list response body is malformed "
+                f"for site: {_site_name(site)} (field=body, expected=str, actual={type(body).__name__})"
+            )
         return body
 
     @login_required
