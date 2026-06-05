@@ -282,6 +282,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [276-pr-page-file-link-href-context.md](276-pr-page-file-link-href-context.md): upstream PR draft for the committed page-file link href validation fix.
 - [277-pr-page-file-name-context.md](277-pr-page-file-name-context.md): upstream PR draft for the committed page-file name validation fix.
 - [278-pr-recent-change-title-href-context.md](278-pr-recent-change-title-href-context.md): upstream PR draft for the committed recent-change title href validation fix.
+- [279-pr-recent-change-page-name-context.md](279-pr-recent-change-page-name-context.md): upstream PR draft for the committed recent-change page fullname validation fix.
 
 ## Local Evidence Index
 
@@ -471,5 +472,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 180: `dcd6e67 fix(page_file): require file link hrefs`
 - Local implementation commits, continued 181: `b868b6f fix(page_file): require file names`
 - Local implementation commits, continued 182: `40a11b9 fix(site): require recent change title hrefs`
+- Local implementation commits, continued 183: `7be2232 fix(site): require recent change page names`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
