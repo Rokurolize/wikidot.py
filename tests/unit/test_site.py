@@ -1599,6 +1599,33 @@ class TestSiteAmcRequest:
 class TestSiteInviteUser:
     """Site.invite_user のテスト"""
 
+    def test_invite_user_rejects_non_string_text_before_login(self) -> None:
+        """招待文が文字列でなければログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        mock_client.login_check = MagicMock()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        mock_user = MagicMock()
+        mock_user.id = 12345
+        mock_user.name = "test-user"
+
+        with pytest.raises(ValueError, match="text must be a string"):
+            site.invite_user(mock_user, 3)
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
     def test_invite_user_success(self, site_invite_member_success: dict[str, Any]) -> None:
         """ユーザー招待成功"""
         mock_client = create_mock_client(is_logged_in=True)

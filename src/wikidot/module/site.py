@@ -15,7 +15,6 @@ else:
     from typing_extensions import Unpack
 
 from ..common import exceptions
-from ..common.decorators import login_required
 from ..common.logger import logger
 from ..util.http import sync_get_with_retry
 from ..util.parser import odate as odate_parser
@@ -1205,7 +1204,6 @@ class Site:
         """
         return SiteApplication.acquire_all(self)
 
-    @login_required
     def invite_user(self, user: "User", text: str) -> None:
         """
         Invite a user to the site
@@ -1224,8 +1222,10 @@ class Site:
         WikidotStatusCodeException
             When other Wikidot API errors occur
         LoginRequiredException
-            When not logged in (by @login_required decorator)
+            When not logged in
         """
+        text = _validate_page_text_field("text", text)
+        self.client.login_check()
         try:
             response = self.amc_request(
                 [
