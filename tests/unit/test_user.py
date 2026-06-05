@@ -1,5 +1,6 @@
 """Userモジュールのユニットテスト"""
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -118,9 +119,42 @@ class TestUserFromName:
         with pytest.raises(NotFoundException):
             User.from_name(mock_client_no_http, "nonexistent", raise_when_not_found=True)
 
+    def test_from_name_rejects_non_string_name_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
+    ) -> None:
+        """ユーザー名が文字列でない場合はリクエスト前に拒否"""
+        bad_name: Any = {"name": "test-user"}
+
+        with pytest.raises(ValueError, match="name must be a string"):
+            User.from_name(mock_client_no_http, bad_name)
+
+        assert httpx_mock.get_requests() == []
+
 
 class TestUserCollection:
     """UserCollection のテスト"""
+
+    def test_from_names_rejects_non_list_names_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
+    ) -> None:
+        """一括取得の入力がリストでない場合はリクエスト前に拒否"""
+        bad_names: Any = {"name": "bad-user"}
+
+        with pytest.raises(ValueError, match="names must be a list"):
+            UserCollection.from_names(mock_client_no_http, bad_names)
+
+        assert httpx_mock.get_requests() == []
+
+    def test_from_names_rejects_non_string_name_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
+    ) -> None:
+        """一括取得のユーザー名が文字列でない場合はリクエスト前に拒否"""
+        bad_name: Any = {"name": "bad-user"}
+
+        with pytest.raises(ValueError, match="names list entries must be strings"):
+            UserCollection.from_names(mock_client_no_http, ["ok-user", bad_name])
+
+        assert httpx_mock.get_requests() == []
 
     def test_from_names_multiple(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
         """複数ユーザーを一度に取得できる"""

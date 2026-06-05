@@ -1,7 +1,7 @@
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from bs4 import BeautifulSoup
 
@@ -11,6 +11,20 @@ from ..util.stringutil import StringUtil
 
 if TYPE_CHECKING:
     from .client import Client
+
+
+def _validate_user_name(field: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    return value
+
+
+def _validate_user_names(names: object) -> list[str]:
+    if not isinstance(names, list):
+        raise ValueError("names must be a list")
+    if any(not isinstance(name, str) for name in names):
+        raise ValueError("names list entries must be strings")
+    return cast(list[str], names)
 
 
 def _profile_parse_context(name: str, index: int, **details: object) -> str:
@@ -65,6 +79,7 @@ class UserCollection(list["AbstractUser"]):
         NoElementException
             When required elements are not found during user page parsing
         """
+        names = _validate_user_names(names)
         responses = RequestUtil.request(
             client,
             "GET",
@@ -225,6 +240,7 @@ class User(AbstractUser):
         IndexError
             When the user is not found (when raise_when_not_found is False)
         """
+        name = _validate_user_name("name", name)
         result = UserCollection.from_names(client, [name], raise_when_not_found)
         if len(result) == 0:
             if raise_when_not_found:
