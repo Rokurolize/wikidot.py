@@ -292,6 +292,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [286-pr-page-file-row-id-context.md](286-pr-page-file-row-id-context.md): upstream PR draft for the committed page-file row ID diagnostics fix.
 - [287-pr-private-message-detail-timestamp-value-context.md](287-pr-private-message-detail-timestamp-value-context.md): upstream PR draft for the committed private-message detail timestamp value diagnostics fix.
 - [288-pr-private-message-detail-user-context.md](288-pr-private-message-detail-user-context.md): upstream PR draft for the committed private-message detail user diagnostics fix.
+- [289-pr-site-member-user-context.md](289-pr-site-member-user-context.md): upstream PR draft for the committed site-member list user diagnostics fix.
 
 ## Local Evidence Index
 
@@ -491,5 +492,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 190: `bbd89b5 fix(page_file): report malformed file row IDs`
 - Local implementation commits, continued 191: `2c5c940 fix(private_message): report malformed detail timestamps`
 - Local implementation commits, continued 192: `949892f fix(private_message): report malformed detail users`
+- Local implementation commits, continued 193: `85a9833 fix(site_member): report malformed member users`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
