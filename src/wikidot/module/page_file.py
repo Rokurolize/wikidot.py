@@ -173,7 +173,12 @@ class PageFileCollection(list["PageFile"]):
                 continue
 
             name = link_elem.get_text(" ", strip=True)
-            href = link_elem.get("href", "")
+            href = link_elem.get("href")
+            if not isinstance(href, str) or href.strip() == "":
+                location = f"{context}, file: {name}" if context else f"for file: {name}"
+                raise exceptions.NoElementException(
+                    f"Page file link href is not found {location} (id={file_id}, field=href)"
+                )
             url = urljoin(f"{site_url}/", str(href))
 
             mime_elem = tds[1].find("span", recursive=False)

@@ -428,6 +428,41 @@ class TestPageFileCollectionAcquire:
         ):
             PageFileCollection.acquire(page)
 
+    def test_acquire_requires_file_link_href(self):
+        """構造的に有効な添付ファイル行でhrefが欠落した場合は文脈付きで失敗する"""
+        page = MagicMock()
+        page.id = 12345
+        page.fullname = "test-page"
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        site.unix_name = "test-site"
+        page.site = site
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-100">
+                            <td><a>file.txt</a></td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>1 KB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page file link href is not found for site: test-site, page: test-page, "
+                r"file: file\.txt \(id=100, field=href\)"
+            ),
+        ):
+            PageFileCollection.acquire(page)
+
     def test_acquire_skips_malformed_file_row_id(self):
         """不正なfile-row IDはパース対象から除外する"""
         page = MagicMock()
