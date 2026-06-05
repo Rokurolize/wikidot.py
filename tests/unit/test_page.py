@@ -3389,6 +3389,26 @@ class TestPageCreateOrEdit:
         mock_site_no_http.client.login_check.assert_not_called()
         mock_site_no_http.amc_request.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"force_edit": "yes"}, "force_edit must be a boolean"),
+            ({"raise_on_exists": "false"}, "raise_on_exists must be a boolean"),
+        ],
+    )
+    def test_create_or_edit_rejects_non_bool_controls_before_request(
+        self, mock_site_no_http: Site, kwargs: dict[str, Any], message: str
+    ) -> None:
+        """create_or_editのbool制御は保存前に真偽値として検証する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match=message):
+            Page.create_or_edit(mock_site_no_http, "new-page", **kwargs)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_edit_not_logged_in(self, mock_site_no_http: Site) -> None:
         """ログインしていない場合に例外"""
         mock_site_no_http.client.is_logged_in = False
@@ -3632,6 +3652,24 @@ class TestPageEdit:
         mock_page_with_id.site.client.login_check.assert_not_called()
         mock_page_with_id.site.amc_request.assert_not_called()
         mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    def test_edit_rejects_non_bool_force_edit_before_request(self, mock_page_with_id: Page) -> None:
+        """Page.editのforce_editは保存前に真偽値として検証する"""
+        invalid_force_edit: Any = "yes"
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match="force_edit must be a boolean"),
+        ):
+            mock_page_with_id.edit(source="New source", force_edit=invalid_force_edit)
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+        create_or_edit.assert_not_called()
 
     @pytest.mark.parametrize(
         ("kwargs", "message"),

@@ -58,6 +58,12 @@ def _validate_page_text_field(field: str, value: object) -> str:
     return value
 
 
+def _validate_page_bool_field(field: str, value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{field} must be a boolean")
+    return value
+
+
 def _validate_page_source(source: object) -> str:
     return _validate_page_text_field("source", source)
 
@@ -2255,6 +2261,8 @@ class Page:
         title = _validate_page_text_field("title", title)
         source = _validate_page_source(source)
         comment = _validate_page_text_field("comment", comment)
+        force_edit = _validate_page_bool_field("force_edit", force_edit)
+        raise_on_exists = _validate_page_bool_field("raise_on_exists", raise_on_exists)
 
         site.client.login_check()
 
@@ -2382,6 +2390,7 @@ class Page:
             source = _validate_page_source(source)
         if comment is not None:
             comment = _validate_page_text_field("comment", comment)
+        force_edit = _validate_page_bool_field("force_edit", force_edit)
 
         self.site.client.login_check()
 

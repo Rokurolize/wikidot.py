@@ -772,6 +772,22 @@ class TestSitePageAccessor:
         mock_site_no_http.page.get.assert_not_called()
         create_or_edit.assert_not_called()
 
+    def test_create_rejects_non_bool_force_edit_before_login(self, mock_site_no_http: Site) -> None:
+        """createのforce_editはログインや既存ページ確認より前に真偽値として検証する"""
+        invalid_force_edit: Any = "yes"
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match="force_edit must be a boolean"),
+        ):
+            mock_site_no_http.page.create("test-page", force_edit=invalid_force_edit)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
     def test_create_not_logged_in_raises_before_lookup(self, mock_site_no_http: Site) -> None:
         """未ログイン時はforce_editでもページ検索前に拒否する"""
         mock_site_no_http.client.login_check = MagicMock(side_effect=LoginRequiredException("Login required"))
@@ -1128,6 +1144,34 @@ class TestSitePageAccessor:
         mock_site_no_http.client.login_check.assert_not_called()
         mock_site_no_http.page.get.assert_not_called()
         create_or_edit.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"force_edit": "yes"}, "force_edit must be a boolean"),
+            ({"verify_source": "false"}, "verify_source must be a boolean"),
+        ],
+    )
+    def test_publish_rejects_non_bool_controls_before_save(
+        self, mock_site_no_http: Site, kwargs: dict[str, Any], message: str
+    ) -> None:
+        """publishのbool制御は保存前に真偽値として検証する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+        created_page = MagicMock()
+        created_page.id = 12345
+        created_page.refresh_source.return_value.wiki_text = ""
+
+        with (
+            patch.object(Page, "create_or_edit", return_value=created_page) as create_or_edit,
+            pytest.raises(ValueError, match=message),
+        ):
+            mock_site_no_http.page.publish("new-page", **kwargs)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+        created_page.refresh_source.assert_not_called()
 
     def test_publish_post_save_visibility_attempts_must_be_integer_before_save(self, mock_site_no_http: Site) -> None:
         """publishのvisibility再試行回数は保存前に整数として検証する"""

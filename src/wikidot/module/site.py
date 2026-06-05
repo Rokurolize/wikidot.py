@@ -32,6 +32,7 @@ from .page import (
     SearchPagesQueryParams,
     _normalize_parent_fullname,
     _validate_metas,
+    _validate_page_bool_field,
     _validate_page_source,
     _validate_page_text_field,
 )
@@ -630,6 +631,7 @@ class SitePageAccessor:
         title = _validate_page_text_field("title", title)
         source = _validate_page_source(source)
         comment = _validate_page_text_field("comment", comment)
+        force_edit = _validate_page_bool_field("force_edit", force_edit)
 
         self.site.client.login_check()
 
@@ -746,6 +748,8 @@ class SitePageAccessor:
         WikidotStatusCodeException
             When saving the page or metadata fails.
         """
+        force_edit = _validate_page_bool_field("force_edit", force_edit)
+        verify_source = _validate_page_bool_field("verify_source", verify_source)
         post_save_visibility_attempts = self._validate_post_save_visibility_attempts(post_save_visibility_attempts)
         post_save_visibility_interval = self._validate_post_save_visibility_interval(post_save_visibility_interval)
         title = _validate_page_text_field("title", title)
