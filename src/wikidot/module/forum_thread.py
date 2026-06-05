@@ -141,6 +141,25 @@ def _parse_thread_detail_post_count(
     return int(post_count_match.group(1))
 
 
+def _parse_thread_detail_user(
+    site: "Site",
+    thread_id: int | None,
+    category: Optional["ForumCategory"],
+    user_elem: Tag,
+) -> "AbstractUser":
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        parse_context = _thread_detail_parse_context(
+            site,
+            thread_id,
+            category,
+            field="created_by",
+            value=_user_onclick_value(user_elem),
+        )
+        raise NoElementException(f"Forum thread detail user is malformed {parse_context}") from exc
+
+
 def _require_forum_thread_action_status(thread: "ForumThread", event: str, data: dict[str, Any]) -> Any:
     try:
         status = data["status"]
@@ -441,7 +460,7 @@ class ForumThreadCollection(list["ForumThread"]):
         user_elem = statistics_elem.find("span", class_="printuser", recursive=False)
         if user_elem is None:
             raise NoElementException(f"User element is not found {parse_context}")
-        created_by = user_parser(site.client, user_elem)
+        created_by = _parse_thread_detail_user(site, thread_id, category, user_elem)
 
         # created_at取得処理
         odate_elem = statistics_elem.find("span", class_="odate", recursive=False)
