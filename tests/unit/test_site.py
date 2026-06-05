@@ -19,6 +19,7 @@ from wikidot.common.exceptions import (
 from wikidot.module.client import Client
 from wikidot.module.page import Page, PageCollection
 from wikidot.module.site import PagePublishResult, PageSourceResult, Site
+from wikidot.module.user import User
 
 
 def create_mock_client(is_logged_in: bool = True) -> MagicMock:
@@ -1627,12 +1628,71 @@ class TestSiteInviteUser:
         mock_response.json.return_value = {"status": "ok"}
         mock_client.amc_client.request.return_value = (mock_response,)
 
-        mock_user = MagicMock()
-        mock_user.id = 12345
-        mock_user.name = "test-user"
+        mock_user = User(client=mock_client, id=12345, name="test-user")
 
         with pytest.raises(ValueError, match="text must be a string"):
             site.invite_user(mock_user, 3)
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
+    def test_invite_user_rejects_non_user_before_login(self) -> None:
+        """招待先がUserでなければログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        mock_client.login_check = MagicMock()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        bad_user: Any = {"id": 12345, "name": "test-user"}
+
+        with pytest.raises(ValueError, match="user must be a User"):
+            site.invite_user(bad_user, "Welcome message")
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("user_kwargs", "message"),
+        [
+            ({"id": None, "name": "test-user"}, "user.id must be an integer"),
+            ({"id": True, "name": "test-user"}, "user.id must be an integer"),
+            ({"id": 12345, "name": None}, "user.name must be a string"),
+        ],
+    )
+    def test_invite_user_rejects_malformed_user_before_login(self, user_kwargs: dict[str, Any], message: str) -> None:
+        """招待先Userの必須フィールドが壊れていればログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        mock_client.login_check = MagicMock()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        bad_user = User(
+            client=mock_client,
+            **user_kwargs,
+        )
+
+        with pytest.raises(ValueError, match=message):
+            site.invite_user(bad_user, "Welcome message")
 
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
@@ -1653,9 +1713,7 @@ class TestSiteInviteUser:
         mock_response.json.return_value = site_invite_member_success
         mock_client.amc_client.request.return_value = (mock_response,)
 
-        mock_user = MagicMock()
-        mock_user.id = 12345
-        mock_user.name = "test-user"
+        mock_user = User(client=mock_client, id=12345, name="test-user")
 
         site.invite_user(mock_user, "Welcome message")
 
@@ -1681,9 +1739,7 @@ class TestSiteInviteUser:
         mock_response.json.return_value = {}
         mock_client.amc_client.request.return_value = (mock_response,)
 
-        mock_user = MagicMock()
-        mock_user.id = 12345
-        mock_user.name = "test-user"
+        mock_user = User(client=mock_client, id=12345, name="test-user")
 
         with pytest.raises(
             NoElementException,
@@ -1708,9 +1764,7 @@ class TestSiteInviteUser:
             ssl_supported=True,
         )
 
-        mock_user = MagicMock()
-        mock_user.id = 12345
-        mock_user.name = "test-user"
+        mock_user = User(client=mock_client, id=12345, name="test-user")
 
         with patch.object(site, "amc_request") as mock_amc_request:
             mock_amc_request.side_effect = WikidotStatusCodeException(
@@ -1733,9 +1787,7 @@ class TestSiteInviteUser:
             ssl_supported=True,
         )
 
-        mock_user = MagicMock()
-        mock_user.id = 12345
-        mock_user.name = "test-user"
+        mock_user = User(client=mock_client, id=12345, name="test-user")
 
         with patch.object(site, "amc_request") as mock_amc_request:
             mock_amc_request.side_effect = WikidotStatusCodeException(
@@ -1758,8 +1810,7 @@ class TestSiteInviteUser:
             ssl_supported=True,
         )
 
-        mock_user = MagicMock()
-        mock_user.id = 12345
+        mock_user = User(client=mock_client, id=12345, name="test-user")
 
         with pytest.raises(LoginRequiredException):
             site.invite_user(mock_user, "Welcome")
@@ -1776,9 +1827,7 @@ class TestSiteInviteUser:
             ssl_supported=True,
         )
 
-        mock_user = MagicMock()
-        mock_user.id = 12345
-        mock_user.name = "test-user"
+        mock_user = User(client=mock_client, id=12345, name="test-user")
 
         with patch.object(site, "amc_request") as mock_amc_request:
             mock_amc_request.side_effect = WikidotStatusCodeException(

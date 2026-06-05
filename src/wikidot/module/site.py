@@ -38,10 +38,11 @@ from .page import (
 from .page_source import PageSource
 from .site_application import SiteApplication
 from .site_member import SiteMember
+from .user import User
 
 if TYPE_CHECKING:
     from .client import Client
-    from .user import AbstractUser, User
+    from .user import AbstractUser
 
 
 class _UnsetPublishParentType:
@@ -92,6 +93,16 @@ def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", e
             status,
         )
     return status
+
+
+def _validate_site_invitation_user(user: object) -> User:
+    if not isinstance(user, User):
+        raise ValueError("user must be a User")
+    if not isinstance(user.id, int) or isinstance(user.id, bool):
+        raise ValueError("user.id must be an integer")
+    if not isinstance(user.name, str):
+        raise ValueError("user.name must be a string")
+    return user
 
 
 @dataclass(frozen=True)
@@ -1225,6 +1236,7 @@ class Site:
             When not logged in
         """
         text = _validate_page_text_field("text", text)
+        user = _validate_site_invitation_user(user)
         self.client.login_check()
         try:
             response = self.amc_request(
