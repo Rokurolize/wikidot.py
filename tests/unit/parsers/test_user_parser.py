@@ -40,6 +40,16 @@ class TestUserParserRegularUser:
         assert result.id == 99999
         assert result.name == "another-user"
 
+    def test_parse_regular_user_with_malformed_onclick_id_raises(self, mock_client_no_http: MagicMock) -> None:
+        """通常ユーザーのuserInfo値が非数値ならraw欠落扱いにしない"""
+        html = '<span class="printuser"><a href="http://www.wikidot.com/user:info/bad-user" onclick="WIKIDOT.page.listeners.userInfo(latest); return false;">bad-user</a></span>'
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        with pytest.raises(ValueError, match="user id is malformed: latest"):
+            user_parse(mock_client_no_http, elem)
+
     def test_parse_regular_user_preserves_display_name_text_spacing(self, mock_client_no_http: MagicMock) -> None:
         """装飾要素を含む表示名の語境界を保持する"""
         html = """

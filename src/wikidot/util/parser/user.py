@@ -79,8 +79,14 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
     href = href_attr
     user_unix_match = re.search(r"(?:https?://www\.wikidot\.com)?/user:info/([^?#]+)", href)
     user_unix = user_unix_match.group(1) if user_unix_match is not None else href
-    user_id_match = re.search(r"userInfo\((\d+)\)", str(_user.get("onclick", "")))
+    onclick = str(_user.get("onclick", ""))
+    user_id_match = re.search(r"userInfo\((\d+)\)", onclick)
     if user_id_match is None:
+        malformed_user_id_match = re.search(r"userInfo\(([^)]*)\)", onclick)
+        if malformed_user_id_match is not None:
+            raw_user_id = malformed_user_id_match.group(1)
+            if raw_user_id.strip() != "":
+                raise ValueError(f"user id is malformed: {raw_user_id}")
         raise ValueError("user id is not found")
     user_id = int(user_id_match.group(1))
 
