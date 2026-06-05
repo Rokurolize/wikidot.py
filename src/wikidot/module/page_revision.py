@@ -184,6 +184,12 @@ class PageRevisionCollection(list["PageRevision"]):
                     f"Page revision source response body is not found for site: {page.site.unix_name}, "
                     f"page: {page.fullname}, revision: {revision_id}"
                 )
+            if not isinstance(body, str):
+                raise NoElementException(
+                    f"Page revision source response body is malformed for site: {page.site.unix_name}, "
+                    f"page: {page.fullname}, revision: {revision_id} "
+                    f"(field=body, expected=str, actual={type(body).__name__})"
+                )
             # Replace nbsp with space
             body = body.replace("&nbsp;", " ")
             body_html = BeautifulSoup(body, "lxml")
@@ -254,6 +260,12 @@ class PageRevisionCollection(list["PageRevision"]):
                 raise NoElementException(
                     f"Page revision HTML response body is not found for site: {page.site.unix_name}, "
                     f"page: {page.fullname}, revision: {revision_id}"
+                )
+            if not isinstance(body, str):
+                raise NoElementException(
+                    f"Page revision HTML response body is malformed for site: {page.site.unix_name}, "
+                    f"page: {page.fullname}, revision: {revision_id} "
+                    f"(field=body, expected=str, actual={type(body).__name__})"
                 )
             marker = "onclick=\"document.getElementById('page-version-info').style.display='none'\">"
             _, separator, source = body.partition(marker)
