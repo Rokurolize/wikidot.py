@@ -399,6 +399,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [393-pr-validate-requestutil-numeric-controls.md](393-pr-validate-requestutil-numeric-controls.md): upstream PR draft for the committed RequestUtil numeric-control validation fix.
 - [394-pr-validate-site-amc-retry-controls.md](394-pr-validate-site-amc-retry-controls.md): upstream PR draft for the committed Site AMC retry-control validation fix.
 - [395-pr-validate-http-request-timeouts.md](395-pr-validate-http-request-timeouts.md): upstream PR draft for the committed HTTP request-timeout validation fix.
+- [396-pr-validate-listpages-retry-control.md](396-pr-validate-listpages-retry-control.md): upstream PR draft for the committed ListPages retry-control validation fix.
 
 ## Local Evidence Index
 
@@ -705,5 +706,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 297: `c99c6cb fix(requestutil): validate numeric request controls`
 - Local implementation commits, continued 298: `17e9267 fix(site): validate amc retry controls`
 - Local implementation commits, continued 299: `a418f19 fix(http): validate request timeouts`
+- Local implementation commits, continued 300: `47ddfa3 fix(page): validate listpages retry control`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
