@@ -2584,6 +2584,21 @@ class TestPageWriteMethods:
         assert mock_page_with_id.category == "_default"
         assert mock_page_with_id.name == "test-page"
 
+    def test_rename_rejects_non_string_fullname_before_request(self, mock_page_with_id: Page) -> None:
+        """renameのnew_fullnameはリクエスト前に文字列として検証する"""
+        invalid_fullname: Any = 3
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="new_fullname must be a string"):
+            mock_page_with_id.rename(invalid_fullname)
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.fullname == "test-page"
+        assert mock_page_with_id.category == "_default"
+        assert mock_page_with_id.name == "test-page"
+
     def test_vote_positive(self, mock_page_with_id: Page, page_ratepage_success: dict[str, Any]) -> None:
         """正の投票ができる"""
         mock_response = MagicMock()

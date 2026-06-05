@@ -2516,6 +2516,7 @@ class Page:
         WikidotStatusCodeException
             When renaming the page fails (e.g., when a page with the same name exists)
         """
+        new_fullname = _validate_page_text_field("new_fullname", new_fullname)
         self.site.client.login_check()
         response = self.site.amc_request(
             [
