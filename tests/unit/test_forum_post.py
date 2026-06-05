@@ -824,6 +824,24 @@ class TestForumPostCollectionAcquireAll:
 class TestForumPostCollectionGetSources:
     """ForumPostCollection.get_post_sourcesのテスト"""
 
+    @pytest.mark.parametrize("bad_post", [None, True, "5001"])
+    def test_get_post_sources_rejects_non_post_entries_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost, bad_post: object
+    ) -> None:
+        """投稿以外のコレクション要素は取得処理前に拒否する"""
+        collection = ForumPostCollection(
+            mock_forum_thread_no_http,
+            [mock_forum_post_no_http, bad_post],  # type: ignore[list-item]
+        )
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="posts list entries must be ForumPost"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+
     def test_get_post_sources_success(
         self,
         mock_forum_thread_no_http: ForumThread,

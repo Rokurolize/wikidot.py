@@ -46,6 +46,14 @@ def _validate_forum_threads(threads: object) -> list["ForumThread"]:
     return cast(list["ForumThread"], threads)
 
 
+def _validate_forum_posts(posts: object) -> list["ForumPost"]:
+    if not isinstance(posts, list):
+        raise ValueError("posts must be a list")
+    if any(not isinstance(post, ForumPost) for post in posts):
+        raise ValueError("posts list entries must be ForumPost")
+    return cast(list["ForumPost"], posts)
+
+
 def _post_list_parse_context(
     thread: "ForumThread",
     page: int | None,
@@ -618,6 +626,7 @@ class ForumPostCollection(list["ForumPost"]):
         NoElementException
             When source elements are not found
         """
+        posts = _validate_forum_posts(posts)
         if len(posts) == 0:
             return posts
 
