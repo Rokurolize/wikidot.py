@@ -304,6 +304,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [298-pr-forum-post-list-edit-timestamp-context.md](298-pr-forum-post-list-edit-timestamp-context.md): upstream PR draft for the committed forum post-list edit-timestamp diagnostics fix.
 - [299-pr-recent-change-user-context.md](299-pr-recent-change-user-context.md): upstream PR draft for the committed recent-change user diagnostics fix.
 - [300-pr-forum-post-revision-html-content-context.md](300-pr-forum-post-revision-html-content-context.md): upstream PR draft for the committed forum post revision HTML content diagnostics fix.
+- [301-pr-deleted-user-id-validation.md](301-pr-deleted-user-id-validation.md): upstream PR draft for the committed deleted user ID diagnostics fix.
 
 ## Local Evidence Index
 
@@ -515,5 +516,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 202: `bcbf6ed fix(forum_post): report malformed post edit timestamps`
 - Local implementation commits, continued 203: `d16fbf1 fix(site): report malformed recent change users`
 - Local implementation commits, continued 204: `178db20 fix(forum_post_revision): require revision HTML content`
+- Local implementation commits, continued 205: `d3fbe67 fix(user): report malformed deleted user ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
