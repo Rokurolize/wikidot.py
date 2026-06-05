@@ -2081,6 +2081,23 @@ class TestPageProperties:
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id._discussion_checked is False
 
+    def test_discussion_malformed_thread_id_includes_page_context(self, mock_page_with_id: Page) -> None:
+        """コメントスレッドIDが非数値の場合は対象ページと値を含めて失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "WIKIDOT.forumThreadId = latest;"}
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=rf"Page discussion thread ID is malformed for site: test-site, page: test-page "
+            rf"\(id={mock_page_with_id.id}, field=thread_id, value=latest\)",
+        ):
+            _ = mock_page_with_id.discussion
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._discussion_checked is False
+
     def test_files_property_auto_acquire_empty_response(self, mock_page_with_id: Page) -> None:
         """ファイルなしの正常レスポンスは空のコレクションとして扱う"""
         mock_response = MagicMock()

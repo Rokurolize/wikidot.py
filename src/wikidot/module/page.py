@@ -1814,11 +1814,18 @@ class Page:
                 raise exceptions.NoElementException(
                     f"Page discussion response body is not found for site: {self.site.unix_name}, page: {self.fullname}"
                 )
-            match = re.search(r"WIKIDOT\.forumThreadId = (\d+);", body)
+            match = re.search(r"WIKIDOT\.forumThreadId\s*=\s*([^;]*);", body)
             if match is not None:
                 from .forum_thread import ForumThread
 
-                thread_id = int(match.group(1))
+                thread_id_value = match.group(1).strip()
+                if not thread_id_value.isdigit():
+                    raise exceptions.NoElementException(
+                        f"Page discussion thread ID is malformed for site: {self.site.unix_name}, "
+                        f"page: {self.fullname} "
+                        f"(id={self.id}, field=thread_id, value={thread_id_value})"
+                    )
+                thread_id = int(thread_id_value)
                 self._discussion = ForumThread.get_from_id(self.site, thread_id)
             self._discussion_checked = True
 
