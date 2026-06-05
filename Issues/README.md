@@ -286,6 +286,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [280-pr-recent-change-page-title-context.md](280-pr-recent-change-page-title-context.md): upstream PR draft for the committed recent-change page title validation fix.
 - [281-pr-recent-change-revision-value-context.md](281-pr-recent-change-revision-value-context.md): upstream PR draft for the committed recent-change revision value diagnostics fix.
 - [282-pr-recent-change-timestamp-value-context.md](282-pr-recent-change-timestamp-value-context.md): upstream PR draft for the committed recent-change timestamp value diagnostics fix.
+- [283-pr-forum-post-revision-id-context.md](283-pr-forum-post-revision-id-context.md): upstream PR draft for the committed forum post revision ID diagnostics fix.
 
 ## Local Evidence Index
 
@@ -479,5 +480,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 184: `5ad2fb9 fix(site): require recent change page titles`
 - Local implementation commits, continued 185: `1d2bf1b fix(site): report recent change revision values`
 - Local implementation commits, continued 186: `435698f fix(site): report recent change timestamp values`
+- Local implementation commits, continued 187: `ada4827 fix(forum): report malformed revision IDs`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
