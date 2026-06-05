@@ -1324,6 +1324,8 @@ class Site:
                     raise NoElementException(f"Title element is not found {parse_context}")
 
                 page_title = title_elem.get_text(" ", strip=True)
+                if page_title == "":
+                    raise NoElementException(f"Page title is not found {parse_context}")
                 href = title_elem.get("href")
                 if not isinstance(href, str) or href.strip() == "":
                     raise NoElementException(f"Title href is not found {parse_context}")

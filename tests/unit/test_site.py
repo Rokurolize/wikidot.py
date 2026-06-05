@@ -1804,6 +1804,34 @@ Real edit comment
         ):
             site.get_recent_changes()
 
+    def test_get_recent_changes_empty_page_title_includes_site_page_and_item_context(
+        self, site_changes: dict[str, Any]
+    ) -> None:
+        """変更履歴タイトル本文が空の場合は文脈付きで失敗する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = site_changes["body"].replace(
+            '<a href="/test:test-page">\ntest:\nTest Page Title\n</a>',
+            '<a href="/test:test-page"></a>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Page title is not found for site: test \(page=1, change=1\)",
+        ):
+            site.get_recent_changes()
+
     def test_get_recent_changes_empty(self, site_changes_empty: dict[str, Any]) -> None:
         """変更履歴が空の場合"""
         mock_client = create_mock_client()
