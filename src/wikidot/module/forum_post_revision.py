@@ -67,6 +67,12 @@ def _validate_forum_posts(posts: object) -> list["ForumPost"]:
     return cast(list["ForumPost"], posts)
 
 
+def _validate_forum_post_revisions(revisions: list["ForumPostRevision"]) -> list["ForumPostRevision"]:
+    if any(not isinstance(revision, ForumPostRevision) for revision in revisions):
+        raise ValueError("revisions list entries must be ForumPostRevision")
+    return revisions
+
+
 def _revision_list_response_body(response: Any, post: "ForumPost") -> str:
     body = response.json().get("body")
     if body is None:
@@ -441,6 +447,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         ForumPostRevisionCollection
             Self (for method chaining)
         """
+        _validate_forum_post_revisions(self)
+
         acquired_html_by_id = {revision.id: revision._html for revision in self if revision._html is not None}
         target_revisions: list[ForumPostRevision] = []
         target_revisions_by_id: dict[int, list[ForumPostRevision]] = {}

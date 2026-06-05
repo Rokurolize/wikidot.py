@@ -791,6 +791,31 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
 class TestForumPostRevisionCollectionGetHtmls:
     """ForumPostRevisionCollection.get_htmlsのテスト"""
 
+    @pytest.mark.parametrize("bad_revision", [None, True, "9001"])
+    def test_get_htmls_rejects_non_revision_entries_before_fetch(
+        self, mock_forum_post_no_http: ForumPost, bad_revision: object
+    ) -> None:
+        """get_htmlsはForumPostRevision以外の要素を送信前に拒否する"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=None,
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        collection = ForumPostRevisionCollection(
+            mock_forum_post_no_http,
+            [revision, bad_revision],  # type: ignore[list-item]
+        )
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="revisions list entries must be ForumPostRevision"):
+            collection.get_htmls()
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+
     def test_get_htmls_retries_transient_fetch_failures(
         self, mock_forum_post_no_http: ForumPost, forum_post_revision_content: dict[str, Any]
     ) -> None:
