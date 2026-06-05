@@ -308,6 +308,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [302-pr-regular-user-href-validation.md](302-pr-regular-user-href-validation.md): upstream PR draft for the committed regular user href diagnostics fix.
 - [303-pr-page-revision-user-context.md](303-pr-page-revision-user-context.md): upstream PR draft for the committed page revision user diagnostics fix.
 - [304-pr-page-revision-timestamp-context.md](304-pr-page-revision-timestamp-context.md): upstream PR draft for the committed page revision timestamp diagnostics fix.
+- [305-pr-listpages-timestamp-context.md](305-pr-listpages-timestamp-context.md): upstream PR draft for the committed ListPages timestamp diagnostics fix.
 
 ## Local Evidence Index
 
@@ -523,5 +524,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 206: `1571405 fix(user): require regular user hrefs`
 - Local implementation commits, continued 207: `35f6cf5 fix(page): report malformed revision users`
 - Local implementation commits, continued 208: `3d73d72 fix(page): report malformed revision timestamps`
+- Local implementation commits, continued 209: `e6a124c fix(page): report malformed listpages timestamps`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
