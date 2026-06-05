@@ -259,6 +259,23 @@ def _parse_page_rating_points(site: "Site", page: "Page", event: str, data: dict
         ) from exc
 
 
+def _require_page_rating_action_status(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> Any:
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page rating action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status)"
+        ) from exc
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            f"Failed to complete page rating action for site: {site.unix_name}, page: {page.fullname}, event: {event}",
+            status,
+        )
+    return status
+
+
 def _require_page_metadata_action_status(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> Any:
     try:
         status = data["status"]
@@ -2506,7 +2523,9 @@ class Page:
                 }
             ]
         )[0]
-        new_rating = _parse_page_rating_points(self.site, self, "ratePage", response.json())
+        response_data = response.json()
+        _require_page_rating_action_status(self.site, self, "ratePage", response_data)
+        new_rating = _parse_page_rating_points(self.site, self, "ratePage", response_data)
         self.rating = new_rating
         self._votes = None
         return new_rating
@@ -2540,7 +2559,9 @@ class Page:
                 }
             ]
         )[0]
-        new_rating = _parse_page_rating_points(self.site, self, "cancelVote", response.json())
+        response_data = response.json()
+        _require_page_rating_action_status(self.site, self, "cancelVote", response_data)
+        new_rating = _parse_page_rating_points(self.site, self, "cancelVote", response_data)
         self.rating = new_rating
         self._votes = None
         return new_rating

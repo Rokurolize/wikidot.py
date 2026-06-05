@@ -2629,6 +2629,28 @@ class TestPageWriteMethods:
 
         assert mock_page_with_id.rating == 10
 
+    def test_vote_missing_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
+        """投票応答のstatus欠落はpointsがあってもローカル状態を更新しない"""
+        cached_vote = PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"type": "P", "points": 11}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page rating action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=ratePage, field=status\)"
+            ),
+        ):
+            mock_page_with_id.vote(1)
+
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is not None
+
     def test_vote_invalid_value_raises(self, mock_page_with_id: Page) -> None:
         """1/-1以外の投票値は送信前に拒否する"""
         mock_page_with_id.site.amc_request = MagicMock()
@@ -2697,6 +2719,23 @@ class TestPageWriteMethods:
             mock_page_with_id.cancel_vote()
 
         assert mock_page_with_id.rating == 10
+
+    def test_cancel_vote_non_ok_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
+        """投票取消応答の非ok statusはpointsがあってもローカル状態を更新しない"""
+        cached_vote = PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "not_ok", "type": "P", "points": 7}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(exceptions.WikidotStatusCodeException) as exc_info:
+            mock_page_with_id.cancel_vote()
+
+        assert exc_info.value.status_code == "not_ok"
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is not None
 
     def test_metas_getter_parses_decoded_flexible_markup(self, mock_page_with_id: Page) -> None:
         """metaタグ取得はHTMLエンティティと属性順の揺れを扱える"""
