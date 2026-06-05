@@ -148,6 +148,24 @@ class TestQuickModuleMemberLookup:
 
             assert len(users) == 0
 
+    def test_member_lookup_missing_users_key_includes_module_site_and_field_context(self):
+        """メンバー検索のusers欠落はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"status": "ok"}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule response key is missing for module: MemberLookupQModule, site_id=123456 "
+                    r"\(field=users\)"
+                ),
+            ),
+        ):
+            QuickModule.member_lookup(123456, "test")
+
     def test_member_lookup_malformed_user_id_includes_module_site_row_and_value_context(self):
         """メンバー検索のuser_id異常値はQuickModule文脈付きで失敗する"""
         mock_response = MagicMock()
@@ -182,6 +200,24 @@ class TestQuickModuleUserLookup:
             assert len(users) == 1
             assert users[0].id == 12345
             assert users[0].name == "test-user"
+
+    def test_user_lookup_missing_users_key_includes_module_site_and_field_context(self):
+        """ユーザー検索のusers欠落はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"status": "ok"}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule response key is missing for module: UserLookupQModule, site_id=123456 "
+                    r"\(field=users\)"
+                ),
+            ),
+        ):
+            QuickModule.user_lookup(123456, "test")
 
     def test_user_lookup_malformed_user_id_includes_module_site_row_and_value_context(self):
         """ユーザー検索のuser_id異常値はQuickModule文脈付きで失敗する"""
@@ -230,3 +266,21 @@ class TestQuickModulePageLookup:
             pages = QuickModule.page_lookup(123456, "nonexistent")
 
             assert len(pages) == 0
+
+    def test_page_lookup_missing_pages_key_includes_module_site_and_field_context(self):
+        """ページ検索のpages欠落はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"status": "ok"}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule response key is missing for module: PageLookupQModule, site_id=123456 "
+                    r"\(field=pages\)"
+                ),
+            ),
+        ):
+            QuickModule.page_lookup(123456, "test")

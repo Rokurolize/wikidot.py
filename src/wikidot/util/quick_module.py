@@ -77,6 +77,16 @@ class QuickModule:
         return response.json()
 
     @staticmethod
+    def _response_items(module_name: str, site_id: int, query: str, response_key: str) -> Any:
+        response_data = QuickModule._request(module_name, site_id, query)
+        if response_key not in response_data:
+            raise ValueError(
+                f"QuickModule response key is missing for module: {module_name}, site_id={site_id} "
+                f"(field={response_key})"
+            )
+        return response_data[response_key]
+
+    @staticmethod
     def _generic_lookup(
         module_name: str,
         site_id: int,
@@ -108,7 +118,7 @@ class QuickModule:
         list
             List of items
         """
-        items = QuickModule._request(module_name, site_id, query)[response_key]
+        items = QuickModule._response_items(module_name, site_id, query, response_key)
         # member_lookupの特殊ケースを処理
         if items is False:
             return []
@@ -129,7 +139,7 @@ class QuickModule:
 
     @staticmethod
     def _user_lookup(module_name: str, site_id: int, query: str) -> list[QMCUser]:
-        items = QuickModule._request(module_name, site_id, query)["users"]
+        items = QuickModule._response_items(module_name, site_id, query, "users")
         # member_lookupの特殊ケースを処理
         if items is False:
             return []
