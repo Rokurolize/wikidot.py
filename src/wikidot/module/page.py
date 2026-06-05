@@ -82,6 +82,12 @@ def _validate_pages(pages: object) -> list["Page"]:
     return cast(list["Page"], pages)
 
 
+def _validate_listpages_retry_max_retries(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(f"retry_max_retries must be a non-negative integer, got {value}")
+    return value
+
+
 class PageConstants:
     """
     A class for centrally managing constants used in the page module
@@ -826,11 +832,7 @@ class PageCollection(list["Page"]):
     @staticmethod
     def _request_listpages_page(site: "Site", query_dict: dict[str, Any], offset: int | None) -> httpx.Response:
         config = site.client.amc_client.config
-        max_retries = getattr(config, "retry_max_retries", 3)
-        if not isinstance(max_retries, int):
-            max_retries = 3
-        if max_retries < 0:
-            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+        max_retries = _validate_listpages_retry_max_retries(getattr(config, "retry_max_retries", 3))
 
         last_exception: Exception | None = None
         for _ in range(max_retries + 1):

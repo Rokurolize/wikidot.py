@@ -453,6 +453,19 @@ class TestPageCollectionSearchPages:
 
         assert mock_site_no_http.amc_request.call_count == 2
 
+    @pytest.mark.parametrize("max_retries", [None, True, False, "1", -1, 1.5])
+    def test_search_pages_rejects_invalid_retry_max_retries_before_request(
+        self, mock_site_no_http: Site, max_retries: Any
+    ) -> None:
+        """初回ListPages retry設定の型異常はリクエスト前に拒否する"""
+        mock_site_no_http.client.amc_client.config.retry_max_retries = max_retries
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="retry_max_retries must be a non-negative integer"):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_search_pages_missing_first_response_body_includes_site_and_offset_context(
         self, mock_site_no_http: Site
     ) -> None:
