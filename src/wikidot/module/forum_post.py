@@ -61,6 +61,36 @@ def _parse_post_id_value(
     return int(raw_id)
 
 
+def _user_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
+def _parse_post_list_user(
+    thread: "ForumThread",
+    page: int | None,
+    post_index: int,
+    post_id: int,
+    user_elem: Tag,
+) -> "AbstractUser":
+    try:
+        return user_parser(thread.site.client, user_elem)
+    except ValueError as exc:
+        parse_context = _post_list_parse_context(
+            thread,
+            page,
+            post_index,
+            post_id,
+            field="created_by",
+            value=_user_onclick_value(user_elem),
+        )
+        raise NoElementException(f"Forum post user is malformed {parse_context}") from exc
+
+
 def _require_forum_post_action_status(post: "ForumPost", event: str, data: dict[str, Any]) -> Any:
     try:
         status = data["status"]
@@ -305,7 +335,7 @@ class ForumPostCollection(list["ForumPost"]):
             user_elem = info_elem.select_one(":scope > span.printuser")
             if user_elem is None:
                 raise NoElementException(f"Post user element is not found {parse_context}")
-            created_by = user_parser(thread.site.client, user_elem)
+            created_by = _parse_post_list_user(thread, page, post_index, post_id, user_elem)
 
             odate_elem = info_elem.select_one(":scope > span.odate")
             if odate_elem is None:

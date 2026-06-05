@@ -359,6 +359,32 @@ class TestForumPostCollectionAcquireAll:
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_user_includes_thread_page_post_and_value_context(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """投稿一覧の作成者IDが壊れている場合はsite/thread/page/post/field/value文脈付きで失敗する"""
+        body = forum_posts_in_thread["body"].replace(
+            "WIKIDOT.page.listeners.userInfo(12345); return false;",
+            "WIKIDOT.page.listeners.userInfo(latest); return false;",
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_posts_in_thread, "body": body}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post user is malformed for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5001, field=created_by, "
+                r"value=WIKIDOT\.page\.listeners\.userInfo\(latest\); return false;\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_missing_first_page_response_body_includes_thread_and_page_context(
         self, mock_forum_thread_no_http: ForumThread
     ) -> None:
