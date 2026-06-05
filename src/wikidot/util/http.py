@@ -34,6 +34,14 @@ def _validate_non_negative_number_option(field: str, value: object) -> float:
     return float(value)
 
 
+def _validate_positive_number_option(field: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{field} must be a positive number")
+    if value <= 0:
+        raise ValueError(f"{field} must be a positive number")
+    return float(value)
+
+
 def _validate_retry_options(
     *,
     attempt_limit: object,
@@ -130,6 +138,7 @@ async def async_get_with_retry(
         If all retries exhausted due to HTTP error
     """
     follow_redirects = _validate_bool_option("follow_redirects", follow_redirects)
+    timeout = _validate_positive_number_option("timeout", timeout)
     attempt_limit, retry_interval, max_backoff, backoff_factor = _validate_retry_options(
         attempt_limit=attempt_limit,
         retry_interval=retry_interval,
@@ -220,6 +229,7 @@ def sync_get_with_retry(
     """
     follow_redirects = _validate_bool_option("follow_redirects", follow_redirects)
     raise_for_status = _validate_bool_option("raise_for_status", raise_for_status)
+    timeout = _validate_positive_number_option("timeout", timeout)
     attempt_limit, retry_interval, max_backoff, backoff_factor = _validate_retry_options(
         attempt_limit=attempt_limit,
         retry_interval=retry_interval,
@@ -323,6 +333,7 @@ def sync_post_with_retry(
         If all retries exhausted due to HTTP error (when raise_for_status=True)
     """
     raise_for_status = _validate_bool_option("raise_for_status", raise_for_status)
+    timeout = _validate_positive_number_option("timeout", timeout)
     attempt_limit, retry_interval, max_backoff, backoff_factor = _validate_retry_options(
         attempt_limit=attempt_limit,
         retry_interval=retry_interval,

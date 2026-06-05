@@ -94,6 +94,14 @@ class TestCalculateBackoff:
 class TestSyncGetWithRetry:
     """sync_get_with_retry関数のテスト"""
 
+    @pytest.mark.parametrize("timeout", [None, True, "1", 0, -0.1])
+    def test_rejects_invalid_timeout_before_request(self, httpx_mock, timeout: Any):
+        """timeoutはHTTPリクエスト前に正の数値として検証する"""
+        with pytest.raises(ValueError, match="timeout must be a positive number"):
+            sync_get_with_retry("https://example.com/test", timeout=timeout)
+
+        assert httpx_mock.get_requests() == []
+
     @pytest.mark.parametrize("attempt_limit", [None, True, "3", 0, -1, 1.5])
     def test_rejects_invalid_attempt_limit_before_request(self, httpx_mock, attempt_limit: Any):
         """attempt_limitはHTTPリクエスト前に1以上の整数として検証する"""
@@ -253,6 +261,14 @@ class TestSyncGetWithRetry:
 class TestSyncPostWithRetry:
     """sync_post_with_retry関数のテスト"""
 
+    @pytest.mark.parametrize("timeout", [None, True, "1", 0, -0.1])
+    def test_rejects_invalid_timeout_before_request(self, httpx_mock, timeout: Any):
+        """timeoutはHTTPリクエスト前に正の数値として検証する"""
+        with pytest.raises(ValueError, match="timeout must be a positive number"):
+            sync_post_with_retry("https://example.com/test", timeout=timeout)
+
+        assert httpx_mock.get_requests() == []
+
     @pytest.mark.parametrize("attempt_limit", [None, True, "3", 0, -1, 1.5])
     def test_rejects_invalid_attempt_limit_before_request(self, httpx_mock, attempt_limit: Any):
         """attempt_limitはHTTPリクエスト前に1以上の整数として検証する"""
@@ -368,6 +384,17 @@ class TestSyncPostWithRetry:
 
 class TestAsyncGetWithRetry:
     """async_get_with_retry関数のテスト"""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("timeout", [None, True, "1", 0, -0.1])
+    async def test_rejects_invalid_timeout_before_request(self, httpx_mock, timeout: Any):
+        """timeoutはHTTPリクエスト前に正の数値として検証する"""
+        from wikidot.util.http import async_get_with_retry
+
+        with pytest.raises(ValueError, match="timeout must be a positive number"):
+            await async_get_with_retry("https://example.com/test", timeout=timeout)
+
+        assert httpx_mock.get_requests() == []
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("attempt_limit", [None, True, "3", 0, -1, 1.5])
