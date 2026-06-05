@@ -378,6 +378,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [372-pr-validate-site-member-lookup-user-id.md](372-pr-validate-site-member-lookup-user-id.md): upstream PR draft for the committed site member lookup user-ID filter validation fix.
 - [373-pr-validate-recent-changes-limit.md](373-pr-validate-recent-changes-limit.md): upstream PR draft for the committed recent changes limit input validation fix.
 - [374-pr-validate-page-vote-find-user.md](374-pr-validate-page-vote-find-user.md): upstream PR draft for the committed page vote collection search-user validation fix.
+- [375-pr-validate-page-file-find-id.md](375-pr-validate-page-file-find-id.md): upstream PR draft for the committed page file collection search-ID validation fix.
 
 ## Local Evidence Index
 
@@ -663,5 +664,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 276: `1fcb183 fix(site): validate member lookup user id`
 - Local implementation commits, continued 277: `deaadb7 fix(site): validate recent changes limit`
 - Local implementation commits, continued 278: `60d80ff fix(page_votes): validate vote search user`
+- Local implementation commits, continued 279: `1e24516 fix(page_file): validate file search ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
