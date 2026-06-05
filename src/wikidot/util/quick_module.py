@@ -74,7 +74,12 @@ class QuickModule:
         response = sync_get_with_retry(url, timeout=300, attempt_limit=3, raise_for_status=False)
         if response.status_code == httpx.codes.INTERNAL_SERVER_ERROR:
             raise ValueError("Site is not found")
-        return response.json()
+        try:
+            return response.json()
+        except ValueError as exc:
+            raise ValueError(
+                f"QuickModule response JSON is malformed for module: {module_name}, site_id={site_id}"
+            ) from exc
 
     @staticmethod
     def _response_items(module_name: str, site_id: int, query: str, response_key: str) -> list[Any]:

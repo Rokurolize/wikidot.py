@@ -118,6 +118,24 @@ class TestQuickModuleRequest:
         ):
             QuickModule._request("MemberLookupQModule", 999999, "test")
 
+    def test_request_non_json_response_includes_module_site_context(self):
+        """QuickModuleの非JSON応答はmodule/site文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.text = "raw private quickmodule body"
+        mock_response.json.side_effect = ValueError("not json")
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(ValueError) as exc_info,
+        ):
+            QuickModule.member_lookup(123456, "private lookup")
+
+        message = str(exc_info.value)
+        assert message == "QuickModule response JSON is malformed for module: MemberLookupQModule, site_id=123456"
+        assert "private lookup" not in message
+        assert "raw private quickmodule body" not in message
+
 
 class TestQuickModuleMemberLookup:
     """QuickModule.member_lookupのテスト"""
