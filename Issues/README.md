@@ -359,6 +359,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [353-pr-validate-page-vote-values.md](353-pr-validate-page-vote-values.md): upstream PR draft for the committed page vote value validation fix.
 - [354-pr-validate-forum-write-text-inputs.md](354-pr-validate-forum-write-text-inputs.md): upstream PR draft for the committed forum write text input validation fix.
 - [355-pr-validate-private-message-send-text-inputs.md](355-pr-validate-private-message-send-text-inputs.md): upstream PR draft for the committed private-message send text input validation fix.
+- [356-pr-validate-site-invite-text-input.md](356-pr-validate-site-invite-text-input.md): upstream PR draft for the committed site invitation text input validation fix.
 
 ## Local Evidence Index
 
@@ -625,5 +626,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 257: `0122ae4 fix(page): validate vote values`
 - Local implementation commits, continued 258: `0823e26 fix(forum): validate write text inputs`
 - Local implementation commits, continued 259: `25b97b9 fix(private_message): validate send text inputs`
+- Local implementation commits, continued 260: `a939e33 fix(site): validate invite text input`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
