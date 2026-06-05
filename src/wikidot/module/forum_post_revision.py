@@ -67,6 +67,12 @@ def _validate_forum_posts(posts: object) -> list["ForumPost"]:
     return cast(list["ForumPost"], posts)
 
 
+def _validate_with_html(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError("with_html must be a boolean")
+    return value
+
+
 def _validate_forum_post_revisions(revisions: list["ForumPostRevision"]) -> list["ForumPostRevision"]:
     if any(not isinstance(revision, ForumPostRevision) for revision in revisions):
         raise ValueError("revisions list entries must be ForumPostRevision")
@@ -359,6 +365,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             Dictionary mapping post ID to ForumPostRevisionCollection
         """
         posts = _validate_forum_posts(posts)
+        with_html = _validate_with_html(with_html)
         if len(posts) == 0:
             return {}
 

@@ -472,6 +472,28 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
 
+    @pytest.mark.parametrize("with_html", [None, "false", 0, 1])
+    def test_acquire_all_for_posts_rejects_non_bool_with_html_before_fetch(
+        self, mock_forum_post_no_http: ForumPost, with_html: Any
+    ) -> None:
+        """with_htmlがboolでない場合は取得前に拒否する"""
+        cached_revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+        )
+        mock_forum_post_no_http._revisions = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="with_html must be a boolean"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=with_html)
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+
     def test_acquire_all_for_posts_retries_transient_fetch_failures(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
