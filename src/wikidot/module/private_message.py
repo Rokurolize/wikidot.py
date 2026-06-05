@@ -138,6 +138,9 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         PrivateMessage | None
             The retrieved message object, or None if not found
         """
+        if not isinstance(id, int) or isinstance(id, bool):
+            raise ValueError("id must be an integer")
+
         for message in self:
             if message.id == id:
                 return message

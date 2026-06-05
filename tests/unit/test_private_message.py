@@ -91,6 +91,14 @@ class TestPrivateMessageCollection:
         result = collection.find(999)
         assert result is None
 
+    @pytest.mark.parametrize("bad_id", [None, True, "1", 1.0])
+    def test_find_rejects_non_integer_ids(self, sample_message, bad_id: object):
+        """整数以外のメッセージID検索キーを拒否する"""
+        collection = PrivateMessageCollection([sample_message])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.find(bad_id)
+
     def test_from_ids_requires_login(self, mock_client):
         """from_idsはログインが必要"""
         mock_client.is_logged_in = False
