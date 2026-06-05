@@ -1468,6 +1468,11 @@ class Site:
         body = response.json().get("body")
         if body is None:
             raise NoElementException(f"Recent changes response body is not found for site: {self.unix_name}, page: 1")
+        if not isinstance(body, str):
+            raise NoElementException(
+                f"Recent changes response body is malformed for site: {self.unix_name}, page: 1 "
+                f"(field=body, expected=str, actual={type(body).__name__})"
+            )
         html = BeautifulSoup(body, "lxml")
         page_changes = list(iter_changes(html, 1))
         if not page_changes:
@@ -1500,6 +1505,11 @@ class Site:
             if body is None:
                 raise NoElementException(
                     f"Recent changes response body is not found for site: {self.unix_name}, page: {page_no}"
+                )
+            if not isinstance(body, str):
+                raise NoElementException(
+                    f"Recent changes response body is malformed for site: {self.unix_name}, page: {page_no} "
+                    f"(field=body, expected=str, actual={type(body).__name__})"
                 )
             html = BeautifulSoup(body, "lxml")
             page_changes = list(iter_changes(html, page_no))
