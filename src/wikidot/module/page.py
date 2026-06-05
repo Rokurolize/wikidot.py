@@ -1061,6 +1061,15 @@ class PageCollection(list["Page"]):
                         f"page: {first_page.fullname} (id={first_page.id})"
                     )
                 continue
+            if not isinstance(body, str):
+                if source_error is None:
+                    first_page = target_pages_for_id[0]
+                    source_error = exceptions.NoElementException(
+                        f"Page source response body is malformed for site: {site.unix_name}, "
+                        f"page: {first_page.fullname} "
+                        f"(id={first_page.id}, field=body, expected=str, actual={type(body).__name__})"
+                    )
+                continue
             # nbspをスペースに置換
             body = body.replace("&nbsp;", " ")
             html = BeautifulSoup(body, "lxml")

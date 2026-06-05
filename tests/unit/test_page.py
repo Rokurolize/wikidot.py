@@ -1005,6 +1005,45 @@ class TestPageCollectionAcquire:
         assert third_page._source is not None
         assert third_page._source.wiki_text == "third source"
 
+    def test_acquire_sources_malformed_response_body_type_preserves_later_successes_with_page_context(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        """途中のsource応答body型異常でも後続成功sourceを保持してsite/page文脈で失敗する"""
+        second_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        second_page.id = 222
+        second_page.fullname = "malformed-body-page"
+        third_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        third_page.id = 333
+        third_page.fullname = "later-page"
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, second_page, third_page])
+
+        first_body = {"body": '<div class="page-source">\n\tfirst source\n</div>'}
+        third_body = {"body": '<div class="page-source">\n\tthird source\n</div>'}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(
+                self._json_response(first_body),
+                self._json_response({"body": ["not", "html"]}),
+                self._json_response(third_body),
+            )
+        )
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page source response body is malformed for site: test-site, page: malformed-body-page "
+                r"\(id=222, field=body, expected=str, actual=list\)"
+            ),
+        ):
+            collection.get_page_sources()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._source is not None
+        assert mock_page_with_id._source.wiki_text == "first source"
+        assert second_page._source is None
+        assert third_page._source is not None
+        assert third_page._source.wiki_text == "third source"
+
     def test_acquire_sources_skips_already_acquired_pages(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:
