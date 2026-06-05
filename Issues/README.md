@@ -317,6 +317,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [311-pr-forum-thread-detail-id-context.md](311-pr-forum-thread-detail-id-context.md): upstream PR draft for the committed forum thread detail ID diagnostics fix.
 - [312-pr-user-profile-id-href-context.md](312-pr-user-profile-id-href-context.md): upstream PR draft for the committed user profile ID href diagnostics fix.
 - [313-pr-quickmodule-user-id-context.md](313-pr-quickmodule-user-id-context.md): upstream PR draft for the committed QuickModule user ID diagnostics fix.
+- [314-pr-quickmodule-response-key-context.md](314-pr-quickmodule-response-key-context.md): upstream PR draft for the committed QuickModule response-key diagnostics fix.
 
 ## Local Evidence Index
 
@@ -541,5 +542,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 215: `8372943 fix(forum_thread): report malformed detail thread ids`
 - Local implementation commits, continued 216: `2edfb8c fix(user): report malformed profile id hrefs`
 - Local implementation commits, continued 217: `53280a5 fix(quick_module): report malformed user ids`
+- Local implementation commits, continued 218: `16ffe75 fix(quick_module): report missing response keys`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
