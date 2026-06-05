@@ -41,6 +41,32 @@ class _UnsetPublishParentType:
 _UNSET_PUBLISH_PARENT = _UnsetPublishParentType()
 
 
+def _printuser_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
+def _parse_recent_change_user(
+    site: "Site",
+    user_elem: Tag,
+    *,
+    page_no: int,
+    change_index: int,
+) -> "AbstractUser":
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            "Recent change user is malformed "
+            f"for site: {site.unix_name} "
+            f"(page={page_no}, change={change_index}, field=changed_by, value={_printuser_onclick_value(user_elem)})"
+        ) from exc
+
+
 def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", event: str, data: dict[str, Any]) -> Any:
     try:
         status = data["status"]
@@ -1369,9 +1395,14 @@ class Site:
                 user_elem = (
                     user_cell.find("span", class_="printuser", recursive=False) if isinstance(user_cell, Tag) else None
                 )
-                if user_elem is None:
+                if not isinstance(user_elem, Tag):
                     raise NoElementException(f"User element is not found {parse_context}")
-                changed_by = user_parser(self.client, user_elem)
+                changed_by = _parse_recent_change_user(
+                    self,
+                    user_elem,
+                    page_no=page_no,
+                    change_index=change_index,
+                )
 
                 flags_cell = metadata_row.find("td", class_="flags", recursive=False)
                 flags_elem = flags_cell.find_all("span", recursive=False) if isinstance(flags_cell, Tag) else []

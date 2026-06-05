@@ -1886,6 +1886,37 @@ Real edit comment
         ):
             site.get_recent_changes()
 
+    def test_get_recent_changes_malformed_user_includes_raw_onclick_context(self, site_changes: dict[str, Any]) -> None:
+        """変更履歴ユーザーの異常値はparser例外ではなくraw onclick値付きで失敗する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = site_changes["body"].replace(
+            "WIKIDOT.page.listeners.userInfo(12345); return false;",
+            "WIKIDOT.page.listeners.userInfo(latest); return false;",
+            1,
+        )
+        assert body != site_changes["body"]
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Recent change user is malformed for site: test "
+                r"\(page=1, change=1, field=changed_by, "
+                r"value=WIKIDOT\.page\.listeners\.userInfo\(latest\); return false;\)"
+            ),
+        ):
+            site.get_recent_changes()
+
     def test_get_recent_changes_empty(self, site_changes_empty: dict[str, Any]) -> None:
         """変更履歴が空の場合"""
         mock_client = create_mock_client()
