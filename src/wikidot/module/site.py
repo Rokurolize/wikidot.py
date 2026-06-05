@@ -32,6 +32,7 @@ from .page import (
     SearchPagesQueryParams,
     _normalize_parent_fullname,
     _validate_metas,
+    _validate_page_source,
 )
 from .page_source import PageSource
 from .site_application import SiteApplication
@@ -625,6 +626,8 @@ class SitePageAccessor:
         TargetErrorException
             When the page already exists and force_edit is False
         """
+        source = _validate_page_source(source)
+
         self.site.client.login_check()
 
         if force_edit:
@@ -742,6 +745,7 @@ class SitePageAccessor:
         """
         post_save_visibility_attempts = self._validate_post_save_visibility_attempts(post_save_visibility_attempts)
         post_save_visibility_interval = self._validate_post_save_visibility_interval(post_save_visibility_interval)
+        source = _validate_page_source(source)
         if verify_source and source_normalizer is not None and not callable(source_normalizer):
             raise ValueError("source_normalizer must be callable or None")
         if metas is not None:

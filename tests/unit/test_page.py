@@ -3357,6 +3357,18 @@ class TestPageCreateOrEdit:
         assert mock_save_response.json.call_count == 1
         assert mock_site_no_http.amc_request.call_count == 2
 
+    def test_create_or_edit_rejects_non_string_source_before_request(self, mock_site_no_http: Site) -> None:
+        """create_or_editのsourceは保存前に文字列として検証する"""
+        invalid_source: Any = 3
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="source must be a string"):
+            Page.create_or_edit(mock_site_no_http, "new-page", source=invalid_source)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_edit_not_logged_in(self, mock_site_no_http: Site) -> None:
         """ログインしていない場合に例外"""
         mock_site_no_http.client.is_logged_in = False
@@ -3586,3 +3598,17 @@ class TestPageEdit:
         call_args_list = mock_page_with_id.site.amc_request.call_args_list
         save_body = call_args_list[1][0][0][0]
         assert save_body["source"] == ""
+
+    def test_edit_rejects_non_string_source_before_request(self, mock_page_with_id: Page) -> None:
+        """Page.editのsourceは保存前に文字列として検証する"""
+        invalid_source: Any = 3
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="source must be a string"):
+            mock_page_with_id.edit(source=invalid_source)
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()

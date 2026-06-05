@@ -52,6 +52,12 @@ def _validate_metas(metas: object) -> dict[str, str]:
     return cast(dict[str, str], metas)
 
 
+def _validate_page_source(source: object) -> str:
+    if not isinstance(source, str):
+        raise ValueError("source must be a string")
+    return source
+
+
 class PageConstants:
     """
     A class for centrally managing constants used in the page module
@@ -2242,6 +2248,8 @@ class Page:
         NotFoundException
             When the page cannot be found after creation
         """
+        source = _validate_page_source(source)
+
         site.client.login_check()
 
         # ページロックを取得しにいく
@@ -2362,6 +2370,9 @@ class Page:
         ------
         Same as above (same as create_or_edit method)
         """
+        if source is not None:
+            source = _validate_page_source(source)
+
         self.site.client.login_check()
 
         # Noneならそのままにする
