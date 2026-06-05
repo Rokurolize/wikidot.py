@@ -748,6 +748,30 @@ class TestSitePageAccessor:
         mock_site_no_http.page.get.assert_not_called()
         create_or_edit.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"title": 3}, "title must be a string"),
+            ({"comment": 3}, "comment must be a string"),
+        ],
+    )
+    def test_create_rejects_non_string_text_inputs_before_login(
+        self, mock_site_no_http: Site, kwargs: dict[str, Any], message: str
+    ) -> None:
+        """createのtitle/commentはログインや既存ページ確認より前に文字列として検証する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match=message),
+        ):
+            mock_site_no_http.page.create("test-page", **kwargs)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
     def test_create_not_logged_in_raises_before_lookup(self, mock_site_no_http: Site) -> None:
         """未ログイン時はforce_editでもページ検索前に拒否する"""
         mock_site_no_http.client.login_check = MagicMock(side_effect=LoginRequiredException("Login required"))
@@ -1076,6 +1100,30 @@ class TestSitePageAccessor:
             pytest.raises(ValueError, match="source must be a string"),
         ):
             mock_site_no_http.page.publish("new-page", source=invalid_source)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"title": 3}, "title must be a string"),
+            ({"comment": 3}, "comment must be a string"),
+        ],
+    )
+    def test_publish_rejects_non_string_text_inputs_before_save(
+        self, mock_site_no_http: Site, kwargs: dict[str, Any], message: str
+    ) -> None:
+        """publishのtitle/commentは保存前に文字列として検証する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match=message),
+        ):
+            mock_site_no_http.page.publish("new-page", **kwargs)
 
         mock_site_no_http.client.login_check.assert_not_called()
         mock_site_no_http.page.get.assert_not_called()

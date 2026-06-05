@@ -52,10 +52,14 @@ def _validate_metas(metas: object) -> dict[str, str]:
     return cast(dict[str, str], metas)
 
 
+def _validate_page_text_field(field: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    return value
+
+
 def _validate_page_source(source: object) -> str:
-    if not isinstance(source, str):
-        raise ValueError("source must be a string")
-    return source
+    return _validate_page_text_field("source", source)
 
 
 class PageConstants:
@@ -2248,7 +2252,9 @@ class Page:
         NotFoundException
             When the page cannot be found after creation
         """
+        title = _validate_page_text_field("title", title)
         source = _validate_page_source(source)
+        comment = _validate_page_text_field("comment", comment)
 
         site.client.login_check()
 
@@ -2370,8 +2376,12 @@ class Page:
         ------
         Same as above (same as create_or_edit method)
         """
+        if title is not None:
+            title = _validate_page_text_field("title", title)
         if source is not None:
             source = _validate_page_source(source)
+        if comment is not None:
+            comment = _validate_page_text_field("comment", comment)
 
         self.site.client.login_check()
 

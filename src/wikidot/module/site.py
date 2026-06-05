@@ -33,6 +33,7 @@ from .page import (
     _normalize_parent_fullname,
     _validate_metas,
     _validate_page_source,
+    _validate_page_text_field,
 )
 from .page_source import PageSource
 from .site_application import SiteApplication
@@ -626,7 +627,9 @@ class SitePageAccessor:
         TargetErrorException
             When the page already exists and force_edit is False
         """
+        title = _validate_page_text_field("title", title)
         source = _validate_page_source(source)
+        comment = _validate_page_text_field("comment", comment)
 
         self.site.client.login_check()
 
@@ -745,7 +748,9 @@ class SitePageAccessor:
         """
         post_save_visibility_attempts = self._validate_post_save_visibility_attempts(post_save_visibility_attempts)
         post_save_visibility_interval = self._validate_post_save_visibility_interval(post_save_visibility_interval)
+        title = _validate_page_text_field("title", title)
         source = _validate_page_source(source)
+        comment = _validate_page_text_field("comment", comment)
         if verify_source and source_normalizer is not None and not callable(source_normalizer):
             raise ValueError("source_normalizer must be callable or None")
         if metas is not None:

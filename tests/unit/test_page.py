@@ -3369,6 +3369,26 @@ class TestPageCreateOrEdit:
         mock_site_no_http.client.login_check.assert_not_called()
         mock_site_no_http.amc_request.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"title": 3}, "title must be a string"),
+            ({"comment": 3}, "comment must be a string"),
+        ],
+    )
+    def test_create_or_edit_rejects_non_string_text_inputs_before_request(
+        self, mock_site_no_http: Site, kwargs: dict[str, Any], message: str
+    ) -> None:
+        """create_or_editのtitle/commentは保存前に文字列として検証する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match=message):
+            Page.create_or_edit(mock_site_no_http, "new-page", **kwargs)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_edit_not_logged_in(self, mock_site_no_http: Site) -> None:
         """ログインしていない場合に例外"""
         mock_site_no_http.client.is_logged_in = False
@@ -3608,6 +3628,28 @@ class TestPageEdit:
 
         with pytest.raises(ValueError, match="source must be a string"):
             mock_page_with_id.edit(source=invalid_source)
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"title": 3}, "title must be a string"),
+            ({"comment": 3}, "comment must be a string"),
+        ],
+    )
+    def test_edit_rejects_non_string_text_inputs_before_request(
+        self, mock_page_with_id: Page, kwargs: dict[str, Any], message: str
+    ) -> None:
+        """Page.editのtitle/commentは保存前に文字列として検証する"""
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match=message):
+            mock_page_with_id.edit(**kwargs)
 
         mock_page_with_id.site.client.login_check.assert_not_called()
         mock_page_with_id.site.amc_request.assert_not_called()
