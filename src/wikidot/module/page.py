@@ -1847,6 +1847,12 @@ class Page:
                 raise exceptions.NoElementException(
                     f"Page discussion response body is not found for site: {self.site.unix_name}, page: {self.fullname}"
                 )
+            if not isinstance(body, str):
+                raise exceptions.NoElementException(
+                    f"Page discussion response body is malformed for site: {self.site.unix_name}, "
+                    f"page: {self.fullname} "
+                    f"(id={self.id}, field=body, expected=str, actual={type(body).__name__})"
+                )
             match = re.search(r"WIKIDOT\.forumThreadId\s*=\s*([^;]*);", body)
             if match is not None:
                 from .forum_thread import ForumThread
@@ -1960,6 +1966,12 @@ class Page:
             if body is None:
                 raise exceptions.NoElementException(
                     f"Page metas response body is not found for site: {self.site.unix_name}, page: {self.fullname}"
+                )
+            if not isinstance(body, str):
+                raise exceptions.NoElementException(
+                    f"Page metas response body is malformed for site: {self.site.unix_name}, "
+                    f"page: {self.fullname} "
+                    f"(id={self.id}, field=body, expected=str, actual={type(body).__name__})"
                 )
 
             # タグ境界だけを戻してからHTMLとして解析し、属性値は取得後に復号する
