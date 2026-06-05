@@ -394,6 +394,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [388-pr-validate-requestutil-return-exceptions-flag.md](388-pr-validate-requestutil-return-exceptions-flag.md): upstream PR draft for the committed RequestUtil return-exceptions flag validation fix.
 - [389-pr-validate-amc-client-return-exceptions-flag.md](389-pr-validate-amc-client-return-exceptions-flag.md): upstream PR draft for the committed AMC client return-exceptions flag validation fix.
 - [390-pr-validate-http-retry-boolean-controls.md](390-pr-validate-http-retry-boolean-controls.md): upstream PR draft for the committed HTTP retry boolean-control validation fix.
+- [391-pr-validate-http-retry-numeric-controls.md](391-pr-validate-http-retry-numeric-controls.md): upstream PR draft for the committed HTTP retry numeric-control validation fix.
 
 ## Local Evidence Index
 
@@ -695,5 +696,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 292: `1c40e2a fix(requestutil): validate return-exceptions flag`
 - Local implementation commits, continued 293: `8585876 fix(ajax): validate return-exceptions flag`
 - Local implementation commits, continued 294: `de9fb46 fix(http): validate retry boolean controls`
+- Local implementation commits, continued 295: `e35b75d fix(http): validate retry numeric controls`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
