@@ -295,6 +295,22 @@ class TestForumCategoryCollectionAcquireAll:
 
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_response_body_type_includes_site_context(self, mock_site_no_http: Site) -> None:
+        """カテゴリ一覧応答のbody型が壊れている場合はサイト名と型情報付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": ["not html"]}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Forum category list response body is malformed for site: test-site "
+            r"\(field=body, expected=str, actual=list\)",
+        ):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+        mock_site_no_http.amc_request.assert_not_called()
+
 
 # ============================================================
 # ForumCategoryテスト

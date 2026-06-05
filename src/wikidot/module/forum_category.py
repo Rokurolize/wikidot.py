@@ -124,6 +124,11 @@ class ForumCategoryCollection(list["ForumCategory"]):
         body = response.json().get("body")
         if body is None:
             raise NoElementException(f"Forum category list response body is not found for site: {_site_name(site)}")
+        if not isinstance(body, str):
+            raise NoElementException(
+                "Forum category list response body is malformed "
+                f"for site: {_site_name(site)} (field=body, expected=str, actual={type(body).__name__})"
+            )
         return body
 
     @staticmethod
