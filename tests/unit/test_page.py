@@ -733,6 +733,42 @@ class TestPageCollectionSearchPages:
 class TestPageCollectionAcquire:
     """PageCollection._acquire_*メソッドのテスト"""
 
+    @pytest.mark.parametrize(
+        "method_name",
+        [
+            "get_page_ids",
+            "get_page_sources",
+            "get_page_revisions",
+            "get_page_votes",
+            "get_page_files",
+        ],
+    )
+    @pytest.mark.parametrize("bad_page", [None, True, "test-page"])
+    def test_acquire_rejects_non_page_entries_before_fetch(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+        method_name: str,
+        bad_page: object,
+    ) -> None:
+        """Page以外のコレクション要素は取得処理前に拒否する"""
+        collection = PageCollection(
+            mock_site_no_http,
+            [mock_page_with_id, bad_page],  # type: ignore[list-item]
+        )
+        request = MagicMock()
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="pages list entries must be Page"):
+            getattr(collection, method_name)()
+
+        request.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
     @staticmethod
     def _other_page(mock_site_no_http: Site, mock_page_no_http: Page) -> Page:
         return Page(

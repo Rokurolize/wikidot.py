@@ -74,6 +74,14 @@ def _validate_page_source(source: object) -> str:
     return _validate_page_text_field("source", source)
 
 
+def _validate_pages(pages: object) -> list["Page"]:
+    if not isinstance(pages, list):
+        raise ValueError("pages must be a list")
+    if any(not isinstance(page, Page) for page in pages):
+        raise ValueError("pages list entries must be Page")
+    return cast(list["Page"], pages)
+
+
 class PageConstants:
     """
     A class for centrally managing constants used in the page module
@@ -996,6 +1004,7 @@ class PageCollection(list["Page"]):
         UnexpectedException
             When response type is unexpected
         """
+        pages = _validate_pages(pages)
         acquired_ids_by_url: dict[str, int] = {}
         for page in pages:
             if page._id is not None:
@@ -1085,6 +1094,7 @@ class PageCollection(list["Page"]):
         NoElementException
             When source elements are not found
         """
+        pages = _validate_pages(pages)
         target_pages = [page for page in pages if page._source is None]
         if len(target_pages) == 0:
             return pages
@@ -1188,6 +1198,7 @@ class PageCollection(list["Page"]):
         NoElementException
             When required elements are not found
         """
+        pages = _validate_pages(pages)
         target_pages = [page for page in pages if page._revisions is None]
         if len(target_pages) == 0:
             return pages
@@ -1347,6 +1358,7 @@ class PageCollection(list["Page"]):
         UnexpectedException
             When the number of user elements and vote value elements do not match
         """
+        pages = _validate_pages(pages)
         target_pages = [page for page in pages if page._votes is None]
         if len(target_pages) == 0:
             return pages
@@ -1473,6 +1485,7 @@ class PageCollection(list["Page"]):
         list[Page]
             List of pages with updated file information
         """
+        pages = _validate_pages(pages)
         target_pages = [page for page in pages if page._files is None]
         if len(target_pages) == 0:
             return pages
