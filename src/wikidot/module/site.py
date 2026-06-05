@@ -570,6 +570,7 @@ class SitePageAccessor:
         NotFoundException
             When raise_when_not_found is True and the page is not found
         """
+        raise_when_not_found = _validate_page_bool_field("raise_when_not_found", raise_when_not_found)
         page = PageCollection.get_by_fullname(self.site, fullname)
         if page is None:
             page = self._get_by_direct_page_id(fullname)

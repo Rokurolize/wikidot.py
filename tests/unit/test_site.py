@@ -697,6 +697,21 @@ class TestSitePageAccessor:
         ):
             mock_site_no_http.page.get("missing")
 
+    @pytest.mark.parametrize("raise_when_not_found", [None, "false", 0, 1])
+    def test_get_rejects_non_bool_raise_when_not_found_before_lookup(
+        self, mock_site_no_http: Site, raise_when_not_found: Any
+    ) -> None:
+        """page.getのraise_when_not_foundは検索前に真偽値として検証する"""
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])) as search,
+            patch.object(mock_site_no_http.page, "_get_by_direct_page_id", return_value=None) as direct_lookup,
+            pytest.raises(ValueError, match="raise_when_not_found must be a boolean"),
+        ):
+            mock_site_no_http.page.get("missing", raise_when_not_found=raise_when_not_found)
+
+        search.assert_not_called()
+        direct_lookup.assert_not_called()
+
     def test_get_surfaces_unexpected_direct_page_id_probe_errors(self, mock_site_no_http: Site) -> None:
         """直接pageId取得の構造エラーはページ欠落として隠さない"""
         direct_error = UnexpectedException("Unexpected response type for page: stale-page")
