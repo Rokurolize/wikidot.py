@@ -113,6 +113,14 @@ def _validate_optional_user_id(user_id: object) -> int | None:
     return user_id
 
 
+def _validate_recent_changes_limit(limit: object) -> int | None:
+    if limit is None:
+        return None
+    if not isinstance(limit, int) or isinstance(limit, bool):
+        raise ValueError("limit must be an integer or None")
+    return limit
+
+
 @dataclass(frozen=True)
 class PagePublishResult:
     """
@@ -1409,6 +1417,7 @@ class Site:
         """
         from ..common.exceptions import NoElementException
 
+        limit = _validate_recent_changes_limit(limit)
         if limit is not None and limit <= 0:
             return []
 

@@ -2582,6 +2582,24 @@ Real edit comment
         assert changes == []
         mock_client.amc_client.request.assert_not_called()
 
+    @pytest.mark.parametrize("invalid_limit", [True, False, "2", 2.0, {"limit": 2}])
+    def test_get_recent_changes_rejects_invalid_limit_before_request(self, invalid_limit: object) -> None:
+        """limitの型異常はリクエスト前に安定したValueErrorで拒否する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="limit must be an integer or None"):
+            site.get_recent_changes(limit=invalid_limit)
+
+        mock_client.amc_client.request.assert_not_called()
+
     def test_get_recent_changes_ignores_non_numeric_pager_links(self, site_changes: dict[str, Any]) -> None:
         """数値ページがないpagerでは単一ページとして扱う"""
         mock_client = create_mock_client()
