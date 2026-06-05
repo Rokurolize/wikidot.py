@@ -45,6 +45,19 @@ def _user_onclick_value(user_elem: Tag) -> str:
     return user_elem.get_text(" ", strip=True)
 
 
+def _revision_html_context(revision: "ForumPostRevision") -> str:
+    return f"for site: {revision.post.thread.site.unix_name}, post: {revision.post.id}, revision: {revision.id}"
+
+
+def _revision_html_content(revision: "ForumPostRevision", data: dict[str, object]) -> str:
+    content = data.get("content")
+    if content is None:
+        raise exceptions.NoElementException(
+            f"Forum post revision HTML response content is not found {_revision_html_context(revision)}, field=content"
+        )
+    return str(content)
+
+
 class ForumPostRevisionCollection(list["ForumPostRevision"]):
     """
     Class representing a collection of forum post revisions
@@ -386,7 +399,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     if response is None:
                         continue
                     data = response.json()
-                    revision_html = str(data.get("content", ""))
+                    revision_html = _revision_html_content(revision, data)
                     for target_revision in all_revisions_by_id[revision.id]:
                         target_revision._html = revision_html
 
@@ -430,7 +443,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             if response is None:
                 continue
             data = response.json()
-            html = str(data.get("content", ""))
+            html = _revision_html_content(revision, data)
             for target_revision in target_revisions_by_id[revision.id]:
                 target_revision._html = html
 

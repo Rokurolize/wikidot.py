@@ -633,6 +633,34 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         assert mock_forum_post_no_http.thread.site.amc_request_with_retry.call_count == 2
 
+    def test_acquire_all_for_posts_with_html_missing_response_content_includes_context(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_post_revisions_single: dict[str, Any],
+    ) -> None:
+        """with_html=Trueのcontent欠損も空HTMLではなくsite/post/revision/field付きで失敗する"""
+        list_response = MagicMock()
+        list_response.json.return_value = forum_post_revisions_single
+        html_response = MagicMock()
+        html_response.json.return_value = {}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(
+            side_effect=[(list_response,), (html_response,)]
+        )
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Forum post revision HTML response content is not found "
+                "for site: test-site, post: 5001, revision: 9001, field=content"
+            ),
+        ):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
+
+        assert mock_forum_post_no_http._revisions is None
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http.thread.site.amc_request_with_retry.call_count == 2
+
     def test_acquire_all_for_posts_with_html_deduplicates_duplicate_revision_ids(
         self,
         mock_forum_post_no_http: ForumPost,
@@ -962,6 +990,34 @@ class TestForumPostRevisionHtml:
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once_with(
             [{"moduleName": "forum/sub/ForumPostRevisionModule", "revisionId": 9001}]
         )
+
+    def test_html_property_missing_response_content_includes_site_post_revision_and_field_context(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """HTML応答のcontent欠損は空HTMLではなくsite/post/revision/field付きで失敗する"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=None,
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Forum post revision HTML response content is not found "
+                "for site: test-site, post: 5001, revision: 9001, field=content"
+            ),
+        ):
+            _ = revision.html
+
+        assert revision.is_html_acquired() is False
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
 
     def test_html_setter(self, mock_forum_post_no_http: ForumPost) -> None:
         """htmlセッターが正しく動作する"""
