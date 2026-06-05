@@ -55,6 +55,15 @@ def _user_onclick_value(user_elem: Tag) -> str:
     return user_elem.get_text(" ", strip=True)
 
 
+def _odate_class_value(odate_elem: Tag) -> str:
+    class_attr = odate_elem.get("class", [])
+    if class_attr is None:
+        return ""
+
+    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+
+
 def _parse_thread_list_count(
     site: "Site", category: Optional["ForumCategory"], row_index: int, page: int | None, value: str
 ) -> int:
@@ -84,6 +93,27 @@ def _parse_thread_list_user(
             value=_user_onclick_value(user_elem),
         )
         raise NoElementException(f"Forum thread list user is malformed {parse_context}") from exc
+
+
+def _parse_thread_list_created_at(
+    site: "Site",
+    category: Optional["ForumCategory"],
+    row_index: int,
+    page: int | None,
+    odate_elem: Tag,
+) -> datetime:
+    try:
+        return odate_parser(odate_elem)
+    except ValueError as exc:
+        parse_context = _thread_list_parse_context(
+            site,
+            category,
+            row_index,
+            page,
+            field="created_at",
+            value=_odate_class_value(odate_elem),
+        )
+        raise NoElementException(f"Forum thread list created_at is malformed {parse_context}") from exc
 
 
 def _thread_detail_parse_context(
@@ -345,7 +375,7 @@ class ForumThreadCollection(list["ForumThread"]):
                     title=title.get_text(" ", strip=True),
                     description=description_elem.get_text(" ", strip=True),
                     created_by=_parse_thread_list_user(site, category, row_index, page, user_elem),
-                    created_at=odate_parser(odate_elem),
+                    created_at=_parse_thread_list_created_at(site, category, row_index, page, odate_elem),
                     post_count=post_count,
                     category=category,
                 )

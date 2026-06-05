@@ -412,6 +412,31 @@ class TestForumThreadCollectionAcquireAll:
 
         mock_forum_category_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_odate_includes_category_page_row_and_value_context(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド一覧の作成日時が壊れている場合はカテゴリ・ページ・行・値を含めて失敗する"""
+        body_with_bad_odate = forum_threads_in_category["body"].replace(
+            "odate time_1700000000",
+            "odate time_latest",
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body_with_bad_odate}
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread list created_at is malformed for site: test-site "
+                r"\(category=1001, page=1, row=1, field=created_at, value=time_latest\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_pagination(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
