@@ -130,6 +130,16 @@ class TestUserFromName:
 
         assert httpx_mock.get_requests() == []
 
+    @pytest.mark.parametrize("raise_when_not_found", [None, "false", 0, 1])
+    def test_from_name_rejects_non_bool_raise_when_not_found_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, raise_when_not_found: Any
+    ) -> None:
+        """raise_when_not_foundはboolだけ受け付ける"""
+        with pytest.raises(ValueError, match="raise_when_not_found must be a boolean"):
+            User.from_name(mock_client_no_http, "test-user", raise_when_not_found=raise_when_not_found)
+
+        assert httpx_mock.get_requests() == []
+
 
 class TestUserCollection:
     """UserCollection のテスト"""
@@ -153,6 +163,16 @@ class TestUserCollection:
 
         with pytest.raises(ValueError, match="names list entries must be strings"):
             UserCollection.from_names(mock_client_no_http, ["ok-user", bad_name])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("raise_when_not_found", [None, "false", 0, 1])
+    def test_from_names_rejects_non_bool_raise_when_not_found_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, raise_when_not_found: Any
+    ) -> None:
+        """一括取得のraise_when_not_foundはboolだけ受け付ける"""
+        with pytest.raises(ValueError, match="raise_when_not_found must be a boolean"):
+            UserCollection.from_names(mock_client_no_http, ["test-user"], raise_when_not_found=raise_when_not_found)
 
         assert httpx_mock.get_requests() == []
 

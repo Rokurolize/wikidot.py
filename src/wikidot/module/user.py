@@ -27,6 +27,12 @@ def _validate_user_names(names: object) -> list[str]:
     return cast(list[str], names)
 
 
+def _validate_raise_when_not_found(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError("raise_when_not_found must be a boolean")
+    return value
+
+
 def _profile_parse_context(name: str, index: int, **details: object) -> str:
     context = [f"index={index}"]
     context.extend(f"{key}={value}" for key, value in details.items())
@@ -80,6 +86,7 @@ class UserCollection(list["AbstractUser"]):
             When required elements are not found during user page parsing
         """
         names = _validate_user_names(names)
+        raise_when_not_found = _validate_raise_when_not_found(raise_when_not_found)
         responses = RequestUtil.request(
             client,
             "GET",
@@ -241,6 +248,7 @@ class User(AbstractUser):
             When the user is not found (when raise_when_not_found is False)
         """
         name = _validate_user_name("name", name)
+        raise_when_not_found = _validate_raise_when_not_found(raise_when_not_found)
         result = UserCollection.from_names(client, [name], raise_when_not_found)
         if len(result) == 0:
             if raise_when_not_found:
