@@ -381,6 +381,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [375-pr-validate-page-file-find-id.md](375-pr-validate-page-file-find-id.md): upstream PR draft for the committed page file collection search-ID validation fix.
 - [376-pr-validate-page-revision-find-id.md](376-pr-validate-page-revision-find-id.md): upstream PR draft for the committed page revision collection search-ID validation fix.
 - [377-pr-validate-forum-post-revision-search-keys.md](377-pr-validate-forum-post-revision-search-keys.md): upstream PR draft for the committed forum post revision collection search-key validation fix.
+- [378-pr-validate-forum-post-find-id.md](378-pr-validate-forum-post-find-id.md): upstream PR draft for the committed forum post collection search-ID validation fix.
 
 ## Local Evidence Index
 
@@ -669,5 +670,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 279: `1e24516 fix(page_file): validate file search ids`
 - Local implementation commits, continued 280: `61a5e79 fix(page_revision): validate revision search ids`
 - Local implementation commits, continued 281: `2bd89f2 fix(forum_post_revision): validate revision search keys`
+- Local implementation commits, continued 282: `7844351 fix(forum_post): validate post search ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
