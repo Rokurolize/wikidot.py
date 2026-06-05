@@ -1,5 +1,6 @@
 """Siteモジュールのユニットテスト"""
 
+import re
 from typing import Any
 from unittest.mock import MagicMock, create_autospec, patch
 
@@ -1829,6 +1830,36 @@ Real edit comment
         with pytest.raises(
             NoElementException,
             match=r"Page title is not found for site: test \(page=1, change=1\)",
+        ):
+            site.get_recent_changes()
+
+    def test_get_recent_changes_malformed_revision_number_includes_raw_value_context(
+        self, site_changes: dict[str, Any]
+    ) -> None:
+        """変更履歴revision番号の異常値はraw値付きで失敗する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = re.sub(
+            r'<td class="revision-no"[^>]*>\s*\(rev\. 3\)\s*</td>',
+            '<td class="revision-no">rev. latest</td>',
+            site_changes["body"],
+            count=1,
+        )
+        assert body != site_changes["body"]
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Revision number is not found for site: test \(page=1, change=1, field=revision_no, value=rev\. latest\)",
         ):
             site.get_recent_changes()
 

@@ -1347,7 +1347,12 @@ class Site:
                 rev_text = rev_elem.get_text()
                 rev_match = re.search(r"(\d+)", rev_text)
                 if rev_match is None:
-                    raise NoElementException(f"Revision number is not found {parse_context}")
+                    rev_value = rev_elem.get_text(" ", strip=True)
+                    raise NoElementException(
+                        "Revision number is not found "
+                        f"for site: {self.unix_name} "
+                        f"(page={page_no}, change={change_index}, field=revision_no, value={rev_value})"
+                    )
                 revision_no = int(rev_match.group(1))
 
                 user_cell = metadata_row.find("td", class_="mod-by", recursive=False)
