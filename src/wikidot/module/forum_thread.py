@@ -141,6 +141,16 @@ def _parse_thread_detail_post_count(
     return int(post_count_match.group(1))
 
 
+def _parse_thread_detail_thread_id(
+    site: "Site", thread_id: int | None, category: Optional["ForumCategory"], value: object
+) -> int:
+    value_text = str(value).strip()
+    if re.fullmatch(r"\d+", value_text) is None:
+        parse_context = _thread_detail_parse_context(site, thread_id, category, field="thread_id", value=value_text)
+        raise NoElementException(f"Forum thread detail ID is malformed {parse_context}")
+    return int(value_text)
+
+
 def _parse_thread_detail_user(
     site: "Site",
     thread_id: int | None,
@@ -500,18 +510,17 @@ class ForumThreadCollection(list["ForumThread"]):
 
         # id取得処理
         # WIKIDOT.forumThreadId = xxxxxx;を全体から検索
-        thread_id_pattern = re.compile(r"WIKIDOT.forumThreadId = \d+;")
-        script_elem = None
+        thread_id_pattern = re.compile(r"WIKIDOT\.forumThreadId\s*=\s*([^;]*);")
+        thread_id_match = None
         for script in html.find_all("script"):
-            if script.string and thread_id_pattern.search(script.string):
-                script_elem = script
+            if script.string is None:
+                continue
+            thread_id_match = thread_id_pattern.search(str(script.string))
+            if thread_id_match is not None:
                 break
-        if script_elem is None or script_elem.string is None:
-            raise NoElementException(f"Script element is not found {parse_context}")
-        thread_id_match = re.search(r"(\d+)", script_elem.string)
         if thread_id_match is None:
-            raise NoElementException(f"Thread ID is not found in script {parse_context}")
-        parsed_thread_id = int(thread_id_match.group(1))
+            raise NoElementException(f"Script element is not found {parse_context}")
+        parsed_thread_id = _parse_thread_detail_thread_id(site, thread_id, category, thread_id_match.group(1))
 
         return ForumThread(
             site=site,

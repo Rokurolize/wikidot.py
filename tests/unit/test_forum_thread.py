@@ -647,6 +647,29 @@ class TestForumThreadCollectionAcquireFromIds:
 
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_from_ids_malformed_script_thread_id_includes_thread_and_value_context(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """スレッド詳細のscript内IDが壊れている場合はsite/thread/field/value文脈付きで失敗する"""
+        body = forum_thread_detail["body"].replace(
+            "WIKIDOT.forumThreadId = 3001;", "WIKIDOT.forumThreadId = latest;", 1
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread detail ID is malformed for site: test-site "
+                r"\(thread=3001, field=thread_id, value=latest\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_acquire_from_ids_malformed_user_includes_thread_and_value_context(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
     ) -> None:
