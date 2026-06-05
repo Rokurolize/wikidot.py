@@ -796,6 +796,11 @@ class PageCollection(list["Page"]):
             raise exceptions.NoElementException(
                 f"ListPages response body is not found for site: {site.unix_name}, offset: {offset}"
             )
+        if not isinstance(body, str):
+            raise exceptions.NoElementException(
+                f"ListPages response body is malformed for site: {site.unix_name}, offset: {offset} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
+            )
         return body
 
     @staticmethod
