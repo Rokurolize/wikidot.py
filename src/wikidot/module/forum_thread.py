@@ -630,6 +630,12 @@ class ForumThreadCollection(list["ForumThread"]):
                 "Forum thread list response body is not found "
                 f"for site: {category.site.unix_name}, category: {category.id}, page: {page}"
             )
+        if not isinstance(body, str):
+            raise NoElementException(
+                "Forum thread list response body is malformed "
+                f"for site: {category.site.unix_name}, category: {category.id}, page: {page} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
+            )
         return body
 
     @staticmethod
@@ -697,6 +703,11 @@ class ForumThreadCollection(list["ForumThread"]):
         if body is None:
             raise NoElementException(
                 f"Forum thread detail response body is not found for site: {_site_name(site)}, thread: {thread_id}"
+            )
+        if not isinstance(body, str):
+            raise NoElementException(
+                f"Forum thread detail response body is malformed for site: {_site_name(site)}, thread: {thread_id} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
             )
         return body
 

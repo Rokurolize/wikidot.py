@@ -209,6 +209,26 @@ class TestForumThreadCollectionAcquireAll:
 
         mock_forum_category_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_first_page_response_body_type_includes_context(
+        self, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        """カテゴリ内スレッド一覧の初回body型異常はsite/category/page/type付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": ["not-html"]}
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread list response body is malformed for site: test-site, category: 1001, page: 1 "
+                r"\(field=body, expected=str, actual=list\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_skips_cached_category_threads(
         self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
     ) -> None:
@@ -731,6 +751,26 @@ class TestForumThreadCollectionAcquireFromIds:
         with pytest.raises(
             exceptions.NoElementException,
             match=r"Forum thread detail response body is not found for site: test-site, thread: 3001",
+        ):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_acquire_from_ids_malformed_response_body_type_includes_thread_context(
+        self, mock_site_no_http: Site
+    ) -> None:
+        """スレッド詳細のbody型異常はsite/thread/type付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": ["not-html"]}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread detail response body is malformed for site: test-site, thread: 3001 "
+                r"\(field=body, expected=str, actual=list\)"
+            ),
         ):
             ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
 
