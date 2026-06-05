@@ -11,7 +11,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ..common import exceptions
 from ..util.parser import odate as odate_parser
@@ -26,6 +26,14 @@ def _revision_list_parse_context(post: "ForumPost", row_index: int, **details: o
     detail_values = {"row": row_index, **details}
     detail_text = ", ".join(f"{key}={value}" for key, value in detail_values.items())
     return f"for site: {post.thread.site.unix_name}, post: {post.id} ({detail_text})"
+
+
+def _odate_class_value(odate_elem: Tag) -> str:
+    class_attr = odate_elem.get("class", [])
+    if class_attr is None:
+        return ""
+    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+    return next((value for value in class_values if "time_" in value), " ".join(class_values))
 
 
 class ForumPostRevisionCollection(list["ForumPostRevision"]):
@@ -175,7 +183,18 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
 
             revision_id = int(match.group(1))
             created_by = user_parser(post.thread.site.client, user_elem)
-            created_at = odate_parser(odate_elem)
+            try:
+                created_at = odate_parser(odate_elem)
+            except ValueError as exc:
+                parse_context = _revision_list_parse_context(
+                    post,
+                    row_index,
+                    field="created_at",
+                    value=_odate_class_value(odate_elem),
+                )
+                raise exceptions.NoElementException(
+                    f"Forum post revision timestamp is malformed {parse_context}"
+                ) from exc
 
             revisions.append(
                 ForumPostRevision(
