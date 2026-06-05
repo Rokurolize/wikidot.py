@@ -339,6 +339,9 @@ class AjaxModuleConnectorClient:
         ResponseDataException
             If response is invalid JSON format or empty (when return_exceptions is False)
         """
+        if not isinstance(return_exceptions, bool):
+            raise ValueError("return_exceptions must be a boolean")
+
         semaphore_instance = asyncio.Semaphore(self.config.semaphore_limit)
 
         site_name = site_name if site_name is not None else self.site_name

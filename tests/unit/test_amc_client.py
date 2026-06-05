@@ -1,5 +1,7 @@
 """AMCクライアントのユニットテスト"""
 
+from typing import Any
+
 import pytest
 from pytest_httpx import HTTPXMock
 
@@ -184,6 +186,20 @@ class TestAjaxModuleConnectorClientRequest:
 
         with pytest.raises(ValueError, match="Invalid Wikidot site UNIX name"):
             client.request([{"moduleName": "TestModule"}], site_name="127.0.0.1:8000#")
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("return_exceptions", [None, "false", 0, 1])
+    def test_request_rejects_non_bool_return_exceptions_before_request(
+        self,
+        httpx_mock: HTTPXMock,
+        return_exceptions: Any,
+    ) -> None:
+        """return_exceptionsは真偽値だけを受け付ける"""
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        with pytest.raises(ValueError, match="return_exceptions must be a boolean"):
+            client.request([], return_exceptions=return_exceptions)
 
         assert httpx_mock.get_requests() == []
 
