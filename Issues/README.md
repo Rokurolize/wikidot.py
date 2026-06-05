@@ -277,6 +277,11 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [271-pr-site-application-accept-member-cache-invalidation.md](271-pr-site-application-accept-member-cache-invalidation.md): upstream PR draft for the committed SiteApplication.accept member-cache invalidation fix.
 - [272-pr-private-message-detail-timestamp-context.md](272-pr-private-message-detail-timestamp-context.md): upstream PR draft for the committed PrivateMessage detail timestamp validation fix.
 - [273-pr-private-message-detail-subject-body-context.md](273-pr-private-message-detail-subject-body-context.md): upstream PR draft for the committed PrivateMessage detail subject/body validation fix.
+- [274-pr-page-file-mime-title-context.md](274-pr-page-file-mime-title-context.md): upstream PR draft for the committed page-file MIME title validation fix.
+- [275-pr-page-file-size-context.md](275-pr-page-file-size-context.md): upstream PR draft for the committed page-file size validation fix.
+- [276-pr-page-file-link-href-context.md](276-pr-page-file-link-href-context.md): upstream PR draft for the committed page-file link href validation fix.
+- [277-pr-page-file-name-context.md](277-pr-page-file-name-context.md): upstream PR draft for the committed page-file name validation fix.
+- [278-pr-recent-change-title-href-context.md](278-pr-recent-change-title-href-context.md): upstream PR draft for the committed recent-change title href validation fix.
 
 ## Local Evidence Index
 
@@ -461,5 +466,10 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 175: `40722ab fix(site_application): invalidate members cache on accept`
 - Local implementation commits, continued 176: `94b69c7 fix(private_message): require detail timestamp`
 - Local implementation commits, continued 177: `7aa038c fix(private_message): require detail subject and body`
+- Local implementation commits, continued 178: `120ca2f fix(page_file): require MIME title for parsed file rows`
+- Local implementation commits, continued 179: `bb1ca90 fix(page_file): require parseable file sizes`
+- Local implementation commits, continued 180: `dcd6e67 fix(page_file): require file link hrefs`
+- Local implementation commits, continued 181: `b868b6f fix(page_file): require file names`
+- Local implementation commits, continued 182: `40a11b9 fix(site): require recent change title hrefs`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
