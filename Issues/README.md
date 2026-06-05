@@ -376,6 +376,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [370-pr-validate-site-invite-user-input.md](370-pr-validate-site-invite-user-input.md): upstream PR draft for the committed site invitation user input validation fix.
 - [371-pr-validate-site-application-user-input.md](371-pr-validate-site-application-user-input.md): upstream PR draft for the committed site application applicant input validation fix.
 - [372-pr-validate-site-member-lookup-user-id.md](372-pr-validate-site-member-lookup-user-id.md): upstream PR draft for the committed site member lookup user-ID filter validation fix.
+- [373-pr-validate-recent-changes-limit.md](373-pr-validate-recent-changes-limit.md): upstream PR draft for the committed recent changes limit input validation fix.
 
 ## Local Evidence Index
 
@@ -659,5 +660,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 274: `b044baa fix(site): validate invite user input`
 - Local implementation commits, continued 275: `2a186cd fix(site_application): validate application user input`
 - Local implementation commits, continued 276: `1fcb183 fix(site): validate member lookup user id`
+- Local implementation commits, continued 277: `deaadb7 fix(site): validate recent changes limit`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
