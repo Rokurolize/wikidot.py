@@ -318,6 +318,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [312-pr-user-profile-id-href-context.md](312-pr-user-profile-id-href-context.md): upstream PR draft for the committed user profile ID href diagnostics fix.
 - [313-pr-quickmodule-user-id-context.md](313-pr-quickmodule-user-id-context.md): upstream PR draft for the committed QuickModule user ID diagnostics fix.
 - [314-pr-quickmodule-response-key-context.md](314-pr-quickmodule-response-key-context.md): upstream PR draft for the committed QuickModule response-key diagnostics fix.
+- [315-pr-quickmodule-row-field-context.md](315-pr-quickmodule-row-field-context.md): upstream PR draft for the committed QuickModule row-field diagnostics fix.
 
 ## Local Evidence Index
 
@@ -543,5 +544,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 216: `2edfb8c fix(user): report malformed profile id hrefs`
 - Local implementation commits, continued 217: `53280a5 fix(quick_module): report malformed user ids`
 - Local implementation commits, continued 218: `16ffe75 fix(quick_module): report missing response keys`
+- Local implementation commits, continued 219: `79b85b6 fix(quick_module): report missing row fields`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
