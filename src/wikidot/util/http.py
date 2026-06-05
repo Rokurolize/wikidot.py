@@ -12,6 +12,12 @@ def _is_retryable_status(status_code: int) -> bool:
     return 500 <= status_code < 600
 
 
+def _validate_bool_option(field: str, value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{field} must be a boolean")
+    return value
+
+
 def calculate_backoff(
     retry_count: int,
     base_interval: float,
@@ -87,6 +93,8 @@ async def async_get_with_retry(
     httpx.HTTPStatusError
         If all retries exhausted due to HTTP error
     """
+    follow_redirects = _validate_bool_option("follow_redirects", follow_redirects)
+
     for attempt in range(attempt_limit):
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
@@ -168,6 +176,9 @@ def sync_get_with_retry(
     httpx.HTTPStatusError
         If all retries exhausted due to HTTP error (when raise_for_status=True)
     """
+    follow_redirects = _validate_bool_option("follow_redirects", follow_redirects)
+    raise_for_status = _validate_bool_option("raise_for_status", raise_for_status)
+
     for attempt in range(attempt_limit):
         try:
             response = httpx.get(
@@ -263,6 +274,8 @@ def sync_post_with_retry(
     httpx.HTTPStatusError
         If all retries exhausted due to HTTP error (when raise_for_status=True)
     """
+    raise_for_status = _validate_bool_option("raise_for_status", raise_for_status)
+
     for attempt in range(attempt_limit):
         try:
             response = httpx.post(

@@ -3,6 +3,8 @@
 リトライ機構を持つHTTPリクエスト関数のテストを行う。
 """
 
+from typing import Any
+
 import httpx
 import pytest
 
@@ -71,6 +73,22 @@ class TestCalculateBackoff:
 
 class TestSyncGetWithRetry:
     """sync_get_with_retry関数のテスト"""
+
+    @pytest.mark.parametrize("follow_redirects", [None, "false", 0, 1])
+    def test_rejects_non_bool_follow_redirects_before_request(self, httpx_mock, follow_redirects: Any):
+        """follow_redirectsはHTTPリクエスト前に真偽値として検証する"""
+        with pytest.raises(ValueError, match="follow_redirects must be a boolean"):
+            sync_get_with_retry("https://example.com/test", follow_redirects=follow_redirects)
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("raise_for_status", [None, "false", 0, 1])
+    def test_rejects_non_bool_raise_for_status_before_request(self, httpx_mock, raise_for_status: Any):
+        """raise_for_statusはHTTPリクエスト前に真偽値として検証する"""
+        with pytest.raises(ValueError, match="raise_for_status must be a boolean"):
+            sync_get_with_retry("https://example.com/test", raise_for_status=raise_for_status)
+
+        assert httpx_mock.get_requests() == []
 
     def test_success_on_first_attempt(self, httpx_mock):
         """最初の試行で成功"""
@@ -196,6 +214,14 @@ class TestSyncGetWithRetry:
 class TestSyncPostWithRetry:
     """sync_post_with_retry関数のテスト"""
 
+    @pytest.mark.parametrize("raise_for_status", [None, "false", 0, 1])
+    def test_rejects_non_bool_raise_for_status_before_request(self, httpx_mock, raise_for_status: Any):
+        """raise_for_statusはHTTPリクエスト前に真偽値として検証する"""
+        with pytest.raises(ValueError, match="raise_for_status must be a boolean"):
+            sync_post_with_retry("https://example.com/test", raise_for_status=raise_for_status)
+
+        assert httpx_mock.get_requests() == []
+
     def test_success_on_first_attempt(self, httpx_mock):
         """最初の試行で成功"""
         httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
@@ -284,6 +310,17 @@ class TestSyncPostWithRetry:
 
 class TestAsyncGetWithRetry:
     """async_get_with_retry関数のテスト"""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("follow_redirects", [None, "false", 0, 1])
+    async def test_rejects_non_bool_follow_redirects_before_request(self, httpx_mock, follow_redirects: Any):
+        """follow_redirectsはHTTPリクエスト前に真偽値として検証する"""
+        from wikidot.util.http import async_get_with_retry
+
+        with pytest.raises(ValueError, match="follow_redirects must be a boolean"):
+            await async_get_with_retry("https://example.com/test", follow_redirects=follow_redirects)
+
+        assert httpx_mock.get_requests() == []
 
     @pytest.mark.asyncio
     async def test_success_on_first_attempt(self, httpx_mock):
