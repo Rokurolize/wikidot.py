@@ -64,6 +64,12 @@ def _validate_page_bool_field(field: str, value: object) -> bool:
     return value
 
 
+def _validate_page_vote_value(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
+        raise ValueError("Vote value must be 1 or -1")
+    return value
+
+
 def _validate_page_source(source: object) -> str:
     return _validate_page_text_field("source", source)
 
@@ -2565,8 +2571,7 @@ class Page:
         WikidotStatusCodeException
             When voting fails
         """
-        if value not in (1, -1):
-            raise ValueError("Vote value must be 1 or -1")
+        value = _validate_page_vote_value(value)
 
         self.site.client.login_check()
         response = self.site.amc_request(

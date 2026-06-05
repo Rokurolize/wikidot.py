@@ -2689,6 +2689,23 @@ class TestPageWriteMethods:
 
         mock_page_with_id.site.amc_request.assert_not_called()
 
+    @pytest.mark.parametrize("invalid_value", [True, 1.0, -1.0])
+    def test_vote_rejects_non_integer_vote_values_before_request(
+        self, mock_page_with_id: Page, invalid_value: Any
+    ) -> None:
+        """bool/floatの投票値はリクエスト前に拒否する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "type": "P", "points": 11}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+
+        with pytest.raises(ValueError, match="Vote value must be 1 or -1"):
+            mock_page_with_id.vote(invalid_value)
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.rating == 10
+
     def test_vote_not_logged_in(self, mock_page_with_id: Page) -> None:
         """ログインしていない場合に例外"""
         mock_page_with_id.site.client.is_logged_in = False
