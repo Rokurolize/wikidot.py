@@ -81,6 +81,8 @@ class PageRevisionCollection(list["PageRevision"]):
         PageRevision | None
             The revision with the specified ID, or None if not found
         """
+        if not isinstance(id, int) or isinstance(id, bool):
+            raise ValueError("id must be an integer")
         for revision in self:
             if revision.id == id:
                 return revision

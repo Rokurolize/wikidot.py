@@ -91,6 +91,14 @@ class TestPageRevisionCollection:
         result = collection.find(999)
         assert result is None
 
+    @pytest.mark.parametrize("revision_id", [None, True, "100", 100.0])
+    def test_find_rejects_non_integer_ids(self, sample_revision, revision_id):
+        """findは整数以外の検索IDを拒否する"""
+        collection = PageRevisionCollection(revisions=[sample_revision])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.find(revision_id)
+
     def test_get_sources_requires_page(self):
         """get_sourcesはpageが必要"""
         collection = PageRevisionCollection()
