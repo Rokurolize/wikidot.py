@@ -52,5 +52,7 @@ class StringUtil:
     @staticmethod
     def validate_site_unix_name(site_name: str) -> None:
         """Validate a Wikidot site UNIX name before interpolating it into a host."""
+        if not isinstance(site_name, str):
+            raise ValueError("site_name must be a string")
         if not StringUtil.SITE_UNIX_NAME_PATTERN.fullmatch(site_name):
             raise ValueError(f"Invalid Wikidot site UNIX name: {site_name!r}")

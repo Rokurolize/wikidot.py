@@ -4,6 +4,7 @@ Clientモジュールのユニットテスト
 Client, ClientUserAccessor, ClientPrivateMessageAccessor, ClientSiteAccessorクラスをテストする。
 """
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -275,3 +276,13 @@ class TestClientSiteAccessor:
 
                 mock_from_unix_name.assert_called_once_with(client, "scp-wiki")
                 assert result == mock_site
+
+    def test_get_site_rejects_non_string_unix_name(self) -> None:
+        """文字列以外のUNIX名はサイト取得前に拒否する"""
+        bad_unix_name: Any = {"site": "scp-wiki"}
+
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+
+            with pytest.raises(ValueError, match="site_name must be a string"):
+                client.site.get(bad_unix_name)

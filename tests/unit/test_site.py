@@ -1399,6 +1399,17 @@ class TestSiteFromUnixName:
 
         assert httpx_mock.get_requests() == []
 
+    def test_from_unix_name_non_string_name_rejected_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
+    ) -> None:
+        """文字列以外のunix_nameはリクエスト前に拒否する"""
+        bad_unix_name: Any = {"site": "test-site"}
+
+        with pytest.raises(ValueError, match="site_name must be a string"):
+            Site.from_unix_name(mock_client_no_http, bad_unix_name)
+
+        assert httpx_mock.get_requests() == []
+
     def test_from_unix_name_missing_site_id(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
         """siteIdがない場合はUnexpectedException"""
         html = """

@@ -1,5 +1,7 @@
 """StringUtilのユニットテスト"""
 
+from typing import Any
+
 import pytest
 
 from wikidot.util.stringutil import StringUtil
@@ -122,4 +124,10 @@ class TestStringUtilValidateSiteUnixName:
     def test_invalid_site_names(self, site_name: str):
         """ホスト構造を壊せる文字を含むサイト名は拒否する"""
         with pytest.raises(ValueError, match="Invalid Wikidot site UNIX name"):
+            StringUtil.validate_site_unix_name(site_name)
+
+    @pytest.mark.parametrize("site_name", [None, 123, {"site": "www"}])
+    def test_non_string_site_names(self, site_name: Any) -> None:
+        """文字列以外のサイト名はregexに渡す前に拒否する"""
+        with pytest.raises(ValueError, match="site_name must be a string"):
             StringUtil.validate_site_unix_name(site_name)
