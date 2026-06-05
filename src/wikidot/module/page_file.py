@@ -87,6 +87,8 @@ class PageFileCollection(list["PageFile"]):
         PageFile | None
             The file with the specified ID, or None if not found
         """
+        if not isinstance(id, int) or isinstance(id, bool):
+            raise ValueError("id must be an integer")
         for file in self:
             if file.id == id:
                 return file

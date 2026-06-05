@@ -76,6 +76,16 @@ class TestPageFileCollection:
 
         assert result is None
 
+    @pytest.mark.parametrize("file_id", [None, True, "123", 123.0])
+    def test_find_rejects_non_integer_ids(self, file_id):
+        """findの検索IDはbool以外の整数だけ受け付ける"""
+        page = MagicMock()
+        file1 = PageFile(page=page, id=1, name="test.txt", url="", mime_type="", size=0)
+        collection = PageFileCollection(page=page, files=[file1])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.find(file_id)
+
     def test_find_by_name_existing(self):
         """名前で存在するファイルを検索"""
         page = MagicMock()
