@@ -226,6 +226,8 @@ class ForumPostCollection(list["ForumPost"]):
         ForumPost | None
             Post with the specified ID, or None if it does not exist
         """
+        if not isinstance(id, int) or isinstance(id, bool):
+            raise ValueError("id must be an integer")
         for post in self:
             if post.id == id:
                 return post
