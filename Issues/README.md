@@ -370,6 +370,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [364-pr-validate-forum-post-revision-post-inputs.md](364-pr-validate-forum-post-revision-post-inputs.md): upstream PR draft for the committed forum-post-revision post input validation fix.
 - [365-pr-validate-page-revision-collection-entries.md](365-pr-validate-page-revision-collection-entries.md): upstream PR draft for the committed page-revision collection entry validation fix.
 - [366-pr-validate-forum-post-revision-collection-entries.md](366-pr-validate-forum-post-revision-collection-entries.md): upstream PR draft for the committed forum-post-revision collection entry validation fix.
+- [367-pr-validate-forum-post-collection-entries.md](367-pr-validate-forum-post-collection-entries.md): upstream PR draft for the committed forum-post collection entry validation fix.
 
 ## Local Evidence Index
 
@@ -647,5 +648,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 268: `f2592a1 fix(forum_post_revision): validate post inputs`
 - Local implementation commits, continued 269: `98c7dfc fix(page_revision): validate collection entries`
 - Local implementation commits, continued 270: `c1d0e4e fix(forum_post_revision): validate collection entries`
+- Local implementation commits, continued 271: `7c06574 fix(forum_post): validate collection entries`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
