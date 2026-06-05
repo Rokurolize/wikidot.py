@@ -72,6 +72,16 @@ class TestUserParserRegularUser:
         assert isinstance(result, User)
         assert result.unix_name == "secure-user"
 
+    def test_parse_regular_user_without_href_raises(self, mock_client_no_http: MagicMock) -> None:
+        """hrefなし通常ユーザーは空のunix_nameを作らず失敗する"""
+        html = '<span class="printuser"><a onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test-user</a></span>'
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        with pytest.raises(ValueError, match="user href is not found"):
+            user_parse(mock_client_no_http, elem)
+
 
 class TestUserParserDeletedUser:
     """削除済みユーザーのパーステスト"""
