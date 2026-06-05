@@ -1325,6 +1325,13 @@ class PageCollection(list["Page"]):
                     f"Page vote response body is not found for site: {site.unix_name}, "
                     f"page: {first_page.fullname} (id={first_page.id})"
                 )
+            if not isinstance(body, str):
+                first_page = target_pages_by_id[page_id][0]
+                raise exceptions.NoElementException(
+                    f"Page vote response body is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, field=body, expected=str, actual={type(body).__name__})"
+                )
             html = BeautifulSoup(body, "lxml")
             vote_container: Tag | None = None
             for element in html.find_all("div"):
