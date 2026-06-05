@@ -1,5 +1,6 @@
 """AMCクライアントのユニットテスト"""
 
+import copy
 from typing import Any
 
 import pytest
@@ -46,6 +47,12 @@ class TestAjaxRequestHeader:
         assert "session" in header.cookie
         assert "wikidot_token7" in header.cookie
 
+    @pytest.mark.parametrize("name", ["", " ", "bad name", "bad=name", "bad;name", "bad\nname"])
+    def test_custom_cookie_rejects_invalid_cookie_names(self, name: str) -> None:
+        """初期Cookie名が不正な場合は拒否される"""
+        with pytest.raises(ValueError, match="cookie name must be a non-empty string without whitespace, '=' or ';'"):
+            AjaxRequestHeader(cookie={name: "value"})
+
     def test_set_cookie(self) -> None:
         """Cookieを追加できる"""
         header = AjaxRequestHeader()
@@ -53,12 +60,38 @@ class TestAjaxRequestHeader:
 
         assert header.cookie["new_cookie"] == "value"
 
+    @pytest.mark.parametrize("name", ["", " ", "bad name", "bad=name", "bad;name", "bad\nname"])
+    def test_set_cookie_rejects_invalid_cookie_names_without_mutating_header(self, name: str) -> None:
+        """不正なCookie名はヘッダ状態を変更する前に拒否される"""
+        header = AjaxRequestHeader()
+        before = copy.deepcopy(header.cookie)
+
+        with pytest.raises(ValueError, match="cookie name must be a non-empty string without whitespace, '=' or ';'"):
+            header.set_cookie(name, "value")
+
+        assert header.cookie == before
+
+    def test_set_cookie_rejects_non_string_cookie_name(self) -> None:
+        """Cookie名は文字列だけを受け付ける"""
+        header = AjaxRequestHeader()
+
+        with pytest.raises(TypeError, match="cookie name must be str"):
+            header.set_cookie(123, "value")
+
     def test_delete_cookie(self) -> None:
         """Cookieを削除できる"""
         header = AjaxRequestHeader(cookie={"to_delete": "value"})
         header.delete_cookie("to_delete")
 
         assert "to_delete" not in header.cookie
+
+    @pytest.mark.parametrize("name", ["", "bad\nname"])
+    def test_delete_cookie_rejects_invalid_cookie_names(self, name: str) -> None:
+        """不正なCookie名は削除操作でも拒否される"""
+        header = AjaxRequestHeader()
+
+        with pytest.raises(ValueError, match="cookie name must be a non-empty string without whitespace, '=' or ';'"):
+            header.delete_cookie(name)
 
     def test_delete_missing_cookie_is_noop(self) -> None:
         """存在しないCookie削除は例外にしない"""

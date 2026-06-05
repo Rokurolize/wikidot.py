@@ -27,6 +27,14 @@ from ..util.http import sync_get_with_retry
 from ..util.stringutil import StringUtil
 
 
+def _validate_cookie_name(name: object) -> str:
+    if not isinstance(name, str):
+        raise TypeError("cookie name must be str")
+    if not name or any(char.isspace() or char in "=;" for char in name):
+        raise ValueError("cookie name must be a non-empty string without whitespace, '=' or ';'")
+    return name
+
+
 class AjaxRequestHeader:
     """
     Class for managing request headers used in Ajax Module Connector communication
@@ -63,7 +71,7 @@ class AjaxRequestHeader:
         self.referer: str = "https://www.wikidot.com/" if referer is None else referer
         self.cookie: dict[str, Any] = {"wikidot_token7": 123456}
         if cookie is not None:
-            self.cookie.update(cookie)
+            self.cookie.update({_validate_cookie_name(name): value for name, value in cookie.items()})
         return
 
     def set_cookie(self, name: str, value: Any) -> None:
@@ -77,7 +85,7 @@ class AjaxRequestHeader:
         value : str
             Value of the cookie to set
         """
-        self.cookie[name] = value
+        self.cookie[_validate_cookie_name(name)] = value
         return
 
     def delete_cookie(self, name: str) -> None:
@@ -89,7 +97,7 @@ class AjaxRequestHeader:
         name : str
             Name of the cookie to delete
         """
-        self.cookie.pop(name, None)
+        self.cookie.pop(_validate_cookie_name(name), None)
         return
 
     def get_header(self) -> dict:
