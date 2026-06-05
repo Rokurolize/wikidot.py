@@ -122,7 +122,12 @@ class QuickModule:
         return [item_mapping(module_name, site_id, row_index, item) for row_index, item in enumerate(items, start=1)]
 
     @staticmethod
-    def _row_field(module_name: str, site_id: int, row_index: int, item: dict[str, Any], field: str) -> Any:
+    def _row_field(module_name: str, site_id: int, row_index: int, item: Any, field: str) -> Any:
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"QuickModule row is malformed for module: {module_name}, site_id={site_id} "
+                f"(row={row_index}, expected=dict, actual={type(item).__name__})"
+            )
         if field not in item:
             raise ValueError(
                 f"QuickModule row field is missing for module: {module_name}, site_id={site_id} "

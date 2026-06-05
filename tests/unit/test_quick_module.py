@@ -202,6 +202,24 @@ class TestQuickModuleMemberLookup:
         ):
             QuickModule.member_lookup(123456, "test")
 
+    def test_member_lookup_malformed_row_includes_module_site_row_and_type_context(self):
+        """メンバー検索の行形状異常はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": ["user_id"]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row is malformed for module: MemberLookupQModule, site_id=123456 "
+                    r"\(row=1, expected=dict, actual=str\)"
+                ),
+            ),
+        ):
+            QuickModule.member_lookup(123456, "test")
+
 
 class TestQuickModuleUserLookup:
     """QuickModule.user_lookupのテスト"""
@@ -316,6 +334,24 @@ class TestQuickModulePageLookup:
                 match=(
                     r"QuickModule response key is missing for module: PageLookupQModule, site_id=123456 "
                     r"\(field=pages\)"
+                ),
+            ),
+        ):
+            QuickModule.page_lookup(123456, "test")
+
+    def test_page_lookup_malformed_row_includes_module_site_row_and_type_context(self):
+        """ページ検索の行形状異常はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"pages": ["title"]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row is malformed for module: PageLookupQModule, site_id=123456 "
+                    r"\(row=1, expected=dict, actual=str\)"
                 ),
             ),
         ):
