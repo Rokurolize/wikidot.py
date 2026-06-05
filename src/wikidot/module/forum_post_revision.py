@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from bs4 import BeautifulSoup, Tag
 
@@ -47,6 +47,22 @@ def _user_onclick_value(user_elem: Tag) -> str:
 
 def _revision_html_context(revision: "ForumPostRevision") -> str:
     return f"for site: {revision.post.thread.site.unix_name}, post: {revision.post.id}, revision: {revision.id}"
+
+
+def _revision_list_response_body(response: Any, post: "ForumPost") -> str:
+    body = response.json().get("body")
+    if body is None:
+        raise exceptions.NoElementException(
+            "Forum post revision list response body is not found "
+            f"for site: {post.thread.site.unix_name}, post: {post.id}"
+        )
+    if not isinstance(body, str):
+        raise exceptions.NoElementException(
+            "Forum post revision list response body is malformed "
+            f"for site: {post.thread.site.unix_name}, post: {post.id} "
+            f"(field=body, expected=str, actual={type(body).__name__})"
+        )
+    return body
 
 
 def _revision_html_content(revision: "ForumPostRevision", data: dict[str, object]) -> str:
@@ -276,13 +292,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                 f"Cannot retrieve forum post revisions for site: {post.thread.site.unix_name}, post: {post.id}"
             )
 
-        body = response.json().get("body")
-        if body is None:
-            raise exceptions.NoElementException(
-                "Forum post revision list response body is not found "
-                f"for site: {post.thread.site.unix_name}, post: {post.id}"
-            )
-        html = BeautifulSoup(body, "lxml")
+        html = BeautifulSoup(_revision_list_response_body(response, post), "lxml")
 
         revisions = ForumPostRevisionCollection._parse(post, html)
         collection = ForumPostRevisionCollection(post=post, revisions=revisions)
@@ -361,13 +371,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     raise exceptions.UnexpectedException(
                         f"Cannot retrieve forum post revisions for site: {site.unix_name}, post: {post.id}"
                     )
-                body = response.json().get("body")
-                if body is None:
-                    raise exceptions.NoElementException(
-                        "Forum post revision list response body is not found "
-                        f"for site: {site.unix_name}, post: {post.id}"
-                    )
-                html = BeautifulSoup(body, "lxml")
+                html = BeautifulSoup(_revision_list_response_body(response, post), "lxml")
                 revisions = ForumPostRevisionCollection._parse(post, html)
                 result[post.id] = ForumPostRevisionCollection(post=post, revisions=revisions)
 

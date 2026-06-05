@@ -253,6 +253,35 @@ class TestForumPostRevisionCollectionAcquireAll:
             ]
         )
 
+    def test_acquire_all_malformed_response_body_type_includes_site_post_and_type_context(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """リビジョン一覧レスポンスのbody型異常はsite/post/type付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": ["not", "html"]}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Forum post revision list response body is malformed for site: test-site, post: 5001 "
+                "\\(field=body, expected=str, actual=list\\)"
+            ),
+        ):
+            ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        assert mock_forum_post_no_http._revisions is None
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionsModule",
+                    "postId": 5001,
+                }
+            ]
+        )
+
     def test_acquire_all_malformed_revision_id_includes_post_row_and_value_context(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
@@ -608,6 +637,32 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         ):
             ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, post2])
 
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
+
+    def test_acquire_all_for_posts_malformed_response_body_type_includes_site_post_and_type_context(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """複数postのリビジョン一覧レスポンスbody型異常は対象post付きで失敗する"""
+        post2 = self._post_with_id(mock_forum_post_no_http, 5002)
+        response1 = MagicMock()
+        response1.json.return_value = forum_post_revisions
+        response2 = MagicMock()
+        response2.json.return_value = {"body": ["not", "html"]}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(response1, response2))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Forum post revision list response body is malformed for site: test-site, post: 5002 "
+                "\\(field=body, expected=str, actual=list\\)"
+            ),
+        ):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, post2])
+
+        assert mock_forum_post_no_http._revisions is None
+        assert post2._revisions is None
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
 
