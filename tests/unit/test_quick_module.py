@@ -166,6 +166,24 @@ class TestQuickModuleMemberLookup:
         ):
             QuickModule.member_lookup(123456, "test")
 
+    def test_member_lookup_missing_user_id_includes_module_site_row_and_field_context(self):
+        """メンバー検索のuser_id欠落はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"name": "bad-user"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is missing for module: MemberLookupQModule, site_id=123456 "
+                    r"\(row=1, field=user_id\)"
+                ),
+            ),
+        ):
+            QuickModule.member_lookup(123456, "test")
+
     def test_member_lookup_malformed_user_id_includes_module_site_row_and_value_context(self):
         """メンバー検索のuser_id異常値はQuickModule文脈付きで失敗する"""
         mock_response = MagicMock()
@@ -214,6 +232,24 @@ class TestQuickModuleUserLookup:
                 match=(
                     r"QuickModule response key is missing for module: UserLookupQModule, site_id=123456 "
                     r"\(field=users\)"
+                ),
+            ),
+        ):
+            QuickModule.user_lookup(123456, "test")
+
+    def test_user_lookup_missing_name_includes_module_site_row_and_field_context(self):
+        """ユーザー検索のname欠落はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "12345"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is missing for module: UserLookupQModule, site_id=123456 "
+                    r"\(row=1, field=name\)"
                 ),
             ),
         ):
@@ -280,6 +316,42 @@ class TestQuickModulePageLookup:
                 match=(
                     r"QuickModule response key is missing for module: PageLookupQModule, site_id=123456 "
                     r"\(field=pages\)"
+                ),
+            ),
+        ):
+            QuickModule.page_lookup(123456, "test")
+
+    def test_page_lookup_missing_title_includes_module_site_row_and_field_context(self):
+        """ページ検索のtitle欠落はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"pages": [{"unix_name": "bad-page"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is missing for module: PageLookupQModule, site_id=123456 "
+                    r"\(row=1, field=title\)"
+                ),
+            ),
+        ):
+            QuickModule.page_lookup(123456, "test")
+
+    def test_page_lookup_missing_unix_name_includes_module_site_row_and_field_context(self):
+        """ページ検索のunix_name欠落はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"pages": [{"title": "Bad Page"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is missing for module: PageLookupQModule, site_id=123456 "
+                    r"\(row=1, field=unix_name\)"
                 ),
             ),
         ):

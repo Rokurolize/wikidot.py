@@ -92,8 +92,7 @@ class QuickModule:
         site_id: int,
         query: str,
         response_key: str,
-        item_class: type[T],
-        item_mapping: Callable[[type[T], dict[str, Any]], T],
+        item_mapping: Callable[[str, int, int, dict[str, Any]], T],
     ) -> list[T]:
         """
         Generic lookup method
@@ -108,8 +107,6 @@ class QuickModule:
             Query
         response_key: str
             Key to retrieve from response
-        item_class: type
-            Class of items to return
         item_mapping: callable
             Conversion function from response items to class instances
 
@@ -122,11 +119,20 @@ class QuickModule:
         # member_lookupの特殊ケースを処理
         if items is False:
             return []
-        return [item_mapping(item_class, item) for item in items]
+        return [item_mapping(module_name, site_id, row_index, item) for row_index, item in enumerate(items, start=1)]
+
+    @staticmethod
+    def _row_field(module_name: str, site_id: int, row_index: int, item: dict[str, Any], field: str) -> Any:
+        if field not in item:
+            raise ValueError(
+                f"QuickModule row field is missing for module: {module_name}, site_id={site_id} "
+                f"(row={row_index}, field={field})"
+            )
+        return item[field]
 
     @staticmethod
     def _map_user_item(module_name: str, site_id: int, row_index: int, item: dict[str, Any]) -> QMCUser:
-        user_id_value = item["user_id"]
+        user_id_value = QuickModule._row_field(module_name, site_id, row_index, item, "user_id")
         try:
             user_id = int(str(user_id_value))
         except (TypeError, ValueError) as exc:
@@ -135,7 +141,14 @@ class QuickModule:
                 f"(row={row_index}, field=user_id, value={user_id_value})"
             ) from exc
 
-        return QMCUser(id=user_id, name=item["name"])
+        return QMCUser(id=user_id, name=QuickModule._row_field(module_name, site_id, row_index, item, "name"))
+
+    @staticmethod
+    def _map_page_item(module_name: str, site_id: int, row_index: int, item: dict[str, Any]) -> QMCPage:
+        return QMCPage(
+            title=QuickModule._row_field(module_name, site_id, row_index, item, "title"),
+            unix_name=QuickModule._row_field(module_name, site_id, row_index, item, "unix_name"),
+        )
 
     @staticmethod
     def _user_lookup(module_name: str, site_id: int, query: str) -> list[QMCUser]:
@@ -205,6 +218,5 @@ class QuickModule:
             site_id,
             query,
             "pages",
-            QMCPage,
-            lambda cls, item: cls(title=item["title"], unix_name=item["unix_name"]),
+            QuickModule._map_page_item,
         )
