@@ -38,6 +38,8 @@ class RequestUtil:
         method = method.upper()
         if method not in {"GET", "POST"}:
             raise ValueError("Invalid method")
+        if not isinstance(return_exceptions, bool):
+            raise ValueError("return_exceptions must be a boolean")
         if len(urls) == 0:
             return []
 

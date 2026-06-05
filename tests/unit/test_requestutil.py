@@ -3,6 +3,7 @@
 リトライ機構を持つHTTPリクエスト関数のテストを行う。
 """
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import httpx
@@ -31,6 +32,15 @@ class TestRequestUtilEmpty:
         """URLがない場合も不正なHTTPメソッドは握りつぶさない"""
         with pytest.raises(ValueError, match="Invalid method"):
             RequestUtil.request(object(), "DELETE", [])
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    @pytest.mark.parametrize("return_exceptions", [None, "false", 0, 1])
+    def test_empty_urls_reject_non_bool_return_exceptions_before_client_config(
+        self, method: str, return_exceptions: Any
+    ) -> None:
+        """return_exceptionsは空URL短絡前に真偽値として検証する"""
+        with pytest.raises(ValueError, match="return_exceptions must be a boolean"):
+            RequestUtil.request(object(), method, [], return_exceptions=return_exceptions)
 
 
 class TestRequestUtilClientReuse:
