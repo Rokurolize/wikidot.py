@@ -53,12 +53,30 @@ class TestAjaxRequestHeader:
         with pytest.raises(ValueError, match="cookie name must be a non-empty string without whitespace, '=' or ';'"):
             AjaxRequestHeader(cookie={name: "value"})
 
+    @pytest.mark.parametrize("value", ["bad value", "bad;value", "bad\nvalue", "bad\tvalue"])
+    def test_custom_cookie_rejects_invalid_cookie_values(self, value: str) -> None:
+        """初期Cookie値がヘッダ構文を壊す場合は拒否される"""
+        with pytest.raises(ValueError, match="cookie value must serialize without whitespace or ';'"):
+            AjaxRequestHeader(cookie={"session": value})
+
     def test_set_cookie(self) -> None:
         """Cookieを追加できる"""
         header = AjaxRequestHeader()
         header.set_cookie("new_cookie", "value")
 
         assert header.cookie["new_cookie"] == "value"
+
+    def test_set_cookie_preserves_integer_and_equals_values(self) -> None:
+        """既存の数値トークン値と=を含む不透明な値は保持される"""
+        header = AjaxRequestHeader()
+
+        header.set_cookie("wikidot_token7", 987654)
+        header.set_cookie("session", "abc=def")
+
+        assert header.cookie["wikidot_token7"] == 987654
+        assert header.cookie["session"] == "abc=def"
+        assert "wikidot_token7=987654" in header.get_header()["Cookie"]
+        assert "session=abc=def" in header.get_header()["Cookie"]
 
     @pytest.mark.parametrize("name", ["", " ", "bad name", "bad=name", "bad;name", "bad\nname"])
     def test_set_cookie_rejects_invalid_cookie_names_without_mutating_header(self, name: str) -> None:
@@ -68,6 +86,17 @@ class TestAjaxRequestHeader:
 
         with pytest.raises(ValueError, match="cookie name must be a non-empty string without whitespace, '=' or ';'"):
             header.set_cookie(name, "value")
+
+        assert header.cookie == before
+
+    @pytest.mark.parametrize("value", ["bad value", "bad;value", "bad\nvalue", "bad\tvalue"])
+    def test_set_cookie_rejects_invalid_cookie_values_without_mutating_header(self, value: str) -> None:
+        """不正なCookie値はヘッダ状態を変更する前に拒否される"""
+        header = AjaxRequestHeader()
+        before = copy.deepcopy(header.cookie)
+
+        with pytest.raises(ValueError, match="cookie value must serialize without whitespace or ';'"):
+            header.set_cookie("session", value)
 
         assert header.cookie == before
 

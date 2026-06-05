@@ -35,6 +35,13 @@ def _validate_cookie_name(name: object) -> str:
     return name
 
 
+def _validate_cookie_value(value: object) -> object:
+    serialized = str(value)
+    if any(char.isspace() or char == ";" for char in serialized):
+        raise ValueError("cookie value must serialize without whitespace or ';'")
+    return value
+
+
 class AjaxRequestHeader:
     """
     Class for managing request headers used in Ajax Module Connector communication
@@ -71,7 +78,9 @@ class AjaxRequestHeader:
         self.referer: str = "https://www.wikidot.com/" if referer is None else referer
         self.cookie: dict[str, Any] = {"wikidot_token7": 123456}
         if cookie is not None:
-            self.cookie.update({_validate_cookie_name(name): value for name, value in cookie.items()})
+            self.cookie.update(
+                {_validate_cookie_name(name): _validate_cookie_value(value) for name, value in cookie.items()}
+            )
         return
 
     def set_cookie(self, name: str, value: Any) -> None:
@@ -85,7 +94,7 @@ class AjaxRequestHeader:
         value : str
             Value of the cookie to set
         """
-        self.cookie[_validate_cookie_name(name)] = value
+        self.cookie[_validate_cookie_name(name)] = _validate_cookie_value(value)
         return
 
     def delete_cookie(self, name: str) -> None:
