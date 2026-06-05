@@ -24,18 +24,46 @@ def _site_name(site: "Site") -> str:
     return site_unix_name if isinstance(site_unix_name, str) else str(site)
 
 
+def _user_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
 def _application_parse_context(
     site: "Site",
     application_index: int,
     applications_count: int,
-    **counts: int,
+    **details: object,
 ) -> str:
     context = [
         f"application={application_index}",
         f"applications={applications_count}",
     ]
-    context.extend(f"{name}={value}" for name, value in counts.items())
+    context.extend(f"{name}={value}" for name, value in details.items())
     return f"for site: {_site_name(site)} ({', '.join(context)})"
+
+
+def _parse_application_user(
+    site: "Site",
+    application_index: int,
+    applications_count: int,
+    user_element: Tag,
+) -> "AbstractUser":
+    try:
+        return user_parser(site.client, user_element)
+    except ValueError as exc:
+        parse_context = _application_parse_context(
+            site,
+            application_index,
+            applications_count,
+            field="user",
+            value=_user_onclick_value(user_element),
+        )
+        raise exceptions.NoElementException(f"Site application user is malformed {parse_context}") from exc
 
 
 def _require_site_application_action_status(
@@ -143,7 +171,7 @@ class SiteApplication:
 
         for application_index, header in enumerate(application_headers, start=1):
             user_element = header.find("span", class_="printuser", recursive=False)
-            if user_element is None:
+            if not isinstance(user_element, Tag):
                 continue
 
             parse_context = _application_parse_context(site, application_index, len(application_headers))
@@ -171,7 +199,7 @@ class SiteApplication:
                 )
                 raise exceptions.NoElementException(f"Application text cell is not found {parse_context}")
 
-            user = user_parser(site.client, user_element)
+            user = _parse_application_user(site, application_index, len(application_headers), user_element)
             text = text_cells[1].get_text(" ", strip=True)
 
             applications.append(SiteApplication(site, user, text))

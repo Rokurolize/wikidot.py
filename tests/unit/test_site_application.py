@@ -260,6 +260,46 @@ class TestSiteApplicationAcquireAll:
 
         assert applications[0].text == "First part Second part"
 
+    def test_acquire_all_malformed_user_includes_site_application_and_value_context(self):
+        """申請者printuser異常値はsite/application/value付きで失敗する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = MagicMock()
+        site.client = mock_client
+        site.unix_name = "test-site"
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <div>
+                    <h3><span class="printuser">
+                        <a
+                            onclick="WIKIDOT.page.listeners.userInfo(latest); return false;"
+                            href="/user:info/user1"
+                        >User1</a>
+                    </span></h3>
+                    <table>
+                        <tr>
+                            <td>Application text:</td>
+                            <td>I want to join this wiki</td>
+                        </tr>
+                    </table>
+                </div>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site application user is malformed for site: test-site "
+                r"\(application=1, applications=1, field=user, "
+                r"value=WIKIDOT\.page\.listeners\.userInfo\(latest\); return false;\)"
+            ),
+        ):
+            SiteApplication.acquire_all(site)
+
+        site.amc_request.assert_not_called()
+
     def test_acquire_all_empty(self):
         """申請なしの場合"""
         mock_client = create_mock_client(is_logged_in=True)
