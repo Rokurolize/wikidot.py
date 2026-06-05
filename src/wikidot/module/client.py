@@ -325,7 +325,7 @@ class Client:
         str
             String representation of the client
         """
-        return f"Client(username={self.username}, is_logged_in={self.is_logged_in})"
+        return f"Client(username_set={self.username is not None}, is_logged_in={self.is_logged_in})"
 
     def login_check(self) -> None:
         """

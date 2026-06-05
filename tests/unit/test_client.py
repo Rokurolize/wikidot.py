@@ -100,7 +100,24 @@ class TestClient:
         with patch("wikidot.module.client.AjaxModuleConnectorClient"):
             client = Client()
             assert "Client(" in str(client)
+            assert "username_set=False" in str(client)
             assert "is_logged_in=False" in str(client)
+
+    def test_str_representation_masks_logged_in_username(self):
+        """ログイン済みクライアントの文字列表現はユーザー名を露出しない"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+        ):
+            mock_from_name.return_value = MagicMock()
+            client = Client(username="private-user", password="test-password")
+
+            text = str(client)
+
+            assert "private-user" not in text
+            assert "username_set=True" in text
+            assert "is_logged_in=True" in text
 
     def test_close_called_only_when_logged_in(self):
         """close()はログイン時のみログアウトを呼ぶ"""
