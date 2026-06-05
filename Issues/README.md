@@ -321,6 +321,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [315-pr-quickmodule-row-field-context.md](315-pr-quickmodule-row-field-context.md): upstream PR draft for the committed QuickModule row-field diagnostics fix.
 - [316-pr-regular-user-onclick-id-context.md](316-pr-regular-user-onclick-id-context.md): upstream PR draft for the committed regular user onclick ID diagnostics fix.
 - [317-pr-odate-time-class-context.md](317-pr-odate-time-class-context.md): upstream PR draft for the committed shared odate time-class diagnostics fix.
+- [318-pr-quickmodule-row-shape-context.md](318-pr-quickmodule-row-shape-context.md): upstream PR draft for the committed QuickModule row-shape diagnostics fix.
 
 ## Local Evidence Index
 
@@ -549,5 +550,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 219: `79b85b6 fix(quick_module): report missing row fields`
 - Local implementation commits, continued 220: `7f5ad4b fix(user): report malformed regular user ids`
 - Local implementation commits, continued 221: `bcae743 fix(odate): report malformed time classes`
+- Local implementation commits, continued 222: `c31f5e5 fix(quick_module): report malformed rows`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
