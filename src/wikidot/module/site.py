@@ -1118,6 +1118,8 @@ class Site:
         list | Exception
             List of responses, or exceptions if return_exceptions is True
         """
+        return_exceptions = _validate_page_bool_field("return_exceptions", return_exceptions)
+
         if len(bodies) == 0:
             return ()
 

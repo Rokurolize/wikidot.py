@@ -1595,6 +1595,27 @@ class TestSiteAmcRequest:
 
         assert result == ()
 
+    @pytest.mark.parametrize("return_exceptions", [None, "false", 0, 1])
+    def test_amc_request_rejects_non_bool_return_exceptions_before_empty_batch(self, return_exceptions: Any) -> None:
+        """return_exceptionsは空batchの短絡前に真偽値として検証する"""
+
+        class ClientWithoutAmc:
+            @property
+            def amc_client(self):
+                raise AssertionError("malformed return_exceptions should not read amc_client")
+
+        site = Site(
+            client=ClientWithoutAmc(),
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="return_exceptions must be a boolean"):
+            site.amc_request([], return_exceptions=return_exceptions)
+
     def test_amc_request_with_retry_empty_bodies_returns_empty_without_config(self) -> None:
         """空AMC retry batchはclient configに触れず空tupleを返す"""
 
