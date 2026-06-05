@@ -50,6 +50,18 @@ def _validate_private_message_ids(message_ids: object) -> list[int]:
     return cast(list[int], message_ids)
 
 
+def _validate_private_message_retry_batch_size(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"batch_size must be a positive integer, got {value}")
+    return value
+
+
+def _validate_private_message_retry_max_retries(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(f"max_retries must be a non-negative integer, got {value}")
+    return value
+
+
 def _require_private_message_send_action_status(recipient: "User", event: str, data: dict[str, Any]) -> Any:
     try:
         status = data["status"]
@@ -150,17 +162,8 @@ class PrivateMessageCollection(list["PrivateMessage"]):
     @staticmethod
     def _amc_request_with_retry(client: "Client", bodies: list[dict[str, Any]]) -> tuple[Any | None, ...]:
         config = getattr(client.amc_client, "config", None)
-        batch_size = getattr(config, "retry_batch_size", 50)
-        max_retries = getattr(config, "retry_max_retries", 3)
-
-        if not isinstance(batch_size, int):
-            batch_size = 50
-        if not isinstance(max_retries, int):
-            max_retries = 3
-        if batch_size <= 0:
-            raise ValueError(f"batch_size must be positive, got {batch_size}")
-        if max_retries < 0:
-            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+        batch_size = _validate_private_message_retry_batch_size(getattr(config, "retry_batch_size", 50))
+        max_retries = _validate_private_message_retry_max_retries(getattr(config, "retry_max_retries", 3))
 
         def should_retry(response: Any) -> bool:
             if not isinstance(response, Exception):

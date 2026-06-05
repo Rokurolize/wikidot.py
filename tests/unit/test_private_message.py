@@ -373,6 +373,57 @@ class TestPrivateMessageCollection:
 
         assert mock_client.amc_client.request.call_count == 2
 
+    @pytest.mark.parametrize("batch_size", [None, True, False, "2", 1.5, 0, -1])
+    def test_from_ids_rejects_invalid_retry_batch_size_before_request(self, mock_client, batch_size: object):
+        """不正なリトライbatch_size設定はAMCリクエスト前に拒否する"""
+        mock_client.amc_client.config.retry_batch_size = batch_size
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="batch_size must be a positive integer"):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
+        mock_client.amc_client.request.assert_not_called()
+
+    @pytest.mark.parametrize("max_retries", [None, True, False, "1", -1, 1.5])
+    def test_from_ids_rejects_invalid_retry_max_retries_before_request(self, mock_client, max_retries: object):
+        """不正なリトライmax_retries設定はAMCリクエスト前に拒否する"""
+        mock_client.amc_client.config.retry_max_retries = max_retries
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="max_retries must be a non-negative integer"):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
+        mock_client.amc_client.request.assert_not_called()
+
+    def test_from_ids_uses_retry_defaults_when_config_attrs_are_missing(self, mock_client):
+        """リトライ設定属性がないconfigでは既存のデフォルト値を使う"""
+        mock_client.amc_client.config = object()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                    <span class="subject">Test Subject</span>
+                    <span class="odate time_1234567890">01 Jan 2023 12:00</span>
+                </div>
+                <div class="body">Test Body</div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with patch("wikidot.module.private_message.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = MagicMock()
+            with patch("wikidot.module.private_message.odate_parser") as mock_odate_parser:
+                mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
+
+                result = PrivateMessageCollection.from_ids(mock_client, [1])
+
+        assert len(result) == 1
+        assert mock_client.amc_client.request.call_count == 1
+
     def test_from_ids_missing_sender_or_recipient_raises(self, mock_client):
         """送受信者要素が欠けたメッセージ詳細はNoElementException"""
         mock_response = MagicMock()
