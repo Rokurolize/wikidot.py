@@ -206,6 +206,12 @@ class PrivateMessageCollection(list["PrivateMessage"]):
                 "Message list response body is not found "
                 f"{PrivateMessageCollection._message_list_fetch_context(module_name, page)}"
             )
+        if not isinstance(response_body, str):
+            raise exceptions.NoElementException(
+                "Message list response body is malformed "
+                f"{PrivateMessageCollection._message_list_fetch_context(module_name, page)} "
+                f"(field=body, expected=str, actual={type(response_body).__name__})"
+            )
         return response_body
 
     @staticmethod
@@ -301,6 +307,11 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             response_body = response.json().get("body")
             if response_body is None:
                 raise exceptions.NoElementException(f"Message response body is not found {parse_context}")
+            if not isinstance(response_body, str):
+                raise exceptions.NoElementException(
+                    f"Message response body is malformed {parse_context} "
+                    f"(field=body, expected=str, actual={type(response_body).__name__})"
+                )
             html = BeautifulSoup(response_body, "lxml")
 
             message_element = html.select_one("div.pmessage")

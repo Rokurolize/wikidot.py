@@ -397,6 +397,21 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
+    def test_from_ids_malformed_detail_response_body_type_includes_module_message_and_type_context(self, mock_client):
+        """メッセージ詳細レスポンスのbody型不正は低レベルparser例外ではなく文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": ["not-html"]}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Message response body is malformed for module: dashboard/messages/DMViewMessageModule, "
+                r"message: 1 \(field=body, expected=str, actual=list\)"
+            ),
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
     def test_from_ids_missing_odate_includes_module_message_and_field_context(self, mock_client):
         """メッセージ詳細の日時要素欠損はepoch補完ではなく文脈付きNoElementException"""
         mock_response = MagicMock()
@@ -513,6 +528,26 @@ class TestPrivateMessageCollection:
             pytest.raises(
                 NoElementException,
                 match="Message list response body is not found for module: dashboard/messages/DMInboxModule, page: 1",
+            ),
+        ):
+            PrivateMessageInbox.acquire(mock_client)
+
+        mock_from_ids.assert_not_called()
+
+    def test_acquire_malformed_first_page_response_body_type_includes_module_page_and_type_context(self, mock_client):
+        """一覧初回ページレスポンスのbody型不正は低レベルparser例外ではなく文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": 123}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(
+                NoElementException,
+                match=(
+                    r"Message list response body is malformed for module: dashboard/messages/DMInboxModule, "
+                    r"page: 1 \(field=body, expected=str, actual=int\)"
+                ),
             ),
         ):
             PrivateMessageInbox.acquire(mock_client)
