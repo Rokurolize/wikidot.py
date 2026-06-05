@@ -99,6 +99,25 @@ def _parse_revision_number(site: "Site", page: "Page", rev_id: int, value: objec
         ) from exc
 
 
+def _user_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
+def _parse_revision_created_by(site: "Site", page: "Page", rev_id: int, user_elem: Tag) -> Any:
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Page revision user is malformed for site: {site.unix_name}, page: {page.fullname}, "
+            f"revision: {rev_id} (id={page.id}, field=created_by, value={_user_onclick_value(user_elem)})"
+        ) from exc
+
+
 def _parse_listpages_integer_field(site: "Site", page_name: str, key: str, value: object) -> int:
     value_text = str(value).strip()
     try:
@@ -1126,7 +1145,7 @@ class PageCollection(list["Page"]):
                         f"Cannot find created by element for site: {site.unix_name}, "
                         f"page: {first_page.fullname}, revision: {rev_id}"
                     )
-                created_by = user_parser(site.client, created_by_elem)
+                created_by = _parse_revision_created_by(site, first_page, rev_id, created_by_elem)
 
                 created_at_elem = tds[5].find("span", class_="odate", recursive=False)
                 if not isinstance(created_at_elem, Tag):
