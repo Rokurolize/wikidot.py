@@ -238,6 +238,31 @@ class TestForumPostCollectionParse:
 class TestForumPostCollectionAcquireAll:
     """ForumPostCollection.acquire_all_in_threadのテスト"""
 
+    def test_acquire_all_in_threads_rejects_non_list_threads_before_fetch(self) -> None:
+        """threadsがlistでない場合は取得前に拒否する"""
+        with pytest.raises(ValueError, match="threads must be a list"):
+            ForumPostCollection.acquire_all_in_threads("3001")
+
+    @pytest.mark.parametrize("bad_thread", [None, True, "3001"])
+    def test_acquire_all_in_threads_rejects_non_thread_entries_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, bad_thread: object
+    ) -> None:
+        """threadsの要素がForumThreadでない場合は取得前に拒否する"""
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="threads list entries must be ForumThread"):
+            ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, bad_thread])  # type: ignore[list-item]
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+
+    @pytest.mark.parametrize("thread", [None, True, "3001"])
+    def test_acquire_all_in_thread_rejects_non_thread_before_fetch(self, thread: object) -> None:
+        """単一threadがForumThreadでない場合は取得前に拒否する"""
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            ForumPostCollection.acquire_all_in_thread(thread)
+
     def test_acquire_all_single_page(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:

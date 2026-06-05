@@ -8,7 +8,7 @@ It enables operations such as retrieving post information and display.
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from bs4 import BeautifulSoup, Tag
 
@@ -26,6 +26,24 @@ if TYPE_CHECKING:
 def _site_name(site: object) -> str:
     site_unix_name = getattr(site, "unix_name", None)
     return site_unix_name if isinstance(site_unix_name, str) else str(site)
+
+
+def _validate_forum_thread(thread: object) -> "ForumThread":
+    from .forum_thread import ForumThread
+
+    if not isinstance(thread, ForumThread):
+        raise ValueError("thread must be a ForumThread")
+    return thread
+
+
+def _validate_forum_threads(threads: object) -> list["ForumThread"]:
+    from .forum_thread import ForumThread
+
+    if not isinstance(threads, list):
+        raise ValueError("threads must be a list")
+    if any(not isinstance(thread, ForumThread) for thread in threads):
+        raise ValueError("threads list entries must be ForumThread")
+    return cast(list["ForumThread"], threads)
 
 
 def _post_list_parse_context(
@@ -452,6 +470,7 @@ class ForumPostCollection(list["ForumPost"]):
         NoElementException
             If HTML element parsing fails
         """
+        thread = _validate_forum_thread(thread)
         return ForumPostCollection.acquire_all_in_threads([thread])[thread.id]
 
     @staticmethod
@@ -479,6 +498,7 @@ class ForumPostCollection(list["ForumPost"]):
         NoElementException
             If HTML element parsing fails
         """
+        threads = _validate_forum_threads(threads)
         if len(threads) == 0:
             return {}
 
