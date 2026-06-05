@@ -36,7 +36,9 @@ class _UnsetParentType:
 _UNSET_PARENT = _UnsetParentType()
 
 
-def _normalize_parent_fullname(parent_fullname: str | None) -> str | None:
+def _normalize_parent_fullname(parent_fullname: object) -> str | None:
+    if parent_fullname is not None and not isinstance(parent_fullname, str):
+        raise ValueError("parent_fullname must be a string or None")
     return parent_fullname or None
 
 
@@ -2112,6 +2114,10 @@ class Page:
         WikidotStatusCodeException
             When setting metadata fails
         """
+        parent_value: str | None = None
+        if parent_fullname is not _UNSET_PARENT:
+            parent_value = _normalize_parent_fullname(parent_fullname)
+
         self.site.client.login_check()
 
         request_bodies: list[dict[str, Any]] = []
@@ -2126,9 +2132,7 @@ class Page:
                 }
             )
 
-        parent_value: str | None = None
         if parent_fullname is not _UNSET_PARENT:
-            parent_value = _normalize_parent_fullname(parent_fullname if isinstance(parent_fullname, str) else None)
             request_bodies.append(
                 {
                     "action": "WikiPageAction",
@@ -2420,8 +2424,8 @@ class Page:
         WikidotStatusCodeException
             When setting the parent page fails
         """
-        self.site.client.login_check()
         parent_value = _normalize_parent_fullname(parent_fullname)
+        self.site.client.login_check()
         response = self.site.amc_request(
             [
                 {

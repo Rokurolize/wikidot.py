@@ -970,6 +970,22 @@ class TestSitePageAccessor:
         saved_page.refresh_source.assert_called_once_with()
         assert result.source_matches is True
 
+    def test_publish_rejects_non_string_parent_before_save(self, mock_site_no_http: Site) -> None:
+        """publishのparent_fullnameは保存前に文字列またはNoneへ制限する"""
+        invalid_parent: Any = 3
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match="parent_fullname must be a string or None"),
+        ):
+            mock_site_no_http.page.publish("new-page", parent_fullname=invalid_parent)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
     def test_publish_retries_post_save_visibility_before_returning_page_id(self, mock_site_no_http: Site) -> None:
         """保存直後のページID取得が一時的に失敗したら指定回数だけ再試行する"""
         mock_site_no_http.client.login_check = MagicMock()

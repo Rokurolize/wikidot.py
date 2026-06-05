@@ -2480,6 +2480,20 @@ class TestPageWriteMethods:
         request_body = mock_page_with_id.site.amc_request.call_args.args[0][0]
         assert request_body["parentName"] == ""
 
+    def test_set_parent_rejects_non_string_parent_before_request(self, mock_page_with_id: Page) -> None:
+        """parent_fullnameは文字列またはNoneだけ受け付ける"""
+        invalid_parent: Any = 3
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="parent_fullname must be a string or None"):
+            mock_page_with_id.set_parent(invalid_parent)
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.parent_fullname == "old-parent"
+
     def test_set_parent_missing_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
         """親ページ更新応答のstatus欠落は文脈付きで失敗しローカル状態を更新しない"""
         mock_page_with_id.parent_fullname = "old-parent"
@@ -3032,6 +3046,20 @@ class TestPageWriteMethods:
             ]
         )
         assert mock_page_with_id.parent_fullname is None
+
+    def test_set_metadata_rejects_non_string_parent_before_request(self, mock_page_with_id: Page) -> None:
+        """set_metadataのparent_fullnameも文字列またはNoneだけ受け付ける"""
+        invalid_parent: Any = 3
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="parent_fullname must be a string or None"):
+            mock_page_with_id.set_metadata(parent_fullname=invalid_parent)
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.parent_fullname == "old-parent"
 
     def test_set_metadata_empty_parent_string_clears_local_parent(self, mock_page_with_id: Page) -> None:
         """parent_fullname=""はリモート同様にローカル状態もNoneへ正規化する"""

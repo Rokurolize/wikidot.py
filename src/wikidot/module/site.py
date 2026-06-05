@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, Optional, cast, overload
+from typing import TYPE_CHECKING, Any, Literal, Optional, overload
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -24,7 +24,14 @@ from ..util.quick_module import QMCUser, QuickModule
 from ..util.stringutil import StringUtil
 from .forum_category import ForumCategoryCollection
 from .forum_thread import ForumThread, ForumThreadCollection
-from .page import Page, PageCollection, PageConstants, SearchPagesQuery, SearchPagesQueryParams
+from .page import (
+    Page,
+    PageCollection,
+    PageConstants,
+    SearchPagesQuery,
+    SearchPagesQueryParams,
+    _normalize_parent_fullname,
+)
 from .page_source import PageSource
 from .site_application import SiteApplication
 from .site_member import SiteMember
@@ -714,6 +721,10 @@ class SitePageAccessor:
             raise ValueError("post_save_visibility_attempts must be at least 1")
         if post_save_visibility_interval < 0:
             raise ValueError("post_save_visibility_interval must be non-negative")
+        parent_value: str | None = None
+        parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
+        if parent_updated:
+            parent_value = _normalize_parent_fullname(parent_fullname)
 
         self.site.client.login_check()
 
@@ -740,7 +751,6 @@ class SitePageAccessor:
         )
 
         tags_updated = tags is not None
-        parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
         metas_updated = metas is not None
 
         source_matches: bool | None = None
@@ -760,7 +770,7 @@ class SitePageAccessor:
             if parent_updated:
                 page.set_metadata(
                     tags=tags,
-                    parent_fullname=cast(str | None, parent_fullname),
+                    parent_fullname=parent_value,
                     metas=metas,
                 )
             else:
