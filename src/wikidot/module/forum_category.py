@@ -115,6 +115,9 @@ class ForumCategoryCollection(list["ForumCategory"]):
         ForumCategory | None
             Category object if found, None otherwise
         """
+        if not isinstance(id, int) or isinstance(id, bool):
+            raise ValueError("id must be an integer")
+
         for category in self:
             if category.id == id:
                 return category

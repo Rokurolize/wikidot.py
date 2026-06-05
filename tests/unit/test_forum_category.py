@@ -51,6 +51,16 @@ class TestForumCategoryCollectionInit:
         found = collection.find(9999)
         assert found is None
 
+    @pytest.mark.parametrize("bad_id", [None, True, "1001", 1001.0])
+    def test_find_rejects_non_integer_ids(
+        self, mock_site_no_http: Site, mock_forum_category_no_http: ForumCategory, bad_id: object
+    ) -> None:
+        """整数以外のカテゴリID検索キーを拒否する"""
+        collection = ForumCategoryCollection(mock_site_no_http, [mock_forum_category_no_http])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.find(bad_id)
+
 
 class TestForumCategoryCollectionAcquireAll:
     """ForumCategoryCollection.acquire_allのテスト"""
