@@ -252,6 +252,12 @@ class ForumPostCollection(list["ForumPost"]):
                 "Forum post list response body is not found "
                 f"for site: {thread.site.unix_name}, thread: {thread.id}, page: {page}"
             )
+        if not isinstance(body, str):
+            raise NoElementException(
+                "Forum post list response body is malformed "
+                f"for site: {thread.site.unix_name}, thread: {thread.id}, page: {page} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
+            )
         return body
 
     @staticmethod
@@ -260,6 +266,11 @@ class ForumPostCollection(list["ForumPost"]):
         if body is None:
             raise NoElementException(
                 f"Forum post source response body is not found for site: {post.thread.site.unix_name}, post: {post.id}"
+            )
+        if not isinstance(body, str):
+            raise NoElementException(
+                f"Forum post source response body is malformed for site: {post.thread.site.unix_name}, post: {post.id} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
             )
         return body
 
@@ -792,6 +803,12 @@ class ForumPost:
         if body is None:
             raise NoElementException(
                 f"Forum post edit form response body is not found for site: {post.thread.site.unix_name}, post: {post.id}"
+            )
+        if not isinstance(body, str):
+            raise NoElementException(
+                "Forum post edit form response body is malformed "
+                f"for site: {post.thread.site.unix_name}, post: {post.id} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
             )
         return body
 

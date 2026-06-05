@@ -490,6 +490,26 @@ class TestForumPostCollectionAcquireAll:
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_first_page_response_body_type_includes_thread_and_page_context(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """初回投稿一覧応答のbody型異常はsite/thread/page/type付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": ["not-html"]}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post list response body is malformed for site: test-site, thread: 3001, page: 1 "
+                r"\(field=body, expected=str, actual=list\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_ignores_content_pager_markup(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
@@ -872,6 +892,29 @@ class TestForumPostCollectionGetSources:
         with pytest.raises(
             exceptions.NoElementException,
             match="Forum post source response body is not found for site: test-site, post: 5001",
+        ):
+            collection.get_post_sources()
+
+        assert mock_forum_post_no_http._source is None
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_get_post_sources_malformed_response_body_type_includes_site_post_and_type_context(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """投稿ソース応答のbody型異常はsite/post/type付きで失敗する"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": ["not-html"]}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post source response body is malformed for site: test-site, post: 5001 "
+                r"\(field=body, expected=str, actual=list\)"
+            ),
         ):
             collection.get_post_sources()
 
@@ -1375,6 +1418,30 @@ class TestForumPostEdit:
         with pytest.raises(
             exceptions.NoElementException,
             match="Forum post edit form response body is not found for site: test-site, post: 5001",
+        ):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
+    def test_edit_malformed_form_response_body_type_includes_site_post_and_type_context(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """編集フォーム応答のbody型異常時はsite/post/type付きで保存せず失敗する"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+
+        form_response = MagicMock()
+        form_response.json.return_value = {"body": ["not-html"]}
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post edit form response body is malformed for site: test-site, post: 5001 "
+                r"\(field=body, expected=str, actual=list\)"
+            ),
         ):
             mock_forum_post_no_http.edit(source="Updated source")
 
