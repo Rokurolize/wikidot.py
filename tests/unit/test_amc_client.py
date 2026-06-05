@@ -203,6 +203,71 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert httpx_mock.get_requests() == []
 
+    @pytest.mark.parametrize("field", ["attempt_limit", "semaphore_limit"])
+    @pytest.mark.parametrize("value", [None, True, "1", 0, -1, 1.5])
+    def test_request_rejects_invalid_positive_integer_config_before_request(
+        self,
+        httpx_mock: HTTPXMock,
+        field: str,
+        value: Any,
+    ) -> None:
+        """AMC実行制御の整数設定はリクエスト前に検証する"""
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        setattr(config, field, value)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(ValueError, match=rf"{field} must be a positive integer"):
+            client.request([{"moduleName": "TestModule"}])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("request_timeout", [None, True, "1", 0, -0.1])
+    def test_request_rejects_invalid_positive_timeout_config_before_request(
+        self,
+        httpx_mock: HTTPXMock,
+        request_timeout: Any,
+    ) -> None:
+        """AMCのtimeout設定は正の数値だけを受け付ける"""
+        config = AjaxModuleConnectorConfig(request_timeout=request_timeout, retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(ValueError, match="request_timeout must be a positive number"):
+            client.request([{"moduleName": "TestModule"}])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    def test_request_rejects_invalid_retry_number_config_before_request(
+        self,
+        httpx_mock: HTTPXMock,
+        field: str,
+        value: Any,
+    ) -> None:
+        """AMCのretry/backoff設定は非負の数値だけを受け付ける"""
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        setattr(config, field, value)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(ValueError, match=rf"{field} must be a non-negative number"):
+            client.request([{"moduleName": "TestModule"}])
+
+        assert httpx_mock.get_requests() == []
+
+    def test_request_accepts_zero_backoff_controls(self, httpx_mock: HTTPXMock) -> None:
+        """backoff関連の0設定は既存の即時リトライ用途として許可する"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+        )
+
+        config = AjaxModuleConnectorConfig(retry_interval=0, max_backoff=0, backoff_factor=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+        responses = client.request([{"moduleName": "TestModule"}])
+
+        assert len(responses) == 1
+        assert responses[0].json()["status"] == "ok"
+
     def test_request_does_not_mutate_body(self, httpx_mock: HTTPXMock) -> None:
         """AMCトークン追加で呼び出し元のbodyを変更しない"""
         httpx_mock.add_response(

@@ -4,6 +4,8 @@
 AjaxRequestHeaderとAjaxModuleConnectorConfigのテストはtest_amc_client.pyに統合済み。
 """
 
+import pytest
+
 from wikidot.connector.ajax import (
     _calculate_backoff,
     _mask_sensitive_data,
@@ -138,3 +140,23 @@ class TestCalculateBackoff:
         # 3^2 * 1.0 = 9.0（ジッターなしの場合）
         result = _calculate_backoff(3, 1.0, 3.0, 60.0)
         assert 9.0 <= result <= 9.9
+
+    @pytest.mark.parametrize("retry_count", [None, True, "1", 0, -1, 1.5])
+    def test_rejects_invalid_retry_count(self, retry_count):
+        """retry_countは正の整数だけを受け付ける"""
+        with pytest.raises(ValueError, match="retry_count must be a positive integer"):
+            _calculate_backoff(retry_count, 1.0, 2.0, 60.0)
+
+    @pytest.mark.parametrize("field", ["base_interval", "backoff_factor", "max_backoff"])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    def test_rejects_invalid_numeric_backoff_options(self, field, value):
+        """backoff設定値は非負の数値だけを受け付ける"""
+        options = {
+            "base_interval": 1.0,
+            "backoff_factor": 2.0,
+            "max_backoff": 60.0,
+        }
+        options[field] = value
+
+        with pytest.raises(ValueError, match=rf"{field} must be a non-negative number"):
+            _calculate_backoff(1, options["base_interval"], options["backoff_factor"], options["max_backoff"])

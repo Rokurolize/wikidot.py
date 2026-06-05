@@ -146,6 +146,43 @@ class AjaxModuleConnectorConfig:
     retry_max_retries: int = 3
 
 
+def _validate_positive_int_option(field_name: str, value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field_name} must be a positive integer")
+    if value <= 0:
+        raise ValueError(f"{field_name} must be a positive integer")
+    return value
+
+
+def _validate_positive_number_option(field_name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{field_name} must be a positive number")
+    if value <= 0:
+        raise ValueError(f"{field_name} must be a positive number")
+    return float(value)
+
+
+def _validate_non_negative_number_option(field_name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{field_name} must be a non-negative number")
+    if value < 0:
+        raise ValueError(f"{field_name} must be a non-negative number")
+    return float(value)
+
+
+def _validate_amc_request_config(
+    config: AjaxModuleConnectorConfig,
+) -> tuple[float, int, float, float, float, int]:
+    return (
+        _validate_positive_number_option("request_timeout", config.request_timeout),
+        _validate_positive_int_option("attempt_limit", config.attempt_limit),
+        _validate_non_negative_number_option("retry_interval", config.retry_interval),
+        _validate_non_negative_number_option("backoff_factor", config.backoff_factor),
+        _validate_non_negative_number_option("max_backoff", config.max_backoff),
+        _validate_positive_int_option("semaphore_limit", config.semaphore_limit),
+    )
+
+
 def _mask_sensitive_data(body: dict[str, Any]) -> dict[str, Any]:
     """
     Mask sensitive information for log output
@@ -200,6 +237,11 @@ def _calculate_backoff(
     float
         Calculated backoff interval in seconds
     """
+    retry_count = _validate_positive_int_option("retry_count", retry_count)
+    base_interval = _validate_non_negative_number_option("base_interval", base_interval)
+    backoff_factor = _validate_non_negative_number_option("backoff_factor", backoff_factor)
+    max_backoff = _validate_non_negative_number_option("max_backoff", max_backoff)
+
     # backoff_factor^(retry_count-1) * base_interval
     backoff = (backoff_factor ** (retry_count - 1)) * base_interval
     # Add 10% jitter
@@ -342,7 +384,15 @@ class AjaxModuleConnectorClient:
         if not isinstance(return_exceptions, bool):
             raise ValueError("return_exceptions must be a boolean")
 
-        semaphore_instance = asyncio.Semaphore(self.config.semaphore_limit)
+        (
+            request_timeout,
+            attempt_limit,
+            retry_interval,
+            backoff_factor,
+            max_backoff,
+            semaphore_limit,
+        ) = _validate_amc_request_config(self.config)
+        semaphore_instance = asyncio.Semaphore(semaphore_limit)
 
         site_name = site_name if site_name is not None else self.site_name
         site_ssl_supported = site_ssl_supported if site_ssl_supported is not None else self.ssl_supported
@@ -367,7 +417,7 @@ class AjaxModuleConnectorClient:
                             url,
                             headers=self.header.get_header(),
                             data=request_body,
-                            timeout=self.config.request_timeout,
+                            timeout=request_timeout,
                         )
                         response.raise_for_status()
                 except (httpx.HTTPStatusError, httpx.RequestError) as e:
@@ -376,7 +426,7 @@ class AjaxModuleConnectorClient:
                     retry_count += 1
 
                     # Raise exception if retry limit reached
-                    if retry_count >= self.config.attempt_limit:
+                    if retry_count >= attempt_limit:
                         error_detail = str(response.status_code) if response is not None else str(e)
                         wd_logger.error(f"AMC request failed: {error_detail} -> {_mask_sensitive_data(request_body)}")
                         raise AMCHttpStatusCodeException(
@@ -387,9 +437,9 @@ class AjaxModuleConnectorClient:
                     # Retry with exponential backoff interval
                     backoff = _calculate_backoff(
                         retry_count,
-                        self.config.retry_interval,
-                        self.config.backoff_factor,
-                        self.config.max_backoff,
+                        retry_interval,
+                        backoff_factor,
+                        max_backoff,
                     )
                     error_info = str(response.status_code) if response is not None else str(e)
                     wd_logger.info(
@@ -405,7 +455,7 @@ class AjaxModuleConnectorClient:
                 except json.decoder.JSONDecodeError:
                     # Retry on JSON parse error (e.g., empty response)
                     retry_count += 1
-                    if retry_count >= self.config.attempt_limit:
+                    if retry_count >= attempt_limit:
                         wd_logger.error(
                             f'AMC is respond non-json data: "{response.text}" -> {_mask_sensitive_data(request_body)}'
                         )
@@ -413,9 +463,9 @@ class AjaxModuleConnectorClient:
 
                     backoff = _calculate_backoff(
                         retry_count,
-                        self.config.retry_interval,
-                        self.config.backoff_factor,
-                        self.config.max_backoff,
+                        retry_interval,
+                        backoff_factor,
+                        max_backoff,
                     )
                     wd_logger.info(f"AMC responded with non-JSON data (retry: {retry_count}, backoff: {backoff:.2f}s)")
                     await asyncio.sleep(backoff)
@@ -423,7 +473,7 @@ class AjaxModuleConnectorClient:
 
                 if not isinstance(_response_body, dict):
                     retry_count += 1
-                    if retry_count >= self.config.attempt_limit:
+                    if retry_count >= attempt_limit:
                         wd_logger.error(
                             f"AMC responded with invalid JSON data: {_response_body!r} -> "
                             f"{_mask_sensitive_data(request_body)}"
@@ -432,9 +482,9 @@ class AjaxModuleConnectorClient:
 
                     backoff = _calculate_backoff(
                         retry_count,
-                        self.config.retry_interval,
-                        self.config.backoff_factor,
-                        self.config.max_backoff,
+                        retry_interval,
+                        backoff_factor,
+                        max_backoff,
                     )
                     wd_logger.info(
                         f"AMC responded with invalid JSON data (retry: {retry_count}, backoff: {backoff:.2f}s)"
@@ -445,15 +495,15 @@ class AjaxModuleConnectorClient:
                 # Retry if response is empty
                 if _response_body is None or len(_response_body) == 0:
                     retry_count += 1
-                    if retry_count >= self.config.attempt_limit:
+                    if retry_count >= attempt_limit:
                         wd_logger.error(f"AMC is respond empty data -> {_mask_sensitive_data(request_body)}")
                         raise ResponseDataException("AMC is respond empty data")
 
                     backoff = _calculate_backoff(
                         retry_count,
-                        self.config.retry_interval,
-                        self.config.backoff_factor,
-                        self.config.max_backoff,
+                        retry_interval,
+                        backoff_factor,
+                        max_backoff,
                     )
                     wd_logger.info(f"AMC responded with empty data (retry: {retry_count}, backoff: {backoff:.2f}s)")
                     await asyncio.sleep(backoff)
@@ -464,16 +514,16 @@ class AjaxModuleConnectorClient:
                     # Retry if status is try_again
                     if _response_body["status"] == "try_again":
                         retry_count += 1
-                        if retry_count >= self.config.attempt_limit:
+                        if retry_count >= attempt_limit:
                             wd_logger.error(f'AMC is respond status: "try_again" -> {_mask_sensitive_data(_body)}')
                             raise WikidotStatusCodeException('AMC is respond status: "try_again"', "try_again")
 
                         # Retry with exponential backoff interval
                         backoff = _calculate_backoff(
                             retry_count,
-                            self.config.retry_interval,
-                            self.config.backoff_factor,
-                            self.config.max_backoff,
+                            retry_interval,
+                            backoff_factor,
+                            max_backoff,
                         )
                         wd_logger.info(
                             f'AMC is respond status: "try_again" (retry: {retry_count}, backoff: {backoff:.2f}s)'
