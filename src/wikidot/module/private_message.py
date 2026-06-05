@@ -19,10 +19,21 @@ from ..common.decorators import login_required
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 from ._validation import validate_text_field
+from .user import User
 
 if TYPE_CHECKING:
     from .client import Client
-    from .user import AbstractUser, User
+    from .user import AbstractUser
+
+
+def _validate_private_message_recipient(recipient: object) -> User:
+    if not isinstance(recipient, User):
+        raise ValueError("recipient must be a User")
+    if not isinstance(recipient.id, int) or isinstance(recipient.id, bool):
+        raise ValueError("recipient.id must be an integer")
+    if not isinstance(recipient.name, str):
+        raise ValueError("recipient.name must be a string")
+    return recipient
 
 
 def _require_private_message_send_action_status(recipient: "User", event: str, data: dict[str, Any]) -> Any:
@@ -712,6 +723,7 @@ class PrivateMessage:
         """
         subject = validate_text_field("subject", subject)
         body = validate_text_field("body", body)
+        recipient = _validate_private_message_recipient(recipient)
         client.login_check()
 
         response = client.amc_client.request(

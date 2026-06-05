@@ -208,6 +208,19 @@ class TestClientPrivateMessageAccessor:
 
                 mock_send.assert_called_once_with(client, mock_recipient, "subject", "body")
 
+    def test_send_message_rejects_non_user_recipient(self) -> None:
+        """Userでない送信先はログイン確認前に拒否する"""
+        bad_recipient: Any = {"id": 12345, "name": "test-user"}
+
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+
+            with pytest.raises(ValueError, match="recipient must be a User"):
+                client.private_message.send(bad_recipient, "subject", "body")
+
+            client.login_check.assert_not_called()
+
     def test_get_inbox(self):
         """受信箱取得"""
         with patch("wikidot.module.client.AjaxModuleConnectorClient"):

@@ -5,6 +5,7 @@ PrivateMessage, PrivateMessageCollection, PrivateMessageInbox, PrivateMessageSen
 """
 
 from datetime import datetime
+from typing import Any
 from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
@@ -23,6 +24,7 @@ from wikidot.module.private_message import (
     PrivateMessageInbox,
     PrivateMessageSentBox,
 )
+from wikidot.module.user import User
 
 
 @pytest.fixture
@@ -37,12 +39,15 @@ def mock_client():
 
 
 @pytest.fixture
-def mock_user():
-    """モックユーザー"""
-    user = MagicMock()
-    user.id = 12345
-    user.name = "test-user"
-    return user
+def mock_user(mock_client):
+    """テスト用の通常ユーザー"""
+    return User(
+        client=mock_client,
+        id=12345,
+        name="test-user",
+        unix_name="test-user",
+        avatar_url="https://www.wikidot.com/avatar.php?userid=12345",
+    )
 
 
 @pytest.fixture
@@ -877,6 +882,43 @@ class TestPrivateMessage:
         assert call_args["subject"] == "Test Subject"
         assert call_args["to_user_id"] == mock_user.id
         assert call_args["event"] == "send"
+
+    def test_send_rejects_non_user_recipient_before_login(self, mock_client):
+        """送信先がUserでない場合はログイン確認やAMCリクエスト前に拒否する"""
+        bad_recipient: Any = {"id": 12345, "name": "test-user"}
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="recipient must be a User"):
+            PrivateMessage.send(mock_client, bad_recipient, "Test Subject", "Test Body")
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("recipient_kwargs", "message"),
+        [
+            ({"id": None, "name": "test-user"}, "recipient.id must be an integer"),
+            ({"id": True, "name": "test-user"}, "recipient.id must be an integer"),
+            ({"id": 12345, "name": None}, "recipient.name must be a string"),
+        ],
+    )
+    def test_send_rejects_malformed_user_recipient_before_login(self, mock_client, recipient_kwargs, message):
+        """送信先Userの必須フィールド不正はログイン確認やAMCリクエスト前に拒否する"""
+        bad_recipient = User(
+            client=mock_client,
+            unix_name="test-user",
+            avatar_url="https://www.wikidot.com/avatar.php?userid=12345",
+            **recipient_kwargs,
+        )
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match=message):
+            PrivateMessage.send(mock_client, bad_recipient, "Test Subject", "Test Body")
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
 
     @pytest.mark.parametrize(
         ("kwargs", "message"),
