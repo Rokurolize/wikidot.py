@@ -4,7 +4,7 @@ import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -40,6 +40,16 @@ def _normalize_parent_fullname(parent_fullname: object) -> str | None:
     if parent_fullname is not None and not isinstance(parent_fullname, str):
         raise ValueError("parent_fullname must be a string or None")
     return parent_fullname or None
+
+
+def _validate_metas(metas: object) -> dict[str, str]:
+    if not isinstance(metas, dict):
+        raise ValueError("metas must be a dictionary")
+    if any(not isinstance(name, str) for name in metas):
+        raise ValueError("metas keys must be strings")
+    if any(not isinstance(content, str) for content in metas.values()):
+        raise ValueError("metas values must be strings")
+    return cast(dict[str, str], metas)
 
 
 class PageConstants:
@@ -2032,6 +2042,7 @@ class Page:
         WikidotStatusCodeException
             When setting meta tags fails
         """
+        value = _validate_metas(value)
         self.site.client.login_check()
         request_bodies = self._meta_update_request_bodies(value)
 
@@ -2125,6 +2136,8 @@ class Page:
         parent_value: str | None = None
         if parent_fullname is not _UNSET_PARENT:
             parent_value = _normalize_parent_fullname(parent_fullname)
+        if metas is not None:
+            metas = _validate_metas(metas)
 
         self.site.client.login_check()
 

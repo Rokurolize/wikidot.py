@@ -2927,6 +2927,20 @@ class TestPageWriteMethods:
 
         assert mock_page_with_id._metas == {"old": "value"}
 
+    def test_metas_setter_rejects_invalid_metas_before_request(self, mock_page_with_id: Page) -> None:
+        """metas setterは文字列キーと文字列値の辞書だけ受け付ける"""
+        invalid_metas: dict[Any, str] = {3: "description"}
+        mock_page_with_id._metas = {"old": "value"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="metas keys must be strings"):
+            mock_page_with_id.metas = invalid_metas
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._metas == {"old": "value"}
+
     def test_set_metadata_batches_tags_parent_and_metas(self, mock_page_with_id: Page) -> None:
         """タグ・親・metaタグ更新を1つのAMCバッチで送信する"""
         mock_page_with_id.tags = ["old-tag"]
@@ -3060,6 +3074,24 @@ class TestPageWriteMethods:
         mock_page_with_id.site.client.login_check.assert_not_called()
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id.parent_fullname == "old-parent"
+
+    def test_set_metadata_rejects_invalid_metas_before_request(self, mock_page_with_id: Page) -> None:
+        """set_metadataのmetasは文字列キーと文字列値の辞書だけ受け付ける"""
+        invalid_cases: tuple[tuple[Any, str], ...] = (
+            (3, "metas must be a dictionary"),
+            ({"description": 3}, "metas values must be strings"),
+        )
+        for invalid_metas, message in invalid_cases:
+            mock_page_with_id._metas = {"description": "old"}
+            mock_page_with_id.site.client.login_check = MagicMock()
+            mock_page_with_id.site.amc_request = MagicMock()
+
+            with pytest.raises(ValueError, match=message):
+                mock_page_with_id.set_metadata(metas=invalid_metas)
+
+            mock_page_with_id.site.client.login_check.assert_not_called()
+            mock_page_with_id.site.amc_request.assert_not_called()
+            assert mock_page_with_id._metas == {"description": "old"}
 
     def test_set_metadata_empty_parent_string_clears_local_parent(self, mock_page_with_id: Page) -> None:
         """parent_fullname=""はリモート同様にローカル状態もNoneへ正規化する"""

@@ -31,6 +31,7 @@ from .page import (
     SearchPagesQuery,
     SearchPagesQueryParams,
     _normalize_parent_fullname,
+    _validate_metas,
 )
 from .page_source import PageSource
 from .site_application import SiteApplication
@@ -743,6 +744,8 @@ class SitePageAccessor:
         post_save_visibility_interval = self._validate_post_save_visibility_interval(post_save_visibility_interval)
         if verify_source and source_normalizer is not None and not callable(source_normalizer):
             raise ValueError("source_normalizer must be callable or None")
+        if metas is not None:
+            metas = _validate_metas(metas)
         parent_value: str | None = None
         parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
         if parent_updated:
