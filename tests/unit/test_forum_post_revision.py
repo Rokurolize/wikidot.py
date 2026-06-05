@@ -253,6 +253,33 @@ class TestForumPostRevisionCollectionAcquireAll:
             ]
         )
 
+    def test_acquire_all_malformed_revision_id_includes_post_row_and_value_context(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """リビジョンID異常値は行を黙って落とさずsite/post/row/value付きで失敗する"""
+        malformed_body = forum_post_revisions["body"].replace(
+            "showRevision(event, 9003)",
+            "showRevision(event, latest)",
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_post_revisions, "body": malformed_body}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post revision ID is malformed for site: test-site, post: 5001 "
+                r"\(row=1, field=revision_id, "
+                r"value=WIKIDOT\.modules\.ForumViewThreadModule\.listeners\.showRevision\(event, latest\)\)"
+            ),
+        ):
+            ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        assert mock_forum_post_no_http._revisions is None
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+
     def test_acquire_all_skips_cached_post_revisions(self, mock_forum_post_no_http: ForumPost) -> None:
         """取得済みpost.revisionsは単一post取得でも再取得しない"""
         cached_revision = ForumPostRevision(

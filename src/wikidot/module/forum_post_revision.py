@@ -22,6 +22,12 @@ if TYPE_CHECKING:
     from .user import AbstractUser
 
 
+def _revision_list_parse_context(post: "ForumPost", row_index: int, **details: object) -> str:
+    detail_values = {"row": row_index, **details}
+    detail_text = ", ".join(f"{key}={value}" for key, value in detail_values.items())
+    return f"for site: {post.thread.site.unix_name}, post: {post.id} ({detail_text})"
+
+
 class ForumPostRevisionCollection(list["ForumPostRevision"]):
     """
     Class representing a collection of forum post revisions
@@ -127,7 +133,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             return revisions
 
         rows = revision_table.find_all("tr", recursive=False)
-        for row in rows:
+        for row_index, row in enumerate(rows, start=1):
             # Skip header row
             row_class = row.get("class")
             if isinstance(row_class, list) and "head" in row_class:
@@ -159,7 +165,13 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             onclick = revision_link.get("onclick", "")
             match = re.search(r"showRevision\s*\(\s*event\s*,\s*(\d+)\s*\)", str(onclick))
             if match is None:
-                continue
+                parse_context = _revision_list_parse_context(
+                    post,
+                    row_index,
+                    field="revision_id",
+                    value=str(onclick),
+                )
+                raise exceptions.NoElementException(f"Forum post revision ID is malformed {parse_context}")
 
             revision_id = int(match.group(1))
             created_by = user_parser(post.thread.site.client, user_elem)
