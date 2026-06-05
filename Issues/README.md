@@ -374,6 +374,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [368-pr-validate-page-collection-entries.md](368-pr-validate-page-collection-entries.md): upstream PR draft for the committed page collection entry validation fix.
 - [369-pr-validate-forum-thread-reply-parent-id.md](369-pr-validate-forum-thread-reply-parent-id.md): upstream PR draft for the committed forum thread reply parent-post ID validation fix.
 - [370-pr-validate-site-invite-user-input.md](370-pr-validate-site-invite-user-input.md): upstream PR draft for the committed site invitation user input validation fix.
+- [371-pr-validate-site-application-user-input.md](371-pr-validate-site-application-user-input.md): upstream PR draft for the committed site application applicant input validation fix.
 
 ## Local Evidence Index
 
@@ -655,5 +656,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 272: `9e1a0a3 fix(page): validate collection entries`
 - Local implementation commits, continued 273: `24785e7 fix(forum_thread): validate reply parent post id`
 - Local implementation commits, continued 274: `b044baa fix(site): validate invite user input`
+- Local implementation commits, continued 275: `2a186cd fix(site_application): validate application user input`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
