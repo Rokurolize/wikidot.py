@@ -402,6 +402,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [396-pr-validate-listpages-retry-control.md](396-pr-validate-listpages-retry-control.md): upstream PR draft for the committed ListPages retry-control validation fix.
 - [397-pr-validate-private-message-retry-controls.md](397-pr-validate-private-message-retry-controls.md): upstream PR draft for the committed private-message retry-control validation fix.
 - [398-pr-validate-amc-cookie-names.md](398-pr-validate-amc-cookie-names.md): upstream PR draft for the committed AMC header cookie-name validation fix.
+- [399-pr-validate-amc-cookie-values.md](399-pr-validate-amc-cookie-values.md): upstream PR draft for the committed AMC header cookie-value validation fix.
 
 ## Local Evidence Index
 
@@ -711,5 +712,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 300: `47ddfa3 fix(page): validate listpages retry control`
 - Local implementation commits, continued 301: `095f0ab fix(private_message): validate retry controls`
 - Local implementation commits, continued 302: `b545e14 fix(amc): validate cookie names`
+- Local implementation commits, continued 303: `37189c5 fix(amc): validate cookie values`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
