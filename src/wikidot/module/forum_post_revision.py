@@ -36,6 +36,15 @@ def _odate_class_value(odate_elem: Tag) -> str:
     return next((value for value in class_values if "time_" in value), " ".join(class_values))
 
 
+def _user_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
 class ForumPostRevisionCollection(list["ForumPostRevision"]):
     """
     Class representing a collection of forum post revisions
@@ -182,7 +191,16 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                 raise exceptions.NoElementException(f"Forum post revision ID is malformed {parse_context}")
 
             revision_id = int(match.group(1))
-            created_by = user_parser(post.thread.site.client, user_elem)
+            try:
+                created_by = user_parser(post.thread.site.client, user_elem)
+            except ValueError as exc:
+                parse_context = _revision_list_parse_context(
+                    post,
+                    row_index,
+                    field="created_by",
+                    value=_user_onclick_value(user_elem),
+                )
+                raise exceptions.NoElementException(f"Forum post revision user is malformed {parse_context}") from exc
             try:
                 created_at = odate_parser(odate_elem)
             except ValueError as exc:
