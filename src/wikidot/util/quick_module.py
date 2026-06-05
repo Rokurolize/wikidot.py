@@ -77,14 +77,23 @@ class QuickModule:
         return response.json()
 
     @staticmethod
-    def _response_items(module_name: str, site_id: int, query: str, response_key: str) -> Any:
+    def _response_items(module_name: str, site_id: int, query: str, response_key: str) -> list[Any]:
         response_data = QuickModule._request(module_name, site_id, query)
         if response_key not in response_data:
             raise ValueError(
                 f"QuickModule response key is missing for module: {module_name}, site_id={site_id} "
                 f"(field={response_key})"
             )
-        return response_data[response_key]
+
+        items = response_data[response_key]
+        if items is False:
+            return []
+        if not isinstance(items, list):
+            raise ValueError(
+                f"QuickModule response field is malformed for module: {module_name}, site_id={site_id} "
+                f"(field={response_key}, expected=list, actual={type(items).__name__})"
+            )
+        return items
 
     @staticmethod
     def _generic_lookup(
@@ -116,9 +125,6 @@ class QuickModule:
             List of items
         """
         items = QuickModule._response_items(module_name, site_id, query, response_key)
-        # member_lookupの特殊ケースを処理
-        if items is False:
-            return []
         return [item_mapping(module_name, site_id, row_index, item) for row_index, item in enumerate(items, start=1)]
 
     @staticmethod
@@ -158,9 +164,6 @@ class QuickModule:
     @staticmethod
     def _user_lookup(module_name: str, site_id: int, query: str) -> list[QMCUser]:
         items = QuickModule._response_items(module_name, site_id, query, "users")
-        # member_lookupの特殊ケースを処理
-        if items is False:
-            return []
         return [
             QuickModule._map_user_item(module_name, site_id, row_index, item)
             for row_index, item in enumerate(items, start=1)
