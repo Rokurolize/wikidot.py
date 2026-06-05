@@ -25,6 +25,53 @@ if TYPE_CHECKING:
     from .user import AbstractUser
 
 
+def _user_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
+def _member_parse_context(
+    site: "Site",
+    group_label: str | None,
+    page: int | None,
+    row_index: int,
+    **details: object,
+) -> str:
+    context = f"for site: {site.unix_name}"
+    if group_label is not None:
+        context = f"{context}, group: {group_label}"
+    if page is not None:
+        context = f"{context}, page: {page}"
+
+    detail_text = ", ".join([f"row: {row_index}", *(f"{key}={value}" for key, value in details.items())])
+    return f"{context}, {detail_text}"
+
+
+def _parse_member_user(
+    site: "Site",
+    user_elem: Tag,
+    group_label: str | None,
+    page: int | None,
+    row_index: int,
+) -> "AbstractUser":
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        parse_context = _member_parse_context(
+            site,
+            group_label,
+            page,
+            row_index,
+            field="user",
+            value=_user_onclick_value(user_elem),
+        )
+        raise NoElementException(f"Site member user is malformed {parse_context}") from exc
+
+
 def _require_site_member_action_status(member: "SiteMember", event: str, data: dict[str, Any]) -> Any:
     try:
         status = data["status"]
@@ -65,7 +112,12 @@ class SiteMember:
     joined_at: datetime | None
 
     @staticmethod
-    def _parse(site: "Site", html: BeautifulSoup) -> list["SiteMember"]:
+    def _parse(
+        site: "Site",
+        html: BeautifulSoup,
+        group_label: str | None = None,
+        page: int | None = None,
+    ) -> list["SiteMember"]:
         """
         Internal method to extract member information from member list page HTML
 
@@ -90,7 +142,7 @@ class SiteMember:
             tbody = table.find("tbody", recursive=False)
             row_container = tbody if isinstance(tbody, Tag) else table
 
-            for row in row_container.find_all("tr", recursive=False):
+            for row_index, row in enumerate(row_container.find_all("tr", recursive=False), start=1):
                 if not isinstance(row, Tag):
                     continue
 
@@ -103,7 +155,7 @@ class SiteMember:
                 if not isinstance(user_elem, Tag):
                     continue
 
-                user = user_parser(site.client, user_elem)
+                user = _parse_member_user(site, user_elem, group_label, page, row_index)
 
                 # tdsが2つあったら加入日時がある
                 if len(tds) == 2:
@@ -194,7 +246,7 @@ class SiteMember:
         first_body = SiteMember._member_list_response_body(first_response, site, group_label, 1)
         first_html = BeautifulSoup(first_body, "lxml")
 
-        members.extend(SiteMember._parse(site, first_html))
+        members.extend(SiteMember._parse(site, first_html, group_label, 1))
 
         pager = SiteMember._pager_from_html(first_html)
         if pager is None:
@@ -228,7 +280,7 @@ class SiteMember:
                 )
             body = SiteMember._member_list_response_body(response, site, group_label, page)
             html = BeautifulSoup(body, "lxml")
-            members.extend(SiteMember._parse(site, html))
+            members.extend(SiteMember._parse(site, html, group_label, page))
 
         return members
 

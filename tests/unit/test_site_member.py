@@ -421,6 +421,34 @@ class TestSiteMemberGet:
         site.amc_request.assert_not_called()
         assert mock_user_parser.call_count == 1
 
+    def test_get_members_malformed_user_includes_site_group_page_row_and_value_context(self):
+        """メンバー行のprintuser異常値はsite/group/page/row/value付きで失敗する"""
+        site = MagicMock()
+        site.unix_name = "test-site"
+        response = self._members_response(
+            """
+                <table>
+                    <tr>
+                        <td><span class="printuser">
+                            <a onclick="WIKIDOT.page.listeners.userInfo(latest); return false;" href="#">User1</a>
+                        </span></td>
+                    </tr>
+                </table>
+            """
+        )
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site member user is malformed for site: test-site, group: members, page: 1, row: 1, "
+                r"field=user, value=WIKIDOT\.page\.listeners\.userInfo\(latest\); return false;"
+            ),
+        ):
+            SiteMember.get(site, "")
+
+        site.amc_request.assert_not_called()
+
     def test_get_members_ignores_non_numeric_pager_links(self):
         """数値ページがないpagerでは単一ページとして扱う"""
         site = MagicMock()
