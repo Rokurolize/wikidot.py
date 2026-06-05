@@ -347,6 +347,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [341-pr-client-string-masks-username.md](341-pr-client-string-masks-username.md): upstream PR draft for the committed client string username masking fix.
 - [342-pr-validate-tag-list-inputs.md](342-pr-validate-tag-list-inputs.md): upstream PR draft for the committed tag-list input validation fix.
 - [343-pr-validate-parent-fullname-inputs.md](343-pr-validate-parent-fullname-inputs.md): upstream PR draft for the committed parent-fullname input validation fix.
+- [344-pr-validate-search-pagination-types.md](344-pr-validate-search-pagination-types.md): upstream PR draft for the committed search pagination type validation fix.
 
 ## Local Evidence Index
 
@@ -601,5 +602,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 245: `3de2eb0 fix(client): mask username in string form`
 - Local implementation commits, continued 246: `48a9932 fix(page): validate tag list inputs`
 - Local implementation commits, continued 247: `8973e61 fix(page): validate parent fullname inputs`
+- Local implementation commits, continued 248: `706765c fix(page): validate search pagination types`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
