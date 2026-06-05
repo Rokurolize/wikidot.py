@@ -515,6 +515,7 @@ class TestSitePagesAccessor:
 
         assert [result.as_dict() for result in results] == [
             {
+                "site": "test-site",
                 "fullname": "page-one",
                 "page_id": 371,
                 "ok": True,
@@ -523,6 +524,7 @@ class TestSitePagesAccessor:
                 "error_message": None,
             },
             {
+                "site": "test-site",
                 "fullname": "page-two",
                 "page_id": 372,
                 "ok": False,
@@ -846,6 +848,7 @@ class TestSitePageAccessor:
     def test_publish_result_exports_audit_record(self) -> None:
         """PagePublishResultは監査ledger向けの辞書形式に変換できる"""
         page = MagicMock()
+        page.site.unix_name = "test-site"
         page.fullname = "test-page"
         page.get_url.return_value = "https://test-site.wikidot.com/test-page"
         result = PagePublishResult(
@@ -859,8 +862,10 @@ class TestSitePageAccessor:
         )
 
         assert result.url == "https://test-site.wikidot.com/test-page"
+        assert result.site == "test-site"
         assert result.source_verification_requested is True
         assert result.as_dict() == {
+            "site": "test-site",
             "fullname": "test-page",
             "url": "https://test-site.wikidot.com/test-page",
             "page_id": 12345,

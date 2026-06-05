@@ -93,6 +93,8 @@ class PagePublishResult:
     ----------
     page : Page
         Created or edited page.
+    site : str
+        Site unix name associated with the published page.
     page_id : int
         Public page ID resolved after saving.
     source_matches : bool | None
@@ -120,7 +122,7 @@ class PagePublishResult:
     source_verified : bool
         True when source verification was requested and matched.
     as_dict : dict[str, str | int | bool | None]
-        Audit-friendly dictionary containing publish result status fields.
+        Audit-friendly dictionary containing site, page, and publish result status fields.
     """
 
     page: "Page"
@@ -170,9 +172,15 @@ class PagePublishResult:
         """Page URL for audit records."""
         return self.page.get_url()
 
+    @property
+    def site(self) -> str:
+        """Site unix name for audit records."""
+        return self.page.site.unix_name
+
     def as_dict(self) -> dict[str, str | int | bool | None]:
         """Return a compact audit-friendly representation of this publish result."""
         return {
+            "site": self.site,
             "fullname": self.page.fullname,
             "url": self.url,
             "page_id": self.page_id,
@@ -199,6 +207,8 @@ class PageSourceResult:
     ----------
     page : Page
         Page associated with the source attempt.
+    site : str
+        Site unix name associated with the page.
     fullname : str
         Page fullname associated with the source attempt.
     page_id : int | None
@@ -214,7 +224,7 @@ class PageSourceResult:
     error_message : str | None
         String representation of the error when source retrieval failed. None when retrieval succeeded.
     as_dict : dict[str, str | int | bool | None]
-        Ledger-friendly dictionary containing fullname, page_id, ok, wiki_text, error_type, and error_message.
+        Ledger-friendly dictionary containing site, fullname, page_id, ok, wiki_text, error_type, and error_message.
     """
 
     page: "Page"
@@ -230,6 +240,11 @@ class PageSourceResult:
     def fullname(self) -> str:
         """Page fullname associated with this source result."""
         return self.page.fullname
+
+    @property
+    def site(self) -> str:
+        """Site unix name associated with this source result."""
+        return self.page.site.unix_name
 
     @property
     def page_id(self) -> int | None:
@@ -260,6 +275,7 @@ class PageSourceResult:
     def as_dict(self) -> dict[str, str | int | bool | None]:
         """Return a compact ledger-friendly representation of this source result."""
         return {
+            "site": self.site,
             "fullname": self.fullname,
             "page_id": self.page_id,
             "ok": self.ok,
