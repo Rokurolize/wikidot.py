@@ -173,6 +173,9 @@ class PageFileCollection(list["PageFile"]):
                 continue
 
             name = link_elem.get_text(" ", strip=True)
+            if name == "":
+                location = f"{context} " if context else ""
+                raise exceptions.NoElementException(f"Page file name is not found {location}(id={file_id}, field=name)")
             href = link_elem.get("href")
             if not isinstance(href, str) or href.strip() == "":
                 location = f"{context}, file: {name}" if context else f"for file: {name}"
