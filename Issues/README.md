@@ -337,6 +337,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [331-pr-page-source-response-body-type-context.md](331-pr-page-source-response-body-type-context.md): upstream PR draft for the committed page-source response-body type diagnostics fix.
 - [332-pr-page-revision-list-response-body-type-context.md](332-pr-page-revision-list-response-body-type-context.md): upstream PR draft for the committed page-revision-list response-body type diagnostics fix.
 - [333-pr-page-vote-response-body-type-context.md](333-pr-page-vote-response-body-type-context.md): upstream PR draft for the committed page-vote response-body type diagnostics fix.
+- [334-pr-page-file-batch-response-body-type-context.md](334-pr-page-file-batch-response-body-type-context.md): upstream PR draft for the committed batched page-file response-body type diagnostics fix.
 
 ## Local Evidence Index
 
@@ -581,5 +582,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 235: `4d7b1ee fix(page): report malformed source response bodies`
 - Local implementation commits, continued 236: `563aa97 fix(page): report malformed revision list bodies`
 - Local implementation commits, continued 237: `ef448cf fix(page): report malformed vote response bodies`
+- Local implementation commits, continued 238: `ae24974 fix(page): report malformed file response bodies`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
