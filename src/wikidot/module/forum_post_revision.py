@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from bs4 import BeautifulSoup, Tag
 
@@ -47,6 +47,24 @@ def _user_onclick_value(user_elem: Tag) -> str:
 
 def _revision_html_context(revision: "ForumPostRevision") -> str:
     return f"for site: {revision.post.thread.site.unix_name}, post: {revision.post.id}, revision: {revision.id}"
+
+
+def _validate_forum_post(post: object) -> "ForumPost":
+    from .forum_post import ForumPost
+
+    if not isinstance(post, ForumPost):
+        raise ValueError("post must be a ForumPost")
+    return post
+
+
+def _validate_forum_posts(posts: object) -> list["ForumPost"]:
+    from .forum_post import ForumPost
+
+    if not isinstance(posts, list):
+        raise ValueError("posts must be a list")
+    if any(not isinstance(post, ForumPost) for post in posts):
+        raise ValueError("posts list entries must be ForumPost")
+    return cast(list["ForumPost"], posts)
 
 
 def _revision_list_response_body(response: Any, post: "ForumPost") -> str:
@@ -276,6 +294,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         ForumPostRevisionCollection
             Collection containing all revisions for the post
         """
+        post = _validate_forum_post(post)
         if post._revisions is not None:
             return post._revisions
 
@@ -329,6 +348,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         dict[int, ForumPostRevisionCollection]
             Dictionary mapping post ID to ForumPostRevisionCollection
         """
+        posts = _validate_forum_posts(posts)
         if len(posts) == 0:
             return {}
 

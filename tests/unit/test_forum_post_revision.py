@@ -185,6 +185,12 @@ class TestForumPostRevisionCollectionParse:
 class TestForumPostRevisionCollectionAcquireAll:
     """ForumPostRevisionCollection.acquire_allのテスト"""
 
+    @pytest.mark.parametrize("post", [None, True, "5001"])
+    def test_acquire_all_rejects_non_post_before_fetch(self, post: object) -> None:
+        """単一postがForumPostでない場合は取得前に拒否する"""
+        with pytest.raises(ValueError, match="post must be a ForumPost"):
+            ForumPostRevisionCollection.acquire_all(post)
+
     def test_acquire_all_retries_transient_fetch_failures(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
@@ -414,6 +420,25 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             edited_at=source_post.edited_at,
             _parent_id=source_post.parent_id,
         )
+
+    def test_acquire_all_for_posts_rejects_non_list_posts_before_fetch(self) -> None:
+        """postsがlistでない場合は取得前に拒否する"""
+        with pytest.raises(ValueError, match="posts must be a list"):
+            ForumPostRevisionCollection.acquire_all_for_posts("5001")
+
+    @pytest.mark.parametrize("bad_post", [None, True, "5001"])
+    def test_acquire_all_for_posts_rejects_non_post_entries_before_fetch(
+        self, mock_forum_post_no_http: ForumPost, bad_post: object
+    ) -> None:
+        """postsの要素がForumPostでない場合は取得前に拒否する"""
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="posts list entries must be ForumPost"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, bad_post])  # type: ignore[list-item]
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
 
     def test_acquire_all_for_posts_retries_transient_fetch_failures(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
