@@ -1321,6 +1321,7 @@ class Site:
         bool
             True if the user is a site member, False otherwise
         """
+        user_name = _validate_page_text_field("user_name", user_name)
         users: list[QMCUser] = QuickModule.member_lookup(self.id, user_name)
 
         if len(users) == 0:

@@ -1870,6 +1870,24 @@ class TestSiteMemberLookup:
 
             assert result is False
 
+    def test_member_lookup_rejects_non_string_user_name_before_quickmodule(self) -> None:
+        """ユーザー名が文字列でない場合は QuickModule 呼び出し前に拒否"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with patch("wikidot.module.site.QuickModule.member_lookup") as mock_lookup:
+            with pytest.raises(ValueError, match="user_name must be a string"):
+                site.member_lookup({"name": "test-user"})
+
+            mock_lookup.assert_not_called()
+
 
 class TestSiteGetRecentChanges:
     """Site.get_recent_changes のテスト"""
