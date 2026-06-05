@@ -100,7 +100,8 @@ def _parse_revision_number(site: "Site", page: "Page", rev_id: int, value: objec
 
 
 def _user_onclick_value(user_elem: Tag) -> str:
-    link_elem = user_elem.find("a", recursive=False)
+    link_elems = [link_elem for link_elem in user_elem.find_all("a", recursive=False) if isinstance(link_elem, Tag)]
+    link_elem = link_elems[-1] if link_elems else None
     if isinstance(link_elem, Tag):
         onclick = link_elem.get("onclick")
         if onclick is not None:
@@ -166,6 +167,16 @@ def _parse_listpages_odate_field(site: "Site", page_name: str, key: str, odate_e
         raise exceptions.NoElementException(
             f"ListPages odate field is malformed for site: {site.unix_name}, page: {page_name} "
             f"(field={key}, value={_odate_class_value(odate_elem)})"
+        ) from exc
+
+
+def _parse_listpages_user_field(site: "Site", page_name: str, key: str, user_elem: Tag) -> Any:
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"ListPages user field is malformed for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={_user_onclick_value(user_elem)})"
         ) from exc
 
 
@@ -681,7 +692,8 @@ class PageCollection(list["Page"]):
                     if not isinstance(printuser_element, Tag):
                         value = None
                     else:
-                        value = user_parser(site.client, printuser_element)
+                        page_name = str(page_params.get("fullname", "unknown"))
+                        value = _parse_listpages_user_field(site, page_name, key, printuser_element)
 
                 elif key in ["tags", "_tags"]:
                     value = value_element.text.split()

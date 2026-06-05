@@ -287,6 +287,28 @@ class TestPageCollectionParse:
         ):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    def test_parse_malformed_user_field_includes_site_page_and_value_context(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """ユーザーフィールドが壊れている場合はsite/page/field/value文脈付きNoElementException"""
+        body = page_listpages_single["body"].replace(
+            '<a href="http://www.wikidot.com/user:info/test-user" '
+            'onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test-user</a>',
+            '<a href="http://www.wikidot.com/user:info/test-user" '
+            'onclick="WIKIDOT.page.listeners.userInfo(latest); return false;">test-user</a>',
+            1,
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"ListPages user field is malformed for site: test-site, page: scp-001 "
+                r"\(field=created_by_linked, value=WIKIDOT\.page\.listeners\.userInfo\(latest\); return false;\)"
+            ),
+        ):
+            PageCollection._parse(mock_site_no_http, html_body)
+
     def test_parse_malformed_rating_percent_includes_site_page_and_value_context(
         self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any]
     ) -> None:
