@@ -878,6 +878,25 @@ class TestPrivateMessage:
         assert call_args["to_user_id"] == mock_user.id
         assert call_args["event"] == "send"
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"subject": 3}, "subject must be a string"),
+            ({"body": 3}, "body must be a string"),
+        ],
+    )
+    def test_send_rejects_non_string_text_inputs_before_login(self, mock_client, mock_user, kwargs, message):
+        """送信の文字列入力不正はログイン確認やAMCリクエスト前に拒否する"""
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        inputs = {"subject": "Test Subject", "body": "Test Body", **kwargs}
+        with pytest.raises(ValueError, match=message):
+            PrivateMessage.send(mock_client, mock_user, **inputs)
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
     def test_send_missing_action_status_includes_recipient_event_and_field_context(self, mock_client, mock_user):
         """送信応答のstatus欠落は文脈付きNoElementException"""
         mock_response = MagicMock()

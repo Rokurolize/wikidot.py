@@ -18,6 +18,7 @@ from ..common import exceptions
 from ..common.decorators import login_required
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ._validation import validate_text_field
 
 if TYPE_CHECKING:
     from .client import Client
@@ -689,7 +690,6 @@ class PrivateMessage:
         return PrivateMessageCollection.from_ids(client, [message_id])[0]
 
     @staticmethod
-    @login_required
     def send(client: "Client", recipient: "User", subject: str, body: str) -> None:
         """
         Send a private message
@@ -710,6 +710,10 @@ class PrivateMessage:
         LoginRequiredException
             If not logged in
         """
+        subject = validate_text_field("subject", subject)
+        body = validate_text_field("body", body)
+        client.login_check()
+
         response = client.amc_client.request(
             [
                 {
