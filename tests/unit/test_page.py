@@ -1551,6 +1551,36 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request.assert_not_called()
         assert mock_page_with_id._votes is None
 
+    def test_acquire_votes_malformed_user_includes_site_page_and_value_context(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+        page_whorated: dict[str, Any],
+    ) -> None:
+        """WhoRatedの投票者メタデータ破損はsite/page/id/field/value文脈付きNoElementException"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        body = page_whorated["body"].replace(
+            "WIKIDOT.page.listeners.userInfo(11111); return false;",
+            "WIKIDOT.page.listeners.userInfo(latest); return false;",
+            1,
+        )
+        response = self._json_response({**page_whorated, "body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                rf"WhoRated user is malformed for site: test-site, page: test-page "
+                rf"\(id={mock_page_with_id.id}, field=user, "
+                rf"value=WIKIDOT\.page\.listeners\.userInfo\(latest\); return false;\)"
+            ),
+        ):
+            collection.get_page_votes()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._votes is None
+
     def test_acquire_votes_batches_missing_page_ids(
         self,
         monkeypatch: pytest.MonkeyPatch,

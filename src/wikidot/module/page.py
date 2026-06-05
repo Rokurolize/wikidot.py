@@ -195,6 +195,16 @@ def _parse_who_rated_vote_value(site: "Site", page: "Page", value: object) -> in
         ) from exc
 
 
+def _parse_who_rated_user(site: "Site", page: "Page", user_elem: Tag) -> Any:
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"WhoRated user is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, field=user, value={_user_onclick_value(user_elem)})"
+        ) from exc
+
+
 def _require_page_edit_lock_field(site: "Site", fullname: str, data: dict[str, Any], field: str) -> Any:
     try:
         return data[field]
@@ -1332,8 +1342,8 @@ class PageCollection(list["Page"]):
                     f"(users={len(user_elems)}, values={len(value_elems)})"
                 )
 
-            users = [user_parser(site.client, user_elem) for user_elem in user_elems]
             first_page = target_pages_by_id[page_id][0]
+            users = [_parse_who_rated_user(site, first_page, user_elem) for user_elem in user_elems]
             values = [_parse_who_rated_vote_value(site, first_page, value.text) for value in value_elems]
 
             for page in target_pages_by_id[page_id]:
