@@ -350,6 +350,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [344-pr-validate-search-pagination-types.md](344-pr-validate-search-pagination-types.md): upstream PR draft for the committed search pagination type validation fix.
 - [345-pr-validate-source-iterator-batch-sizes.md](345-pr-validate-source-iterator-batch-sizes.md): upstream PR draft for the committed source iterator batch-size type validation fix.
 - [346-pr-validate-publish-visibility-controls.md](346-pr-validate-publish-visibility-controls.md): upstream PR draft for the committed publish visibility-control type validation fix.
+- [347-pr-validate-publish-source-normalizer.md](347-pr-validate-publish-source-normalizer.md): upstream PR draft for the committed publish source-normalizer validation fix.
 
 ## Local Evidence Index
 
@@ -607,5 +608,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 248: `706765c fix(page): validate search pagination types`
 - Local implementation commits, continued 249: `7890d77 fix(site): validate source iterator batch sizes`
 - Local implementation commits, continued 250: `441d1a5 fix(site): validate publish visibility controls`
+- Local implementation commits, continued 251: `2d99584 fix(site): validate publish source normalizer`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
