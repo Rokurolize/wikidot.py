@@ -49,6 +49,25 @@ def _odate_class_value(odate_element: Tag) -> str:
     return next((value for value in class_values if "time_" in value), " ".join(class_values))
 
 
+def _user_onclick_value(user_element: Tag) -> str:
+    link_element = user_element.find("a", recursive=False)
+    if isinstance(link_element, Tag):
+        onclick = link_element.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_element.get_text(" ", strip=True)
+
+
+def _parse_message_user(client: "Client", user_element: Tag, parse_context: str, field: str) -> Any:
+    try:
+        return user_parser(client, user_element)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Message {field} user is malformed {parse_context}, "
+            f"field={field}, value={_user_onclick_value(user_element)}"
+        ) from exc
+
+
 class PrivateMessageCollection(list["PrivateMessage"]):
     """
     Base class representing a collection of private messages
@@ -317,8 +336,8 @@ class PrivateMessageCollection(list["PrivateMessage"]):
                 ) from exc
 
             parsed_messages_by_id[message_id] = (
-                user_parser(client, sender),
-                user_parser(client, recipient),
+                _parse_message_user(client, sender, parse_context, "sender"),
+                _parse_message_user(client, recipient, parse_context, "recipient"),
                 subject_element.get_text(" ", strip=True),
                 body_element.get_text(" ", strip=True),
                 created_at,

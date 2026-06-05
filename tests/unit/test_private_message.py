@@ -359,6 +359,32 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
+    def test_from_ids_malformed_recipient_user_includes_module_message_field_and_value_context(self, mock_client):
+        """メッセージ詳細の受信者値不正はparser例外ではなく文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(latest); return false;">recipient</a></span>
+                    <span class="subject">Test Subject</span>
+                    <span class="odate time_1234567890">01 Jan 2023 12:00</span>
+                </div>
+                <div class="body">Test Body</div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(NoElementException) as exc_info:
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
+        assert str(exc_info.value) == (
+            "Message recipient user is malformed for module: dashboard/messages/DMViewMessageModule, "
+            "message: 1, field=recipient, value=WIKIDOT.page.listeners.userInfo(latest); return false;"
+        )
+
     def test_from_ids_missing_detail_response_body_includes_module_and_message_context(self, mock_client):
         """メッセージ詳細レスポンスのbody欠損はmodule/message文脈付きNoElementException"""
         mock_response = MagicMock()
