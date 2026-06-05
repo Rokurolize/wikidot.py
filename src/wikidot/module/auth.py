@@ -76,8 +76,12 @@ class HTTPAuthentication:
         if "WIKIDOT_SESSION_ID" not in response.cookies:
             raise SessionCreateException("Login attempt is failed due to invalid cookies")
 
+        session_cookie = str(response.cookies["WIKIDOT_SESSION_ID"])
+        if not session_cookie.strip():
+            raise SessionCreateException("Login attempt is failed because WIKIDOT_SESSION_ID cookie is empty")
+
         # Set cookies
-        client.amc_client.header.set_cookie("WIKIDOT_SESSION_ID", response.cookies["WIKIDOT_SESSION_ID"])
+        client.amc_client.header.set_cookie("WIKIDOT_SESSION_ID", session_cookie)
 
     @staticmethod
     def logout(client: "Client") -> None:

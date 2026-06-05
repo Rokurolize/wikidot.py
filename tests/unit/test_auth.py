@@ -78,6 +78,24 @@ class TestHTTPAuthentication:
 
             assert "invalid cookies" in str(exc_info.value)
 
+    def test_login_blank_session_cookie_fails_without_setting_cookie(self):
+        """ログイン失敗（セッションCookieが空）"""
+        mock_client = MagicMock()
+        mock_client.amc_client.header.get_header.return_value = {}
+
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.text = "Login successful"
+        mock_response.cookies = {"WIKIDOT_SESSION_ID": "   "}
+
+        with patch("wikidot.module.auth.httpx.post", return_value=mock_response):
+            with pytest.raises(SessionCreateException) as exc_info:
+                HTTPAuthentication.login(mock_client, "test-user", "test-password")
+
+            assert "WIKIDOT_SESSION_ID cookie is empty" in str(exc_info.value)
+
+        mock_client.amc_client.header.set_cookie.assert_not_called()
+
     def test_logout(self):
         """ログアウト成功"""
         mock_client = MagicMock()
