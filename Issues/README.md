@@ -391,6 +391,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [385-pr-validate-page-lookup-not-found-flag.md](385-pr-validate-page-lookup-not-found-flag.md): upstream PR draft for the committed page lookup not-found flag validation fix.
 - [386-pr-validate-forum-post-revision-with-html-flag.md](386-pr-validate-forum-post-revision-with-html-flag.md): upstream PR draft for the committed forum post revision with-html flag validation fix.
 - [387-pr-validate-site-amc-return-exceptions-flag.md](387-pr-validate-site-amc-return-exceptions-flag.md): upstream PR draft for the committed site AMC return-exceptions flag validation fix.
+- [388-pr-validate-requestutil-return-exceptions-flag.md](388-pr-validate-requestutil-return-exceptions-flag.md): upstream PR draft for the committed RequestUtil return-exceptions flag validation fix.
 
 ## Local Evidence Index
 
@@ -689,5 +690,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 289: `98e1808 fix(site): validate page lookup not-found flag`
 - Local implementation commits, continued 290: `58579ff fix(forum_post_revision): validate with-html flag`
 - Local implementation commits, continued 291: `d197562 fix(site): validate amc return-exceptions flag`
+- Local implementation commits, continued 292: `1c40e2a fix(requestutil): validate return-exceptions flag`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
