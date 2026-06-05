@@ -627,5 +627,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 258: `0823e26 fix(forum): validate write text inputs`
 - Local implementation commits, continued 259: `25b97b9 fix(private_message): validate send text inputs`
 - Local implementation commits, continued 260: `a939e33 fix(site): validate invite text input`
+- Local implementation commits, continued 261: `1691646 fix(site): validate member lookup username`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
