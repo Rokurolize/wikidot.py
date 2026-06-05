@@ -85,6 +85,8 @@ def _parse_post_list_user(
     post_index: int,
     post_id: int,
     user_elem: Tag,
+    *,
+    field: str = "created_by",
 ) -> "AbstractUser":
     try:
         return user_parser(thread.site.client, user_elem)
@@ -94,7 +96,7 @@ def _parse_post_list_user(
             page,
             post_index,
             post_id,
-            field="created_by",
+            field=field,
             value=_user_onclick_value(user_elem),
         )
         raise NoElementException(f"Forum post user is malformed {parse_context}") from exc
@@ -380,7 +382,14 @@ class ForumPostCollection(list["ForumPost"]):
                 edit_user_elem = changes_elem.select_one(":scope > span.printuser")
                 edit_odate_elem = changes_elem.select_one(":scope > span.odate")
                 if edit_user_elem is not None and edit_odate_elem is not None:
-                    edited_by = user_parser(thread.site.client, edit_user_elem)
+                    edited_by = _parse_post_list_user(
+                        thread,
+                        page,
+                        post_index,
+                        post_id,
+                        edit_user_elem,
+                        field="edited_by",
+                    )
                     edited_at = odate_parser(edit_odate_elem)
 
             post = ForumPost(
