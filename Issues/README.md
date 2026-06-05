@@ -313,6 +313,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [307-pr-whorated-user-context.md](307-pr-whorated-user-context.md): upstream PR draft for the committed WhoRated user diagnostics fix.
 - [308-pr-site-application-user-context.md](308-pr-site-application-user-context.md): upstream PR draft for the committed site-application user diagnostics fix.
 - [309-pr-page-discussion-thread-id-context.md](309-pr-page-discussion-thread-id-context.md): upstream PR draft for the committed page discussion thread ID diagnostics fix.
+- [310-pr-site-id-context.md](310-pr-site-id-context.md): upstream PR draft for the committed site ID diagnostics fix.
 
 ## Local Evidence Index
 
@@ -533,5 +534,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 211: `2d9dbd8 fix(page): report malformed whorated users`
 - Local implementation commits, continued 212: `80f3a32 fix(site_application): report malformed application users`
 - Local implementation commits, continued 213: `c52487c fix(page): report malformed discussion thread ids`
+- Local implementation commits, continued 214: `c998791 fix(site): report malformed site ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
