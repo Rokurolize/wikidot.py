@@ -1014,6 +1014,40 @@ class TestSitePageAccessor:
         mock_site_no_http.page.get.assert_not_called()
         create_or_edit.assert_not_called()
 
+    def test_publish_post_save_visibility_attempts_must_be_integer_before_save(self, mock_site_no_http: Site) -> None:
+        """publishのvisibility再試行回数は保存前に整数として検証する"""
+        invalid_attempts: tuple[Any, ...] = ("2", 1.5)
+        for invalid_attempt in invalid_attempts:
+            mock_site_no_http.client.login_check = MagicMock()
+            mock_site_no_http.page.get = MagicMock()
+
+            with (
+                patch.object(Page, "create_or_edit") as create_or_edit,
+                pytest.raises(ValueError, match="post_save_visibility_attempts must be an integer"),
+            ):
+                mock_site_no_http.page.publish("new-page", post_save_visibility_attempts=invalid_attempt)
+
+            mock_site_no_http.client.login_check.assert_not_called()
+            mock_site_no_http.page.get.assert_not_called()
+            create_or_edit.assert_not_called()
+
+    def test_publish_post_save_visibility_interval_must_be_number_before_save(self, mock_site_no_http: Site) -> None:
+        """publishのvisibility待機間隔は保存前に数値として検証する"""
+        invalid_intervals: tuple[Any, ...] = ("0", None)
+        for invalid_interval in invalid_intervals:
+            mock_site_no_http.client.login_check = MagicMock()
+            mock_site_no_http.page.get = MagicMock()
+
+            with (
+                patch.object(Page, "create_or_edit") as create_or_edit,
+                pytest.raises(ValueError, match="post_save_visibility_interval must be a number"),
+            ):
+                mock_site_no_http.page.publish("new-page", post_save_visibility_interval=invalid_interval)
+
+            mock_site_no_http.client.login_check.assert_not_called()
+            mock_site_no_http.page.get.assert_not_called()
+            create_or_edit.assert_not_called()
+
     def test_publish_retries_post_save_visibility_before_returning_page_id(self, mock_site_no_http: Site) -> None:
         """保存直後のページID取得が一時的に失敗したら指定回数だけ再試行する"""
         mock_site_no_http.client.login_check = MagicMock()

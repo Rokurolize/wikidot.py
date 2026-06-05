@@ -662,6 +662,22 @@ class SitePageAccessor:
 
         raise exceptions.NotFoundException("Cannot find page id")
 
+    @staticmethod
+    def _validate_post_save_visibility_attempts(value: object) -> int:
+        if not isinstance(value, int):
+            raise ValueError("post_save_visibility_attempts must be an integer")
+        if value < 1:
+            raise ValueError("post_save_visibility_attempts must be at least 1")
+        return value
+
+    @staticmethod
+    def _validate_post_save_visibility_interval(value: object) -> float:
+        if not isinstance(value, int | float):
+            raise ValueError("post_save_visibility_interval must be a number")
+        if value < 0:
+            raise ValueError("post_save_visibility_interval must be non-negative")
+        return float(value)
+
     def publish(
         self,
         fullname: str,
@@ -723,10 +739,8 @@ class SitePageAccessor:
         WikidotStatusCodeException
             When saving the page or metadata fails.
         """
-        if post_save_visibility_attempts < 1:
-            raise ValueError("post_save_visibility_attempts must be at least 1")
-        if post_save_visibility_interval < 0:
-            raise ValueError("post_save_visibility_interval must be non-negative")
+        post_save_visibility_attempts = self._validate_post_save_visibility_attempts(post_save_visibility_attempts)
+        post_save_visibility_interval = self._validate_post_save_visibility_interval(post_save_visibility_interval)
         parent_value: str | None = None
         parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
         if parent_updated:
