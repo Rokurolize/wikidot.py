@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -28,6 +28,20 @@ if TYPE_CHECKING:
 def _site_name(site: "Site") -> str:
     site_unix_name = getattr(site, "unix_name", None)
     return site_unix_name if isinstance(site_unix_name, str) else str(site)
+
+
+def _validate_thread_id(thread_id: object) -> int:
+    if not isinstance(thread_id, int) or isinstance(thread_id, bool):
+        raise ValueError("thread_id must be an integer")
+    return thread_id
+
+
+def _validate_thread_ids(thread_ids: object) -> list[int]:
+    if not isinstance(thread_ids, list):
+        raise ValueError("thread_ids must be a list")
+    if any(not isinstance(thread_id, int) or isinstance(thread_id, bool) for thread_id in thread_ids):
+        raise ValueError("thread_ids list entries must be integers")
+    return cast(list[int], thread_ids)
 
 
 def _thread_list_parse_context(
@@ -662,6 +676,7 @@ class ForumThreadCollection(list["ForumThread"]):
         ForumThreadCollection
             Collection of retrieved thread information
         """
+        thread_ids = _validate_thread_ids(thread_ids)
         if len(thread_ids) == 0:
             return ForumThreadCollection(site=site, threads=[])
 
@@ -873,4 +888,5 @@ class ForumThread:
         ForumThread
             Retrieved thread information
         """
+        thread_id = _validate_thread_id(thread_id)
         return ForumThreadCollection.acquire_from_thread_ids(site, [thread_id], category)[0]

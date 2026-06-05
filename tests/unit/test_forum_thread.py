@@ -551,6 +551,33 @@ class TestForumThreadCollectionAcquireFromIds:
         mock_site_no_http.amc_request.assert_not_called()
         mock_site_no_http.amc_request_with_retry.assert_not_called()
 
+    def test_site_get_threads_rejects_non_list_thread_ids_before_fetch(self, mock_site_no_http: Site) -> None:
+        """リストでないスレッドID入力はAMC取得前に拒否する"""
+        thread_ids: Any = "3001"
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_ids must be a list"):
+            mock_site_no_http.get_threads(thread_ids)
+
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
+    @pytest.mark.parametrize("thread_ids", [[None], [True], ["3001"], [3001.5]])
+    def test_acquire_from_ids_rejects_non_integer_thread_id_entries_before_fetch(
+        self, mock_site_no_http: Site, thread_ids: list[Any]
+    ) -> None:
+        """スレッドIDリスト内の非整数値はAMC取得前に拒否する"""
+        bad_thread_ids: Any = thread_ids
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_ids list entries must be integers"):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, bad_thread_ids)
+
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
     def test_acquire_from_ids_success(self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]) -> None:
         """スレッドIDからスレッド情報を取得できる"""
         mock_response = MagicMock()
@@ -842,6 +869,32 @@ class TestForumThreadBasic:
         url = mock_forum_thread_no_http.url
         assert "test-site.wikidot.com" in url
         assert "forum/t-3001" in url
+
+    @pytest.mark.parametrize("thread_id", [None, True, "3001"])
+    def test_get_from_id_rejects_non_integer_thread_id_before_fetch(
+        self, mock_site_no_http: Site, thread_id: Any
+    ) -> None:
+        """単一スレッドIDの非整数値はAMC取得前に拒否する"""
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumThread.get_from_id(mock_site_no_http, thread_id)
+
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
+    def test_site_get_thread_rejects_non_integer_thread_id_before_fetch(self, mock_site_no_http: Site) -> None:
+        """サイトの単一スレッド取得でも非整数IDはAMC取得前に拒否する"""
+        thread_id: Any = "3001"
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            mock_site_no_http.get_thread(thread_id)
+
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
 
 
 class TestForumThreadPosts:
