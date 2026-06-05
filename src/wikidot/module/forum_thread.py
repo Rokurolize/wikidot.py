@@ -44,6 +44,14 @@ def _validate_thread_ids(thread_ids: object) -> list[int]:
     return cast(list[int], thread_ids)
 
 
+def _validate_optional_post_id(field: str, post_id: object) -> int | None:
+    if post_id is None:
+        return None
+    if not isinstance(post_id, int) or isinstance(post_id, bool):
+        raise ValueError(f"{field} must be an integer or None")
+    return post_id
+
+
 def _thread_list_parse_context(
     site: "Site",
     category: Optional["ForumCategory"],
@@ -846,6 +854,7 @@ class ForumThread:
         """
         source = validate_text_field("source", source)
         title = validate_text_field("title", title)
+        parent_post_id = _validate_optional_post_id("parent_post_id", parent_post_id)
         self.site.client.login_check()
         response = self.site.amc_request(
             [

@@ -1041,6 +1041,34 @@ class TestForumThreadReply:
         call_args = mock_forum_thread_no_http.site.amc_request.call_args[0][0][0]
         assert call_args["parentId"] == "5001"
 
+    @pytest.mark.parametrize("parent_post_id", [True, "5001", 5001.0, {"id": 5001}])
+    def test_reply_rejects_invalid_parent_post_id_before_login(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_category_no_http: ForumCategory,
+        parent_post_id: object,
+    ) -> None:
+        """親投稿IDの不正値はログイン確認やAMCリクエスト前に拒否する"""
+        mock_forum_thread_no_http.category = mock_forum_category_no_http
+        cached_posts = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_thread_no_http._posts = cached_posts
+        mock_forum_category_no_http.threads = cached_threads
+        initial_post_count = mock_forum_thread_no_http.post_count
+        initial_category_post_count = mock_forum_category_no_http.posts_count
+        mock_forum_thread_no_http.site.client.login_check = MagicMock()
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="parent_post_id must be an integer or None"):
+            mock_forum_thread_no_http.reply(source="Test reply", parent_post_id=parent_post_id)
+
+        mock_forum_thread_no_http.site.client.login_check.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        assert mock_forum_thread_no_http.post_count == initial_post_count
+        assert mock_forum_thread_no_http._posts is cached_posts
+        assert mock_forum_category_no_http.posts_count == initial_category_post_count
+        assert mock_forum_category_no_http._threads is cached_threads
+
     def test_reply_missing_action_status_does_not_update_local_state(
         self, mock_forum_thread_no_http: ForumThread
     ) -> None:
