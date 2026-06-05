@@ -19,6 +19,17 @@ if TYPE_CHECKING:
     from .page import Page
 
 
+_SIZE_PATTERN = re.compile(r"\s*([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)\s*")
+_SIZE_MULTIPLIERS = {
+    "b": 1,
+    "byte": 1,
+    "bytes": 1,
+    "kb": 1000,
+    "mb": 1000000,
+    "gb": 1000000000,
+}
+
+
 class PageFileCollection(list["PageFile"]):
     """
     Class representing a collection of page files
@@ -115,23 +126,20 @@ class PageFileCollection(list["PageFile"]):
         int
             Size in bytes
         """
-        size_match = re.fullmatch(r"\s*([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)\s*", size_text)
+        size = PageFileCollection._parse_size_value(size_text)
+        return 0 if size is None else size
+
+    @staticmethod
+    def _parse_size_value(size_text: str) -> int | None:
+        size_match = _SIZE_PATTERN.fullmatch(size_text)
         if size_match is None:
-            return 0
+            return None
 
         value = float(size_match.group(1))
         unit = size_match.group(2).lower()
-        multipliers = {
-            "b": 1,
-            "byte": 1,
-            "bytes": 1,
-            "kb": 1000,
-            "mb": 1000000,
-            "gb": 1000000000,
-        }
-        multiplier = multipliers.get(unit)
+        multiplier = _SIZE_MULTIPLIERS.get(unit)
         if multiplier is None:
-            return 0
+            return None
         return int(value * multiplier)
 
     @staticmethod
@@ -178,6 +186,11 @@ class PageFileCollection(list["PageFile"]):
             mime_type = str(mime_title)
 
             size_text = tds[2].get_text().strip()
+            if PageFileCollection._parse_size_value(size_text) is None:
+                location = f"{context}, file: {name}" if context else f"for file: {name}"
+                raise exceptions.NoElementException(
+                    f"Page file size is malformed {location} (id={file_id}, field=size, value={size_text})"
+                )
             size = PageFileCollection._parse_size(size_text)
 
             file_fields.append((file_id, name, url, mime_type, size))

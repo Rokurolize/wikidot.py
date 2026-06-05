@@ -393,6 +393,41 @@ class TestPageFileCollectionAcquire:
         ):
             PageFileCollection.acquire(page)
 
+    def test_acquire_requires_parseable_file_size(self):
+        """構造的に有効な添付ファイル行でサイズ値が壊れている場合は文脈付きで失敗する"""
+        page = MagicMock()
+        page.id = 12345
+        page.fullname = "test-page"
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        site.unix_name = "test-site"
+        page.site = site
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-100">
+                            <td><a href="/local--files/test-page/file.txt">file.txt</a></td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>unknown</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page file size is malformed for site: test-site, page: test-page, "
+                r"file: file\.txt \(id=100, field=size, value=unknown\)"
+            ),
+        ):
+            PageFileCollection.acquire(page)
+
     def test_acquire_skips_malformed_file_row_id(self):
         """不正なfile-row IDはパース対象から除外する"""
         page = MagicMock()
