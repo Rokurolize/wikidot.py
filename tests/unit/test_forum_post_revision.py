@@ -68,6 +68,21 @@ class TestForumPostRevisionCollectionFind:
         found = collection.find(9999)
         assert found is None
 
+    @pytest.mark.parametrize("revision_id", [None, True, "9001", 9001.0])
+    def test_find_rejects_non_integer_ids(self, mock_forum_post_no_http: ForumPost, revision_id: object) -> None:
+        """findは整数以外の検索IDを拒否する"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=None,
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.find(revision_id)
+
 
 class TestForumPostRevisionCollectionFindByRevNo:
     """ForumPostRevisionCollection.find_by_rev_noのテスト"""
@@ -101,6 +116,23 @@ class TestForumPostRevisionCollectionFindByRevNo:
         collection = ForumPostRevisionCollection(mock_forum_post_no_http, [])
         found = collection.find_by_rev_no(99)
         assert found is None
+
+    @pytest.mark.parametrize("rev_no", [None, True, "1", 1.0])
+    def test_find_by_rev_no_rejects_non_integer_revision_numbers(
+        self, mock_forum_post_no_http: ForumPost, rev_no: object
+    ) -> None:
+        """find_by_rev_noは整数以外のリビジョン番号を拒否する"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9002,
+            rev_no=1,
+            created_by=None,
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+        with pytest.raises(ValueError, match="rev_no must be an integer"):
+            collection.find_by_rev_no(rev_no)
 
 
 class TestForumPostRevisionCollectionParse:

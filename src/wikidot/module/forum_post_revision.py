@@ -155,6 +155,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         ForumPostRevision | None
             The revision with the specified ID, or None if not found
         """
+        if not isinstance(id, int) or isinstance(id, bool):
+            raise ValueError("id must be an integer")
         for revision in self:
             if revision.id == id:
                 return revision
@@ -174,6 +176,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         ForumPostRevision | None
             The revision with the specified revision number, or None if not found
         """
+        if not isinstance(rev_no, int) or isinstance(rev_no, bool):
+            raise ValueError("rev_no must be an integer")
         for revision in self:
             if revision.rev_no == rev_no:
                 return revision
