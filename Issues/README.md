@@ -344,6 +344,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [338-pr-result-ledger-site-field.md](338-pr-result-ledger-site-field.md): upstream PR draft for the committed result-ledger site field improvement.
 - [339-pr-quickmodule-json-decode-context.md](339-pr-quickmodule-json-decode-context.md): upstream PR draft for the committed QuickModule JSON decode diagnostics fix.
 - [340-pr-login-session-cookie-validation.md](340-pr-login-session-cookie-validation.md): upstream PR draft for the committed login session-cookie validation fix.
+- [341-pr-client-string-masks-username.md](341-pr-client-string-masks-username.md): upstream PR draft for the committed client string username masking fix.
 
 ## Local Evidence Index
 
@@ -595,5 +596,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 242: `ed4d6db feat(site): include site in result ledgers`
 - Local implementation commits, continued 243: `bf545d4 fix(quick_module): report malformed JSON responses`
 - Local implementation commits, continued 244: `b12a344 fix(auth): reject empty session cookies`
+- Local implementation commits, continued 245: `3de2eb0 fix(client): mask username in string form`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
