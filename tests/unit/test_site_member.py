@@ -449,6 +449,39 @@ class TestSiteMemberGet:
 
         site.amc_request.assert_not_called()
 
+    def test_get_members_malformed_joined_at_includes_site_group_page_row_and_value_context(self):
+        """メンバー行のodate異常値はsite/group/page/row/value付きで失敗する"""
+        site = MagicMock()
+        site.unix_name = "test-site"
+        response = self._members_response(
+            """
+                <table>
+                    <tr>
+                        <td><span class="printuser">
+                            <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                        </span></td>
+                        <td><span class="odate time_latest">invalid</span></td>
+                    </tr>
+                </table>
+            """
+        )
+        site.amc_request_with_retry.return_value = (response,)
+
+        with (
+            patch("wikidot.module.site_member.user_parser") as mock_user_parser,
+            pytest.raises(
+                NoElementException,
+                match=(
+                    r"Site member joined_at is malformed for site: test-site, group: members, page: 1, row: 1, "
+                    r"field=joined_at, value=time_latest"
+                ),
+            ),
+        ):
+            mock_user_parser.return_value = MagicMock()
+            SiteMember.get(site, "")
+
+        site.amc_request.assert_not_called()
+
     def test_get_members_ignores_non_numeric_pager_links(self):
         """数値ページがないpagerでは単一ページとして扱う"""
         site = MagicMock()

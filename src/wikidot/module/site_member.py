@@ -34,6 +34,15 @@ def _user_onclick_value(user_elem: Tag) -> str:
     return user_elem.get_text(" ", strip=True)
 
 
+def _odate_class_value(odate_elem: Tag) -> str:
+    class_attr = odate_elem.get("class", [])
+    if class_attr is None:
+        return ""
+
+    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+
+
 def _member_parse_context(
     site: "Site",
     group_label: str | None,
@@ -70,6 +79,27 @@ def _parse_member_user(
             value=_user_onclick_value(user_elem),
         )
         raise NoElementException(f"Site member user is malformed {parse_context}") from exc
+
+
+def _parse_member_joined_at(
+    site: "Site",
+    joined_at_elem: Tag,
+    group_label: str | None,
+    page: int | None,
+    row_index: int,
+) -> datetime:
+    try:
+        return odate_parser(joined_at_elem)
+    except ValueError as exc:
+        parse_context = _member_parse_context(
+            site,
+            group_label,
+            page,
+            row_index,
+            field="joined_at",
+            value=_odate_class_value(joined_at_elem),
+        )
+        raise NoElementException(f"Site member joined_at is malformed {parse_context}") from exc
 
 
 def _require_site_member_action_status(member: "SiteMember", event: str, data: dict[str, Any]) -> Any:
@@ -163,7 +193,7 @@ class SiteMember:
                     if not isinstance(joined_at_elem, Tag):
                         joined_at = None
                     else:
-                        joined_at = odate_parser(joined_at_elem)
+                        joined_at = _parse_member_joined_at(site, joined_at_elem, group_label, page, row_index)
                 else:
                     joined_at = None
 
