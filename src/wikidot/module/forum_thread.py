@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 from ..common.exceptions import NoElementException, UnexpectedException, WikidotStatusCodeException
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ._validation import validate_text_field
 
 if TYPE_CHECKING:
     from .forum_category import ForumCategory
@@ -828,6 +829,8 @@ class ForumThread:
         WikidotStatusCodeException
             If posting fails
         """
+        source = validate_text_field("source", source)
+        title = validate_text_field("title", title)
         self.site.client.login_check()
         response = self.site.amc_request(
             [

@@ -408,6 +408,36 @@ class TestForumCategoryCreateThread:
         assert thread.id == 3001
         assert mock_forum_category_no_http._threads is None
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"title": 3}, "title must be a string"),
+            ({"description": 3}, "description must be a string"),
+            ({"source": 3}, "source must be a string"),
+        ],
+    )
+    def test_create_thread_rejects_non_string_text_inputs_before_login(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        kwargs: dict[str, object],
+        message: str,
+    ) -> None:
+        """スレッド作成の文字列入力不正はログイン確認やAMCリクエスト前に拒否する"""
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+
+        inputs: dict[str, Any] = {
+            "title": "Test Thread",
+            "description": "Test description",
+            "source": "Test content",
+            **kwargs,
+        }
+        with pytest.raises(ValueError, match=message):
+            mock_forum_category_no_http.create_thread(**inputs)
+
+        mock_forum_category_no_http.site.client.login_check.assert_not_called()
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+
     @pytest.mark.parametrize("response_body", [{}, {"threadId": "3001"}])
     def test_create_thread_missing_or_invalid_thread_id_raises(
         self,

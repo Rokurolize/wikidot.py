@@ -15,6 +15,7 @@ from bs4 import BeautifulSoup, Tag
 from ..common.exceptions import NoElementException, UnexpectedException, WikidotStatusCodeException
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ._validation import validate_text_field
 
 if TYPE_CHECKING:
     from .forum_post_revision import ForumPostRevisionCollection
@@ -841,6 +842,9 @@ class ForumPost:
         UnexpectedException
             If the edit form cannot be retrieved
         """
+        source = validate_text_field("source", source)
+        if title is not None:
+            title = validate_text_field("title", title)
         self.thread.site.client.login_check()
 
         # 現在のリビジョンIDを取得

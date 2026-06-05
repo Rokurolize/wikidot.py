@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from bs4 import BeautifulSoup
 
 from ..common.exceptions import NoElementException, UnexpectedException, WikidotStatusCodeException
+from ._validation import validate_text_field
 from .forum_thread import ForumThread, ForumThreadCollection
 
 if TYPE_CHECKING:
@@ -341,6 +342,9 @@ class ForumCategory:
         ForumThread
             Created thread object
         """
+        title = validate_text_field("title", title)
+        description = validate_text_field("description", description)
+        source = validate_text_field("source", source)
         self.site.client.login_check()
 
         # 作成リクエスト

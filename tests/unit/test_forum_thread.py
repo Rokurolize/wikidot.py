@@ -947,6 +947,30 @@ class TestForumThreadReply:
         call_args = mock_forum_thread_no_http.site.amc_request.call_args[0][0][0]
         assert call_args["title"] == "Re: Test"
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"source": 3}, "source must be a string"),
+            ({"title": 3}, "title must be a string"),
+        ],
+    )
+    def test_reply_rejects_non_string_text_inputs_before_login(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        kwargs: dict[str, object],
+        message: str,
+    ) -> None:
+        """返信の文字列入力不正はログイン確認やAMCリクエスト前に拒否する"""
+        mock_forum_thread_no_http.site.client.login_check = MagicMock()
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+
+        inputs: dict[str, Any] = {"source": "Test reply", "title": "", **kwargs}
+        with pytest.raises(ValueError, match=message):
+            mock_forum_thread_no_http.reply(**inputs)
+
+        mock_forum_thread_no_http.site.client.login_check.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_reply_to_parent_post(
         self, mock_forum_thread_no_http: ForumThread, amc_ok_response: dict[str, Any]
     ) -> None:

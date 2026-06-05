@@ -1239,6 +1239,32 @@ class TestForumPostEdit:
         assert result == mock_forum_post_no_http
         assert mock_forum_post_no_http.thread._posts is None
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"source": 3}, "source must be a string"),
+            ({"title": 3}, "title must be a string"),
+        ],
+    )
+    def test_edit_rejects_non_string_text_inputs_before_login_or_form_fetch(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        kwargs: dict[str, object],
+        message: str,
+    ) -> None:
+        """投稿編集の文字列入力不正はログイン確認や編集フォーム取得前に拒否する"""
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        inputs: dict[str, Any] = {"source": "Updated source", **kwargs}
+        with pytest.raises(ValueError, match=message):
+            mock_forum_post_no_http.edit(**inputs)
+
+        mock_forum_post_no_http.thread.site.client.login_check.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+
     def test_edit_scopes_current_revision_id_to_edit_form_direct_child(
         self,
         mock_forum_post_no_http: ForumPost,
