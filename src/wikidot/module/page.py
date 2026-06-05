@@ -640,6 +640,7 @@ class PageCollection(list["Page"]):
         Page | None
             Page with the specified fullname. None if it does not exist
         """
+        fullname = _validate_page_text_field("fullname", fullname)
         for page in self:
             if page.fullname == fullname:
                 return page

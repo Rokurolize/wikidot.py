@@ -145,6 +145,18 @@ class TestPageCollectionInit:
         found = collection.find("nonexistent")
         assert found is None
 
+    @pytest.mark.parametrize("bad_fullname", [None, True, 123, 1.0])
+    def test_find_rejects_non_string_fullnames(
+        self,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+        bad_fullname: object,
+    ) -> None:
+        """findの検索fullnameは文字列だけ受け付ける"""
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        with pytest.raises(ValueError, match="fullname must be a string"):
+            collection.find(bad_fullname)
+
 
 class TestPageCollectionParse:
     """PageCollection._parseのテスト"""
