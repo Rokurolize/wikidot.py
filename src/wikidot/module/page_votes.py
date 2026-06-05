@@ -9,9 +9,18 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from .user import AbstractUser
+
 if TYPE_CHECKING:
     from .page import Page
-    from .user import AbstractUser
+
+
+def _validate_vote_search_user(user: object) -> AbstractUser:
+    if not isinstance(user, AbstractUser):
+        raise ValueError("user must be an AbstractUser")
+    if not isinstance(user.id, int) or isinstance(user.id, bool):
+        raise ValueError("user.id must be an integer")
+    return user
 
 
 class PageVoteCollection(list["PageVote"]):
@@ -63,6 +72,7 @@ class PageVoteCollection(list["PageVote"]):
         PageVote
             The user's vote information
         """
+        user = _validate_vote_search_user(user)
         for vote in self:
             if vote.user.id == user.id:
                 return vote
