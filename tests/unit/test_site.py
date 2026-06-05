@@ -1643,6 +1643,92 @@ class TestSiteAmcRequest:
         with pytest.raises(ValueError, match="batch_size must be positive"):
             mock_site_no_http.amc_request_with_retry([], batch_size=0)
 
+    @pytest.mark.parametrize("batch_size", [None, True, False, "2", 0, -1, 1.5])
+    def test_amc_request_with_retry_rejects_invalid_config_batch_size_before_request(
+        self,
+        batch_size: Any,
+    ) -> None:
+        """config由来のbatch_size異常はAMC request前に安定したValueErrorで拒否する"""
+        mock_client = create_mock_client()
+        mock_client.amc_client.config.retry_batch_size = batch_size
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="batch_size must be positive"):
+            site.amc_request_with_retry([{"moduleName": "Test"}])
+
+        mock_client.amc_client.request.assert_not_called()
+
+    @pytest.mark.parametrize("batch_size", [True, False, "2", 0, -1, 1.5])
+    def test_amc_request_with_retry_rejects_invalid_explicit_batch_size_before_request(
+        self,
+        batch_size: Any,
+    ) -> None:
+        """明示batch_size異常はAMC request前に安定したValueErrorで拒否する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="batch_size must be positive"):
+            site.amc_request_with_retry([{"moduleName": "Test"}], batch_size=batch_size)
+
+        mock_client.amc_client.request.assert_not_called()
+
+    @pytest.mark.parametrize("max_retries", [None, True, False, "1", -1, 1.5])
+    def test_amc_request_with_retry_rejects_invalid_config_max_retries_before_request(
+        self,
+        max_retries: Any,
+    ) -> None:
+        """config由来のmax_retries異常はAMC request前に安定したValueErrorで拒否する"""
+        mock_client = create_mock_client()
+        mock_client.amc_client.config.retry_max_retries = max_retries
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="max_retries must be non-negative"):
+            site.amc_request_with_retry([{"moduleName": "Test"}])
+
+        mock_client.amc_client.request.assert_not_called()
+
+    @pytest.mark.parametrize("max_retries", [True, False, "1", -1, 1.5])
+    def test_amc_request_with_retry_rejects_invalid_explicit_max_retries_before_request(
+        self,
+        max_retries: Any,
+    ) -> None:
+        """明示max_retries異常はAMC request前に安定したValueErrorで拒否する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="max_retries must be non-negative"):
+            site.amc_request_with_retry([{"moduleName": "Test"}], max_retries=max_retries)
+
+        mock_client.amc_client.request.assert_not_called()
+
 
 class TestSiteInviteUser:
     """Site.invite_user のテスト"""

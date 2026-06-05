@@ -121,6 +121,18 @@ def _validate_recent_changes_limit(limit: object) -> int | None:
     return limit
 
 
+def _validate_amc_retry_batch_size(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"batch_size must be positive, got {value}")
+    return value
+
+
+def _validate_amc_retry_max_retries(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"max_retries must be non-negative, got {value}")
+    return value
+
+
 @dataclass(frozen=True)
 class PagePublishResult:
     """
@@ -1156,21 +1168,18 @@ class Site:
         tuple[httpx.Response | None, ...]
             Responses for each body. None for permanently failed requests.
         """
-        if batch_size is not None and batch_size <= 0:
-            raise ValueError(f"batch_size must be positive, got {batch_size}")
-        if max_retries is not None and max_retries < 0:
-            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+        if batch_size is not None:
+            batch_size = _validate_amc_retry_batch_size(batch_size)
+        if max_retries is not None:
+            max_retries = _validate_amc_retry_max_retries(max_retries)
         if len(bodies) == 0:
             return ()
 
         config = self.client.amc_client.config
-        batch_size = batch_size if batch_size is not None else config.retry_batch_size
-        max_retries = max_retries if max_retries is not None else config.retry_max_retries
-
-        if batch_size <= 0:
-            raise ValueError(f"batch_size must be positive, got {batch_size}")
-        if max_retries < 0:
-            raise ValueError(f"max_retries must be non-negative, got {max_retries}")
+        batch_size = batch_size if batch_size is not None else _validate_amc_retry_batch_size(config.retry_batch_size)
+        max_retries = (
+            max_retries if max_retries is not None else _validate_amc_retry_max_retries(config.retry_max_retries)
+        )
 
         all_results: list[httpx.Response | None] = []
 
