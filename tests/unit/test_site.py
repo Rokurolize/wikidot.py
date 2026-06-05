@@ -1166,6 +1166,33 @@ class TestSiteFromUnixName:
 
         assert "site id" in str(exc_info.value).lower()
 
+    def test_from_unix_name_malformed_site_id_includes_raw_value_context(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
+    ) -> None:
+        """siteIdが非数値の場合は値を含むNoElementException"""
+        html = """
+        <html>
+        <head><title>Bad Site</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = latest;
+            WIKIREQUEST.info.siteUnixName = "bad-site";
+            WIKIREQUEST.info.domain = "bad-site.wikidot.com";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="http://bad-site.wikidot.com",
+            text=html,
+        )
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Site ID is malformed for site: bad-site\.wikidot\.com \(field=site_id, value=latest\)",
+        ):
+            Site.from_unix_name(mock_client_no_http, "bad-site")
+
     def test_from_unix_name_missing_title(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
         """titleがない場合はUnexpectedException"""
         html = """

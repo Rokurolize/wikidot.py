@@ -956,10 +956,16 @@ class Site:
         source = response.text
 
         # id : WIKIREQUEST.info.siteId = xxxx;
-        id_match = re.search(r"WIKIREQUEST\.info\.siteId = (\d+);", source)
+        id_match = re.search(r"WIKIREQUEST\.info\.siteId\s*=\s*([^;]*);", source)
         if id_match is None:
             raise exceptions.UnexpectedException(f"Cannot find site id: {unix_name}.wikidot.com")
-        site_id = int(id_match.group(1))
+        site_id_text = id_match.group(1).strip()
+        try:
+            site_id = int(site_id_text)
+        except ValueError as exc:
+            raise exceptions.NoElementException(
+                f"Site ID is malformed for site: {unix_name}.wikidot.com (field=site_id, value={site_id_text})"
+            ) from exc
 
         # title : titleタグ
         title_match = re.search(r"<title>(.*?)</title>", source)
