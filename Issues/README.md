@@ -341,6 +341,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [335-pr-page-auxiliary-response-body-type-context.md](335-pr-page-auxiliary-response-body-type-context.md): upstream PR draft for the committed page auxiliary response-body type diagnostics fix.
 - [336-pr-recent-changes-response-body-type-context.md](336-pr-recent-changes-response-body-type-context.md): upstream PR draft for the committed recent-changes response-body type diagnostics fix.
 - [337-pr-page-rating-action-status-context.md](337-pr-page-rating-action-status-context.md): upstream PR draft for the committed page rating action status validation fix.
+- [338-pr-result-ledger-site-field.md](338-pr-result-ledger-site-field.md): upstream PR draft for the committed result-ledger site field improvement.
 
 ## Local Evidence Index
 
@@ -589,5 +590,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 239: `747197b fix(page): report malformed auxiliary bodies`
 - Local implementation commits, continued 240: `dc7a954 fix(site): report malformed recent change bodies`
 - Local implementation commits, continued 241: `01516e9 fix(page): guard rating action status`
+- Local implementation commits, continued 242: `ed4d6db feat(site): include site in result ledgers`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
