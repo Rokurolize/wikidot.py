@@ -160,6 +160,25 @@ def _parse_thread_detail_user(
         raise NoElementException(f"Forum thread detail user is malformed {parse_context}") from exc
 
 
+def _parse_thread_detail_created_at(
+    site: "Site",
+    thread_id: int | None,
+    category: Optional["ForumCategory"],
+    odate_elem: Tag,
+) -> datetime:
+    try:
+        return odate_parser(odate_elem)
+    except ValueError as exc:
+        parse_context = _thread_detail_parse_context(
+            site,
+            thread_id,
+            category,
+            field="created_at",
+            value=_odate_class_value(odate_elem),
+        )
+        raise NoElementException(f"Forum thread detail created_at is malformed {parse_context}") from exc
+
+
 def _require_forum_thread_action_status(thread: "ForumThread", event: str, data: dict[str, Any]) -> Any:
     try:
         status = data["status"]
@@ -466,7 +485,7 @@ class ForumThreadCollection(list["ForumThread"]):
         odate_elem = statistics_elem.find("span", class_="odate", recursive=False)
         if odate_elem is None:
             raise NoElementException(f"Odate element is not found {parse_context}")
-        created_at = odate_parser(odate_elem)
+        created_at = _parse_thread_detail_created_at(site, thread_id, category, odate_elem)
 
         # post_count取得処理
         # 3番目のbrの前のテキスト
