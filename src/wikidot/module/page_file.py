@@ -155,14 +155,21 @@ class PageFileCollection(list["PageFile"]):
             return []
 
         file_fields: list[tuple[int, str, str, str, int]] = []
-        for row in files_tbody.find_all("tr", recursive=False):
+        for row_index, row in enumerate(files_tbody.find_all("tr", recursive=False), start=1):
             row_id = row.get("id")
             if row_id is None:
                 continue
 
-            file_id_text = str(row_id).removeprefix("file-row-")
-            if not file_id_text.isdigit():
+            row_id_text = str(row_id)
+            if not row_id_text.startswith("file-row-"):
                 continue
+
+            file_id_text = row_id_text.removeprefix("file-row-")
+            if not file_id_text.isdigit():
+                location = f"{context} " if context else ""
+                raise exceptions.NoElementException(
+                    f"Page file row ID is malformed {location}(row={row_index}, field=id, value={row_id_text})"
+                )
             file_id = int(file_id_text)
             tds = [td for td in row.find_all("td", recursive=False) if isinstance(td, Tag)]
             if len(tds) < 3:

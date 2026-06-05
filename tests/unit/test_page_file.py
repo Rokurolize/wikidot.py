@@ -495,11 +495,13 @@ class TestPageFileCollectionAcquire:
         ):
             PageFileCollection.acquire(page)
 
-    def test_acquire_skips_malformed_file_row_id(self):
-        """不正なfile-row IDはパース対象から除外する"""
+    def test_acquire_malformed_file_row_id_includes_page_row_and_value_context(self):
+        """不正なfile-row IDは行を黙って落とさずsite/page/row/value付きで失敗する"""
         page = MagicMock()
         page.id = 12345
+        page.fullname = "test-page"
         site = MagicMock()
+        site.unix_name = "test-site"
         site.url = "https://test.wikidot.com"
         page.site = site
 
@@ -524,11 +526,14 @@ class TestPageFileCollectionAcquire:
         }
         site.amc_request_with_retry.return_value = (response,)
 
-        collection = PageFileCollection.acquire(page)
-
-        assert len(collection) == 1
-        assert collection[0].id == 101
-        assert collection[0].name == "good.txt"
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page file row ID is malformed for site: test-site, page: test-page "
+                r"\(row=1, field=id, value=file-row-not-a-number\)"
+            ),
+        ):
+            PageFileCollection.acquire(page)
 
     def test_acquire_empty(self):
         """ファイルなしの場合"""
