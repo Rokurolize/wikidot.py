@@ -260,6 +260,21 @@ class TestClientPrivateMessageAccessor:
                 mock_from_ids.assert_called_once_with(client, [1, 2, 3])
                 assert result == mock_collection
 
+    def test_get_messages_rejects_non_list_message_ids(self):
+        """リストでないメッセージID入力はクライアントアクセサでもログイン前に拒否する"""
+        message_ids: Any = "12"
+
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+            client.amc_client.request = MagicMock()
+
+            with pytest.raises(ValueError, match="message_ids must be a list"):
+                client.private_message.get_messages(message_ids)
+
+            client.login_check.assert_not_called()
+            client.amc_client.request.assert_not_called()
+
     def test_get_message(self):
         """単一メッセージ取得"""
         with patch("wikidot.module.client.AjaxModuleConnectorClient"):
@@ -272,6 +287,21 @@ class TestClientPrivateMessageAccessor:
 
                 mock_from_id.assert_called_once_with(client, 123)
                 assert result == mock_message
+
+    def test_get_message_rejects_non_integer_message_id(self):
+        """非整数の単一メッセージIDはクライアントアクセサでもログイン前に拒否する"""
+        message_id: Any = "1"
+
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+            client.amc_client.request = MagicMock()
+
+            with pytest.raises(ValueError, match="message_id must be an integer"):
+                client.private_message.get_message(message_id)
+
+            client.login_check.assert_not_called()
+            client.amc_client.request.assert_not_called()
 
 
 class TestClientSiteAccessor:

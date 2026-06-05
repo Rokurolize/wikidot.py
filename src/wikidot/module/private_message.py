@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from bs4 import BeautifulSoup, Tag
 from typing_extensions import Self
@@ -34,6 +34,20 @@ def _validate_private_message_recipient(recipient: object) -> User:
     if not isinstance(recipient.name, str):
         raise ValueError("recipient.name must be a string")
     return recipient
+
+
+def _validate_private_message_id(message_id: object) -> int:
+    if not isinstance(message_id, int) or isinstance(message_id, bool):
+        raise ValueError("message_id must be an integer")
+    return message_id
+
+
+def _validate_private_message_ids(message_ids: object) -> list[int]:
+    if not isinstance(message_ids, list):
+        raise ValueError("message_ids must be a list")
+    if any(not isinstance(message_id, int) or isinstance(message_id, bool) for message_id in message_ids):
+        raise ValueError("message_ids list entries must be integers")
+    return cast(list[int], message_ids)
 
 
 def _require_private_message_send_action_status(recipient: "User", event: str, data: dict[str, Any]) -> Any:
@@ -264,6 +278,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         ForbiddenException
             If no permission to access the message
         """
+        message_ids = _validate_private_message_ids(message_ids)
         if len(message_ids) == 0:
             return PrivateMessageCollection([])
 
@@ -698,6 +713,7 @@ class PrivateMessage:
         IndexError
             If message not found
         """
+        message_id = _validate_private_message_id(message_id)
         return PrivateMessageCollection.from_ids(client, [message_id])[0]
 
     @staticmethod

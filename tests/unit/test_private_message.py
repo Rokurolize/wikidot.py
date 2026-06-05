@@ -111,6 +111,31 @@ class TestPrivateMessageCollection:
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
 
+    def test_from_ids_rejects_non_list_message_ids_before_login(self, mock_client):
+        """リストでないメッセージID入力はログイン確認やAMCリクエスト前に拒否する"""
+        message_ids: Any = "12"
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="message_ids must be a list"):
+            PrivateMessageCollection.from_ids(mock_client, message_ids)
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
+    @pytest.mark.parametrize("message_ids", [[None], [True], ["1"], [1.25]])
+    def test_from_ids_rejects_non_integer_message_id_entries_before_login(self, mock_client, message_ids):
+        """メッセージIDリスト内の非整数値はログイン確認やAMCリクエスト前に拒否する"""
+        bad_message_ids: Any = message_ids
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="message_ids list entries must be integers"):
+            PrivateMessageCollection.from_ids(mock_client, bad_message_ids)
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
     def test_from_ids_success(self, mock_client):
         """from_idsの成功ケース"""
         mock_response = MagicMock()
@@ -859,6 +884,19 @@ class TestPrivateMessage:
 
             mock_from_ids.assert_called_once_with(mock_client, [123])
             assert result is not None
+
+    @pytest.mark.parametrize("message_id", [None, True, "1"])
+    def test_from_id_rejects_non_integer_message_id_before_login(self, mock_client, message_id):
+        """単一メッセージIDの非整数値はログイン確認やAMCリクエスト前に拒否する"""
+        bad_message_id: Any = message_id
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="message_id must be an integer"):
+            PrivateMessage.from_id(mock_client, bad_message_id)
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
 
     def test_send_requires_login(self, mock_client, mock_user):
         """sendはログインが必要"""
