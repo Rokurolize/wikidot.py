@@ -79,6 +79,11 @@ class QuickModule:
     @staticmethod
     def _response_items(module_name: str, site_id: int, query: str, response_key: str) -> list[Any]:
         response_data = QuickModule._request(module_name, site_id, query)
+        if not isinstance(response_data, dict):
+            raise ValueError(
+                f"QuickModule response body is malformed for module: {module_name}, site_id={site_id} "
+                f"(expected=dict, actual={type(response_data).__name__})"
+            )
         if response_key not in response_data:
             raise ValueError(
                 f"QuickModule response key is missing for module: {module_name}, site_id={site_id} "
