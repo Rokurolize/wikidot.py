@@ -303,7 +303,10 @@ class TestUserCollection:
 
         with pytest.raises(
             NoElementException,
-            match=r"User ID is not found for requested user: bad \(index=1\)",
+            match=(
+                r"User ID is malformed for requested user: bad "
+                r"\(index=1, field=user_id, value=http://www\.wikidot\.com/userkarma\.php/not-a-number\)"
+            ),
         ):
             UserCollection.from_names(mock_client_no_http, ["bad"])
 

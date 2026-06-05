@@ -13,6 +13,12 @@ if TYPE_CHECKING:
     from .client import Client
 
 
+def _profile_parse_context(name: str, index: int, **details: object) -> str:
+    context = [f"index={index}"]
+    context.extend(f"{key}={value}" for key, value in details.items())
+    return f"for requested user: {StringUtil.to_unix(name)} ({', '.join(context)})"
+
+
 class UserCollection(list["AbstractUser"]):
     """
     A class representing a collection of user objects
@@ -71,7 +77,7 @@ class UserCollection(list["AbstractUser"]):
             if isinstance(response, Exception):
                 raise response
 
-            parse_context = f"for requested user: {StringUtil.to_unix(name)} (index={index})"
+            parse_context = _profile_parse_context(name, index)
             html = BeautifulSoup(response.text, "lxml")
 
             # 存在チェック
@@ -85,9 +91,14 @@ class UserCollection(list["AbstractUser"]):
             user_id_elem = html.select_one("a.btn.btn-default.btn-xs")
             if user_id_elem is None:
                 raise NoElementException(f"User ID element not found {parse_context}")
-            user_id_match = re.search(r"(?:/new/|userkarma\.php/)(\d+)(?:[/?#].*)?$", str(user_id_elem.get("href", "")))
-            if user_id_match is None:
+            user_id_href = user_id_elem.get("href")
+            user_id_href_text = "" if user_id_href is None else str(user_id_href).strip()
+            if not user_id_href_text:
                 raise NoElementException(f"User ID is not found {parse_context}")
+            user_id_match = re.search(r"(?:/new/|userkarma\.php/)(\d+)(?:[/?#].*)?$", user_id_href_text)
+            if user_id_match is None:
+                parse_context = _profile_parse_context(name, index, field="user_id", value=user_id_href_text)
+                raise NoElementException(f"User ID is malformed {parse_context}")
             user_id = int(user_id_match.group(1))
 
             # name取得
