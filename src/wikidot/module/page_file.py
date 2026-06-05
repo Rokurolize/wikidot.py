@@ -286,6 +286,12 @@ class PageFileCollection(list["PageFile"]):
             raise exceptions.NoElementException(
                 f"Page file list response body is not found for site: {page.site.unix_name}, page: {page.fullname}"
             )
+        if not isinstance(body, str):
+            raise exceptions.NoElementException(
+                "Page file list response body is malformed "
+                f"for site: {page.site.unix_name}, page: {page.fullname} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
+            )
 
         html = BeautifulSoup(body, "lxml")
         files = PageFileCollection._parse_from_html(page, html)
