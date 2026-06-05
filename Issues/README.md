@@ -296,6 +296,9 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [290-pr-site-member-joined-at-context.md](290-pr-site-member-joined-at-context.md): upstream PR draft for the committed site-member list joined-at diagnostics fix.
 - [291-pr-forum-thread-list-user-context.md](291-pr-forum-thread-list-user-context.md): upstream PR draft for the committed forum thread-list user diagnostics fix.
 - [292-pr-forum-thread-list-timestamp-context.md](292-pr-forum-thread-list-timestamp-context.md): upstream PR draft for the committed forum thread-list timestamp diagnostics fix.
+- [293-pr-forum-thread-detail-user-context.md](293-pr-forum-thread-detail-user-context.md): upstream PR draft for the committed forum thread-detail user diagnostics fix.
+- [294-pr-forum-thread-detail-timestamp-context.md](294-pr-forum-thread-detail-timestamp-context.md): upstream PR draft for the committed forum thread-detail timestamp diagnostics fix.
+- [295-pr-forum-post-list-user-context.md](295-pr-forum-post-list-user-context.md): upstream PR draft for the committed forum post-list user diagnostics fix.
 
 ## Local Evidence Index
 
@@ -501,5 +504,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 196: `f306c99 fix(forum_thread): report malformed list timestamps`
 - Local implementation commits, continued 197: `43852b0 fix(forum_thread): report malformed detail users`
 - Local implementation commits, continued 198: `f1f37ef fix(forum_thread): report malformed detail timestamps`
+- Local implementation commits, continued 199: `d3390ec fix(forum_post): report malformed post users`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
