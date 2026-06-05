@@ -397,6 +397,33 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
+    def test_from_ids_malformed_odate_includes_module_message_field_and_value_context(self, mock_client):
+        """メッセージ詳細の日時値不正はparser例外ではなく文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                    <span class="subject">Test Subject</span>
+                    <span class="odate time_latest">not a time</span>
+                </div>
+                <div class="body">Test Body</div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                "Message odate value is malformed for module: dashboard/messages/DMViewMessageModule, "
+                "message: 1, field=odate, value=time_latest"
+            ),
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
     def test_from_ids_missing_subject_includes_module_message_and_field_context(self, mock_client):
         """メッセージ詳細の件名要素欠損は空文字補完ではなく文脈付きNoElementException"""
         mock_response = MagicMock()

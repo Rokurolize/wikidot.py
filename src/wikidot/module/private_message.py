@@ -41,6 +41,14 @@ def _require_private_message_send_action_status(recipient: "User", event: str, d
     return status
 
 
+def _odate_class_value(odate_element: Tag) -> str:
+    class_attr = odate_element.get("class", [])
+    if class_attr is None:
+        return ""
+    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+
+
 class PrivateMessageCollection(list["PrivateMessage"]):
     """
     Base class representing a collection of private messages
@@ -300,12 +308,20 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             if odate_element is None:
                 raise exceptions.NoElementException(f"Message odate element is not found {parse_context}, field=odate")
 
+            try:
+                created_at = odate_parser(odate_element)
+            except ValueError as exc:
+                raise exceptions.NoElementException(
+                    f"Message odate value is malformed {parse_context}, "
+                    f"field=odate, value={_odate_class_value(odate_element)}"
+                ) from exc
+
             parsed_messages_by_id[message_id] = (
                 user_parser(client, sender),
                 user_parser(client, recipient),
                 subject_element.get_text(" ", strip=True),
                 body_element.get_text(" ", strip=True),
-                odate_parser(odate_element),
+                created_at,
             )
 
         messages = []
