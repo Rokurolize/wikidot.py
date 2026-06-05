@@ -70,6 +70,15 @@ def _user_onclick_value(user_elem: Tag) -> str:
     return user_elem.get_text(" ", strip=True)
 
 
+def _odate_class_value(odate_elem: Tag) -> str:
+    class_attr = odate_elem.get("class", [])
+    if class_attr is None:
+        return ""
+
+    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+
+
 def _parse_post_list_user(
     thread: "ForumThread",
     page: int | None,
@@ -89,6 +98,27 @@ def _parse_post_list_user(
             value=_user_onclick_value(user_elem),
         )
         raise NoElementException(f"Forum post user is malformed {parse_context}") from exc
+
+
+def _parse_post_list_created_at(
+    thread: "ForumThread",
+    page: int | None,
+    post_index: int,
+    post_id: int,
+    odate_elem: Tag,
+) -> datetime:
+    try:
+        return odate_parser(odate_elem)
+    except ValueError as exc:
+        parse_context = _post_list_parse_context(
+            thread,
+            page,
+            post_index,
+            post_id,
+            field="created_at",
+            value=_odate_class_value(odate_elem),
+        )
+        raise NoElementException(f"Forum post created_at is malformed {parse_context}") from exc
 
 
 def _require_forum_post_action_status(post: "ForumPost", event: str, data: dict[str, Any]) -> Any:
@@ -340,7 +370,7 @@ class ForumPostCollection(list["ForumPost"]):
             odate_elem = info_elem.select_one(":scope > span.odate")
             if odate_elem is None:
                 raise NoElementException(f"Post odate element is not found {parse_context}")
-            created_at = odate_parser(odate_elem)
+            created_at = _parse_post_list_created_at(thread, page, post_index, post_id, odate_elem)
 
             # 編集情報（存在する場合）
             edited_by = None
