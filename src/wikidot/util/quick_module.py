@@ -115,6 +115,30 @@ class QuickModule:
         return [item_mapping(item_class, item) for item in items]
 
     @staticmethod
+    def _map_user_item(module_name: str, site_id: int, row_index: int, item: dict[str, Any]) -> QMCUser:
+        user_id_value = item["user_id"]
+        try:
+            user_id = int(str(user_id_value))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"QuickModule user ID is malformed for module: {module_name}, site_id={site_id} "
+                f"(row={row_index}, field=user_id, value={user_id_value})"
+            ) from exc
+
+        return QMCUser(id=user_id, name=item["name"])
+
+    @staticmethod
+    def _user_lookup(module_name: str, site_id: int, query: str) -> list[QMCUser]:
+        items = QuickModule._request(module_name, site_id, query)["users"]
+        # member_lookupの特殊ケースを処理
+        if items is False:
+            return []
+        return [
+            QuickModule._map_user_item(module_name, site_id, row_index, item)
+            for row_index, item in enumerate(items, start=1)
+        ]
+
+    @staticmethod
     def member_lookup(site_id: int, query: str) -> list[QMCUser]:
         """Search for members
 
@@ -130,14 +154,7 @@ class QuickModule:
         list[QMCUser]
             List of users
         """
-        return QuickModule._generic_lookup(
-            "MemberLookupQModule",
-            site_id,
-            query,
-            "users",
-            QMCUser,
-            lambda cls, item: cls(id=int(item["user_id"]), name=item["name"]),
-        )
+        return QuickModule._user_lookup("MemberLookupQModule", site_id, query)
 
     @staticmethod
     def user_lookup(site_id: int, query: str) -> list[QMCUser]:
@@ -155,14 +172,7 @@ class QuickModule:
         list[QMCUser]
             List of users
         """
-        return QuickModule._generic_lookup(
-            "UserLookupQModule",
-            site_id,
-            query,
-            "users",
-            QMCUser,
-            lambda cls, item: cls(id=int(item["user_id"]), name=item["name"]),
-        )
+        return QuickModule._user_lookup("UserLookupQModule", site_id, query)
 
     @staticmethod
     def page_lookup(site_id: int, query: str) -> list[QMCPage]:

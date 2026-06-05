@@ -148,6 +148,24 @@ class TestQuickModuleMemberLookup:
 
             assert len(users) == 0
 
+    def test_member_lookup_malformed_user_id_includes_module_site_row_and_value_context(self):
+        """メンバー検索のuser_id異常値はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "latest", "name": "bad-user"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule user ID is malformed for module: MemberLookupQModule, site_id=123456 "
+                    r"\(row=1, field=user_id, value=latest\)"
+                ),
+            ),
+        ):
+            QuickModule.member_lookup(123456, "test")
+
 
 class TestQuickModuleUserLookup:
     """QuickModule.user_lookupのテスト"""
@@ -164,6 +182,24 @@ class TestQuickModuleUserLookup:
             assert len(users) == 1
             assert users[0].id == 12345
             assert users[0].name == "test-user"
+
+    def test_user_lookup_malformed_user_id_includes_module_site_row_and_value_context(self):
+        """ユーザー検索のuser_id異常値はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "latest", "name": "bad-user"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule user ID is malformed for module: UserLookupQModule, site_id=123456 "
+                    r"\(row=1, field=user_id, value=latest\)"
+                ),
+            ),
+        ):
+            QuickModule.user_lookup(123456, "test")
 
 
 class TestQuickModulePageLookup:
