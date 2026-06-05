@@ -244,6 +244,34 @@ class TestSitePagesAccessor:
 
         search_pages.assert_not_called()
 
+    def test_iter_sources_source_batch_size_must_be_integer(self, mock_site_no_http: Site) -> None:
+        """source_batch_sizeは検索前に整数として検証する"""
+        invalid_sizes: tuple[Any, ...] = ("2", 1.5)
+        for invalid_size in invalid_sizes:
+            with (
+                patch.object(
+                    PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])
+                ) as search_pages,
+                pytest.raises(ValueError, match="source_batch_size must be an integer"),
+            ):
+                list(mock_site_no_http.pages.iter_sources(limit=1, source_batch_size=invalid_size))
+
+            search_pages.assert_not_called()
+
+    def test_iter_sources_fallback_batch_size_must_be_integer(self, mock_site_no_http: Site) -> None:
+        """fallback_batch_sizeは検索前に整数として検証する"""
+        invalid_sizes: tuple[Any, ...] = ("1", 1.5)
+        for invalid_size in invalid_sizes:
+            with (
+                patch.object(
+                    PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])
+                ) as search_pages,
+                pytest.raises(ValueError, match="fallback_batch_size must be an integer"),
+            ):
+                list(mock_site_no_http.pages.iter_sources(limit=1, fallback_batch_size=invalid_size))
+
+            search_pages.assert_not_called()
+
     def test_iter_sources_yields_sources_in_search_order(self, mock_site_no_http: Site) -> None:
         """iter_sourcesは検索順を保ったままsourceを分割取得して結果を返す"""
         pages = [

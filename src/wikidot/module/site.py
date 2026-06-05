@@ -340,6 +340,14 @@ class SitePagesAccessor:
             raise ValueError("required_tags list entries must be strings")
         return set(required_tags)
 
+    @staticmethod
+    def _validate_positive_integer(field_name: str, value: object) -> int:
+        if not isinstance(value, int):
+            raise ValueError(f"{field_name} must be an integer")
+        if value <= 0:
+            raise ValueError(f"{field_name} must be greater than 0")
+        return value
+
     def iter_search(
         self,
         required_tags: str | list[str] | None = None,
@@ -429,10 +437,8 @@ class SitePagesAccessor:
         PageSourceResult
             Structured source success or failure for each matching page.
         """
-        if source_batch_size <= 0:
-            raise ValueError("source_batch_size must be greater than 0")
-        if fallback_batch_size <= 0:
-            raise ValueError("fallback_batch_size must be greater than 0")
+        source_batch_size = self._validate_positive_integer("source_batch_size", source_batch_size)
+        fallback_batch_size = self._validate_positive_integer("fallback_batch_size", fallback_batch_size)
 
         batch: list[Page] = []
         for page in self.iter_search(required_tags=required_tags, **kwargs):
