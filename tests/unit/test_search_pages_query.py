@@ -92,6 +92,14 @@ class TestSearchPagesQueryAsDict:
         result = query.as_dict()
         assert result["tags"] == "scp euclid humanoid"
 
+    def test_as_dict_tags_list_requires_strings(self):
+        """タグリストの要素は文字列だけ受け付ける"""
+        import pytest
+
+        query = SearchPagesQuery(tags=["scp", 3])
+        with pytest.raises(ValueError, match="tags list entries must be strings"):
+            query.as_dict()
+
     def test_as_dict_tags_string_unchanged(self):
         """タグ文字列がそのまま保持されるテスト"""
         query = SearchPagesQuery(tags="scp euclid")

@@ -329,6 +329,8 @@ class SitePagesAccessor:
             return set()
         if isinstance(required_tags, str):
             return set(required_tags.split())
+        if any(not isinstance(tag, str) for tag in required_tags):
+            raise ValueError("required_tags list entries must be strings")
         return set(required_tags)
 
     def iter_search(

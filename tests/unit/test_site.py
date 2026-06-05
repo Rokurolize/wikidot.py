@@ -230,6 +230,20 @@ class TestSitePagesAccessor:
         assert [query.offset for query in search_calls] == [0, 2]
         assert [query.limit for query in search_calls] == [2, 2]
 
+    def test_iter_search_required_tags_list_requires_strings(self, mock_site_no_http: Site) -> None:
+        """required_tagsのリスト要素は文字列だけ受け付ける"""
+        invalid_tags: list[Any] = ["scp", 3]
+
+        with (
+            patch.object(
+                PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])
+            ) as search_pages,
+            pytest.raises(ValueError, match="required_tags list entries must be strings"),
+        ):
+            list(mock_site_no_http.pages.iter_search(required_tags=invalid_tags, limit=1))
+
+        search_pages.assert_not_called()
+
     def test_iter_sources_yields_sources_in_search_order(self, mock_site_no_http: Site) -> None:
         """iter_sourcesは検索順を保ったままsourceを分割取得して結果を返す"""
         pages = [

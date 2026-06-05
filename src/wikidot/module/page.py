@@ -509,6 +509,8 @@ class SearchPagesQuery:
         res = {k: v for k, v in self.__dict__.items() if v is not None and k in self._VALID_FIELDS}
 
         if "tags" in res and isinstance(res["tags"], list):
+            if any(not isinstance(tag, str) for tag in res["tags"]):
+                raise ValueError("tags list entries must be strings")
             res["tags"] = " ".join(res["tags"])
         if "created_by" in res and not isinstance(res["created_by"], str):
             user_name = getattr(res["created_by"], "unix_name", None) or getattr(res["created_by"], "name", None)
