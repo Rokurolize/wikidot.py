@@ -294,6 +294,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [288-pr-private-message-detail-user-context.md](288-pr-private-message-detail-user-context.md): upstream PR draft for the committed private-message detail user diagnostics fix.
 - [289-pr-site-member-user-context.md](289-pr-site-member-user-context.md): upstream PR draft for the committed site-member list user diagnostics fix.
 - [290-pr-site-member-joined-at-context.md](290-pr-site-member-joined-at-context.md): upstream PR draft for the committed site-member list joined-at diagnostics fix.
+- [291-pr-forum-thread-list-user-context.md](291-pr-forum-thread-list-user-context.md): upstream PR draft for the committed forum thread-list user diagnostics fix.
 
 ## Local Evidence Index
 
@@ -495,5 +496,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 192: `949892f fix(private_message): report malformed detail users`
 - Local implementation commits, continued 193: `85a9833 fix(site_member): report malformed member users`
 - Local implementation commits, continued 194: `bc239e5 fix(site_member): report malformed member join dates`
+- Local implementation commits, continued 195: `cff541d fix(forum_thread): report malformed list users`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
