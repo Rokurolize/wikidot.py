@@ -118,6 +118,9 @@ class PageRevisionCollection(list["PageRevision"]):
         list[PageRevision]
             List of revisions with updated data
         """
+        if any(not isinstance(revision, PageRevision) for revision in revisions):
+            raise ValueError("revisions list entries must be PageRevision")
+
         acquired_revisions_by_id: dict[int, PageRevision] = {}
         if copy_acquired_func is not None:
             for revision in revisions:

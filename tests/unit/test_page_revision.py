@@ -98,6 +98,17 @@ class TestPageRevisionCollection:
             collection.get_sources()
         assert "Page is not set" in str(exc_info.value)
 
+    @pytest.mark.parametrize("bad_revision", [None, True, "100"])
+    def test_get_sources_rejects_non_revision_entries_before_fetch(self, mock_page, sample_revision, bad_revision):
+        """get_sourcesはPageRevision以外の要素を送信前に拒否する"""
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision, bad_revision])
+
+        with pytest.raises(ValueError, match="revisions list entries must be PageRevision"):
+            collection.get_sources()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_not_called()
+
     def test_get_sources_success(self, mock_page, sample_revision):
         """get_sourcesの成功ケース"""
         mock_response = MagicMock()
@@ -289,6 +300,17 @@ class TestPageRevisionCollection:
         with pytest.raises(ValueError) as exc_info:
             collection.get_htmls()
         assert "Page is not set" in str(exc_info.value)
+
+    @pytest.mark.parametrize("bad_revision", [None, True, "100"])
+    def test_get_htmls_rejects_non_revision_entries_before_fetch(self, mock_page, sample_revision, bad_revision):
+        """get_htmlsはPageRevision以外の要素を送信前に拒否する"""
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision, bad_revision])
+
+        with pytest.raises(ValueError, match="revisions list entries must be PageRevision"):
+            collection.get_htmls()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_not_called()
 
     def test_get_htmls_success(self, mock_page, sample_revision):
         """get_htmlsの成功ケース"""
