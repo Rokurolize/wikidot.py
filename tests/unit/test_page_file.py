@@ -110,6 +110,16 @@ class TestPageFileCollection:
 
         assert result is None
 
+    @pytest.mark.parametrize("file_name", [None, True, 123, 1.0])
+    def test_find_by_name_rejects_non_string_names(self, file_name):
+        """find_by_nameの検索名は文字列だけ受け付ける"""
+        page = MagicMock()
+        file1 = PageFile(page=page, id=1, name="test.txt", url="", mime_type="", size=0)
+        collection = PageFileCollection(page=page, files=[file1])
+
+        with pytest.raises(ValueError, match="name must be a string"):
+            collection.find_by_name(file_name)
+
 
 class TestPageFileCollectionParseSize:
     """PageFileCollection._parse_sizeのテスト"""

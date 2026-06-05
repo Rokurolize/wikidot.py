@@ -108,6 +108,8 @@ class PageFileCollection(list["PageFile"]):
         PageFile | None
             The file with the specified name, or None if not found
         """
+        if not isinstance(name, str):
+            raise ValueError("name must be a string")
         for file in self:
             if file.name == name:
                 return file
