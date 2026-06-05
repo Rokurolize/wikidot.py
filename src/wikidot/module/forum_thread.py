@@ -46,6 +46,15 @@ def _thread_list_parse_context(
     return f"for site: {_site_name(site)} ({', '.join(context)})"
 
 
+def _user_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
 def _parse_thread_list_count(
     site: "Site", category: Optional["ForumCategory"], row_index: int, page: int | None, value: str
 ) -> int:
@@ -54,6 +63,27 @@ def _parse_thread_list_count(
     except ValueError as exc:
         parse_context = _thread_list_parse_context(site, category, row_index, page, field="posts", value=value)
         raise NoElementException(f"Posts count is malformed {parse_context}") from exc
+
+
+def _parse_thread_list_user(
+    site: "Site",
+    category: Optional["ForumCategory"],
+    row_index: int,
+    page: int | None,
+    user_elem: Tag,
+) -> "AbstractUser":
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        parse_context = _thread_list_parse_context(
+            site,
+            category,
+            row_index,
+            page,
+            field="created_by",
+            value=_user_onclick_value(user_elem),
+        )
+        raise NoElementException(f"Forum thread list user is malformed {parse_context}") from exc
 
 
 def _thread_detail_parse_context(
@@ -314,7 +344,7 @@ class ForumThreadCollection(list["ForumThread"]):
                     id=int(thread_id),
                     title=title.get_text(" ", strip=True),
                     description=description_elem.get_text(" ", strip=True),
-                    created_by=user_parser(site.client, user_elem),
+                    created_by=_parse_thread_list_user(site, category, row_index, page, user_elem),
                     created_at=odate_parser(odate_elem),
                     post_count=post_count,
                     category=category,

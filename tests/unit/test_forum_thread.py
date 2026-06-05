@@ -386,6 +386,32 @@ class TestForumThreadCollectionAcquireAll:
         ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
 
+    def test_acquire_all_malformed_user_includes_category_page_row_and_value_context(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド一覧の作成者IDが壊れている場合はカテゴリ・ページ・行・値を含めて失敗する"""
+        body_with_bad_user = forum_threads_in_category["body"].replace(
+            "WIKIDOT.page.listeners.userInfo(12345); return false;",
+            "WIKIDOT.page.listeners.userInfo(latest); return false;",
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body_with_bad_user}
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread list user is malformed for site: test-site "
+                r"\(category=1001, page=1, row=1, field=created_by, "
+                r"value=WIKIDOT\.page\.listeners\.userInfo\(latest\); return false;\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_pagination(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
