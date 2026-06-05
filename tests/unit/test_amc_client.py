@@ -35,17 +35,34 @@ class TestAjaxRequestHeader:
     def test_custom_values(self) -> None:
         """カスタム値が正しく設定される"""
         header = AjaxRequestHeader(
-            content_type="text/plain",
-            user_agent="CustomAgent",
+            content_type="text/plain; charset=UTF-8",
+            user_agent="Custom Agent/1.0",
             referer="https://example.com/",
             cookie={"session": "abc123"},
         )
 
-        assert header.content_type == "text/plain"
-        assert header.user_agent == "CustomAgent"
+        assert header.content_type == "text/plain; charset=UTF-8"
+        assert header.user_agent == "Custom Agent/1.0"
         assert header.referer == "https://example.com/"
         assert "session" in header.cookie
         assert "wikidot_token7" in header.cookie
+
+    @pytest.mark.parametrize("field", ["content_type", "user_agent", "referer"])
+    @pytest.mark.parametrize("value", ["bad\nvalue", "bad\rvalue"])
+    def test_custom_header_values_reject_line_breaks(self, field: str, value: str) -> None:
+        """通常ヘッダ値に改行が含まれる場合は拒否される"""
+        kwargs: dict[str, Any] = {field: value}
+
+        with pytest.raises(ValueError, match=f"{field} must not contain line breaks"):
+            AjaxRequestHeader(**kwargs)
+
+    @pytest.mark.parametrize("field", ["content_type", "user_agent", "referer"])
+    def test_custom_header_values_reject_non_strings(self, field: str) -> None:
+        """通常ヘッダ値は文字列だけを受け付ける"""
+        kwargs: dict[str, Any] = {field: 123}
+
+        with pytest.raises(TypeError, match=f"{field} must be str"):
+            AjaxRequestHeader(**kwargs)
 
     @pytest.mark.parametrize("name", ["", " ", "bad name", "bad=name", "bad;name", "bad\nname"])
     def test_custom_cookie_rejects_invalid_cookie_names(self, name: str) -> None:

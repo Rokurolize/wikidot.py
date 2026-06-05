@@ -42,6 +42,14 @@ def _validate_cookie_value(value: object) -> object:
     return value
 
 
+def _validate_header_value(field_name: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be str")
+    if "\r" in value or "\n" in value:
+        raise ValueError(f"{field_name} must not contain line breaks")
+    return value
+
+
 class AjaxRequestHeader:
     """
     Class for managing request headers used in Ajax Module Connector communication
@@ -72,10 +80,14 @@ class AjaxRequestHeader:
             Cookie to set. Empty dict is used if None
         """
         self.content_type: str = (
-            "application/x-www-form-urlencoded; charset=UTF-8" if content_type is None else content_type
+            "application/x-www-form-urlencoded; charset=UTF-8"
+            if content_type is None
+            else _validate_header_value("content_type", content_type)
         )
-        self.user_agent: str = "WikidotPy" if user_agent is None else user_agent
-        self.referer: str = "https://www.wikidot.com/" if referer is None else referer
+        self.user_agent: str = "WikidotPy" if user_agent is None else _validate_header_value("user_agent", user_agent)
+        self.referer: str = (
+            "https://www.wikidot.com/" if referer is None else _validate_header_value("referer", referer)
+        )
         self.cookie: dict[str, Any] = {"wikidot_token7": 123456}
         if cookie is not None:
             self.cookie.update(
