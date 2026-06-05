@@ -442,6 +442,37 @@ class TestForumPostCollectionAcquireAll:
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_edit_odate_includes_thread_page_post_and_value_context(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """投稿一覧の編集日時が壊れている場合はsite/thread/page/post/field/value文脈付きで失敗する"""
+        body = forum_posts_in_thread["body"].replace(
+            '<div class="content" id="post-content-5001"><p>Test post content</p></div>',
+            (
+                '<div class="content" id="post-content-5001"><p>Test post content</p></div>'
+                '<div class="changes"><span class="printuser">'
+                '<a href="http://www.wikidot.com/user:info/edit-user" '
+                'onclick="WIKIDOT.page.listeners.userInfo(54322); return false;">edit_user</a>'
+                '</span> <span class="odate time_latest">17 Dec 2025</span></div>'
+            ),
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_posts_in_thread, "body": body}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post edited_at is malformed for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5001, field=edited_at, value=time_latest\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_missing_first_page_response_body_includes_thread_and_page_context(
         self, mock_forum_thread_no_http: ForumThread
     ) -> None:

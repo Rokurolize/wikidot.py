@@ -108,6 +108,8 @@ def _parse_post_list_created_at(
     post_index: int,
     post_id: int,
     odate_elem: Tag,
+    *,
+    field: str = "created_at",
 ) -> datetime:
     try:
         return odate_parser(odate_elem)
@@ -117,10 +119,10 @@ def _parse_post_list_created_at(
             page,
             post_index,
             post_id,
-            field="created_at",
+            field=field,
             value=_odate_class_value(odate_elem),
         )
-        raise NoElementException(f"Forum post created_at is malformed {parse_context}") from exc
+        raise NoElementException(f"Forum post {field} is malformed {parse_context}") from exc
 
 
 def _require_forum_post_action_status(post: "ForumPost", event: str, data: dict[str, Any]) -> Any:
@@ -390,7 +392,14 @@ class ForumPostCollection(list["ForumPost"]):
                         edit_user_elem,
                         field="edited_by",
                     )
-                    edited_at = odate_parser(edit_odate_elem)
+                    edited_at = _parse_post_list_created_at(
+                        thread,
+                        page,
+                        post_index,
+                        post_id,
+                        edit_odate_elem,
+                        field="edited_at",
+                    )
 
             post = ForumPost(
                 thread=thread,
