@@ -360,6 +360,9 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [354-pr-validate-forum-write-text-inputs.md](354-pr-validate-forum-write-text-inputs.md): upstream PR draft for the committed forum write text input validation fix.
 - [355-pr-validate-private-message-send-text-inputs.md](355-pr-validate-private-message-send-text-inputs.md): upstream PR draft for the committed private-message send text input validation fix.
 - [356-pr-validate-site-invite-text-input.md](356-pr-validate-site-invite-text-input.md): upstream PR draft for the committed site invitation text input validation fix.
+- [357-pr-validate-site-member-lookup-username.md](357-pr-validate-site-member-lookup-username.md): upstream PR draft for the committed site member lookup username validation fix.
+- [358-pr-validate-user-profile-lookup-usernames.md](358-pr-validate-user-profile-lookup-usernames.md): upstream PR draft for the committed user profile lookup username validation fix.
+- [359-pr-validate-site-lookup-unix-names.md](359-pr-validate-site-lookup-unix-names.md): upstream PR draft for the committed site lookup UNIX-name validation fix.
 
 ## Local Evidence Index
 
@@ -629,5 +632,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 260: `a939e33 fix(site): validate invite text input`
 - Local implementation commits, continued 261: `1691646 fix(site): validate member lookup username`
 - Local implementation commits, continued 262: `531acbe fix(user): validate profile lookup usernames`
+- Local implementation commits, continued 263: `0f976b6 fix(site): validate site lookup unix names`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
