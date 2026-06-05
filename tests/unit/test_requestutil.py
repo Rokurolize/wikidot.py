@@ -86,6 +86,87 @@ class TestRequestUtilClientReuse:
         assert len(created_clients) == 1
 
 
+class TestRequestUtilConfigValidation:
+    """RequestUtil.requestの設定値検証テスト"""
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    @pytest.mark.parametrize("request_timeout", [None, True, "1", 0, -0.1])
+    def test_rejects_invalid_request_timeout_before_request(
+        self,
+        httpx_mock,
+        method: str,
+        request_timeout: Any,
+    ) -> None:
+        """request_timeoutはHTTPリクエスト前に正の数値として検証する"""
+        mock_client = MagicMock()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(request_timeout=request_timeout, retry_interval=0)
+
+        with pytest.raises(ValueError, match="request_timeout must be a positive number"):
+            RequestUtil.request(mock_client, method, ["https://example.com/test"])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    @pytest.mark.parametrize("field", ["attempt_limit", "semaphore_limit"])
+    @pytest.mark.parametrize("value", [None, True, "1", 0, -1, 1.5])
+    def test_rejects_invalid_positive_integer_config_before_request(
+        self,
+        httpx_mock,
+        method: str,
+        field: str,
+        value: Any,
+    ) -> None:
+        """attempt/semaphore設定はHTTPリクエスト前に正の整数として検証する"""
+        mock_client = MagicMock()
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        setattr(config, field, value)
+        mock_client.amc_client.config = config
+
+        with pytest.raises(ValueError, match=rf"{field} must be a positive integer"):
+            RequestUtil.request(mock_client, method, ["https://example.com/test"])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    def test_rejects_invalid_retry_number_config_before_request(
+        self,
+        httpx_mock,
+        method: str,
+        field: str,
+        value: Any,
+    ) -> None:
+        """retry/backoff設定はHTTPリクエスト前に非負の数値として検証する"""
+        mock_client = MagicMock()
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        setattr(config, field, value)
+        mock_client.amc_client.config = config
+
+        with pytest.raises(ValueError, match=rf"{field} must be a non-negative number"):
+            RequestUtil.request(mock_client, method, ["https://example.com/test"])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    def test_accepts_zero_backoff_controls(self, httpx_mock, method: str) -> None:
+        """backoff関連の0設定は既存の即時リトライ用途として許可する"""
+        httpx_mock.add_response(url="https://example.com/test", status_code=200, method=method)
+
+        mock_client = MagicMock()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(
+            retry_interval=0,
+            max_backoff=0,
+            backoff_factor=0,
+        )
+
+        results = RequestUtil.request(mock_client, method, ["https://example.com/test"])
+
+        assert len(results) == 1
+        assert isinstance(results[0], httpx.Response)
+        assert results[0].status_code == 200
+
+
 class TestRequestUtilGet:
     """RequestUtil.request GETメソッドのテスト"""
 

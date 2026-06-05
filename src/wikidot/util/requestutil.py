@@ -5,10 +5,34 @@ from urllib.parse import urlparse
 import httpx
 
 from .async_helper import run_coroutine
-from .http import _is_retryable_status, calculate_backoff
+from .http import (
+    _is_retryable_status,
+    _validate_non_negative_number_option,
+    _validate_positive_int_option,
+    calculate_backoff,
+)
 
 if TYPE_CHECKING:
     from wikidot.module.client import Client
+
+
+def _validate_positive_number_option(field_name: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{field_name} must be a positive number")
+    if value <= 0:
+        raise ValueError(f"{field_name} must be a positive number")
+    return float(value)
+
+
+def _validate_request_config(config: object) -> tuple[float, int, float, float, float, int]:
+    return (
+        _validate_positive_number_option("request_timeout", getattr(config, "request_timeout", None)),
+        _validate_positive_int_option("attempt_limit", getattr(config, "attempt_limit", None)),
+        _validate_non_negative_number_option("retry_interval", getattr(config, "retry_interval", None)),
+        _validate_non_negative_number_option("backoff_factor", getattr(config, "backoff_factor", None)),
+        _validate_non_negative_number_option("max_backoff", getattr(config, "max_backoff", None)),
+        _validate_positive_int_option("semaphore_limit", getattr(config, "semaphore_limit", None)),
+    )
 
 
 class RequestUtil:
@@ -44,7 +68,15 @@ class RequestUtil:
             return []
 
         config = client.amc_client.config
-        semaphore = asyncio.Semaphore(config.semaphore_limit)
+        (
+            request_timeout,
+            attempt_limit,
+            retry_interval,
+            backoff_factor,
+            max_backoff,
+            semaphore_limit,
+        ) = _validate_request_config(config)
+        semaphore = asyncio.Semaphore(semaphore_limit)
 
         def _get_headers() -> dict[str, str] | None:
             header = getattr(client.amc_client, "header", None)
@@ -76,7 +108,7 @@ class RequestUtil:
 
         async def _get(http_client: httpx.AsyncClient, url: str) -> httpx.Response:
             async with semaphore:
-                for attempt in range(config.attempt_limit):
+                for attempt in range(attempt_limit):
                     try:
                         response = await http_client.get(url, headers=_get_headers_for_url(url))
                         response.raise_for_status()
@@ -85,30 +117,30 @@ class RequestUtil:
                         # Don't retry 4xx errors - they are client errors that won't change on retry
                         if not _is_retryable_status(e.response.status_code):
                             raise
-                        if attempt >= config.attempt_limit - 1:
+                        if attempt >= attempt_limit - 1:
                             raise
                         backoff = calculate_backoff(
                             attempt + 1,
-                            config.retry_interval,
-                            config.backoff_factor,
-                            config.max_backoff,
+                            retry_interval,
+                            backoff_factor,
+                            max_backoff,
                         )
                         await asyncio.sleep(backoff)
                     except (httpx.TimeoutException, httpx.NetworkError):
-                        if attempt >= config.attempt_limit - 1:
+                        if attempt >= attempt_limit - 1:
                             raise
                         backoff = calculate_backoff(
                             attempt + 1,
-                            config.retry_interval,
-                            config.backoff_factor,
-                            config.max_backoff,
+                            retry_interval,
+                            backoff_factor,
+                            max_backoff,
                         )
                         await asyncio.sleep(backoff)
                 raise RuntimeError("Unreachable")
 
         async def _post(http_client: httpx.AsyncClient, url: str) -> httpx.Response:
             async with semaphore:
-                for attempt in range(config.attempt_limit):
+                for attempt in range(attempt_limit):
                     try:
                         response = await http_client.post(url, headers=_get_headers_for_url(url))
                         response.raise_for_status()
@@ -117,29 +149,29 @@ class RequestUtil:
                         # Don't retry 4xx errors - they are client errors that won't change on retry
                         if not _is_retryable_status(e.response.status_code):
                             raise
-                        if attempt >= config.attempt_limit - 1:
+                        if attempt >= attempt_limit - 1:
                             raise
                         backoff = calculate_backoff(
                             attempt + 1,
-                            config.retry_interval,
-                            config.backoff_factor,
-                            config.max_backoff,
+                            retry_interval,
+                            backoff_factor,
+                            max_backoff,
                         )
                         await asyncio.sleep(backoff)
                     except (httpx.TimeoutException, httpx.NetworkError):
-                        if attempt >= config.attempt_limit - 1:
+                        if attempt >= attempt_limit - 1:
                             raise
                         backoff = calculate_backoff(
                             attempt + 1,
-                            config.retry_interval,
-                            config.backoff_factor,
-                            config.max_backoff,
+                            retry_interval,
+                            backoff_factor,
+                            max_backoff,
                         )
                         await asyncio.sleep(backoff)
                 raise RuntimeError("Unreachable")
 
         async def _execute() -> list[httpx.Response | BaseException]:
-            async with httpx.AsyncClient(timeout=config.request_timeout) as http_client:
+            async with httpx.AsyncClient(timeout=request_timeout) as http_client:
                 if method == "GET":
                     return await asyncio.gather(
                         *[_get(http_client, url) for url in urls],
