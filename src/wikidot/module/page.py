@@ -1189,6 +1189,12 @@ class PageCollection(list["Page"]):
                     f"Page revision list response body is not found for site: {site.unix_name}, "
                     f"page: {first_page.fullname} (id={first_page.id})"
                 )
+            if not isinstance(body, str):
+                raise exceptions.NoElementException(
+                    f"Page revision list response body is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, field=body, expected=str, actual={type(body).__name__})"
+                )
             body_html = BeautifulSoup(body, "lxml")
             parsed_revisions: list[tuple[int, int, Any, datetime, str]] = []
             for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
