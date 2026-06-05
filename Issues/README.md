@@ -388,6 +388,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [382-pr-validate-page-collection-find-fullname.md](382-pr-validate-page-collection-find-fullname.md): upstream PR draft for the committed page collection search-fullname validation fix.
 - [383-pr-validate-page-file-find-by-name.md](383-pr-validate-page-file-find-by-name.md): upstream PR draft for the committed page file collection search-name validation fix.
 - [384-pr-validate-user-lookup-not-found-flag.md](384-pr-validate-user-lookup-not-found-flag.md): upstream PR draft for the committed user lookup not-found flag validation fix.
+- [385-pr-validate-page-lookup-not-found-flag.md](385-pr-validate-page-lookup-not-found-flag.md): upstream PR draft for the committed page lookup not-found flag validation fix.
 
 ## Local Evidence Index
 
@@ -683,5 +684,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 286: `9d0d9c0 fix(page): validate page collection search fullnames`
 - Local implementation commits, continued 287: `c70de13 fix(page_file): validate file search names`
 - Local implementation commits, continued 288: `4c73819 fix(user): validate lookup not-found flag`
+- Local implementation commits, continued 289: `98e1808 fix(site): validate page lookup not-found flag`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
