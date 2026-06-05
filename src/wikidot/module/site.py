@@ -1324,8 +1324,10 @@ class Site:
                     raise NoElementException(f"Title element is not found {parse_context}")
 
                 page_title = title_elem.get_text(" ", strip=True)
-                href = title_elem.get("href", "")
-                page_fullname = str(href).strip("/")
+                href = title_elem.get("href")
+                if not isinstance(href, str) or href.strip() == "":
+                    raise NoElementException(f"Title href is not found {parse_context}")
+                page_fullname = href.strip().strip("/")
 
                 date_cell = metadata_row.find("td", class_="mod-date", recursive=False)
                 odate_elem = (
