@@ -18,6 +18,37 @@ def _validate_bool_option(field: str, value: object) -> bool:
     return value
 
 
+def _validate_positive_int_option(field: str, value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field} must be a positive integer")
+    if value <= 0:
+        raise ValueError(f"{field} must be a positive integer")
+    return value
+
+
+def _validate_non_negative_number_option(field: str, value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise ValueError(f"{field} must be a non-negative number")
+    if value < 0:
+        raise ValueError(f"{field} must be a non-negative number")
+    return float(value)
+
+
+def _validate_retry_options(
+    *,
+    attempt_limit: object,
+    retry_interval: object,
+    max_backoff: object,
+    backoff_factor: object,
+) -> tuple[int, float, float, float]:
+    return (
+        _validate_positive_int_option("attempt_limit", attempt_limit),
+        _validate_non_negative_number_option("retry_interval", retry_interval),
+        _validate_non_negative_number_option("max_backoff", max_backoff),
+        _validate_non_negative_number_option("backoff_factor", backoff_factor),
+    )
+
+
 def calculate_backoff(
     retry_count: int,
     base_interval: float,
@@ -42,6 +73,11 @@ def calculate_backoff(
     float
         Backoff time in seconds
     """
+    retry_count = _validate_positive_int_option("retry_count", retry_count)
+    base_interval = _validate_non_negative_number_option("base_interval", base_interval)
+    backoff_factor = _validate_non_negative_number_option("backoff_factor", backoff_factor)
+    max_backoff = _validate_non_negative_number_option("max_backoff", max_backoff)
+
     backoff = (backoff_factor ** (retry_count - 1)) * base_interval
     jitter = random.uniform(0, backoff * 0.1)
     return min(backoff + jitter, max_backoff)
@@ -94,6 +130,12 @@ async def async_get_with_retry(
         If all retries exhausted due to HTTP error
     """
     follow_redirects = _validate_bool_option("follow_redirects", follow_redirects)
+    attempt_limit, retry_interval, max_backoff, backoff_factor = _validate_retry_options(
+        attempt_limit=attempt_limit,
+        retry_interval=retry_interval,
+        max_backoff=max_backoff,
+        backoff_factor=backoff_factor,
+    )
 
     for attempt in range(attempt_limit):
         try:
@@ -178,6 +220,12 @@ def sync_get_with_retry(
     """
     follow_redirects = _validate_bool_option("follow_redirects", follow_redirects)
     raise_for_status = _validate_bool_option("raise_for_status", raise_for_status)
+    attempt_limit, retry_interval, max_backoff, backoff_factor = _validate_retry_options(
+        attempt_limit=attempt_limit,
+        retry_interval=retry_interval,
+        max_backoff=max_backoff,
+        backoff_factor=backoff_factor,
+    )
 
     for attempt in range(attempt_limit):
         try:
@@ -275,6 +323,12 @@ def sync_post_with_retry(
         If all retries exhausted due to HTTP error (when raise_for_status=True)
     """
     raise_for_status = _validate_bool_option("raise_for_status", raise_for_status)
+    attempt_limit, retry_interval, max_backoff, backoff_factor = _validate_retry_options(
+        attempt_limit=attempt_limit,
+        retry_interval=retry_interval,
+        max_backoff=max_backoff,
+        backoff_factor=backoff_factor,
+    )
 
     for attempt in range(attempt_limit):
         try:

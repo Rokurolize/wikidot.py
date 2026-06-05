@@ -50,6 +50,26 @@ class TestIsRetryableStatus:
 class TestCalculateBackoff:
     """calculate_backoff関数のテスト"""
 
+    @pytest.mark.parametrize("retry_count", [None, True, "1", 0, -1, 1.5])
+    def test_rejects_invalid_retry_count(self, retry_count: Any):
+        """retry_countは1以上の整数として検証する"""
+        with pytest.raises(ValueError, match="retry_count must be a positive integer"):
+            calculate_backoff(retry_count, 1.0, 2.0, 60.0)
+
+    @pytest.mark.parametrize("field", ["base_interval", "backoff_factor", "max_backoff"])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    def test_rejects_invalid_numeric_backoff_options(self, field: str, value: Any):
+        """backoffの数値オプションは非負数として検証する"""
+        options = {
+            "base_interval": 1.0,
+            "backoff_factor": 2.0,
+            "max_backoff": 60.0,
+        }
+        options[field] = value
+
+        with pytest.raises(ValueError, match=f"{field} must be a non-negative number"):
+            calculate_backoff(1, options["base_interval"], options["backoff_factor"], options["max_backoff"])
+
     def test_first_retry(self):
         """最初のリトライ（retry_count=1）"""
         result = calculate_backoff(1, 1.0, 2.0, 60.0)
@@ -73,6 +93,25 @@ class TestCalculateBackoff:
 
 class TestSyncGetWithRetry:
     """sync_get_with_retry関数のテスト"""
+
+    @pytest.mark.parametrize("attempt_limit", [None, True, "3", 0, -1, 1.5])
+    def test_rejects_invalid_attempt_limit_before_request(self, httpx_mock, attempt_limit: Any):
+        """attempt_limitはHTTPリクエスト前に1以上の整数として検証する"""
+        with pytest.raises(ValueError, match="attempt_limit must be a positive integer"):
+            sync_get_with_retry("https://example.com/test", attempt_limit=attempt_limit)
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    def test_rejects_invalid_numeric_retry_options_before_request(self, httpx_mock, field: str, value: Any):
+        """retry系の数値オプションはHTTPリクエスト前に非負数として検証する"""
+        kwargs: dict[str, Any] = {field: value}
+
+        with pytest.raises(ValueError, match=f"{field} must be a non-negative number"):
+            sync_get_with_retry("https://example.com/test", **kwargs)
+
+        assert httpx_mock.get_requests() == []
 
     @pytest.mark.parametrize("follow_redirects", [None, "false", 0, 1])
     def test_rejects_non_bool_follow_redirects_before_request(self, httpx_mock, follow_redirects: Any):
@@ -214,6 +253,25 @@ class TestSyncGetWithRetry:
 class TestSyncPostWithRetry:
     """sync_post_with_retry関数のテスト"""
 
+    @pytest.mark.parametrize("attempt_limit", [None, True, "3", 0, -1, 1.5])
+    def test_rejects_invalid_attempt_limit_before_request(self, httpx_mock, attempt_limit: Any):
+        """attempt_limitはHTTPリクエスト前に1以上の整数として検証する"""
+        with pytest.raises(ValueError, match="attempt_limit must be a positive integer"):
+            sync_post_with_retry("https://example.com/test", attempt_limit=attempt_limit)
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    def test_rejects_invalid_numeric_retry_options_before_request(self, httpx_mock, field: str, value: Any):
+        """retry系の数値オプションはHTTPリクエスト前に非負数として検証する"""
+        kwargs: dict[str, Any] = {field: value}
+
+        with pytest.raises(ValueError, match=f"{field} must be a non-negative number"):
+            sync_post_with_retry("https://example.com/test", **kwargs)
+
+        assert httpx_mock.get_requests() == []
+
     @pytest.mark.parametrize("raise_for_status", [None, "false", 0, 1])
     def test_rejects_non_bool_raise_for_status_before_request(self, httpx_mock, raise_for_status: Any):
         """raise_for_statusはHTTPリクエスト前に真偽値として検証する"""
@@ -310,6 +368,31 @@ class TestSyncPostWithRetry:
 
 class TestAsyncGetWithRetry:
     """async_get_with_retry関数のテスト"""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("attempt_limit", [None, True, "3", 0, -1, 1.5])
+    async def test_rejects_invalid_attempt_limit_before_request(self, httpx_mock, attempt_limit: Any):
+        """attempt_limitはHTTPリクエスト前に1以上の整数として検証する"""
+        from wikidot.util.http import async_get_with_retry
+
+        with pytest.raises(ValueError, match="attempt_limit must be a positive integer"):
+            await async_get_with_retry("https://example.com/test", attempt_limit=attempt_limit)
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    async def test_rejects_invalid_numeric_retry_options_before_request(self, httpx_mock, field: str, value: Any):
+        """retry系の数値オプションはHTTPリクエスト前に非負数として検証する"""
+        from wikidot.util.http import async_get_with_retry
+
+        kwargs: dict[str, Any] = {field: value}
+
+        with pytest.raises(ValueError, match=f"{field} must be a non-negative number"):
+            await async_get_with_retry("https://example.com/test", **kwargs)
+
+        assert httpx_mock.get_requests() == []
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("follow_redirects", [None, "false", 0, 1])

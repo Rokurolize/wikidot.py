@@ -17,10 +17,16 @@ from wikidot.module.auth import HTTPAuthentication
 class TestHTTPAuthentication:
     """HTTPAuthenticationクラスのテスト"""
 
-    def test_login_success(self):
-        """ログイン成功"""
+    @staticmethod
+    def _mock_client() -> MagicMock:
         mock_client = MagicMock()
         mock_client.amc_client.header.get_header.return_value = {}
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(retry_interval=0)
+        return mock_client
+
+    def test_login_success(self):
+        """ログイン成功"""
+        mock_client = self._mock_client()
 
         mock_response = MagicMock()
         mock_response.status_code = httpx.codes.OK
@@ -34,8 +40,7 @@ class TestHTTPAuthentication:
 
     def test_login_invalid_credentials(self):
         """認証失敗（ユーザー名/パスワード不一致）"""
-        mock_client = MagicMock()
-        mock_client.amc_client.header.get_header.return_value = {}
+        mock_client = self._mock_client()
 
         mock_response = MagicMock()
         mock_response.status_code = httpx.codes.OK
@@ -49,9 +54,7 @@ class TestHTTPAuthentication:
 
     def test_login_http_error(self):
         """ログイン失敗（HTTPエラー）"""
-        mock_client = MagicMock()
-        mock_client.amc_client.header.get_header.return_value = {}
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(retry_interval=0)
+        mock_client = self._mock_client()
 
         mock_response = MagicMock()
         mock_response.status_code = httpx.codes.INTERNAL_SERVER_ERROR
@@ -64,8 +67,7 @@ class TestHTTPAuthentication:
 
     def test_login_no_session_cookie(self):
         """ログイン失敗（セッションCookieなし）"""
-        mock_client = MagicMock()
-        mock_client.amc_client.header.get_header.return_value = {}
+        mock_client = self._mock_client()
 
         mock_response = MagicMock()
         mock_response.status_code = httpx.codes.OK
@@ -80,8 +82,7 @@ class TestHTTPAuthentication:
 
     def test_login_blank_session_cookie_fails_without_setting_cookie(self):
         """ログイン失敗（セッションCookieが空）"""
-        mock_client = MagicMock()
-        mock_client.amc_client.header.get_header.return_value = {}
+        mock_client = self._mock_client()
 
         mock_response = MagicMock()
         mock_response.status_code = httpx.codes.OK
