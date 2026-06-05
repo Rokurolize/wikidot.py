@@ -363,6 +363,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [357-pr-validate-site-member-lookup-username.md](357-pr-validate-site-member-lookup-username.md): upstream PR draft for the committed site member lookup username validation fix.
 - [358-pr-validate-user-profile-lookup-usernames.md](358-pr-validate-user-profile-lookup-usernames.md): upstream PR draft for the committed user profile lookup username validation fix.
 - [359-pr-validate-site-lookup-unix-names.md](359-pr-validate-site-lookup-unix-names.md): upstream PR draft for the committed site lookup UNIX-name validation fix.
+- [360-pr-validate-private-message-send-recipients.md](360-pr-validate-private-message-send-recipients.md): upstream PR draft for the committed private-message send recipient validation fix.
 
 ## Local Evidence Index
 
@@ -633,5 +634,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 261: `1691646 fix(site): validate member lookup username`
 - Local implementation commits, continued 262: `531acbe fix(user): validate profile lookup usernames`
 - Local implementation commits, continued 263: `0f976b6 fix(site): validate site lookup unix names`
+- Local implementation commits, continued 264: `cafdae8 fix(private_message): validate send recipients`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
