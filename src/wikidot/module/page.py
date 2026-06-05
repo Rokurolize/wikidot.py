@@ -159,6 +159,16 @@ def _parse_listpages_float_field(site: "Site", page_name: str, key: str, value: 
         ) from exc
 
 
+def _parse_listpages_odate_field(site: "Site", page_name: str, key: str, odate_elem: Tag) -> datetime:
+    try:
+        return odate_parser(odate_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"ListPages odate field is malformed for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={_odate_class_value(odate_elem)})"
+        ) from exc
+
+
 def _parse_who_rated_vote_value(site: "Site", page: "Page", value: object) -> int:
     value_text = str(value).strip()
     if value_text == "+":
@@ -655,7 +665,8 @@ class PageCollection(list["Page"]):
                     if not isinstance(odate_element, Tag):
                         value = None
                     else:
-                        value = odate_parser(odate_element)
+                        page_name = str(page_params.get("fullname", "unknown"))
+                        value = _parse_listpages_odate_field(site, page_name, key, odate_element)
 
                 elif key in [
                     "created_by_linked",

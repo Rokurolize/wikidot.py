@@ -271,6 +271,22 @@ class TestPageCollectionParse:
         ):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    def test_parse_malformed_odate_field_includes_site_page_and_value_context(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """日時フィールドが壊れている場合はsite/page/field/value文脈付きNoElementException"""
+        body = page_listpages_single["body"].replace("time_1700000000", "time_latest", 1)
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"ListPages odate field is malformed for site: test-site, page: scp-001 "
+                r"\(field=created_at, value=time_latest\)"
+            ),
+        ):
+            PageCollection._parse(mock_site_no_http, html_body)
+
     def test_parse_malformed_rating_percent_includes_site_page_and_value_context(
         self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any]
     ) -> None:
