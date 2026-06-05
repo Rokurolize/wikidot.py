@@ -1454,6 +1454,12 @@ class PageCollection(list["Page"]):
                     f"Page file response body is not found for site: {site.unix_name}, "
                     f"page: {first_page.fullname} (id={first_page.id})"
                 )
+            if not isinstance(body, str):
+                raise exceptions.NoElementException(
+                    f"Page file response body is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, field=body, expected=str, actual={type(body).__name__})"
+                )
             html = BeautifulSoup(body, "lxml")
             context = f"for site: {site.unix_name}, page: {first_page.fullname}"
             file_fields = PageFileCollection._parse_file_fields_from_html(site.url, html, context=context)
