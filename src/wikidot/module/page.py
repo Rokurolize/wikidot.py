@@ -118,6 +118,25 @@ def _parse_revision_created_by(site: "Site", page: "Page", rev_id: int, user_ele
         ) from exc
 
 
+def _odate_class_value(odate_elem: Tag) -> str:
+    class_attr = odate_elem.get("class", [])
+    if class_attr is None:
+        return ""
+
+    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+
+
+def _parse_revision_created_at(site: "Site", page: "Page", rev_id: int, odate_elem: Tag) -> datetime:
+    try:
+        return odate_parser(odate_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Page revision timestamp is malformed for site: {site.unix_name}, page: {page.fullname}, "
+            f"revision: {rev_id} (id={page.id}, field=created_at, value={_odate_class_value(odate_elem)})"
+        ) from exc
+
+
 def _parse_listpages_integer_field(site: "Site", page_name: str, key: str, value: object) -> int:
     value_text = str(value).strip()
     try:
@@ -1153,7 +1172,7 @@ class PageCollection(list["Page"]):
                         f"Cannot find created at element for site: {site.unix_name}, "
                         f"page: {first_page.fullname}, revision: {rev_id}"
                     )
-                created_at = odate_parser(created_at_elem)
+                created_at = _parse_revision_created_at(site, first_page, rev_id, created_at_elem)
 
                 comment = tds[6].get_text(" ", strip=True)
                 parsed_revisions.append((rev_id, rev_no, created_by, created_at, comment))

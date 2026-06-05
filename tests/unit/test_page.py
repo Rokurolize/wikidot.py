@@ -1368,6 +1368,42 @@ class TestPageCollectionAcquire:
         ):
             collection.get_page_revisions()
 
+    def test_acquire_revisions_malformed_created_at_includes_site_page_and_value_context(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+    ) -> None:
+        """履歴行の作成日時値が壊れている場合はsite/page/revision/id/field/value文脈付きNoElementException"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+
+        body = """
+            <table class="page-history">
+              <tr id="revision-row-456">
+                <td>1.</td><td></td><td></td><td></td>
+                <td><span class="printuser">User</span></td>
+                <td><span class="odate time_latest">invalid</span></td><td>comment</td>
+              </tr>
+            </table>
+        """
+        mock_response = self._json_response({"body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with (
+            patch("wikidot.module.page.user_parser", return_value=MagicMock()),
+            pytest.raises(
+                exceptions.NoElementException,
+                match=(
+                    r"Page revision timestamp is malformed for site: test-site, page: test-page, revision: 456 "
+                    r"\(id=12345, field=created_at, value=time_latest\)"
+                ),
+            ),
+        ):
+            collection.get_page_revisions()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._revisions is None
+
     def test_acquire_votes_success(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_whorated: dict[str, Any]
     ) -> None:
