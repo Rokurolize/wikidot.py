@@ -105,6 +105,14 @@ def _validate_site_invitation_user(user: object) -> User:
     return user
 
 
+def _validate_optional_user_id(user_id: object) -> int | None:
+    if user_id is None:
+        return None
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        raise ValueError("user_id must be an integer")
+    return user_id
+
+
 @dataclass(frozen=True)
 class PagePublishResult:
     """
@@ -1334,6 +1342,7 @@ class Site:
             True if the user is a site member, False otherwise
         """
         user_name = _validate_page_text_field("user_name", user_name)
+        user_id = _validate_optional_user_id(user_id)
         users: list[QMCUser] = QuickModule.member_lookup(self.id, user_name)
 
         if len(users) == 0:
