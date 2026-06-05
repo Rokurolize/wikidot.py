@@ -741,6 +741,8 @@ class SitePageAccessor:
         """
         post_save_visibility_attempts = self._validate_post_save_visibility_attempts(post_save_visibility_attempts)
         post_save_visibility_interval = self._validate_post_save_visibility_interval(post_save_visibility_interval)
+        if verify_source and source_normalizer is not None and not callable(source_normalizer):
+            raise ValueError("source_normalizer must be callable or None")
         parent_value: str | None = None
         parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
         if parent_updated:

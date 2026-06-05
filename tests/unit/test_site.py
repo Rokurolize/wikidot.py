@@ -998,6 +998,25 @@ class TestSitePageAccessor:
         saved_page.refresh_source.assert_called_once_with()
         assert result.source_matches is True
 
+    def test_publish_rejects_non_callable_source_normalizer_before_save(self, mock_site_no_http: Site) -> None:
+        """verify_source時のsource_normalizerは保存前にcallableとして検証する"""
+        invalid_normalizer: Any = "strip"
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+        created_page = MagicMock()
+        created_page.id = 12345
+        created_page.refresh_source.return_value.wiki_text = "Saved source"
+
+        with (
+            patch.object(Page, "create_or_edit", return_value=created_page) as create_or_edit,
+            pytest.raises(ValueError, match="source_normalizer must be callable or None"),
+        ):
+            mock_site_no_http.page.publish("new-page", verify_source=True, source_normalizer=invalid_normalizer)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
     def test_publish_rejects_non_string_parent_before_save(self, mock_site_no_http: Site) -> None:
         """publishのparent_fullnameは保存前に文字列またはNoneへ制限する"""
         invalid_parent: Any = 3
