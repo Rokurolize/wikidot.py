@@ -158,6 +158,12 @@ def _validate_site_change_changed_at(value: object) -> datetime:
     return value
 
 
+def _validate_site_change_site(value: object) -> "Site":
+    if not isinstance(value, Site):
+        raise ValueError("site must be a Site")
+    return value
+
+
 def _validate_amc_retry_batch_size(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"batch_size must be positive, got {value}")
@@ -1020,6 +1026,7 @@ class SiteChange:
         self.comment = _validate_site_change_comment(self.comment)
         self.changed_by = _validate_site_change_changed_by(self.changed_by)
         self.changed_at = _validate_site_change_changed_at(self.changed_at)
+        self.site = _validate_site_change_site(self.site)
 
     def __str__(self) -> str:
         """

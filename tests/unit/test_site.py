@@ -93,6 +93,7 @@ class TestSiteChangeDataclass:
     def _site_change(
         mock_site_no_http: Site,
         *,
+        site: Any = _UNSET,
         flags: Any,
         page_fullname: Any = "test-page",
         page_title: Any = "Test Page",
@@ -105,9 +106,11 @@ class TestSiteChangeDataclass:
             changed_by = User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester")
         if changed_at is TestSiteChangeDataclass._UNSET:
             changed_at = datetime(2026, 6, 6)
+        if site is TestSiteChangeDataclass._UNSET:
+            site = mock_site_no_http
 
         return SiteChange(
-            site=mock_site_no_http,
+            site=site,
             page_fullname=page_fullname,
             page_title=page_title,
             revision_no=revision_no,
@@ -128,6 +131,12 @@ class TestSiteChangeDataclass:
         """SiteChange初期化時のflags要素は文字列だけ受け付ける"""
         with pytest.raises(ValueError, match="flags list entries must be strings"):
             self._site_change(mock_site_no_http, flags=[flag])
+
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_init_rejects_malformed_site(self, mock_site_no_http: Site, site: Any) -> None:
+        """SiteChange初期化時のsiteはSiteだけ受け付ける"""
+        with pytest.raises(ValueError, match="site must be a Site"):
+            self._site_change(mock_site_no_http, site=site, flags=["S"])
 
     def test_init_accepts_string_flags(self, mock_site_no_http: Site) -> None:
         """SiteChange初期化時の文字列flagsは保持する"""
