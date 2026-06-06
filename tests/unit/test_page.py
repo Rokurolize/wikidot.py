@@ -2269,7 +2269,8 @@ class TestPageProperties:
         cached_revision = _cached_page_revision(mock_page_with_id)
         mock_page_with_id.revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
         bad_revision_entry: Any = bad_revision
-        bad_revisions = PageRevisionCollection(mock_page_with_id, [bad_revision_entry])
+        bad_revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        bad_revisions[0] = bad_revision_entry
 
         with pytest.raises(ValueError, match="page.revisions list entries must be PageRevision"):
             mock_page_with_id.revisions = bad_revisions

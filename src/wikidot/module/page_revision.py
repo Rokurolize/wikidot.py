@@ -9,7 +9,7 @@ import re
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 import httpx
 from bs4 import BeautifulSoup
@@ -20,6 +20,16 @@ from .page_source import PageSource, extract_page_source_text
 if TYPE_CHECKING:
     from .page import Page
     from .user import AbstractUser
+
+
+def _validate_revisions(revisions: object) -> list["PageRevision"]:
+    if revisions is None:
+        return []
+    if not isinstance(revisions, list):
+        raise ValueError("revisions must be a list or None")
+    if any(not isinstance(revision, PageRevision) for revision in revisions):
+        raise ValueError("revisions list entries must be PageRevision")
+    return cast(list["PageRevision"], revisions)
 
 
 class PageRevisionCollection(list["PageRevision"]):
@@ -48,7 +58,7 @@ class PageRevisionCollection(list["PageRevision"]):
         revisions : list[PageRevision] | None, default None
             List of revisions to store
         """
-        super().__init__(revisions or [])
+        super().__init__(_validate_revisions(revisions))
         if page is not None:
             self.page = page
         elif len(self) > 0:

@@ -5,6 +5,7 @@ PageRevision, PageRevisionCollectionクラスをテストする。
 """
 
 from datetime import datetime
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -67,6 +68,22 @@ class TestPageRevisionCollection:
         assert len(collection) == 0
         assert collection.page == mock_page
 
+    @pytest.mark.parametrize("revisions", [True, False, "100", ("100",), 100])
+    def test_init_rejects_non_list_revisions(self, mock_page, revisions: object) -> None:
+        """リビジョンコレクションの初期化はlistまたはNoneだけ受け付ける"""
+        bad_revisions: Any = revisions
+
+        with pytest.raises(ValueError, match="revisions must be a list or None"):
+            PageRevisionCollection(page=mock_page, revisions=bad_revisions)
+
+    @pytest.mark.parametrize("revision", [None, True, "100", {"id": 100}])
+    def test_init_rejects_non_revision_entries(self, mock_page, revision: object) -> None:
+        """リビジョンコレクションの初期化はPageRevision要素だけ受け付ける"""
+        bad_revisions: Any = [revision]
+
+        with pytest.raises(ValueError, match="revisions list entries must be PageRevision"):
+            PageRevisionCollection(page=mock_page, revisions=bad_revisions)
+
     def test_init_infers_page_from_revision(self, sample_revision):
         """リビジョンからページを推測"""
         collection = PageRevisionCollection(revisions=[sample_revision])
@@ -109,7 +126,9 @@ class TestPageRevisionCollection:
     @pytest.mark.parametrize("bad_revision", [None, True, "100"])
     def test_get_sources_rejects_non_revision_entries_before_fetch(self, mock_page, sample_revision, bad_revision):
         """get_sourcesはPageRevision以外の要素を送信前に拒否する"""
-        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision, bad_revision])
+        bad_revision_entry: Any = bad_revision
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+        collection.append(bad_revision_entry)
 
         with pytest.raises(ValueError, match="revisions list entries must be PageRevision"):
             collection.get_sources()
@@ -312,7 +331,9 @@ class TestPageRevisionCollection:
     @pytest.mark.parametrize("bad_revision", [None, True, "100"])
     def test_get_htmls_rejects_non_revision_entries_before_fetch(self, mock_page, sample_revision, bad_revision):
         """get_htmlsはPageRevision以外の要素を送信前に拒否する"""
-        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision, bad_revision])
+        bad_revision_entry: Any = bad_revision
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+        collection.append(bad_revision_entry)
 
         with pytest.raises(ValueError, match="revisions list entries must be PageRevision"):
             collection.get_htmls()
