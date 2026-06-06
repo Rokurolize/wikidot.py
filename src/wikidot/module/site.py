@@ -4,7 +4,7 @@ import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Literal, Optional, overload
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast, overload
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -119,6 +119,14 @@ def _validate_recent_changes_limit(limit: object) -> int | None:
     if not isinstance(limit, int) or isinstance(limit, bool):
         raise ValueError("limit must be an integer or None")
     return limit
+
+
+def _validate_site_change_flags(flags: object) -> list[str]:
+    if not isinstance(flags, list):
+        raise ValueError("flags must be a list")
+    if any(not isinstance(flag, str) for flag in flags):
+        raise ValueError("flags list entries must be strings")
+    return cast(list[str], flags)
 
 
 def _validate_amc_retry_batch_size(value: object) -> int:
@@ -931,6 +939,9 @@ class SiteChange:
     changed_at: datetime
     flags: list[str]
     comment: str | None
+
+    def __post_init__(self) -> None:
+        self.flags = _validate_site_change_flags(self.flags)
 
     def __str__(self) -> str:
         """

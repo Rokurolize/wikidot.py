@@ -1,6 +1,7 @@
 """Siteモジュールのユニットテスト"""
 
 import re
+from datetime import datetime
 from typing import Any
 from unittest.mock import MagicMock, create_autospec, patch
 
@@ -18,7 +19,7 @@ from wikidot.common.exceptions import (
 )
 from wikidot.module.client import Client
 from wikidot.module.page import Page, PageCollection
-from wikidot.module.site import PagePublishResult, PageSourceResult, Site
+from wikidot.module.site import PagePublishResult, PageSourceResult, Site, SiteChange
 from wikidot.module.user import User
 
 
@@ -80,6 +81,41 @@ class TestSiteDataclass:
         assert hasattr(mock_site_no_http, "pages")
         assert hasattr(mock_site_no_http, "page")
         assert hasattr(mock_site_no_http, "forum")
+
+
+class TestSiteChangeDataclass:
+    """SiteChangeデータクラスのテスト"""
+
+    @staticmethod
+    def _site_change(mock_site_no_http: Site, *, flags: Any) -> SiteChange:
+        return SiteChange(
+            site=mock_site_no_http,
+            page_fullname="test-page",
+            page_title="Test Page",
+            revision_no=1,
+            changed_by=User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester"),
+            changed_at=datetime(2026, 6, 6),
+            flags=flags,
+            comment=None,
+        )
+
+    @pytest.mark.parametrize("flags", [None, True, "S", ("S",), 1])
+    def test_init_rejects_non_list_flags(self, mock_site_no_http: Site, flags: Any) -> None:
+        """SiteChange初期化時のflagsはlistだけ受け付ける"""
+        with pytest.raises(ValueError, match="flags must be a list"):
+            self._site_change(mock_site_no_http, flags=flags)
+
+    @pytest.mark.parametrize("flag", [None, True, 1, {"flag": "S"}])
+    def test_init_rejects_non_string_flag_entries(self, mock_site_no_http: Site, flag: Any) -> None:
+        """SiteChange初期化時のflags要素は文字列だけ受け付ける"""
+        with pytest.raises(ValueError, match="flags list entries must be strings"):
+            self._site_change(mock_site_no_http, flags=[flag])
+
+    def test_init_accepts_string_flags(self, mock_site_no_http: Site) -> None:
+        """SiteChange初期化時の文字列flagsは保持する"""
+        change = self._site_change(mock_site_no_http, flags=["S", "N"])
+
+        assert change.flags == ["S", "N"]
 
 
 class TestSitePagesAccessor:
