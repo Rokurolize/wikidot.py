@@ -413,6 +413,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [407-pr-reject-boolean-create-thread-ids.md](407-pr-reject-boolean-create-thread-ids.md): upstream PR draft for the committed forum create-thread boolean returned-ID validation fix.
 - [408-pr-reject-boolean-publish-visibility-controls.md](408-pr-reject-boolean-publish-visibility-controls.md): upstream PR draft for the committed publish visibility-control boolean rejection fix.
 - [409-pr-reject-boolean-search-pagination-values.md](409-pr-reject-boolean-search-pagination-values.md): upstream PR draft for the committed search pagination boolean rejection fix.
+- [410-pr-validate-site-member-action-users.md](410-pr-validate-site-member-action-users.md): upstream PR draft for the committed site member action-user validation fix.
 
 ## Local Evidence Index
 
@@ -734,5 +735,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 312: `d12ad8d test(amc): type invalid request body fixtures`
 - Local implementation commits, continued 313: `418f8b5 fix(site): reject boolean publish visibility controls`
 - Local implementation commits, continued 314: `4cd3af8 fix(page): reject boolean search pagination values`
+- Local implementation commits, continued 315: `f0efcef fix(site_member): validate member action users`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
