@@ -8,6 +8,7 @@ import pytest
 from wikidot.module.page import Page
 from wikidot.module.page_revision import PageRevisionCollection
 from wikidot.module.page_source import PageSource
+from wikidot.module.page_votes import PageVoteCollection
 from wikidot.module.user import User
 
 
@@ -36,6 +37,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         "_id": None,
         "_source": None,
         "_revisions": None,
+        "_votes": None,
     }
     values.update(overrides)
 
@@ -63,6 +65,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         _id=values["_id"],
         _source=values["_source"],
         _revisions=values["_revisions"],
+        _votes=values["_votes"],
     )
 
 
@@ -301,3 +304,26 @@ class TestPageInit:
 
         with pytest.raises(ValueError, match=r"page\.revisions list entries must be PageRevision"):
             _page(mock_site_no_http, _revisions=revisions)
+
+    def test_init_accepts_valid_optional_votes(self, mock_site_no_http: Any) -> None:
+        page_without_votes = _page(mock_site_no_http)
+        votes_owner = _page(mock_site_no_http)
+        votes = PageVoteCollection(votes_owner, [])
+
+        page_with_votes = _page(mock_site_no_http, _votes=votes)
+
+        assert page_without_votes._votes is None
+        assert page_with_votes._votes == votes
+        assert page_with_votes.votes == votes
+
+    @pytest.mark.parametrize("votes", [True, "cached votes", [], {"votes": []}, object()])
+    def test_init_rejects_malformed_optional_votes(self, mock_site_no_http: Any, votes: Any) -> None:
+        with pytest.raises(ValueError, match=r"page\.votes must be PageVoteCollection or None"):
+            _page(mock_site_no_http, _votes=votes)
+
+    def test_init_rejects_malformed_optional_vote_entries(self, mock_site_no_http: Any) -> None:
+        votes: Any = PageVoteCollection(_page(mock_site_no_http), [])
+        votes.append(object())
+
+        with pytest.raises(ValueError, match=r"page\.votes list entries must be PageVote"):
+            _page(mock_site_no_http, _votes=votes)

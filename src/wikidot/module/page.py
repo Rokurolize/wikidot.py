@@ -181,6 +181,15 @@ def _validate_page_votes(value: object) -> PageVoteCollection:
     return value
 
 
+def _validate_optional_page_vote_collection(value: object) -> PageVoteCollection | None:
+    if value is None:
+        return None
+    if not isinstance(value, PageVoteCollection):
+        raise ValueError("page.votes must be PageVoteCollection or None")
+    _validate_page_vote_entries(value)
+    return value
+
+
 def _validate_page_vote_value(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
         raise ValueError("Vote value must be 1 or -1")
@@ -1806,6 +1815,7 @@ class Page:
         self._id = _validate_optional_page_constructor_id(self._id)
         self._source = _validate_optional_page_source_object(self._source)
         self._revisions = _validate_optional_page_revision_collection(self._revisions)
+        self._votes = _validate_optional_page_vote_collection(self._votes)
 
     def get_url(self) -> str:
         """
