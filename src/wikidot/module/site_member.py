@@ -19,10 +19,10 @@ from ..common.exceptions import (
 )
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from .user import AbstractUser
 
 if TYPE_CHECKING:
     from .site import Site
-    from .user import AbstractUser
 
 
 def _user_onclick_value(user_elem: Tag) -> str:
@@ -118,6 +118,16 @@ def _require_site_member_action_status(member: "SiteMember", event: str, data: d
             status,
         )
     return status
+
+
+def _validate_site_member_action_user(user: object) -> AbstractUser:
+    if not isinstance(user, AbstractUser):
+        raise ValueError("member.user must be an AbstractUser")
+    if not isinstance(user.id, int) or isinstance(user.id, bool):
+        raise ValueError("member.user.id must be an integer")
+    if not isinstance(user.name, str):
+        raise ValueError("member.user.name must be a string")
+    return user
 
 
 @dataclass
@@ -360,6 +370,7 @@ class SiteMember:
         ]:
             raise ValueError("Invalid event")
 
+        user = _validate_site_member_action_user(self.user)
         self.site.client.login_check()
 
         try:
@@ -368,7 +379,7 @@ class SiteMember:
                     {
                         "action": "ManageSiteMembershipAction",
                         "event": event,
-                        "user_id": self.user.id,
+                        "user_id": user.id,
                         "moduleName": "",
                     }
                 ]
@@ -380,11 +391,11 @@ class SiteMember:
                 self.site._admins = None
         except WikidotStatusCodeException as e:
             if e.status_code == "not_already":
-                raise TargetErrorException(f"User is not moderator/admin: {self.user.name}") from e
+                raise TargetErrorException(f"User is not moderator/admin: {user.name}") from e
 
             if e.status_code in ("already_admin", "already_moderator"):
                 raise TargetErrorException(
-                    f"User is already {e.status_code.removeprefix('already_')}: {self.user.name}"
+                    f"User is already {e.status_code.removeprefix('already_')}: {user.name}"
                 ) from e
 
             raise e

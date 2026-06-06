@@ -1,6 +1,7 @@
 """SiteMemberモジュールのユニットテスト"""
 
 from datetime import datetime, timezone
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +16,7 @@ from wikidot.common.exceptions import (
 )
 from wikidot.module.site import Site
 from wikidot.module.site_member import SiteMember
+from wikidot.module.user import User
 
 
 class TestSiteMemberDataclass:
@@ -610,14 +612,17 @@ class TestSiteMemberGet:
 class TestSiteMemberChangeGroup:
     """SiteMember._change_groupのテスト"""
 
+    @staticmethod
+    def _user(user_id: int = 12345, name: str = "TestUser") -> User:
+        return User(client=MagicMock(), id=user_id, name=name, unix_name="test-user")
+
     def test_to_moderator_success(self):
         """モデレーター昇格成功"""
         site = MagicMock()
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = MagicMock()
-        user.id = 12345
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         member.to_moderator()
@@ -633,8 +638,7 @@ class TestSiteMemberChangeGroup:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = MagicMock()
-        user.id = 12345
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         member.remove_moderator()
@@ -648,8 +652,7 @@ class TestSiteMemberChangeGroup:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = MagicMock()
-        user.id = 12345
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         member.to_admin()
@@ -663,8 +666,7 @@ class TestSiteMemberChangeGroup:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = MagicMock()
-        user.id = 12345
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         member.remove_admin()
@@ -695,8 +697,7 @@ class TestSiteMemberChangeGroup:
         site._members = cached_members
         site._moderators = cached_moderators
         site._admins = cached_admins
-        user = MagicMock()
-        user.id = 12345
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         getattr(member, method_name)()
@@ -708,9 +709,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_already_moderator_error(self):
         """既にモデレーターの場合のエラー"""
         site = MagicMock()
-        user = MagicMock()
-        user.id = 12345
-        user.name = "TestUser"
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         site.amc_request.side_effect = WikidotStatusCodeException(
@@ -724,9 +723,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_already_admin_error(self):
         """既に管理者の場合のエラー"""
         site = MagicMock()
-        user = MagicMock()
-        user.id = 12345
-        user.name = "TestUser"
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         site.amc_request.side_effect = WikidotStatusCodeException(
@@ -740,9 +737,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_not_already_error(self):
         """権限を持っていない場合のエラー"""
         site = MagicMock()
-        user = MagicMock()
-        user.id = 12345
-        user.name = "TestUser"
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         site.amc_request.side_effect = WikidotStatusCodeException(
@@ -773,9 +768,7 @@ class TestSiteMemberChangeGroup:
         mock_response = MagicMock()
         mock_response.json.return_value = {}
         site.amc_request.return_value = (mock_response,)
-        user = MagicMock()
-        user.id = 12345
-        user.name = "TestUser"
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         with pytest.raises(
@@ -795,8 +788,7 @@ class TestSiteMemberChangeGroup:
         """未ログイン時は権限変更リクエストを送らない"""
         site = MagicMock()
         site.client.login_check.side_effect = LoginRequiredException("Login required")
-        user = MagicMock()
-        user.id = 12345
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         with pytest.raises(LoginRequiredException):
@@ -807,8 +799,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_other_error_reraises(self):
         """その他のエラーは再送出"""
         site = MagicMock()
-        user = MagicMock()
-        user.id = 12345
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         site.amc_request.side_effect = WikidotStatusCodeException(
@@ -818,3 +809,39 @@ class TestSiteMemberChangeGroup:
 
         with pytest.raises(WikidotStatusCodeException):
             member.to_moderator()
+
+    def test_change_group_rejects_non_user_before_login(self):
+        """SiteMember.userがAbstractUserでなければログイン確認前に拒否する"""
+        site = MagicMock()
+        site.client.login_check = MagicMock()
+        site.amc_request = MagicMock()
+        bad_user: Any = {"id": 12345, "name": "TestUser"}
+        member = SiteMember(site=site, user=bad_user, joined_at=None)
+
+        with pytest.raises(ValueError, match="member.user must be an AbstractUser"):
+            member.to_moderator()
+
+        site.client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("user_kwargs", "message"),
+        [
+            ({"id": None, "name": "TestUser"}, "member.user.id must be an integer"),
+            ({"id": True, "name": "TestUser"}, "member.user.id must be an integer"),
+            ({"id": 12345, "name": None}, "member.user.name must be a string"),
+        ],
+    )
+    def test_change_group_rejects_malformed_user_before_login(self, user_kwargs: dict[str, Any], message: str) -> None:
+        """SiteMember.userの必須フィールド不正はログイン確認やAMCリクエスト前に拒否する"""
+        site = MagicMock()
+        site.client.login_check = MagicMock()
+        site.amc_request = MagicMock()
+        bad_user = User(client=MagicMock(), unix_name="test-user", avatar_url=None, **user_kwargs)
+        member = SiteMember(site=site, user=bad_user, joined_at=None)
+
+        with pytest.raises(ValueError, match=message):
+            member.to_moderator()
+
+        site.client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
