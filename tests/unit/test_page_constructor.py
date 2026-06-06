@@ -31,6 +31,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         "updated_at": None,
         "commented_by": None,
         "commented_at": None,
+        "_id": None,
     }
     values.update(overrides)
 
@@ -55,6 +56,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         updated_at=values["updated_at"],
         commented_by=values["commented_by"],
         commented_at=values["commented_at"],
+        _id=values["_id"],
     )
 
 
@@ -240,3 +242,17 @@ class TestPageInit:
     def test_init_rejects_malformed_timestamp_metadata(self, mock_site_no_http: Any, field: str, value: Any) -> None:
         with pytest.raises(ValueError, match=f"{field} must be a datetime or None"):
             _page(mock_site_no_http, **{field: value})
+
+    @pytest.mark.parametrize("page_id", [None, 12345])
+    def test_init_accepts_valid_optional_id(self, mock_site_no_http: Any, page_id: int | None) -> None:
+        page = _page(mock_site_no_http, _id=page_id)
+
+        assert page._id == page_id
+        assert page.is_id_acquired() == (page_id is not None)
+        if page_id is not None:
+            assert page.id == page_id
+
+    @pytest.mark.parametrize("page_id", [True, False, "12345", 12345.0, [], object()])
+    def test_init_rejects_malformed_optional_id(self, mock_site_no_http: Any, page_id: Any) -> None:
+        with pytest.raises(ValueError, match=r"page\.id must be an integer or None"):
+            _page(mock_site_no_http, _id=page_id)

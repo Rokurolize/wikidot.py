@@ -119,6 +119,14 @@ def _validate_optional_page_id(value: object) -> int | None:
     return value
 
 
+def _validate_optional_page_constructor_id(value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("page.id must be an integer or None")
+    return value
+
+
 def _validate_page_id(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("page.id must be an integer")
@@ -1780,6 +1788,7 @@ class Page:
         self.updated_at = _validate_optional_page_datetime_field("updated_at", self.updated_at)
         self.commented_by = _validate_optional_page_user_field("commented_by", self.commented_by)
         self.commented_at = _validate_optional_page_datetime_field("commented_at", self.commented_at)
+        self._id = _validate_optional_page_constructor_id(self._id)
 
     def get_url(self) -> str:
         """
