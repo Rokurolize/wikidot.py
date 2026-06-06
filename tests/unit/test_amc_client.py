@@ -285,9 +285,10 @@ class TestAjaxModuleConnectorClientRequest:
     def test_request_rejects_non_dict_body_before_request(self, httpx_mock: HTTPXMock) -> None:
         """AMC request bodyは辞書だけを受け付ける"""
         client = AjaxModuleConnectorClient(site_name="www")
+        bodies: Any = [123]
 
         with pytest.raises(ValueError, match=r"bodies\[0\] must be a dictionary"):
-            client.request([123])
+            client.request(bodies)
 
         assert httpx_mock.get_requests() == []
 
@@ -308,9 +309,10 @@ class TestAjaxModuleConnectorClientRequest:
     def test_request_rejects_later_non_dict_body_before_any_request(self, httpx_mock: HTTPXMock) -> None:
         """不正なbodyがバッチ途中にあっても送信前にバッチ全体を拒否する"""
         client = AjaxModuleConnectorClient(site_name="www")
+        bodies: Any = [{"moduleName": "ValidModule"}, 123]
 
         with pytest.raises(ValueError, match=r"bodies\[1\] must be a dictionary"):
-            client.request([{"moduleName": "ValidModule"}, 123])
+            client.request(bodies)
 
         assert httpx_mock.get_requests() == []
 
