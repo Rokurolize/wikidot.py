@@ -450,6 +450,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [444-pr-validate-page-vote-page-field.md](444-pr-validate-page-vote-page-field.md): upstream PR draft for the committed page vote page-field validation fix.
 - [445-pr-validate-forum-post-revision-post-field.md](445-pr-validate-forum-post-revision-post-field.md): upstream PR draft for the committed forum post revision post-field validation fix.
 - [446-pr-validate-forum-post-thread-field.md](446-pr-validate-forum-post-thread-field.md): upstream PR draft for the committed forum post thread-field validation fix.
+- [447-pr-validate-forum-thread-category-field.md](447-pr-validate-forum-thread-category-field.md): upstream PR draft for the committed forum thread category-field validation fix.
 
 ## Local Evidence Index
 
@@ -808,5 +809,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 349: `840c332 fix(page_votes): validate vote page`
 - Local implementation commits, continued 350: `dcea670 fix(forum_post_revision): validate revision post`
 - Local implementation commits, continued 351: `1e76982 fix(forum_post): validate post thread`
+- Local implementation commits, continued 352: `5e0c421 fix(forum_thread): validate thread category`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
