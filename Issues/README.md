@@ -453,6 +453,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [447-pr-validate-forum-thread-category-field.md](447-pr-validate-forum-thread-category-field.md): upstream PR draft for the committed forum thread category-field validation fix.
 - [448-pr-validate-site-member-user-field.md](448-pr-validate-site-member-user-field.md): upstream PR draft for the committed site member user-field validation fix.
 - [449-pr-validate-site-application-user-field.md](449-pr-validate-site-application-user-field.md): upstream PR draft for the committed site application user-field validation fix.
+- [450-pr-validate-site-application-text-field.md](450-pr-validate-site-application-text-field.md): upstream PR draft for the committed site application text-field validation fix.
 
 ## Local Evidence Index
 
@@ -814,5 +815,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 352: `5e0c421 fix(forum_thread): validate thread category`
 - Local implementation commits, continued 353: `a45f229 fix(site_member): validate member user`
 - Local implementation commits, continued 354: `5d86f54 fix(site_application): validate application user`
+- Local implementation commits, continued 355: `f2982f2 fix(site_application): validate application text`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
