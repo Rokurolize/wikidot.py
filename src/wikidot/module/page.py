@@ -70,6 +70,14 @@ def _validate_page_rating_field(value: object) -> int | float:
     return value
 
 
+def _validate_page_rating_percent_field(value: object) -> int | float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("rating_percent must be an integer, float, or None")
+    return value
+
+
 def _validate_page_tags(tags: object) -> list[str]:
     if not isinstance(tags, list):
         raise ValueError("tags must be a list")
@@ -1690,8 +1698,8 @@ class Page:
         Rating (int for +/- rating, float for 5-star rating)
     votes_count : int
         Number of votes
-    rating_percent : float
-        Percentage value in 5-star rating system (0.0 to 1.0)
+    rating_percent : int | float | None
+        Percentage value in 5-star rating system (0.0 to 1.0), or None if unavailable
     revisions_count : int
         Number of revisions (edit history)
     parent_fullname : str | None
@@ -1732,7 +1740,7 @@ class Page:
     size: int
     rating: int | float
     votes_count: int
-    rating_percent: float
+    rating_percent: int | float | None
     revisions_count: int
     parent_fullname: str | None
     tags: list[str]
@@ -1762,6 +1770,7 @@ class Page:
         self.size = _validate_page_integer_field("size", self.size)
         self.rating = _validate_page_rating_field(self.rating)
         self.votes_count = _validate_page_integer_field("votes_count", self.votes_count)
+        self.rating_percent = _validate_page_rating_percent_field(self.rating_percent)
         self.revisions_count = _validate_page_integer_field("revisions_count", self.revisions_count)
         self.parent_fullname = _normalize_parent_fullname(self.parent_fullname)
         self.tags = _validate_page_tags(self.tags)

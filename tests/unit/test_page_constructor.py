@@ -144,6 +144,19 @@ class TestPageInit:
         with pytest.raises(ValueError, match="rating must be an integer or float"):
             _page(mock_site_no_http, rating=rating)
 
+    @pytest.mark.parametrize("rating_percent", [None, 0.0, 0.75, 1])
+    def test_init_accepts_valid_rating_percent(
+        self, mock_site_no_http: Any, rating_percent: int | float | None
+    ) -> None:
+        page = _page(mock_site_no_http, rating_percent=rating_percent)
+
+        assert page.rating_percent == rating_percent
+
+    @pytest.mark.parametrize("rating_percent", [True, "0.75", [], {}, object()])
+    def test_init_rejects_malformed_rating_percent(self, mock_site_no_http: Any, rating_percent: Any) -> None:
+        with pytest.raises(ValueError, match="rating_percent must be an integer, float, or None"):
+            _page(mock_site_no_http, rating_percent=rating_percent)
+
     @pytest.mark.parametrize(
         ("parent_fullname", "expected"),
         [
