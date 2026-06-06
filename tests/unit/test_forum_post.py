@@ -42,6 +42,14 @@ class TestForumPostCollectionInit:
         assert collection.thread == mock_forum_post_no_http.thread
         assert len(collection) == 1
 
+    @pytest.mark.parametrize("thread", [True, "3001", {"id": 3001}, object()])
+    def test_init_rejects_malformed_threads(self, thread: object) -> None:
+        """明示されたthreadはForumThreadだけ受け付ける"""
+        bad_thread: Any = thread
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            ForumPostCollection(thread=bad_thread, posts=[])
+
     @pytest.mark.parametrize("posts", [True, False, "5001", ("5001",), 5001])
     def test_init_rejects_non_list_posts(self, mock_forum_thread_no_http: ForumThread, posts: object) -> None:
         """投稿コレクションの初期化はlistまたはNoneだけ受け付ける"""

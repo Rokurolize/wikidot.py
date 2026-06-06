@@ -252,7 +252,7 @@ class ForumPostCollection(list["ForumPost"]):
         super().__init__(_validate_forum_post_collection_posts(posts))
 
         if thread is not None:
-            self.thread = thread
+            self.thread = _validate_forum_thread(thread)
         else:
             self.thread = self[0].thread
 
