@@ -951,6 +951,27 @@ class TestForumThreadBasic:
                 category=mock_forum_thread_no_http.category,
             )
 
+    @pytest.mark.parametrize("post_count", [None, True, "5", 5.0])
+    def test_init_rejects_non_integer_post_count(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        post_count: object,
+    ) -> None:
+        """整数以外のスレッド投稿数を拒否する"""
+        bad_post_count: Any = post_count
+
+        with pytest.raises(ValueError, match="post_count must be an integer"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=bad_post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
     def test_str(self, mock_forum_thread_no_http: ForumThread) -> None:
         """__str__が正しい文字列を返す"""
         result = str(mock_forum_thread_no_http)

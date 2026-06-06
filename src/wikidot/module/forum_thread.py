@@ -36,6 +36,12 @@ def _validate_thread_id(thread_id: object) -> int:
     return thread_id
 
 
+def _validate_thread_post_count(post_count: object) -> int:
+    if not isinstance(post_count, int) or isinstance(post_count, bool):
+        raise ValueError("post_count must be an integer")
+    return post_count
+
+
 def _validate_thread_ids(thread_ids: object) -> list[int]:
     if not isinstance(thread_ids, list):
         raise ValueError("thread_ids must be a list")
@@ -802,6 +808,7 @@ class ForumThread:
         self.id = _validate_thread_id(self.id)
         self.title = validate_text_field("title", self.title)
         self.description = validate_text_field("description", self.description)
+        self.post_count = _validate_thread_post_count(self.post_count)
         self.category = _validate_optional_forum_category(self.category)
 
     def __str__(self) -> str:
