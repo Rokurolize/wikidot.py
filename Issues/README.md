@@ -462,6 +462,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [456-pr-validate-forum-thread-text-fields.md](456-pr-validate-forum-thread-text-fields.md): upstream PR draft for the committed forum thread text-field validation fix.
 - [457-pr-validate-forum-thread-post-count-field.md](457-pr-validate-forum-thread-post-count-field.md): upstream PR draft for the committed forum thread post-count field validation fix.
 - [458-pr-validate-forum-thread-creator-time-fields.md](458-pr-validate-forum-thread-creator-time-fields.md): upstream PR draft for the committed forum thread creator/time field validation fix.
+- [459-pr-validate-forum-post-creator-time-fields.md](459-pr-validate-forum-post-creator-time-fields.md): upstream PR draft for the committed forum post creator/time field validation fix.
 
 ## Local Evidence Index
 
@@ -832,5 +833,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 361: `ce41c56 fix(forum_thread): validate thread text fields`
 - Local implementation commits, continued 362: `1062d4b fix(forum_thread): validate thread post counts`
 - Local implementation commits, continued 363: `97f2d23 fix(forum_thread): validate thread creator metadata`
+- Local implementation commits, continued 364: `ca0ce0a fix(forum_post): validate post creator metadata`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
