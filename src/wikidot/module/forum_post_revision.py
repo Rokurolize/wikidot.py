@@ -69,6 +69,20 @@ def _validate_revision_number(value: object) -> int:
     return value
 
 
+def _validate_revision_created_by(created_by: object) -> "AbstractUser":
+    from .user import AbstractUser
+
+    if not isinstance(created_by, AbstractUser):
+        raise ValueError("created_by must be an AbstractUser")
+    return created_by
+
+
+def _validate_revision_created_at(created_at: object) -> datetime:
+    if not isinstance(created_at, datetime):
+        raise ValueError("created_at must be a datetime")
+    return created_at
+
+
 def _validate_forum_posts(posts: object) -> list["ForumPost"]:
     from .forum_post import ForumPost
 
@@ -550,6 +564,8 @@ class ForumPostRevision:
         self.post = _validate_forum_post(self.post)
         self.id = _validate_revision_id(self.id)
         self.rev_no = _validate_revision_number(self.rev_no)
+        self.created_by = _validate_revision_created_by(self.created_by)
+        self.created_at = _validate_revision_created_at(self.created_at)
 
     def __str__(self) -> str:
         """

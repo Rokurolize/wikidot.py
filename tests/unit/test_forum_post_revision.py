@@ -1180,6 +1180,34 @@ class TestForumPostRevisionBasic:
                 created_at=datetime.now(tz=timezone.utc),
             )
 
+    @pytest.mark.parametrize("created_by", [None, True, 9001, "test-user", {"id": 12345}])
+    def test_init_rejects_malformed_creators(self, mock_forum_post_no_http: ForumPost, created_by: object) -> None:
+        """ForumPostRevisionの初期化はAbstractUserの作成者だけ受け付ける"""
+        bad_created_by: Any = created_by
+
+        with pytest.raises(ValueError, match="created_by must be an AbstractUser"):
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=0,
+                created_by=bad_created_by,
+                created_at=datetime.now(tz=timezone.utc),
+            )
+
+    @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-11-14", []])
+    def test_init_rejects_malformed_created_at(self, mock_forum_post_no_http: ForumPost, created_at: object) -> None:
+        """ForumPostRevisionの初期化はdatetimeの作成日時だけ受け付ける"""
+        bad_created_at: Any = created_at
+
+        with pytest.raises(ValueError, match="created_at must be a datetime"):
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=0,
+                created_by=_user(),
+                created_at=bad_created_at,
+            )
+
 
 class TestForumPostRevisionHtml:
     """ForumPostRevision.htmlプロパティのテスト"""
