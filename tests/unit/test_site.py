@@ -665,6 +665,12 @@ class TestSitePagesAccessor:
         assert result.page_id is None
         mock_site_no_http.amc_request.assert_not_called()
 
+    @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
+    def test_source_result_rejects_malformed_pages(self, page: Any) -> None:
+        """PageSourceResultのpageはPageだけ受け付ける"""
+        with pytest.raises(ValueError, match="page must be a Page"):
+            PageSourceResult(page=page, source=None, error=NotFoundException("missing"))
+
     @pytest.mark.parametrize("source", ["source", True, object()])
     def test_source_result_rejects_malformed_source(self, mock_site_no_http: Site, source: Any) -> None:
         """PageSourceResultのsourceはPageSourceまたはNoneだけ受け付ける"""

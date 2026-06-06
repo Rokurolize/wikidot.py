@@ -191,6 +191,11 @@ def _validate_publish_result_boolean(value: object, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a boolean")
 
 
+def _validate_source_result_page(value: object) -> None:
+    if not isinstance(value, Page):
+        raise ValueError("page must be a Page")
+
+
 def _validate_source_result_source(value: object) -> None:
     if value is not None and not isinstance(value, PageSource):
         raise ValueError("source must be PageSource or None")
@@ -362,6 +367,7 @@ class PageSourceResult:
     error: Exception | None = None
 
     def __post_init__(self) -> None:
+        _validate_source_result_page(self.page)
         _validate_source_result_source(self.source)
         _validate_source_result_error(self.error)
         _validate_source_result_outcome(self.source, self.error)
