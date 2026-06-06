@@ -419,6 +419,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [413-pr-validate-page-id-assignments.md](413-pr-validate-page-id-assignments.md): upstream PR draft for the committed page ID assignment validation fix.
 - [414-pr-validate-page-source-assignments.md](414-pr-validate-page-source-assignments.md): upstream PR draft for the committed page source assignment validation fix.
 - [415-pr-validate-page-revisions-assignments.md](415-pr-validate-page-revisions-assignments.md): upstream PR draft for the committed page revisions assignment validation fix.
+- [416-pr-validate-page-votes-assignments.md](416-pr-validate-page-votes-assignments.md): upstream PR draft for the committed page votes assignment validation fix.
 
 ## Local Evidence Index
 
@@ -746,5 +747,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 318: `5204caf fix(page): validate page id assignments`
 - Local implementation commits, continued 319: `19f4cc0 fix(page): validate page source assignments`
 - Local implementation commits, continued 320: `433b3d3 fix(page): validate page revisions assignments`
+- Local implementation commits, continued 321: `b52b4c5 fix(page): validate page votes assignments`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
