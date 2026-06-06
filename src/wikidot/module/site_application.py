@@ -87,6 +87,14 @@ def _validate_site_application_text(text: object) -> str:
     return text
 
 
+def _validate_site_application_site(site: object) -> "Site":
+    from .site import Site
+
+    if not isinstance(site, Site):
+        raise ValueError("site must be a Site")
+    return site
+
+
 def _require_site_application_action_status(
     application: "SiteApplication",
     event: str,
@@ -135,6 +143,7 @@ class SiteApplication:
     text: str
 
     def __post_init__(self) -> None:
+        self.site = _validate_site_application_site(self.site)
         self.user = _validate_site_application_user_object(self.user)
         self.text = _validate_site_application_text(self.text)
 
@@ -270,14 +279,15 @@ class SiteApplication:
         if action not in ["accept", "decline"]:
             raise ValueError(f"Invalid action: {action}")
 
+        site = _validate_site_application_site(self.site)
         user = _validate_site_application_user(self.user)
-        self.site.client.login_check()
+        site.client.login_check()
 
         status_text = {"accept": "accepted", "decline": "declined"}[action]
         event = "acceptApplication"
 
         try:
-            response = self.site.amc_request(
+            response = site.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
@@ -291,7 +301,7 @@ class SiteApplication:
             )[0]
             _require_site_application_action_status(self, event, action, response.json())
             if action == "accept":
-                self.site._members = None
+                site._members = None
         except exceptions.WikidotStatusCodeException as e:
             if e.status_code == "no_application":
                 raise exceptions.NotFoundException(f"Application not found: {self.user}") from e

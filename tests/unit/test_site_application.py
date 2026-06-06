@@ -35,12 +35,26 @@ def _application_user(client: Any | None = None, user_id: int = 12345, name: str
     return User(client=client or create_mock_client(), id=user_id, name=name, unix_name="test-user")
 
 
+def _site(client: Any | None = None) -> Any:
+    site: Any = Site(
+        client=client or create_mock_client(),
+        id=123456,
+        title="Test Site",
+        unix_name="test-site",
+        domain="test-site.wikidot.com",
+        ssl_supported=True,
+    )
+    site.amc_request = MagicMock()
+    site.amc_request_with_retry = MagicMock()
+    return site
+
+
 class TestSiteApplicationDataclass:
     """SiteApplicationデータクラスのテスト"""
 
     def test_init(self):
         """初期化"""
-        site = MagicMock()
+        site = _site()
         user = _application_user()
 
         app = SiteApplication(site=site, user=user, text="Please let me join")
@@ -51,7 +65,7 @@ class TestSiteApplicationDataclass:
 
     def test_str(self):
         """文字列表現"""
-        site = MagicMock()
+        site = _site()
         user = _application_user()
 
         app = SiteApplication(site=site, user=user, text="Application text")
@@ -62,10 +76,19 @@ class TestSiteApplicationDataclass:
         assert "site=" in result
         assert "text=" in result
 
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_init_rejects_malformed_sites(self, site: object):
+        """SiteApplication.siteがSiteでなければ初期化時に拒否する"""
+        user = _application_user()
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            SiteApplication(site=bad_site, user=user, text="")
+
     @pytest.mark.parametrize("user", [None, True, "TestUser", {"id": 12345}, object()])
     def test_init_rejects_malformed_users(self, user: object):
         """SiteApplication.userがAbstractUserでなければ初期化時に拒否する"""
-        site = MagicMock()
+        site = _site()
         bad_user: Any = user
 
         with pytest.raises(ValueError, match="application.user must be an AbstractUser"):
@@ -74,7 +97,7 @@ class TestSiteApplicationDataclass:
     @pytest.mark.parametrize("text", [None, True, 123, ["Please let me join"], object()])
     def test_init_rejects_malformed_text(self, text: object):
         """SiteApplication.textが文字列でなければ初期化時に拒否する"""
-        site = MagicMock()
+        site = _site()
         user = _application_user()
         bad_text: Any = text
 
@@ -137,8 +160,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_success(self):
         """申請リスト取得成功"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
 
         response = MagicMock()
         response.json.return_value = {
@@ -172,8 +194,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_ignores_unrelated_tables(self):
         """申請と無関係なtableを誤って数えない"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
 
         response = MagicMock()
         response.json.return_value = {
@@ -205,8 +226,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_ignores_application_like_body_markup(self):
         """申請本文内の申請風HTMLを別申請として扱わない"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
 
         response = MagicMock()
         response.json.return_value = {
@@ -255,8 +275,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_preserves_application_text_spacing(self):
         """申請本文の段落や装飾要素間の空白を保持する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
 
         response = MagicMock()
         response.json.return_value = {
@@ -286,8 +305,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_malformed_user_includes_site_application_and_value_context(self):
         """申請者printuser異常値はsite/application/value付きで失敗する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         site.unix_name = "test-site"
 
         response = MagicMock()
@@ -326,8 +344,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_empty(self):
         """申請なしの場合"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
 
         response = MagicMock()
         response.json.return_value = {"body": "<div>No applications</div>"}
@@ -340,8 +357,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_raises_when_retry_is_exhausted(self):
         """申請リスト取得の再試行が尽きた場合は明示的に失敗する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         site.unix_name = "test-site"
         site.amc_request_with_retry.return_value = (None,)
 
@@ -353,8 +369,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_missing_response_body_includes_site_context(self):
         """申請リスト応答のbody欠落時はサイト名付きで失敗する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         site.unix_name = "test-site"
 
         response = MagicMock()
@@ -372,8 +387,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_malformed_response_body_type_includes_site_context(self):
         """申請リスト応答のbody型異常はサイト名と型付きで失敗する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         site.unix_name = "test-site"
 
         response = MagicMock()
@@ -398,8 +412,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_forbidden(self):
         """権限がない場合ForbiddenException"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
 
         response = MagicMock()
         response.json.return_value = {"body": '<a onclick="WIKIDOT.page.listeners.loginClick(event)">Login</a>'}
@@ -411,8 +424,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_not_logged_in(self):
         """未ログインでLoginRequiredException"""
         mock_client = create_mock_client(is_logged_in=False)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
 
         with pytest.raises(LoginRequiredException):
             SiteApplication.acquire_all(site)
@@ -420,8 +432,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_length_mismatch(self):
         """ユーザー要素とテキスト要素の数が不一致の場合はサイト名と件数を含めて失敗する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         site.unix_name = "test-site"
 
         response = MagicMock()
@@ -455,8 +466,7 @@ class TestSiteApplicationAcquireAll:
     def test_acquire_all_missing_text_cell(self):
         """申請本文セルがない場合はサイト名と申請位置を含めて失敗する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         site.unix_name = "test-site"
 
         response = MagicMock()
@@ -486,8 +496,7 @@ class TestSiteApplicationProcess:
     def test_accept_success(self):
         """承認成功"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
@@ -505,8 +514,7 @@ class TestSiteApplicationProcess:
     def test_accept_success_invalidates_members_cache(self):
         """申請承認成功後はサイトメンバー一覧キャッシュを再取得させる"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
@@ -528,8 +536,7 @@ class TestSiteApplicationProcess:
     def test_decline_success(self):
         """拒否成功"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
@@ -546,8 +553,7 @@ class TestSiteApplicationProcess:
     def test_decline_success_preserves_members_cache(self):
         """申請拒否成功後はメンバー一覧キャッシュを維持する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
@@ -563,8 +569,7 @@ class TestSiteApplicationProcess:
     def test_accept_rejects_non_user_before_login(self) -> None:
         """申請承認は申請者オブジェクト不正をログイン確認前に拒否する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         cached_members = [object()]
         site._members = cached_members
         bad_user: Any = {"id": 12345, "name": "TestUser"}
@@ -579,6 +584,26 @@ class TestSiteApplicationProcess:
         site.amc_request.assert_not_called()
         assert site._members is cached_members
 
+    def test_accept_rejects_malformed_site_before_login(self) -> None:
+        """申請承認はサイトオブジェクト不正をログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        cached_members = [object()]
+        site._members = cached_members
+        bad_site = MagicMock()
+        bad_site.client = mock_client
+        bad_site.amc_request = MagicMock()
+
+        app = SiteApplication(site=site, user=_application_user(mock_client), text="")
+        app.site = bad_site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            app.accept()
+
+        mock_client.login_check.assert_not_called()
+        bad_site.amc_request.assert_not_called()
+        assert site._members is cached_members
+
     @pytest.mark.parametrize(
         ("user_kwargs", "message"),
         [
@@ -590,8 +615,7 @@ class TestSiteApplicationProcess:
     def test_accept_rejects_malformed_user_before_login(self, user_kwargs: dict[str, Any], message: str) -> None:
         """申請承認は申請者ID/名前不正をログイン確認前に拒否する"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         cached_members = [object()]
         site._members = cached_members
         bad_user = User(client=mock_client, id=12345, name="TestUser")
@@ -610,8 +634,7 @@ class TestSiteApplicationProcess:
     def test_accept_missing_action_status_includes_site_user_event_type_and_field_context(self):
         """申請承認応答のstatus欠落は文脈付きNoElementException"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         site.unix_name = "test-site"
         cached_members = [object()]
         site._members = cached_members
@@ -637,8 +660,7 @@ class TestSiteApplicationProcess:
     def test_accept_explicit_non_ok_action_status_raises_status_exception(self):
         """申請承認応答の非ok statusは成功扱いしない"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         site.unix_name = "test-site"
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "other_error"}
@@ -655,8 +677,7 @@ class TestSiteApplicationProcess:
     def test_process_invalid_action(self):
         """無効なアクションでValueError"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
@@ -667,8 +688,7 @@ class TestSiteApplicationProcess:
     def test_process_not_logged_in(self):
         """未ログインでLoginRequiredException"""
         mock_client = create_mock_client(is_logged_in=False)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         user = User(client=mock_client, id=12345, name="TestUser")
 
         app = SiteApplication(site=site, user=user, text="")
@@ -679,8 +699,7 @@ class TestSiteApplicationProcess:
     def test_process_application_not_found(self):
         """申請が見つからない場合NotFoundException"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         user = User(client=mock_client, id=12345, name="TestUser")
 
         site.amc_request.side_effect = WikidotStatusCodeException(
@@ -696,8 +715,7 @@ class TestSiteApplicationProcess:
     def test_process_other_error_reraises(self):
         """その他のエラーは再送出"""
         mock_client = create_mock_client(is_logged_in=True)
-        site = MagicMock()
-        site.client = mock_client
+        site = _site(mock_client)
         user = User(client=mock_client, id=12345, name="TestUser")
 
         site.amc_request.side_effect = WikidotStatusCodeException(
