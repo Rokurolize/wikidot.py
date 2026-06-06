@@ -594,7 +594,9 @@ class TestSiteApplicationProcess:
         site.client = mock_client
         cached_members = [object()]
         site._members = cached_members
-        bad_user = User(client=mock_client, **user_kwargs)
+        bad_user = User(client=mock_client, id=12345, name="TestUser")
+        for field, value in user_kwargs.items():
+            setattr(bad_user, field, value)
 
         app = SiteApplication(site=site, user=bad_user, text="")
 

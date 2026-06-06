@@ -2092,10 +2092,9 @@ class TestSiteInviteUser:
         mock_response.json.return_value = {"status": "ok"}
         mock_client.amc_client.request.return_value = (mock_response,)
 
-        bad_user = User(
-            client=mock_client,
-            **user_kwargs,
-        )
+        bad_user = User(client=mock_client, id=12345, name="test-user")
+        for field, value in user_kwargs.items():
+            setattr(bad_user, field, value)
 
         with pytest.raises(ValueError, match=message):
             site.invite_user(bad_user, "Welcome message")

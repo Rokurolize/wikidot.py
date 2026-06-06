@@ -1035,10 +1035,13 @@ class TestPrivateMessage:
         """送信先Userの必須フィールド不正はログイン確認やAMCリクエスト前に拒否する"""
         bad_recipient = User(
             client=mock_client,
+            id=12345,
+            name="test-user",
             unix_name="test-user",
             avatar_url="https://www.wikidot.com/avatar.php?userid=12345",
-            **recipient_kwargs,
         )
+        for field, value in recipient_kwargs.items():
+            setattr(bad_recipient, field, value)
         mock_client.login_check = MagicMock()
         mock_client.amc_client.request = MagicMock()
 

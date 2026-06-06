@@ -851,7 +851,9 @@ class TestSiteMemberChangeGroup:
         site = MagicMock()
         site.client.login_check = MagicMock()
         site.amc_request = MagicMock()
-        bad_user = User(client=MagicMock(), unix_name="test-user", avatar_url=None, **user_kwargs)
+        bad_user = User(client=MagicMock(), id=12345, name="TestUser", unix_name="test-user", avatar_url=None)
+        for field, value in user_kwargs.items():
+            setattr(bad_user, field, value)
         member = SiteMember(site=site, user=bad_user, joined_at=None)
 
         with pytest.raises(ValueError, match=message):

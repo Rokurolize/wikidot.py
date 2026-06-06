@@ -33,6 +33,22 @@ def _validate_raise_when_not_found(value: object) -> bool:
     return value
 
 
+def _validate_user_id_field(field: str, value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer or None")
+    return value
+
+
+def _validate_user_optional_text_field(field: str, value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string or None")
+    return value
+
+
 def _validate_user_collection_users(users: object) -> list["AbstractUser"]:
     if users is None:
         return []
@@ -196,6 +212,13 @@ class AbstractUser:
     unix_name: str | None = None
     avatar_url: str | None = None
     ip: str | None = None
+
+    def __post_init__(self) -> None:
+        self.id = _validate_user_id_field("id", self.id)
+        self.name = _validate_user_optional_text_field("name", self.name)
+        self.unix_name = _validate_user_optional_text_field("unix_name", self.unix_name)
+        self.avatar_url = _validate_user_optional_text_field("avatar_url", self.avatar_url)
+        self.ip = _validate_user_optional_text_field("ip", self.ip)
 
     def __str__(self) -> str:
         """

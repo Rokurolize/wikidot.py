@@ -178,7 +178,8 @@ class TestPageVoteCollection:
         page = _page()
         collection = PageVoteCollection(page, [PageVote(page=page, user=self._user(1), value=1)])
         bad_user_id: Any = user_id
-        user = User(client=MagicMock(), id=bad_user_id, name=name, unix_name=name)
+        user = User(client=MagicMock(), id=12345, name=name, unix_name=name)
+        user.id = bad_user_id
 
         with pytest.raises(ValueError, match="user.id must be an integer"):
             collection.find(user)

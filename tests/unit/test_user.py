@@ -74,6 +74,50 @@ class TestUserDataclasses:
         assert user.id is None
         assert user.avatar_url is None
 
+    def test_user_accepts_valid_optional_scalar_fields(self, mock_client_no_http: MagicMock) -> None:
+        user = User(
+            client=mock_client_no_http,
+            id=None,
+            name=None,
+            unix_name=None,
+            avatar_url=None,
+            ip=None,
+        )
+
+        assert user.id is None
+        assert user.name is None
+        assert user.unix_name is None
+        assert user.avatar_url is None
+        assert user.ip is None
+
+    @pytest.mark.parametrize("user_id", [True, "12345", 12345.0, object()])
+    def test_user_rejects_malformed_id(self, mock_client_no_http: MagicMock, user_id: object) -> None:
+        bad_user_id: Any = user_id
+
+        with pytest.raises(ValueError, match="id must be an integer or None"):
+            User(client=mock_client_no_http, id=bad_user_id)
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("name", True, "name must be a string or None"),
+            ("name", 12345, "name must be a string or None"),
+            ("unix_name", True, "unix_name must be a string or None"),
+            ("unix_name", ["test-user"], "unix_name must be a string or None"),
+            ("avatar_url", True, "avatar_url must be a string or None"),
+            ("avatar_url", {"url": "http://example.com/avatar.png"}, "avatar_url must be a string or None"),
+            ("ip", True, "ip must be a string or None"),
+            ("ip", 192168001001, "ip must be a string or None"),
+        ],
+    )
+    def test_user_rejects_malformed_optional_text_fields(
+        self, mock_client_no_http: MagicMock, field: str, value: object, message: str
+    ) -> None:
+        user_kwargs: dict[str, Any] = {field: value}
+
+        with pytest.raises(ValueError, match=message):
+            User(client=mock_client_no_http, **user_kwargs)
+
 
 class TestUserFromName:
     """User.from_name のテスト"""
