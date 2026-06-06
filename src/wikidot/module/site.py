@@ -120,6 +120,24 @@ def _validate_recent_changes_limit(limit: object) -> int | None:
     return limit
 
 
+def _validate_site_id(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("id must be an integer")
+    return value
+
+
+def _validate_site_text_field(field_name: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be a string")
+    return value
+
+
+def _validate_site_ssl_supported(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError("ssl_supported must be a boolean")
+    return value
+
+
 def _validate_site_change_flags(flags: object) -> list[str]:
     if not isinstance(flags, list):
         raise ValueError("flags must be a list")
@@ -1110,6 +1128,12 @@ class Site:
 
         Initializes instances of each subclass that provides site-related functionality.
         """
+        self.id = _validate_site_id(self.id)
+        self.title = _validate_site_text_field("title", self.title)
+        self.unix_name = _validate_site_text_field("unix_name", self.unix_name)
+        self.domain = _validate_site_text_field("domain", self.domain)
+        self.ssl_supported = _validate_site_ssl_supported(self.ssl_supported)
+
         self.pages = SitePagesAccessor(self)
         self.page = SitePageAccessor(self)
         self.forum = SiteForumAccessor(self)
