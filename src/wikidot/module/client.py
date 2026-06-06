@@ -15,6 +15,12 @@ from .site import Site
 from .user import AbstractUser, User, UserCollection
 
 
+def _validate_client_accessor_client(value: object) -> "Client":
+    if not isinstance(value, Client):
+        raise ValueError("client must be a Client")
+    return value
+
+
 class ClientUserAccessor:
     """
     A class that provides user-related operations
@@ -32,7 +38,7 @@ class ClientUserAccessor:
         client : Client
             Parent client instance
         """
-        self.client = client
+        self.client = _validate_client_accessor_client(client)
 
     def get(self, name: str, raise_when_not_found: bool = False) -> Optional["AbstractUser"]:
         """
@@ -90,7 +96,7 @@ class ClientPrivateMessageAccessor:
         client : Client
             Parent client instance
         """
-        self.client = client
+        self.client = _validate_client_accessor_client(client)
 
     def send(self, recipient: User, subject: str, body: str) -> None:
         """
@@ -181,7 +187,7 @@ class ClientSiteAccessor:
         client : Client
             Parent client instance
         """
-        self.client = client
+        self.client = _validate_client_accessor_client(client)
 
     def get(self, unix_name: str) -> "Site":
         """
