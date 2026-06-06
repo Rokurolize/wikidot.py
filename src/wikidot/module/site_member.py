@@ -126,6 +126,14 @@ def _validate_site_member_user(user: object) -> AbstractUser:
     return user
 
 
+def _validate_site_member_joined_at(joined_at: object) -> datetime | None:
+    if joined_at is None:
+        return None
+    if not isinstance(joined_at, datetime):
+        raise ValueError("joined_at must be a datetime or None")
+    return joined_at
+
+
 def _validate_site_member_action_user(user: object) -> AbstractUser:
     user = _validate_site_member_user(user)
     if not isinstance(user.id, int) or isinstance(user.id, bool):
@@ -158,6 +166,7 @@ class SiteMember:
 
     def __post_init__(self) -> None:
         self.user = _validate_site_member_user(self.user)
+        self.joined_at = _validate_site_member_joined_at(self.joined_at)
 
     @staticmethod
     def _parse(

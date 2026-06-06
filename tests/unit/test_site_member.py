@@ -56,6 +56,16 @@ class TestSiteMemberDataclass:
         with pytest.raises(ValueError, match="member.user must be an AbstractUser"):
             SiteMember(site=site, user=bad_user, joined_at=None)
 
+    @pytest.mark.parametrize("joined_at", [True, 1700000000, "2024-01-01", []])
+    def test_init_rejects_malformed_joined_at(self, joined_at: object) -> None:
+        """SiteMember.joined_atはdatetimeまたはNoneだけ受け付ける"""
+        site = MagicMock()
+        user = _member_user()
+        bad_joined_at: Any = joined_at
+
+        with pytest.raises(ValueError, match="joined_at must be a datetime or None"):
+            SiteMember(site=site, user=user, joined_at=bad_joined_at)
+
 
 class TestSiteMemberParse:
     """SiteMember._parseのテスト"""
