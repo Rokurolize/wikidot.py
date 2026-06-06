@@ -57,6 +57,18 @@ def _validate_forum_post(post: object) -> "ForumPost":
     return post
 
 
+def _validate_revision_id(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("id must be an integer")
+    return value
+
+
+def _validate_revision_number(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("rev_no must be an integer")
+    return value
+
+
 def _validate_forum_posts(posts: object) -> list["ForumPost"]:
     from .forum_post import ForumPost
 
@@ -536,6 +548,8 @@ class ForumPostRevision:
 
     def __post_init__(self) -> None:
         self.post = _validate_forum_post(self.post)
+        self.id = _validate_revision_id(self.id)
+        self.rev_no = _validate_revision_number(self.rev_no)
 
     def __str__(self) -> str:
         """

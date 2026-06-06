@@ -1152,6 +1152,34 @@ class TestForumPostRevisionBasic:
                 created_at=datetime.now(tz=timezone.utc),
             )
 
+    @pytest.mark.parametrize("revision_id", [None, True, "9001", 9001.0])
+    def test_init_rejects_malformed_ids(self, mock_forum_post_no_http: ForumPost, revision_id: object) -> None:
+        """ForumPostRevisionの初期化は整数IDだけ受け付ける"""
+        bad_revision_id: Any = revision_id
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=bad_revision_id,
+                rev_no=0,
+                created_by=_user(),
+                created_at=datetime.now(tz=timezone.utc),
+            )
+
+    @pytest.mark.parametrize("rev_no", [None, True, "0", 0.0])
+    def test_init_rejects_malformed_revision_numbers(self, mock_forum_post_no_http: ForumPost, rev_no: object) -> None:
+        """ForumPostRevisionの初期化は整数のリビジョン番号だけ受け付ける"""
+        bad_rev_no: Any = rev_no
+
+        with pytest.raises(ValueError, match="rev_no must be an integer"):
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=bad_rev_no,
+                created_by=_user(),
+                created_at=datetime.now(tz=timezone.utc),
+            )
+
 
 class TestForumPostRevisionHtml:
     """ForumPostRevision.htmlプロパティのテスト"""
