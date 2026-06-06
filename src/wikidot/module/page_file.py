@@ -94,7 +94,7 @@ class PageFileCollection(list["PageFile"]):
         super().__init__(_validate_files(files))
 
         if page is not None:
-            self.page = page
+            self.page = _validate_file_page(page)
         elif len(self) > 0:
             self.page = self[0].page
 

@@ -79,6 +79,14 @@ class TestPageFileCollection:
 
         assert collection.page == page
 
+    @pytest.mark.parametrize("page", [True, "test-page", {"fullname": "test-page"}, object()])
+    def test_init_rejects_malformed_pages(self, page: object) -> None:
+        """明示されたpageはPageだけ受け付ける"""
+        bad_page: Any = page
+
+        with pytest.raises(ValueError, match="page must be a Page"):
+            PageFileCollection(page=bad_page, files=[])
+
     def test_init_with_files(self):
         """ファイルリストを指定して初期化"""
         page = _page()
