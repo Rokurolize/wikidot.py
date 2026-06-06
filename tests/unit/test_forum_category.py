@@ -390,6 +390,36 @@ class TestForumCategoryBasic:
                 posts_count=bad_posts_count,
             )
 
+    @pytest.mark.parametrize("title", [None, True, 1001, ["Test Category"]])
+    def test_init_rejects_non_string_title(self, mock_site_no_http: Site, title: object) -> None:
+        """文字列以外のカテゴリタイトルを拒否する"""
+        bad_title: Any = title
+
+        with pytest.raises(ValueError, match="title must be a string"):
+            ForumCategory(
+                site=mock_site_no_http,
+                id=1001,
+                title=bad_title,
+                description="Test category description",
+                threads_count=10,
+                posts_count=50,
+            )
+
+    @pytest.mark.parametrize("description", [None, True, 1001, ["Test category description"]])
+    def test_init_rejects_non_string_description(self, mock_site_no_http: Site, description: object) -> None:
+        """文字列以外のカテゴリ説明を拒否する"""
+        bad_description: Any = description
+
+        with pytest.raises(ValueError, match="description must be a string"):
+            ForumCategory(
+                site=mock_site_no_http,
+                id=1001,
+                title="Test Category",
+                description=bad_description,
+                threads_count=10,
+                posts_count=50,
+            )
+
     def test_str(self, mock_forum_category_no_http: ForumCategory) -> None:
         """__str__が正しい文字列を返す"""
         result = str(mock_forum_category_no_http)

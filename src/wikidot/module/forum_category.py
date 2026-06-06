@@ -300,6 +300,8 @@ class ForumCategory:
 
     def __post_init__(self) -> None:
         self.id = _validate_forum_category_id(self.id)
+        self.title = validate_text_field("title", self.title)
+        self.description = validate_text_field("description", self.description)
         self.threads_count = _validate_forum_category_count("threads_count", self.threads_count)
         self.posts_count = _validate_forum_category_count("posts_count", self.posts_count)
 
