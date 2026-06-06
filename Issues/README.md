@@ -422,6 +422,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [416-pr-validate-page-votes-assignments.md](416-pr-validate-page-votes-assignments.md): upstream PR draft for the committed page votes assignment validation fix.
 - [417-pr-validate-page-collection-initialization.md](417-pr-validate-page-collection-initialization.md): upstream PR draft for the committed page collection initialization validation fix.
 - [418-pr-validate-page-vote-collection-initialization.md](418-pr-validate-page-vote-collection-initialization.md): upstream PR draft for the committed page vote collection initialization validation fix.
+- [419-pr-validate-page-revision-collection-initialization.md](419-pr-validate-page-revision-collection-initialization.md): upstream PR draft for the committed page revision collection initialization validation fix.
 
 ## Local Evidence Index
 
@@ -752,5 +753,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 321: `b52b4c5 fix(page): validate page votes assignments`
 - Local implementation commits, continued 322: `140dbd9 fix(page): validate page collection initialization`
 - Local implementation commits, continued 323: `e75310c fix(page_votes): validate vote collection initialization`
+- Local implementation commits, continued 324: `94d9a62 fix(page_revision): validate revision collection initialization`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
