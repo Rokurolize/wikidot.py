@@ -740,5 +740,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 315: `f0efcef fix(site_member): validate member action users`
 - Local implementation commits, continued 316: `2797f77 fix(site): reject boolean source iterator batch sizes`
 - Local implementation commits, continued 317: `bc40a80 fix(page): validate create_or_edit page ids`
+- Local implementation commits, continued 318: `5204caf fix(page): validate page id assignments`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
