@@ -64,6 +64,14 @@ def _validate_page_bool_field(field: str, value: object) -> bool:
     return value
 
 
+def _validate_optional_page_id(value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("page_id must be an integer or None")
+    return value
+
+
 def _validate_page_vote_value(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
         raise ValueError("Vote value must be 1 or -1")
@@ -2283,6 +2291,7 @@ class Page:
         title = _validate_page_text_field("title", title)
         source = _validate_page_source(source)
         comment = _validate_page_text_field("comment", comment)
+        page_id = _validate_optional_page_id(page_id)
         force_edit = _validate_page_bool_field("force_edit", force_edit)
         raise_on_exists = _validate_page_bool_field("raise_on_exists", raise_on_exists)
 

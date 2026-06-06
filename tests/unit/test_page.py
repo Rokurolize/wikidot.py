@@ -3333,6 +3333,26 @@ class TestPageCreateOrEdit:
         assert page._id == 12345
         assert page.source.wiki_text == "Updated content"
 
+    @pytest.mark.parametrize("page_id", [True, False, "12345", 12345.0])
+    def test_create_or_edit_rejects_invalid_page_id_before_login(
+        self, mock_site_no_http: Site, page_id: object
+    ) -> None:
+        """page_idは実整数またはNoneだけをlogin前に受け入れる"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page_id must be an integer or None"):
+            Page.create_or_edit(
+                mock_site_no_http,
+                "existing-page",
+                page_id=page_id,
+                title="Updated Title",
+                source="Updated content",
+            )
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_edit_locked_page(self, mock_site_no_http: Site, page_pageedit_locked: dict[str, Any]) -> None:
         """ロック済みページの編集で例外"""
         mock_site_no_http.client.is_logged_in = True
