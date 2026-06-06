@@ -712,7 +712,7 @@ class SitePageAccessor:
 
     @staticmethod
     def _validate_post_save_visibility_attempts(value: object) -> int:
-        if not isinstance(value, int):
+        if not isinstance(value, int) or isinstance(value, bool):
             raise ValueError("post_save_visibility_attempts must be an integer")
         if value < 1:
             raise ValueError("post_save_visibility_attempts must be at least 1")
@@ -720,7 +720,7 @@ class SitePageAccessor:
 
     @staticmethod
     def _validate_post_save_visibility_interval(value: object) -> float:
-        if not isinstance(value, int | float):
+        if not isinstance(value, int | float) or isinstance(value, bool):
             raise ValueError("post_save_visibility_interval must be a number")
         if value < 0:
             raise ValueError("post_save_visibility_interval must be non-negative")

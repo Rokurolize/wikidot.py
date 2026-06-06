@@ -1223,6 +1223,32 @@ class TestSitePageAccessor:
             mock_site_no_http.page.get.assert_not_called()
             create_or_edit.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"post_save_visibility_attempts": True}, "post_save_visibility_attempts must be an integer"),
+            ({"post_save_visibility_attempts": False}, "post_save_visibility_attempts must be an integer"),
+            ({"post_save_visibility_interval": True}, "post_save_visibility_interval must be a number"),
+            ({"post_save_visibility_interval": False}, "post_save_visibility_interval must be a number"),
+        ],
+    )
+    def test_publish_rejects_boolean_visibility_controls_before_save(
+        self, mock_site_no_http: Site, kwargs: dict[str, Any], message: str
+    ) -> None:
+        """publishのvisibility制御はboolを数値として受け入れない"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match=message),
+        ):
+            mock_site_no_http.page.publish("new-page", **kwargs)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
     def test_publish_retries_post_save_visibility_before_returning_page_id(self, mock_site_no_http: Site) -> None:
         """保存直後のページID取得が一時的に失敗したら指定回数だけ再試行する"""
         mock_site_no_http.client.login_check = MagicMock()
