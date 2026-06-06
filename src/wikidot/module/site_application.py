@@ -81,6 +81,12 @@ def _validate_site_application_user(user: object) -> AbstractUser:
     return user
 
 
+def _validate_site_application_text(text: object) -> str:
+    if not isinstance(text, str):
+        raise ValueError("application.text must be a string")
+    return text
+
+
 def _require_site_application_action_status(
     application: "SiteApplication",
     event: str,
@@ -130,6 +136,7 @@ class SiteApplication:
 
     def __post_init__(self) -> None:
         self.user = _validate_site_application_user_object(self.user)
+        self.text = _validate_site_application_text(self.text)
 
     def __str__(self) -> str:
         """

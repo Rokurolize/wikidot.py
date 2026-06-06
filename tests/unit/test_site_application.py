@@ -71,6 +71,16 @@ class TestSiteApplicationDataclass:
         with pytest.raises(ValueError, match="application.user must be an AbstractUser"):
             SiteApplication(site=site, user=bad_user, text="")
 
+    @pytest.mark.parametrize("text", [None, True, 123, ["Please let me join"], object()])
+    def test_init_rejects_malformed_text(self, text: object):
+        """SiteApplication.textが文字列でなければ初期化時に拒否する"""
+        site = MagicMock()
+        user = _application_user()
+        bad_text: Any = text
+
+        with pytest.raises(ValueError, match="application.text must be a string"):
+            SiteApplication(site=site, user=user, text=bad_text)
+
 
 class TestSiteApplicationAcquireAll:
     """SiteApplication.acquire_allのテスト"""
