@@ -9,6 +9,7 @@ from wikidot.module.page import Page
 
 def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
     values: dict[str, Any] = {
+        "site": mock_site_no_http,
         "fullname": "test-page",
         "name": "test-page",
         "category": "_default",
@@ -32,7 +33,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
     values.update(overrides)
 
     return Page(
-        site=mock_site_no_http,
+        site=values["site"],
         fullname=values["fullname"],
         name=values["name"],
         category=values["category"],
@@ -61,6 +62,7 @@ class TestPageInit:
     def test_init_accepts_valid_identity_text(self, mock_site_no_http: Any) -> None:
         page = _page(mock_site_no_http)
 
+        assert page.site == mock_site_no_http
         assert page.fullname == "test-page"
         assert page.name == "test-page"
         assert page.category == "_default"
@@ -175,3 +177,8 @@ class TestPageInit:
     def test_init_rejects_non_string_tag_entries(self, mock_site_no_http: Any, tags: Any) -> None:
         with pytest.raises(ValueError, match="tags list entries must be strings"):
             _page(mock_site_no_http, tags=tags)
+
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_init_rejects_malformed_site(self, mock_site_no_http: Any, site: Any) -> None:
+        with pytest.raises(ValueError, match="site must be a Site"):
+            _page(mock_site_no_http, site=site)

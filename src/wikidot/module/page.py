@@ -149,12 +149,16 @@ def _validate_pages(pages: object) -> list["Page"]:
     return cast(list["Page"], pages)
 
 
-def _validate_page_collection_site(site: object) -> "Site":
+def _validate_page_site(site: object) -> "Site":
     from .site import Site
 
     if not isinstance(site, Site):
         raise ValueError("site must be a Site")
     return site
+
+
+def _validate_page_collection_site(site: object) -> "Site":
+    return _validate_page_site(site)
 
 
 def _validate_listpages_retry_max_retries(value: object) -> int:
@@ -1729,6 +1733,7 @@ class Page:
     _files: Optional["PageFileCollection"] = None
 
     def __post_init__(self) -> None:
+        self.site = _validate_page_site(self.site)
         self.fullname = _validate_page_text_field("fullname", self.fullname)
         self.name = _validate_page_text_field("name", self.name)
         self.category = _validate_page_text_field("category", self.category)

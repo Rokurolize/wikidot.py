@@ -9,14 +9,20 @@ import pytest
 from wikidot.common import exceptions
 from wikidot.module.page import Page
 from wikidot.module.page_file import PageFile, PageFileCollection
+from wikidot.module.site import Site
 from wikidot.module.user import User
 
 
 def _page() -> Page:
     """HTTPなしで使う実Page"""
-    site = MagicMock()
-    site.url = "https://test.wikidot.com"
-    site.unix_name = "test-site"
+    site = Site(
+        client=MagicMock(),
+        id=123456,
+        title="Test Site",
+        unix_name="test-site",
+        domain="test.wikidot.com",
+        ssl_supported=True,
+    )
     site.amc_request = MagicMock()
     site.amc_request_with_retry = MagicMock()
     user = User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
