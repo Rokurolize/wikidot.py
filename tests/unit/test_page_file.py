@@ -1,5 +1,6 @@
 """PageFileモジュールのユニットテスト"""
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -38,6 +39,24 @@ class TestPageFileCollection:
         collection = PageFileCollection(page=page, files=[file1, file2])
 
         assert len(collection) == 2
+
+    @pytest.mark.parametrize("files", [True, False, "file", ("file",), 100])
+    def test_init_rejects_non_list_files(self, files: object):
+        """filesはlistまたはNoneだけ受け付ける"""
+        page = MagicMock()
+        bad_files: Any = files
+
+        with pytest.raises(ValueError, match="files must be a list or None"):
+            PageFileCollection(page=page, files=bad_files)
+
+    @pytest.mark.parametrize("file", [None, True, "file", {"id": 100}])
+    def test_init_rejects_non_file_entries(self, file: object):
+        """filesの要素はPageFileだけ受け付ける"""
+        page = MagicMock()
+        bad_files: Any = [file]
+
+        with pytest.raises(ValueError, match="files list entries must be PageFile"):
+            PageFileCollection(page=page, files=bad_files)
 
     def test_iter(self):
         """イテレーション"""

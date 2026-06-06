@@ -8,7 +8,7 @@ to Wikidot site pages. It enables operations such as retrieving file information
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
@@ -28,6 +28,16 @@ _SIZE_MULTIPLIERS = {
     "mb": 1000000,
     "gb": 1000000000,
 }
+
+
+def _validate_files(files: object) -> list["PageFile"]:
+    if files is None:
+        return []
+    if not isinstance(files, list):
+        raise ValueError("files must be a list or None")
+    if any(not isinstance(file, PageFile) for file in files):
+        raise ValueError("files list entries must be PageFile")
+    return cast(list["PageFile"], files)
 
 
 class PageFileCollection(list["PageFile"]):
@@ -55,7 +65,7 @@ class PageFileCollection(list["PageFile"]):
         files : list[PageFile] | None, default None
             List of files to store
         """
-        super().__init__(files or [])
+        super().__init__(_validate_files(files))
 
         if page is not None:
             self.page = page
