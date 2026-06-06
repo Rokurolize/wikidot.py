@@ -1116,9 +1116,9 @@ class SearchPagesQuery:
             elif not isinstance(res["tags"], str):
                 raise ValueError("tags must be a string, list, or None")
         if "created_by" in res and not isinstance(res["created_by"], str):
-            user_name = getattr(res["created_by"], "unix_name", None) or getattr(res["created_by"], "name", None)
+            user_name = getattr(res["created_by"], "unix_name", None)
             if not isinstance(user_name, str) or user_name == "":
-                raise ValueError("created_by user must have a name or unix_name")
+                raise ValueError("created_by user must have a unix_name")
             res["created_by"] = user_name
         return res
 
