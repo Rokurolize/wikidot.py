@@ -482,6 +482,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [476-pr-validate-forum-category-collection-site-field.md](476-pr-validate-forum-category-collection-site-field.md): upstream PR draft for the committed forum category collection site-field validation fix.
 - [477-pr-validate-page-collection-site-field.md](477-pr-validate-page-collection-site-field.md): upstream PR draft for the committed page collection site-field validation fix.
 - [478-pr-validate-site-accessor-parent-sites.md](478-pr-validate-site-accessor-parent-sites.md): upstream PR draft for the committed site accessor parent-site validation fix.
+- [479-pr-validate-client-accessor-parent-clients.md](479-pr-validate-client-accessor-parent-clients.md): upstream PR draft for the committed client accessor parent-client validation fix.
 
 ## Local Evidence Index
 
@@ -872,5 +873,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 381: `4ec7897 fix(forum_category): validate category collection site`
 - Local implementation commits, continued 382: `d9ef61d fix(page): validate page collection site`
 - Local implementation commits, continued 383: `90c4fd3 fix(site): validate accessor parent sites`
+- Local implementation commits, continued 384: `8f301c4 fix(client): validate accessor parent clients`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
