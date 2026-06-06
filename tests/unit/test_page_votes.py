@@ -1,12 +1,48 @@
 """PageVotesモジュールのユニットテスト"""
 
+from datetime import datetime
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
+from wikidot.module.page import Page
 from wikidot.module.page_votes import PageVote, PageVoteCollection
 from wikidot.module.user import User
+
+
+def _page() -> Page:
+    """HTTPなしで使う実Page"""
+    site = MagicMock()
+    site.url = "https://test.wikidot.com"
+    site.unix_name = "test-site"
+    site.amc_request = MagicMock()
+    site.amc_request_with_retry = MagicMock()
+    user = User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
+    timestamp = datetime(2023, 1, 1, 12, 0, 0)
+    return Page(
+        site=site,
+        fullname="test-page",
+        name="test-page",
+        category="_default",
+        title="Test Page Title",
+        children_count=0,
+        comments_count=0,
+        size=1000,
+        rating=10,
+        votes_count=5,
+        rating_percent=0.5,
+        revisions_count=3,
+        parent_fullname=None,
+        tags=["tag1", "tag2"],
+        created_by=user,
+        created_at=timestamp,
+        updated_by=user,
+        updated_at=timestamp,
+        commented_by=None,
+        commented_at=None,
+        _id=12345,
+    )
 
 
 class TestPageVoteCollection:
@@ -18,7 +54,7 @@ class TestPageVoteCollection:
 
     def test_init_with_page_and_votes(self):
         """ページと投票リストで初期化"""
-        page = MagicMock()
+        page = _page()
         user1 = self._user(1, "user-one")
         user2 = self._user(2, "user-two")
         vote1 = PageVote(page=page, user=user1, value=1)
@@ -32,7 +68,7 @@ class TestPageVoteCollection:
     @pytest.mark.parametrize("votes", [None, True, "vote", ("vote",)])
     def test_init_rejects_non_list_votes(self, votes: object) -> None:
         """投票コレクションの初期化はlistだけ受け付ける"""
-        page = MagicMock()
+        page = _page()
         bad_votes: Any = votes
 
         with pytest.raises(ValueError, match="votes must be a list"):
@@ -41,7 +77,7 @@ class TestPageVoteCollection:
     @pytest.mark.parametrize("vote", [None, True, "vote", {"user": 1}])
     def test_init_rejects_non_vote_entries(self, vote: object) -> None:
         """投票コレクションの初期化はPageVote要素だけ受け付ける"""
-        page = MagicMock()
+        page = _page()
         bad_votes: Any = [vote]
 
         with pytest.raises(ValueError, match="votes list entries must be PageVote"):
@@ -49,7 +85,7 @@ class TestPageVoteCollection:
 
     def test_init_with_empty_votes(self):
         """空の投票リストで初期化"""
-        page = MagicMock()
+        page = _page()
 
         collection = PageVoteCollection(page, [])
 
@@ -58,7 +94,7 @@ class TestPageVoteCollection:
 
     def test_iter(self):
         """イテレーション"""
-        page = MagicMock()
+        page = _page()
         user1 = self._user(1, "user-one")
         user2 = self._user(2, "user-two")
         vote1 = PageVote(page=page, user=user1, value=1)
@@ -73,7 +109,7 @@ class TestPageVoteCollection:
 
     def test_find_existing_vote(self):
         """存在する投票を検索"""
-        page = MagicMock()
+        page = _page()
         user1 = self._user(12345, "user-one")
         user2 = self._user(67890, "user-two")
         vote1 = PageVote(page=page, user=user1, value=1)
@@ -90,8 +126,7 @@ class TestPageVoteCollection:
 
     def test_find_nonexistent_vote_raises(self):
         """存在しない投票の検索でValueError"""
-        page = MagicMock()
-        page.__str__ = lambda x: "TestPage"
+        page = _page()
         user1 = self._user(12345, "user-one")
         vote1 = PageVote(page=page, user=user1, value=1)
 
@@ -105,24 +140,27 @@ class TestPageVoteCollection:
     @pytest.mark.parametrize("user", [None, True, "12345", {"id": 12345}])
     def test_find_rejects_non_user_values(self, user: object) -> None:
         """findの検索対象はAbstractUserだけ受け付ける"""
-        page = MagicMock()
+        page = _page()
         collection = PageVoteCollection(page, [PageVote(page=page, user=self._user(1), value=1)])
+        bad_user: Any = user
 
         with pytest.raises(ValueError, match="user must be an AbstractUser"):
-            collection.find(user)
+            collection.find(bad_user)
 
     @pytest.mark.parametrize(
-        "user",
+        ("user_id", "name"),
         [
-            User(client=MagicMock(), id=None, name="missing-id", unix_name="missing-id"),
-            User(client=MagicMock(), id=True, name="bool-id", unix_name="bool-id"),
-            User(client=MagicMock(), id="12345", name="string-id", unix_name="string-id"),
+            (None, "missing-id"),
+            (True, "bool-id"),
+            ("12345", "string-id"),
         ],
     )
-    def test_find_rejects_users_without_integer_id(self, user: User) -> None:
+    def test_find_rejects_users_without_integer_id(self, user_id: object, name: str) -> None:
         """findの検索対象user.idはbool以外の整数だけ受け付ける"""
-        page = MagicMock()
+        page = _page()
         collection = PageVoteCollection(page, [PageVote(page=page, user=self._user(1), value=1)])
+        bad_user_id: Any = user_id
+        user = User(client=MagicMock(), id=bad_user_id, name=name, unix_name=name)
 
         with pytest.raises(ValueError, match="user.id must be an integer"):
             collection.find(user)
@@ -133,7 +171,7 @@ class TestPageVote:
 
     def test_init(self):
         """初期化"""
-        page = MagicMock()
+        page = _page()
         user = MagicMock()
 
         vote = PageVote(page=page, user=user, value=1)
@@ -144,7 +182,7 @@ class TestPageVote:
 
     def test_positive_vote(self):
         """正の投票"""
-        page = MagicMock()
+        page = _page()
         user = MagicMock()
 
         vote = PageVote(page=page, user=user, value=1)
@@ -153,7 +191,7 @@ class TestPageVote:
 
     def test_negative_vote(self):
         """負の投票"""
-        page = MagicMock()
+        page = _page()
         user = MagicMock()
 
         vote = PageVote(page=page, user=user, value=-1)
@@ -162,9 +200,18 @@ class TestPageVote:
 
     def test_numeric_vote(self):
         """数値投票（5段階評価など）"""
-        page = MagicMock()
+        page = _page()
         user = MagicMock()
 
         vote = PageVote(page=page, user=user, value=5)
 
         assert vote.value == 5
+
+    @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
+    def test_init_rejects_malformed_pages(self, page: object) -> None:
+        """投票の初期化は実Pageだけ受け付ける"""
+        bad_page: Any = page
+        user = MagicMock()
+
+        with pytest.raises(ValueError, match="page must be a Page"):
+            PageVote(page=bad_page, user=user, value=1)

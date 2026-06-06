@@ -15,6 +15,14 @@ if TYPE_CHECKING:
     from .page import Page
 
 
+def _validate_vote_page(value: object) -> "Page":
+    from .page import Page
+
+    if not isinstance(value, Page):
+        raise ValueError("page must be a Page")
+    return value
+
+
 def _validate_vote_search_user(user: object) -> AbstractUser:
     if not isinstance(user, AbstractUser):
         raise ValueError("user must be an AbstractUser")
@@ -107,3 +115,6 @@ class PageVote:
     page: "Page"
     user: "AbstractUser"
     value: int
+
+    def __post_init__(self) -> None:
+        self.page = _validate_vote_page(self.page)
