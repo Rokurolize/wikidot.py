@@ -70,6 +70,14 @@ def _validate_page_rating_field(value: object) -> int | float:
     return value
 
 
+def _validate_page_tags(tags: object) -> list[str]:
+    if not isinstance(tags, list):
+        raise ValueError("tags must be a list")
+    if any(not isinstance(tag, str) for tag in tags):
+        raise ValueError("tags list entries must be strings")
+    return cast(list[str], tags)
+
+
 def _validate_page_bool_field(field: str, value: object) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{field} must be a boolean")
@@ -1732,6 +1740,7 @@ class Page:
         self.votes_count = _validate_page_integer_field("votes_count", self.votes_count)
         self.revisions_count = _validate_page_integer_field("revisions_count", self.revisions_count)
         self.parent_fullname = _normalize_parent_fullname(self.parent_fullname)
+        self.tags = _validate_page_tags(self.tags)
 
     def get_url(self) -> str:
         """

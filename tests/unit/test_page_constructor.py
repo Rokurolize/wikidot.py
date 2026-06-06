@@ -159,3 +159,19 @@ class TestPageInit:
     def test_init_rejects_malformed_parent_fullname(self, mock_site_no_http: Any, parent_fullname: Any) -> None:
         with pytest.raises(ValueError, match="parent_fullname must be a string or None"):
             _page(mock_site_no_http, parent_fullname=parent_fullname)
+
+    @pytest.mark.parametrize("tags", [[], ["tag1", "_hidden"]])
+    def test_init_accepts_valid_tags(self, mock_site_no_http: Any, tags: list[str]) -> None:
+        page = _page(mock_site_no_http, tags=tags)
+
+        assert page.tags == tags
+
+    @pytest.mark.parametrize("tags", [None, "tag1 tag2", ("tag1",)])
+    def test_init_rejects_non_list_tags(self, mock_site_no_http: Any, tags: Any) -> None:
+        with pytest.raises(ValueError, match="tags must be a list"):
+            _page(mock_site_no_http, tags=tags)
+
+    @pytest.mark.parametrize("tags", [["tag1", 3], [True], [None]])
+    def test_init_rejects_non_string_tag_entries(self, mock_site_no_http: Any, tags: Any) -> None:
+        with pytest.raises(ValueError, match="tags list entries must be strings"):
+            _page(mock_site_no_http, tags=tags)
