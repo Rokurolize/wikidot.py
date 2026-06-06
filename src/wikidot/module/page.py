@@ -64,6 +64,12 @@ def _validate_page_integer_field(field: str, value: object) -> int:
     return value
 
 
+def _validate_page_rating_field(value: object) -> int | float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("rating must be an integer or float")
+    return value
+
+
 def _validate_page_bool_field(field: str, value: object) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{field} must be a boolean")
@@ -1722,6 +1728,7 @@ class Page:
         self.children_count = _validate_page_integer_field("children_count", self.children_count)
         self.comments_count = _validate_page_integer_field("comments_count", self.comments_count)
         self.size = _validate_page_integer_field("size", self.size)
+        self.rating = _validate_page_rating_field(self.rating)
         self.votes_count = _validate_page_integer_field("votes_count", self.votes_count)
         self.revisions_count = _validate_page_integer_field("revisions_count", self.revisions_count)
 

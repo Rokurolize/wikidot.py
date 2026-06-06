@@ -68,8 +68,15 @@ class TestPageInit:
         assert page.children_count == 0
         assert page.comments_count == 0
         assert page.size == 1000
+        assert page.rating == 10
         assert page.votes_count == 5
         assert page.revisions_count == 3
+
+    @pytest.mark.parametrize("rating", [10, 4.0])
+    def test_init_accepts_valid_rating_numbers(self, mock_site_no_http: Any, rating: int | float) -> None:
+        page = _page(mock_site_no_http, rating=rating)
+
+        assert page.rating == rating
 
     @pytest.mark.parametrize(
         ("field", "value", "message"),
@@ -126,3 +133,8 @@ class TestPageInit:
     def test_init_rejects_malformed_counts(self, mock_site_no_http: Any, field: str, value: Any, message: str) -> None:
         with pytest.raises(ValueError, match=message):
             _page(mock_site_no_http, **{field: value})
+
+    @pytest.mark.parametrize("rating", [None, True, "10", []])
+    def test_init_rejects_malformed_rating(self, mock_site_no_http: Any, rating: Any) -> None:
+        with pytest.raises(ValueError, match="rating must be an integer or float"):
+            _page(mock_site_no_http, rating=rating)
