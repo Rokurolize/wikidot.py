@@ -486,6 +486,13 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [480-pr-validate-site-constructor-metadata.md](480-pr-validate-site-constructor-metadata.md): upstream PR draft for the committed site constructor metadata validation fix.
 - [481-pr-validate-page-constructor-identity-fields.md](481-pr-validate-page-constructor-identity-fields.md): upstream PR draft for the committed page constructor identity-field validation fix.
 - [482-pr-validate-page-constructor-count-fields.md](482-pr-validate-page-constructor-count-fields.md): upstream PR draft for the committed page constructor count-field validation fix.
+- [483-pr-validate-page-constructor-rating-field.md](483-pr-validate-page-constructor-rating-field.md): upstream PR draft for the committed page constructor rating-field validation fix.
+- [484-pr-validate-page-constructor-parent-fullname.md](484-pr-validate-page-constructor-parent-fullname.md): upstream PR draft for the committed page constructor parent-fullname validation fix.
+- [485-pr-validate-page-constructor-tags.md](485-pr-validate-page-constructor-tags.md): upstream PR draft for the committed page constructor tags validation fix.
+- [486-pr-validate-page-constructor-site.md](486-pr-validate-page-constructor-site.md): upstream PR draft for the committed page constructor site validation fix.
+- [487-pr-validate-page-constructor-nullable-metadata.md](487-pr-validate-page-constructor-nullable-metadata.md): upstream PR draft for the committed page constructor nullable metadata validation fix.
+- [488-pr-validate-page-constructor-rating-percent.md](488-pr-validate-page-constructor-rating-percent.md): upstream PR draft for the committed page constructor rating-percent validation fix.
+- [489-pr-validate-page-constructor-id-field.md](489-pr-validate-page-constructor-id-field.md): upstream PR draft for the committed page constructor ID-field validation fix.
 
 ## Local Evidence Index
 
@@ -886,5 +893,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 391: `3df4b37 fix(page): validate constructor site`
 - Local implementation commits, continued 392: `add8c11 fix(page): validate nullable metadata`
 - Local implementation commits, continued 393: `c9febc9 fix(page): validate rating percent`
+- Local implementation commits, continued 394: `553fc50 fix(page): validate constructor page id`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
