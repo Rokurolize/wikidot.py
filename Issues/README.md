@@ -434,6 +434,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [428-pr-validate-publish-result-status-fields.md](428-pr-validate-publish-result-status-fields.md): upstream PR draft for the committed publish result status-field validation fix.
 - [429-pr-validate-source-result-outcomes.md](429-pr-validate-source-result-outcomes.md): upstream PR draft for the committed source result outcome validation fix.
 - [430-pr-validate-page-source-wiki-text.md](430-pr-validate-page-source-wiki-text.md): upstream PR draft for the committed page source wiki-text validation fix.
+- [431-pr-validate-page-revision-source-assignments.md](431-pr-validate-page-revision-source-assignments.md): upstream PR draft for the committed page revision source assignment validation fix.
 
 ## Local Evidence Index
 
@@ -776,5 +777,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 333: `fd6be80 fix(site): validate publish result status fields`
 - Local implementation commits, continued 334: `f55a86b fix(site): validate source result outcomes`
 - Local implementation commits, continued 335: `afacb97 fix(page_source): validate wiki text`
+- Local implementation commits, continued 336: `fc13dc8 fix(page_revision): validate source assignments`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
