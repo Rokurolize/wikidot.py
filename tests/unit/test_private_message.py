@@ -79,6 +79,18 @@ class TestPrivateMessageCollection:
         assert len(messages) == 1
         assert messages[0] == sample_message
 
+    @pytest.mark.parametrize("messages", [True, False, "1", ("1",), 1])
+    def test_init_rejects_non_list_messages(self, messages: object):
+        """メッセージコレクションの初期化はlistまたはNoneだけ受け付ける"""
+        with pytest.raises(ValueError, match="messages must be a list or None"):
+            PrivateMessageCollection(messages)
+
+    @pytest.mark.parametrize("message", [None, True, "1", {"id": 1}])
+    def test_init_rejects_non_message_entries(self, message: object):
+        """メッセージコレクションの初期化はPrivateMessageだけ受け付ける"""
+        with pytest.raises(ValueError, match="messages list entries must be PrivateMessage"):
+            PrivateMessageCollection([message])  # type: ignore[list-item]
+
     def test_find_existing(self, sample_message):
         """存在するメッセージの検索"""
         collection = PrivateMessageCollection([sample_message])
@@ -932,12 +944,12 @@ class TestPrivateMessage:
         assert "PrivateMessage(" in result
         assert "id=1" in result
 
-    def test_from_id(self, mock_client):
+    def test_from_id(self, mock_client, sample_message):
         """from_idのテスト"""
         with patch.object(
             PrivateMessageCollection,
             "from_ids",
-            return_value=PrivateMessageCollection([MagicMock()]),
+            return_value=PrivateMessageCollection([sample_message]),
         ) as mock_from_ids:
             result = PrivateMessage.from_id(mock_client, 123)
 

@@ -79,6 +79,16 @@ def _require_private_message_send_action_status(recipient: "User", event: str, d
     return status
 
 
+def _validate_private_message_collection_messages(messages: object) -> list["PrivateMessage"]:
+    if messages is None:
+        return []
+    if not isinstance(messages, list):
+        raise ValueError("messages must be a list or None")
+    if any(not isinstance(message, PrivateMessage) for message in messages):
+        raise ValueError("messages list entries must be PrivateMessage")
+    return cast(list["PrivateMessage"], messages)
+
+
 def _odate_class_value(odate_element: Tag) -> str:
     class_attr = odate_element.get("class", [])
     if class_attr is None:
@@ -113,6 +123,17 @@ class PrivateMessageCollection(list["PrivateMessage"]):
     A list extension class for storing multiple private messages and performing batch operations.
     Inherited to represent specific message groups such as inbox or sent box.
     """
+
+    def __init__(self, messages: list["PrivateMessage"] | None = None):
+        """
+        Initialization method
+
+        Parameters
+        ----------
+        messages : list[PrivateMessage] | None, default None
+            List of private messages to store
+        """
+        super().__init__(_validate_private_message_collection_messages(messages))
 
     def __str__(self) -> str:
         """
