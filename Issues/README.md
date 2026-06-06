@@ -501,6 +501,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [495-pr-validate-user-scalar-fields.md](495-pr-validate-user-scalar-fields.md): upstream PR draft for the committed user scalar-field validation fix.
 - [496-pr-clean-pyright-test-typing.md](496-pr-clean-pyright-test-typing.md): upstream PR draft for the committed broad pyright test typing cleanup.
 - [497-pr-validate-quickmodule-request-arguments.md](497-pr-validate-quickmodule-request-arguments.md): upstream PR draft for the committed QuickModule request argument validation fix.
+- [498-pr-validate-private-message-record-fields.md](498-pr-validate-private-message-record-fields.md): upstream PR draft for the committed private-message record field validation fix.
 
 ## Local Evidence Index
 
@@ -910,5 +911,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 400: `802396d fix(user): validate user scalar fields`
 - Local implementation commits, continued 401: `52a55cf test: clean broad pyright typing`
 - Local implementation commits, continued 402: `d8b8dc3 fix(quick_module): validate request arguments`
+- Local implementation commits, continued 403: `33618be fix(private_message): validate record fields`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
