@@ -484,6 +484,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [478-pr-validate-site-accessor-parent-sites.md](478-pr-validate-site-accessor-parent-sites.md): upstream PR draft for the committed site accessor parent-site validation fix.
 - [479-pr-validate-client-accessor-parent-clients.md](479-pr-validate-client-accessor-parent-clients.md): upstream PR draft for the committed client accessor parent-client validation fix.
 - [480-pr-validate-site-constructor-metadata.md](480-pr-validate-site-constructor-metadata.md): upstream PR draft for the committed site constructor metadata validation fix.
+- [481-pr-validate-page-constructor-identity-fields.md](481-pr-validate-page-constructor-identity-fields.md): upstream PR draft for the committed page constructor identity-field validation fix.
 
 ## Local Evidence Index
 
@@ -876,5 +877,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 383: `90c4fd3 fix(site): validate accessor parent sites`
 - Local implementation commits, continued 384: `8f301c4 fix(client): validate accessor parent clients`
 - Local implementation commits, continued 385: `a2e4770 fix(site): validate constructor metadata`
+- Local implementation commits, continued 386: `a73a355 fix(page): validate constructor identity fields`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
