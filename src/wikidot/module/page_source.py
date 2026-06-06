@@ -30,6 +30,10 @@ class PageSource:
     page: "Page"
     wiki_text: str
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.wiki_text, str):
+            raise ValueError("wiki_text must be a string")
+
 
 def extract_page_source_text(source_element: Any) -> str:
     """
