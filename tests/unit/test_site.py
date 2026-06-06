@@ -125,7 +125,10 @@ class TestSitePagesAccessor:
 
         def search_pages(site: Site, query) -> PageCollection:
             search_calls.append(query)
-            pages = [MagicMock(name=f"page-{query.offset + index}") for index in range(query.limit or 0)]
+            pages = [
+                self._page(site, f"page-{query.offset + index}", query.offset + index)
+                for index in range(query.limit or 0)
+            ]
             return PageCollection(site, pages)
 
         with patch.object(PageCollection, "search_pages", side_effect=search_pages):
@@ -152,7 +155,10 @@ class TestSitePagesAccessor:
 
         def search_pages(site: Site, query) -> PageCollection:
             search_calls.append(query)
-            pages = [MagicMock(name=f"page-{query.offset + index}") for index in range(counts_by_offset[query.offset])]
+            pages = [
+                self._page(site, f"page-{query.offset + index}", query.offset + index)
+                for index in range(counts_by_offset[query.offset])
+            ]
             return PageCollection(site, pages)
 
         with patch.object(PageCollection, "search_pages", side_effect=search_pages):

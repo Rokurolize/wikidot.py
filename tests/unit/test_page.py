@@ -147,6 +147,22 @@ class TestPageCollectionInit:
         assert collection.site == mock_site_no_http
         assert len(collection) == 1
 
+    @pytest.mark.parametrize("pages", ["test-page", ("test-page",)])
+    def test_init_rejects_non_list_pages(self, mock_site_no_http: Site, pages: object) -> None:
+        """pagesはリストだけ受け付ける"""
+        bad_pages: Any = pages
+
+        with pytest.raises(ValueError, match="pages must be a list"):
+            PageCollection(mock_site_no_http, bad_pages)
+
+    @pytest.mark.parametrize("bad_page", [None, True, "test-page"])
+    def test_init_rejects_non_page_entries(self, mock_site_no_http: Site, bad_page: object) -> None:
+        """pagesの要素はPageだけ受け付ける"""
+        bad_pages: Any = [bad_page]
+
+        with pytest.raises(ValueError, match="pages list entries must be Page"):
+            PageCollection(mock_site_no_http, bad_pages)
+
     def test_find_existing_page(self, mock_site_no_http: Site, mock_page_no_http: Page) -> None:
         """存在するページをfullnameで検索できる"""
         collection = PageCollection(mock_site_no_http, [mock_page_no_http])
@@ -793,10 +809,9 @@ class TestPageCollectionAcquire:
         bad_page: object,
     ) -> None:
         """Page以外のコレクション要素は取得処理前に拒否する"""
-        collection = PageCollection(
-            mock_site_no_http,
-            [mock_page_with_id, bad_page],  # type: ignore[list-item]
-        )
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        bad_page_entry: Any = bad_page
+        collection.append(bad_page_entry)
         request = MagicMock()
         monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
         mock_site_no_http.amc_request = MagicMock()

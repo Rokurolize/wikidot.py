@@ -661,7 +661,8 @@ class PageCollection(list["Page"]):
         pages : list[Page] | None, default None
             List of pages to store
         """
-        super().__init__(pages or [])
+        validated_pages = [] if pages is None else _validate_pages(pages)
+        super().__init__(validated_pages)
 
         if site is not None:
             self.site = site
