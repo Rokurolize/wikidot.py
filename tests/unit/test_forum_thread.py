@@ -45,8 +45,10 @@ class TestForumThreadCollectionInit:
     @pytest.mark.parametrize("threads", [True, False, "3001", ("3001",), 3001])
     def test_init_rejects_non_list_threads(self, mock_site_no_http: Site, threads: object) -> None:
         """スレッドコレクションの初期化はlistまたはNoneだけ受け付ける"""
+        bad_threads: Any = threads
+
         with pytest.raises(ValueError, match="threads must be a list or None"):
-            ForumThreadCollection(mock_site_no_http, threads)
+            ForumThreadCollection(mock_site_no_http, bad_threads)
 
     @pytest.mark.parametrize("thread", [None, True, "3001", {"id": 3001}])
     def test_init_rejects_non_thread_entries(self, mock_site_no_http: Site, thread: object) -> None:
@@ -73,9 +75,10 @@ class TestForumThreadCollectionInit:
     ) -> None:
         """IDが整数でない場合は検索前に拒否する"""
         collection = ForumThreadCollection(mock_site_no_http, [mock_forum_thread_no_http])
+        bad_find_id: Any = bad_id
 
         with pytest.raises(ValueError, match="id must be an integer"):
-            collection.find(bad_id)
+            collection.find(bad_find_id)
 
 
 class TestForumThreadCollectionParseListInCategory:
@@ -898,6 +901,27 @@ class TestForumThreadBasic:
         assert "test-site.wikidot.com" in url
         assert "forum/t-3001" in url
 
+    @pytest.mark.parametrize("category", [True, "1001", {"id": 1001}, object()])
+    def test_init_rejects_malformed_categories(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        category: object,
+    ) -> None:
+        """スレッドの親カテゴリはForumCategoryまたはNoneだけ受け付ける"""
+        bad_category: Any = category
+
+        with pytest.raises(ValueError, match="category must be a ForumCategory or None"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=bad_category,
+            )
+
     @pytest.mark.parametrize("thread_id", [None, True, "3001"])
     def test_get_from_id_rejects_non_integer_thread_id_before_fetch(
         self, mock_site_no_http: Site, thread_id: Any
@@ -1086,9 +1110,10 @@ class TestForumThreadReply:
         initial_category_post_count = mock_forum_category_no_http.posts_count
         mock_forum_thread_no_http.site.client.login_check = MagicMock()
         mock_forum_thread_no_http.site.amc_request = MagicMock()
+        bad_parent_post_id: Any = parent_post_id
 
         with pytest.raises(ValueError, match="parent_post_id must be an integer or None"):
-            mock_forum_thread_no_http.reply(source="Test reply", parent_post_id=parent_post_id)
+            mock_forum_thread_no_http.reply(source="Test reply", parent_post_id=bad_parent_post_id)
 
         mock_forum_thread_no_http.site.client.login_check.assert_not_called()
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
