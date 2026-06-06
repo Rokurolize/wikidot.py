@@ -564,6 +564,27 @@ class TestAjaxModuleConnectorClientRequest:
         with pytest.raises(ResponseDataException):
             client.request([{"moduleName": "Test"}])
 
+    @pytest.mark.httpx_mock(can_send_already_matched_responses=True)
+    def test_non_json_response_max_retry_does_not_expose_body(
+        self, httpx_mock: HTTPXMock, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """非JSONレスポンスの終端診断はraw本文を露出しない"""
+        private_body = "PRIVATE_AMC_BODY_SHOULD_NOT_LEAK"
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            text=private_body,
+        )
+
+        caplog.set_level("ERROR")
+        config = AjaxModuleConnectorConfig(attempt_limit=2, retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(ResponseDataException) as exc_info:
+            client.request([{"moduleName": "Test"}])
+
+        assert private_body not in str(exc_info.value)
+        assert private_body not in caplog.text
+
     def test_retry_on_non_dict_json_response(self, httpx_mock: HTTPXMock) -> None:
         """辞書ではないJSONレスポンスでリトライ"""
         httpx_mock.add_response(
@@ -595,6 +616,27 @@ class TestAjaxModuleConnectorClientRequest:
 
         with pytest.raises(ResponseDataException):
             client.request([{"moduleName": "Test"}])
+
+    @pytest.mark.httpx_mock(can_send_already_matched_responses=True)
+    def test_non_dict_json_response_max_retry_does_not_expose_payload(
+        self, httpx_mock: HTTPXMock, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """辞書ではないJSONレスポンスの終端診断はraw payloadを露出しない"""
+        private_payload = "PRIVATE_AMC_JSON_PAYLOAD_SHOULD_NOT_LEAK"
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json=[private_payload],
+        )
+
+        caplog.set_level("ERROR")
+        config = AjaxModuleConnectorConfig(attempt_limit=2, retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(ResponseDataException) as exc_info:
+            client.request([{"moduleName": "Test"}])
+
+        assert private_payload not in str(exc_info.value)
+        assert private_payload not in caplog.text
 
     def test_retry_on_empty_json_response(self, httpx_mock: HTTPXMock) -> None:
         """空JSONレスポンスでリトライ"""

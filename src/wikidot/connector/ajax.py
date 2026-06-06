@@ -495,10 +495,8 @@ class AjaxModuleConnectorClient:
                     # Retry on JSON parse error (e.g., empty response)
                     retry_count += 1
                     if retry_count >= attempt_limit:
-                        wd_logger.error(
-                            f'AMC is respond non-json data: "{response.text}" -> {_mask_sensitive_data(request_body)}'
-                        )
-                        raise ResponseDataException(f'AMC is respond non-json data: "{response.text}"') from None
+                        wd_logger.error(f"AMC responded with non-JSON data -> {_mask_sensitive_data(request_body)}")
+                        raise ResponseDataException("AMC responded with non-JSON data") from None
 
                     backoff = _calculate_backoff(
                         retry_count,
@@ -513,11 +511,12 @@ class AjaxModuleConnectorClient:
                 if not isinstance(_response_body, dict):
                     retry_count += 1
                     if retry_count >= attempt_limit:
+                        response_type = type(_response_body).__name__
                         wd_logger.error(
-                            f"AMC responded with invalid JSON data: {_response_body!r} -> "
+                            f"AMC responded with invalid JSON data type: {response_type} -> "
                             f"{_mask_sensitive_data(request_body)}"
                         )
-                        raise ResponseDataException(f"AMC responded with invalid JSON data: {_response_body!r}")
+                        raise ResponseDataException(f"AMC responded with invalid JSON data type: {response_type}")
 
                     backoff = _calculate_backoff(
                         retry_count,
