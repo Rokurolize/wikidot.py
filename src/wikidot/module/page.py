@@ -72,6 +72,12 @@ def _validate_optional_page_id(value: object) -> int | None:
     return value
 
 
+def _validate_page_id(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("page.id must be an integer")
+    return value
+
+
 def _validate_page_vote_value(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
         raise ValueError("Vote value must be 1 or -1")
@@ -1710,7 +1716,7 @@ class Page:
         value : int
             Page ID to set
         """
-        self._id = value
+        self._id = _validate_page_id(value)
 
     def is_id_acquired(self) -> bool:
         """

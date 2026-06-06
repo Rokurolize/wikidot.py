@@ -2060,6 +2060,16 @@ class TestPageProperties:
         """取得済みIDが返される"""
         assert mock_page_with_id.id == 12345
 
+    @pytest.mark.parametrize("page_id", [None, True, False, "12345", 12345.0])
+    def test_id_setter_rejects_invalid_ids(self, mock_page_with_id: Page, page_id: object) -> None:
+        """不正なID代入は既存のIDを破壊しない"""
+        bad_page_id: Any = page_id
+
+        with pytest.raises(ValueError, match="page.id must be an integer"):
+            mock_page_with_id.id = bad_page_id
+
+        assert mock_page_with_id.id == 12345
+
     def test_id_property_includes_page_context_when_acquire_leaves_id_missing(self, mock_page_no_http: Page) -> None:
         """id取得後もIDが未設定なら対象サイト名とページ名を含めて失敗する"""
         with (
