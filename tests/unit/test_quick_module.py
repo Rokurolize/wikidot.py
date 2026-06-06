@@ -138,6 +138,38 @@ class TestQuickModuleRequest:
         with pytest.raises(ValueError, match="Invalid module name"):
             QuickModule._request("InvalidModule", 123456, "test")
 
+    @pytest.mark.parametrize(
+        "lookup_func", [QuickModule.member_lookup, QuickModule.user_lookup, QuickModule.page_lookup]
+    )
+    @pytest.mark.parametrize("site_id", [None, True, "123456", 123456.0, object()])
+    def test_lookup_rejects_malformed_site_ids_before_request(self, lookup_func: Any, site_id: object) -> None:
+        """site_idの異常値はリクエスト前に拒否する"""
+        bad_site_id: Any = site_id
+
+        with (
+            patch("httpx.get", side_effect=AssertionError("request reached")) as mock_get,
+            pytest.raises(ValueError, match="site_id must be an integer"),
+        ):
+            lookup_func(bad_site_id, "test")
+
+        mock_get.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "lookup_func", [QuickModule.member_lookup, QuickModule.user_lookup, QuickModule.page_lookup]
+    )
+    @pytest.mark.parametrize("query", [None, True, 12345, [], object()])
+    def test_lookup_rejects_malformed_queries_before_request(self, lookup_func: Any, query: object) -> None:
+        """queryの異常値はリクエスト前に拒否する"""
+        bad_query: Any = query
+
+        with (
+            patch("httpx.get", side_effect=AssertionError("request reached")) as mock_get,
+            pytest.raises(ValueError, match="query must be a string"),
+        ):
+            lookup_func(123456, bad_query)
+
+        mock_get.assert_not_called()
+
     def test_request_site_not_found(self):
         """サイトが見つからない場合ValueError"""
         mock_response = MagicMock()

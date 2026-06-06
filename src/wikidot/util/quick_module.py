@@ -20,6 +20,18 @@ def _validate_qmc_text_field(field: str, value: object) -> str:
     return value
 
 
+def _validate_quickmodule_site_id(site_id: object) -> int:
+    if not isinstance(site_id, int) or isinstance(site_id, bool):
+        raise ValueError("site_id must be an integer")
+    return site_id
+
+
+def _validate_quickmodule_query(query: object) -> str:
+    if not isinstance(query, str):
+        raise ValueError("query must be a string")
+    return query
+
+
 @dataclass
 class QMCUser:
     """Class to store user information returned from QuickModule
@@ -88,6 +100,9 @@ class QuickModule:
             "PageLookupQModule",
         ]:
             raise ValueError("Invalid module name")
+
+        site_id = _validate_quickmodule_site_id(site_id)
+        query = _validate_quickmodule_query(query)
 
         params = urlencode({"module": module_name, "s": site_id, "q": query})
         url = f"https://www.wikidot.com/quickmodule.php?{params}"
