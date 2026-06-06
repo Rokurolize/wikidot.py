@@ -2113,6 +2113,17 @@ class TestPageProperties:
         )
         assert mock_page_with_id._source is None
 
+    @pytest.mark.parametrize("source", [None, True, False, "cached source", {"wiki_text": "cached source"}])
+    def test_source_setter_rejects_invalid_sources(self, mock_page_with_id: Page, source: object) -> None:
+        """不正なsource代入は既存のキャッシュを破壊しない"""
+        mock_page_with_id.source = PageSource(mock_page_with_id, "cached source")
+        bad_source: Any = source
+
+        with pytest.raises(ValueError, match="page.source must be PageSource"):
+            mock_page_with_id.source = bad_source
+
+        assert mock_page_with_id.source.wiki_text == "cached source"
+
     def test_refresh_source_forces_remote_source_fetch(
         self, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:

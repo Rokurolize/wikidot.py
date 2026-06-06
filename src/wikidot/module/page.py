@@ -78,6 +78,12 @@ def _validate_page_id(value: object) -> int:
     return value
 
 
+def _validate_page_source_object(value: object) -> PageSource:
+    if not isinstance(value, PageSource):
+        raise ValueError("page.source must be PageSource")
+    return value
+
+
 def _validate_page_vote_value(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
         raise ValueError("Vote value must be 1 or -1")
@@ -1769,7 +1775,7 @@ class Page:
         value : PageSource
             Source code object to set
         """
-        self._source = value
+        self._source = _validate_page_source_object(value)
 
     def refresh_source(self) -> PageSource:
         """
