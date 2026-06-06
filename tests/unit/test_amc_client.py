@@ -282,6 +282,38 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert httpx_mock.get_requests() == []
 
+    def test_request_rejects_non_dict_body_before_request(self, httpx_mock: HTTPXMock) -> None:
+        """AMC request bodyは辞書だけを受け付ける"""
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        with pytest.raises(ValueError, match=r"bodies\[0\] must be a dictionary"):
+            client.request([123])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("bodies", [None, {"moduleName": "TestModule"}, ("not", "a", "list")])
+    def test_request_rejects_non_list_bodies_before_request(
+        self,
+        httpx_mock: HTTPXMock,
+        bodies: Any,
+    ) -> None:
+        """AMC request bodyバッチはlistだけを受け付ける"""
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        with pytest.raises(ValueError, match="bodies must be a list of dictionaries"):
+            client.request(bodies)
+
+        assert httpx_mock.get_requests() == []
+
+    def test_request_rejects_later_non_dict_body_before_any_request(self, httpx_mock: HTTPXMock) -> None:
+        """不正なbodyがバッチ途中にあっても送信前にバッチ全体を拒否する"""
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        with pytest.raises(ValueError, match=r"bodies\[1\] must be a dictionary"):
+            client.request([{"moduleName": "ValidModule"}, 123])
+
+        assert httpx_mock.get_requests() == []
+
     @pytest.mark.parametrize("field", ["attempt_limit", "semaphore_limit"])
     @pytest.mark.parametrize("value", [None, True, "1", 0, -1, 1.5])
     def test_request_rejects_invalid_positive_integer_config_before_request(

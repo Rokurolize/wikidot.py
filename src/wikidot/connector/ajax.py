@@ -212,6 +212,15 @@ def _validate_amc_request_config(
     )
 
 
+def _validate_amc_request_bodies(bodies: object) -> list[dict[str, Any]]:
+    if not isinstance(bodies, list):
+        raise ValueError("bodies must be a list of dictionaries")
+    for index, body in enumerate(bodies):
+        if not isinstance(body, dict):
+            raise ValueError(f"bodies[{index}] must be a dictionary")
+    return bodies
+
+
 def _mask_sensitive_data(body: dict[str, Any]) -> dict[str, Any]:
     """
     Mask sensitive information for log output
@@ -412,6 +421,7 @@ class AjaxModuleConnectorClient:
         """
         if not isinstance(return_exceptions, bool):
             raise ValueError("return_exceptions must be a boolean")
+        bodies = _validate_amc_request_bodies(bodies)
 
         (
             request_timeout,
