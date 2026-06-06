@@ -416,6 +416,8 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [410-pr-validate-site-member-action-users.md](410-pr-validate-site-member-action-users.md): upstream PR draft for the committed site member action-user validation fix.
 - [411-pr-reject-boolean-source-iterator-batch-sizes.md](411-pr-reject-boolean-source-iterator-batch-sizes.md): upstream PR draft for the committed source iterator batch-size boolean rejection fix.
 - [412-pr-validate-create-or-edit-page-ids.md](412-pr-validate-create-or-edit-page-ids.md): upstream PR draft for the committed create/edit page ID validation fix.
+- [413-pr-validate-page-id-assignments.md](413-pr-validate-page-id-assignments.md): upstream PR draft for the committed page ID assignment validation fix.
+- [414-pr-validate-page-source-assignments.md](414-pr-validate-page-source-assignments.md): upstream PR draft for the committed page source assignment validation fix.
 
 ## Local Evidence Index
 
@@ -741,5 +743,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 316: `2797f77 fix(site): reject boolean source iterator batch sizes`
 - Local implementation commits, continued 317: `bc40a80 fix(page): validate create_or_edit page ids`
 - Local implementation commits, continued 318: `5204caf fix(page): validate page id assignments`
+- Local implementation commits, continued 319: `19f4cc0 fix(page): validate page source assignments`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
