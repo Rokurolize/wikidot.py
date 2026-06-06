@@ -438,6 +438,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [432-pr-validate-page-revision-html-assignments.md](432-pr-validate-page-revision-html-assignments.md): upstream PR draft for the committed page revision HTML assignment validation fix.
 - [433-pr-validate-forum-post-revision-html-assignments.md](433-pr-validate-forum-post-revision-html-assignments.md): upstream PR draft for the committed forum post revision HTML assignment validation fix.
 - [434-pr-validate-forum-category-threads-assignments.md](434-pr-validate-forum-category-threads-assignments.md): upstream PR draft for the committed forum category threads assignment validation fix.
+- [435-pr-validate-publish-result-page-ids.md](435-pr-validate-publish-result-page-ids.md): upstream PR draft for the committed publish result page-ID validation fix.
 
 ## Local Evidence Index
 
@@ -784,5 +785,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 337: `f8dcd42 fix(page_revision): validate html assignments`
 - Local implementation commits, continued 338: `c404c3e fix(forum_post_revision): validate html assignments`
 - Local implementation commits, continued 339: `eae62b0 fix(forum_category): validate threads assignments`
+- Local implementation commits, continued 340: `693b12e fix(site): validate publish result page ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
