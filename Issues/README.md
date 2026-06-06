@@ -842,5 +842,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 367: `d2f656e fix(forum_post): validate post parent id`
 - Local implementation commits, continued 368: `80ed583 fix(forum_post_revision): validate revision identity fields`
 - Local implementation commits, continued 369: `d07904b fix(forum_post_revision): validate revision creator metadata`
+- Local implementation commits, continued 370: `0b33cda fix(page_revision): validate revision identity fields`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
