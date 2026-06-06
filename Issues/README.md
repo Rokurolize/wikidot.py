@@ -407,6 +407,11 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [401-pr-validate-amc-request-bodies.md](401-pr-validate-amc-request-bodies.md): upstream PR draft for the committed AMC request-body batch validation fix.
 - [402-pr-validate-amc-response-status.md](402-pr-validate-amc-response-status.md): upstream PR draft for the committed AMC response-status field validation fix.
 - [403-pr-validate-amc-response-status-type.md](403-pr-validate-amc-response-status-type.md): upstream PR draft for the committed AMC response-status type validation fix.
+- [404-pr-redact-amc-malformed-response-diagnostics.md](404-pr-redact-amc-malformed-response-diagnostics.md): upstream PR draft for the committed AMC malformed-response diagnostic redaction fix.
+- [405-pr-redact-amc-user-content-request-logs.md](405-pr-redact-amc-user-content-request-logs.md): upstream PR draft for the committed AMC request-log user-content redaction fix.
+- [406-pr-use-merged-amc-try-again-diagnostics.md](406-pr-use-merged-amc-try-again-diagnostics.md): upstream PR draft for the committed AMC try-again merged request-body diagnostic fix.
+- [407-pr-reject-boolean-create-thread-ids.md](407-pr-reject-boolean-create-thread-ids.md): upstream PR draft for the committed forum create-thread boolean returned-ID validation fix.
+- [408-pr-reject-boolean-publish-visibility-controls.md](408-pr-reject-boolean-publish-visibility-controls.md): upstream PR draft for the committed publish visibility-control boolean rejection fix.
 
 ## Local Evidence Index
 
@@ -725,5 +730,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 309: `0aabffa fix(amc): redact user content from request logs`
 - Local implementation commits, continued 310: `e141515 fix(amc): use merged body in try-again logs`
 - Local implementation commits, continued 311: `eada06c fix(forum_category): reject boolean create thread ids`
+- Local implementation commits, continued 312: `d12ad8d test(amc): type invalid request body fixtures`
+- Local implementation commits, continued 313: `418f8b5 fix(site): reject boolean publish visibility controls`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
