@@ -88,12 +88,12 @@ class TestSiteChangeDataclass:
     """SiteChangeデータクラスのテスト"""
 
     @staticmethod
-    def _site_change(mock_site_no_http: Site, *, flags: Any) -> SiteChange:
+    def _site_change(mock_site_no_http: Site, *, flags: Any, revision_no: Any = 1) -> SiteChange:
         return SiteChange(
             site=mock_site_no_http,
             page_fullname="test-page",
             page_title="Test Page",
-            revision_no=1,
+            revision_no=revision_no,
             changed_by=User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester"),
             changed_at=datetime(2026, 6, 6),
             flags=flags,
@@ -117,6 +117,12 @@ class TestSiteChangeDataclass:
         change = self._site_change(mock_site_no_http, flags=["S", "N"])
 
         assert change.flags == ["S", "N"]
+
+    @pytest.mark.parametrize("revision_no", [None, True, False, "1", 1.0, []])
+    def test_init_rejects_malformed_revision_numbers(self, mock_site_no_http: Site, revision_no: Any) -> None:
+        """SiteChange初期化時のrevision_noは非bool整数だけ受け付ける"""
+        with pytest.raises(ValueError, match="revision_no must be an integer"):
+            self._site_change(mock_site_no_http, flags=["S"], revision_no=revision_no)
 
 
 class TestSitePagesAccessor:

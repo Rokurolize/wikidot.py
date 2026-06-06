@@ -129,6 +129,12 @@ def _validate_site_change_flags(flags: object) -> list[str]:
     return cast(list[str], flags)
 
 
+def _validate_site_change_revision_no(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("revision_no must be an integer")
+    return value
+
+
 def _validate_amc_retry_batch_size(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"batch_size must be positive, got {value}")
@@ -985,6 +991,7 @@ class SiteChange:
 
     def __post_init__(self) -> None:
         self.flags = _validate_site_change_flags(self.flags)
+        self.revision_no = _validate_site_change_revision_no(self.revision_no)
 
     def __str__(self) -> str:
         """
