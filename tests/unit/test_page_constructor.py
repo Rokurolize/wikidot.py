@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from wikidot.module.page import Page
+from wikidot.module.page_source import PageSource
 from wikidot.module.user import User
 
 
@@ -32,6 +33,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         "commented_by": None,
         "commented_at": None,
         "_id": None,
+        "_source": None,
     }
     values.update(overrides)
 
@@ -57,6 +59,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         commented_by=values["commented_by"],
         commented_at=values["commented_at"],
         _id=values["_id"],
+        _source=values["_source"],
     )
 
 
@@ -256,3 +259,19 @@ class TestPageInit:
     def test_init_rejects_malformed_optional_id(self, mock_site_no_http: Any, page_id: Any) -> None:
         with pytest.raises(ValueError, match=r"page\.id must be an integer or None"):
             _page(mock_site_no_http, _id=page_id)
+
+    def test_init_accepts_valid_optional_source(self, mock_site_no_http: Any) -> None:
+        page_without_source = _page(mock_site_no_http)
+        source_owner = _page(mock_site_no_http)
+        source = PageSource(source_owner, "cached source")
+
+        page_with_source = _page(mock_site_no_http, _source=source)
+
+        assert page_without_source._source is None
+        assert page_with_source._source == source
+        assert page_with_source.source == source
+
+    @pytest.mark.parametrize("source", [True, "cached source", {"wiki_text": "cached source"}, object()])
+    def test_init_rejects_malformed_optional_source(self, mock_site_no_http: Any, source: Any) -> None:
+        with pytest.raises(ValueError, match="page.source must be PageSource"):
+            _page(mock_site_no_http, _source=source)

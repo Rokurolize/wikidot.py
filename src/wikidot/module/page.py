@@ -139,6 +139,12 @@ def _validate_page_source_object(value: object) -> PageSource:
     return value
 
 
+def _validate_optional_page_source_object(value: object) -> PageSource | None:
+    if value is None:
+        return None
+    return _validate_page_source_object(value)
+
+
 def _validate_page_revision_entries(revisions: list[object] | PageRevisionCollection) -> None:
     if any(not isinstance(revision, PageRevision) for revision in revisions):
         raise ValueError("page.revisions list entries must be PageRevision")
@@ -1789,6 +1795,7 @@ class Page:
         self.commented_by = _validate_optional_page_user_field("commented_by", self.commented_by)
         self.commented_at = _validate_optional_page_datetime_field("commented_at", self.commented_at)
         self._id = _validate_optional_page_constructor_id(self._id)
+        self._source = _validate_optional_page_source_object(self._source)
 
     def get_url(self) -> str:
         """
