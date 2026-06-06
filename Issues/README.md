@@ -436,6 +436,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [430-pr-validate-page-source-wiki-text.md](430-pr-validate-page-source-wiki-text.md): upstream PR draft for the committed page source wiki-text validation fix.
 - [431-pr-validate-page-revision-source-assignments.md](431-pr-validate-page-revision-source-assignments.md): upstream PR draft for the committed page revision source assignment validation fix.
 - [432-pr-validate-page-revision-html-assignments.md](432-pr-validate-page-revision-html-assignments.md): upstream PR draft for the committed page revision HTML assignment validation fix.
+- [433-pr-validate-forum-post-revision-html-assignments.md](433-pr-validate-forum-post-revision-html-assignments.md): upstream PR draft for the committed forum post revision HTML assignment validation fix.
 
 ## Local Evidence Index
 
@@ -780,5 +781,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 335: `afacb97 fix(page_source): validate wiki text`
 - Local implementation commits, continued 336: `fc13dc8 fix(page_revision): validate source assignments`
 - Local implementation commits, continued 337: `f8dcd42 fix(page_revision): validate html assignments`
+- Local implementation commits, continued 338: `c404c3e fix(forum_post_revision): validate html assignments`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
