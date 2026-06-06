@@ -498,6 +498,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [492-pr-validate-page-constructor-votes-cache.md](492-pr-validate-page-constructor-votes-cache.md): upstream PR draft for the committed page constructor votes-cache validation fix.
 - [493-pr-validate-page-constructor-files-cache.md](493-pr-validate-page-constructor-files-cache.md): upstream PR draft for the committed page constructor files-cache validation fix.
 - [494-pr-validate-quickmodule-result-text-fields.md](494-pr-validate-quickmodule-result-text-fields.md): upstream PR draft for the committed QuickModule result text-field validation fix.
+- [495-pr-validate-user-scalar-fields.md](495-pr-validate-user-scalar-fields.md): upstream PR draft for the committed user scalar-field validation fix.
 
 ## Local Evidence Index
 
@@ -904,5 +905,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 397: `d82da2f fix(page): validate constructor votes cache`
 - Local implementation commits, continued 398: `4debf91 fix(page): validate constructor files cache`
 - Local implementation commits, continued 399: `2d5722a fix(quick_module): validate result text fields`
+- Local implementation commits, continued 400: `802396d fix(user): validate user scalar fields`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
