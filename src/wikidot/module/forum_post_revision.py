@@ -534,6 +534,9 @@ class ForumPostRevision:
     created_at: datetime
     _html: str | None = None
 
+    def __post_init__(self) -> None:
+        self.post = _validate_forum_post(self.post)
+
     def __str__(self) -> str:
         """
         String representation of the object

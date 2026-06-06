@@ -12,9 +12,14 @@ from bs4 import BeautifulSoup
 from wikidot.common import exceptions
 from wikidot.module.forum_post import ForumPost
 from wikidot.module.forum_post_revision import ForumPostRevision, ForumPostRevisionCollection
+from wikidot.module.user import User
 
 if TYPE_CHECKING:
     from wikidot.module.forum_post import ForumPost
+
+
+def _user() -> User:
+    return User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
 
 
 # ============================================================
@@ -37,7 +42,7 @@ class TestForumPostRevisionCollectionInit:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
@@ -70,7 +75,7 @@ class TestForumPostRevisionCollectionFind:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
@@ -91,13 +96,14 @@ class TestForumPostRevisionCollectionFind:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
 
+        bad_revision_id: Any = revision_id
         with pytest.raises(ValueError, match="id must be an integer"):
-            collection.find(revision_id)
+            collection.find(bad_revision_id)
 
 
 class TestForumPostRevisionCollectionFindByRevNo:
@@ -110,14 +116,14 @@ class TestForumPostRevisionCollectionFindByRevNo:
                 post=mock_forum_post_no_http,
                 id=9001,
                 rev_no=0,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
             ForumPostRevision(
                 post=mock_forum_post_no_http,
                 id=9002,
                 rev_no=1,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
         ]
@@ -142,13 +148,14 @@ class TestForumPostRevisionCollectionFindByRevNo:
             post=mock_forum_post_no_http,
             id=9002,
             rev_no=1,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
 
+        bad_rev_no: Any = rev_no
         with pytest.raises(ValueError, match="rev_no must be an integer"):
-            collection.find_by_rev_no(rev_no)
+            collection.find_by_rev_no(bad_rev_no)
 
 
 class TestForumPostRevisionCollectionParse:
@@ -236,8 +243,10 @@ class TestForumPostRevisionCollectionAcquireAll:
     @pytest.mark.parametrize("post", [None, True, "5001"])
     def test_acquire_all_rejects_non_post_before_fetch(self, post: object) -> None:
         """単一postがForumPostでない場合は取得前に拒否する"""
+        bad_post: Any = post
+
         with pytest.raises(ValueError, match="post must be a ForumPost"):
-            ForumPostRevisionCollection.acquire_all(post)
+            ForumPostRevisionCollection.acquire_all(bad_post)
 
     def test_acquire_all_retries_transient_fetch_failures(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
@@ -413,8 +422,8 @@ class TestForumPostRevisionCollectionAcquireAll:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=mock_forum_post_no_http.created_by,
-            created_at=mock_forum_post_no_http.created_at,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
         )
         cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
         mock_forum_post_no_http._revisions = cached_collection
@@ -471,8 +480,10 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
 
     def test_acquire_all_for_posts_rejects_non_list_posts_before_fetch(self) -> None:
         """postsがlistでない場合は取得前に拒否する"""
+        bad_posts: Any = "5001"
+
         with pytest.raises(ValueError, match="posts must be a list"):
-            ForumPostRevisionCollection.acquire_all_for_posts("5001")
+            ForumPostRevisionCollection.acquire_all_for_posts(bad_posts)
 
     @pytest.mark.parametrize("bad_post", [None, True, "5001"])
     def test_acquire_all_for_posts_rejects_non_post_entries_before_fetch(
@@ -481,9 +492,10 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         """postsの要素がForumPostでない場合は取得前に拒否する"""
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
         mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+        bad_posts: Any = [mock_forum_post_no_http, bad_post]
 
         with pytest.raises(ValueError, match="posts list entries must be ForumPost"):
-            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, bad_post])  # type: ignore[list-item]
+            ForumPostRevisionCollection.acquire_all_for_posts(bad_posts)
 
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
@@ -497,8 +509,8 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=mock_forum_post_no_http.created_by,
-            created_at=mock_forum_post_no_http.created_at,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
         )
         mock_forum_post_no_http._revisions = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
@@ -579,8 +591,8 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             post=cached_duplicate_post,
             id=9001,
             rev_no=0,
-            created_by=cached_duplicate_post.created_by,
-            created_at=cached_duplicate_post.created_at,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
             _html="<p>Cached revision HTML</p>",
         )
         cached_collection = ForumPostRevisionCollection(cached_duplicate_post, [cached_revision])
@@ -615,8 +627,8 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=mock_forum_post_no_http.created_by,
-            created_at=mock_forum_post_no_http.created_at,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
         )
         cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
         mock_forum_post_no_http._revisions = cached_collection
@@ -649,8 +661,8 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=mock_forum_post_no_http.created_by,
-            created_at=mock_forum_post_no_http.created_at,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
         )
         cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
         mock_forum_post_no_http._revisions = cached_collection
@@ -671,8 +683,8 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=mock_forum_post_no_http.created_by,
-            created_at=mock_forum_post_no_http.created_at,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
         )
         cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
         mock_forum_post_no_http._revisions = cached_collection
@@ -870,11 +882,12 @@ class TestForumPostRevisionCollectionGetHtmls:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
-        collection.append(bad_revision)
+        bad_entry: Any = bad_revision
+        collection.append(bad_entry)
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
         mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
 
@@ -893,14 +906,14 @@ class TestForumPostRevisionCollectionGetHtmls:
                 post=mock_forum_post_no_http,
                 id=9001,
                 rev_no=0,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
             ForumPostRevision(
                 post=mock_forum_post_no_http,
                 id=9002,
                 rev_no=1,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
         ]
@@ -930,14 +943,14 @@ class TestForumPostRevisionCollectionGetHtmls:
                 post=mock_forum_post_no_http,
                 id=9001,
                 rev_no=0,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
             ForumPostRevision(
                 post=mock_forum_post_no_http,
                 id=9002,
                 rev_no=1,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
         ]
@@ -964,14 +977,14 @@ class TestForumPostRevisionCollectionGetHtmls:
                 post=mock_forum_post_no_http,
                 id=9001,
                 rev_no=0,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
             ForumPostRevision(
                 post=mock_forum_post_no_http,
                 id=9001,
                 rev_no=1,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
         ]
@@ -1004,7 +1017,7 @@ class TestForumPostRevisionCollectionGetHtmls:
                 post=mock_forum_post_no_http,
                 id=9001,
                 rev_no=0,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
                 _html="<p>Cached revision HTML</p>",
             ),
@@ -1012,7 +1025,7 @@ class TestForumPostRevisionCollectionGetHtmls:
                 post=mock_forum_post_no_http,
                 id=9001,
                 rev_no=1,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
         ]
@@ -1036,14 +1049,14 @@ class TestForumPostRevisionCollectionGetHtmls:
                 post=mock_forum_post_no_http,
                 id=9001,
                 rev_no=0,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
             ForumPostRevision(
                 post=mock_forum_post_no_http,
                 id=9002,
                 rev_no=1,
-                created_by=None,
+                created_by=_user(),
                 created_at=datetime.now(tz=timezone.utc),
             ),
         ]
@@ -1068,7 +1081,7 @@ class TestForumPostRevisionCollectionGetHtmls:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
             _html="<p>Already acquired</p>",
         )
@@ -1094,7 +1107,7 @@ class TestForumPostRevisionBasic:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         result = str(revision)
@@ -1108,7 +1121,7 @@ class TestForumPostRevisionBasic:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         assert revision.is_html_acquired() is False
@@ -1119,11 +1132,25 @@ class TestForumPostRevisionBasic:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
             _html="<p>Test</p>",
         )
         assert revision.is_html_acquired() is True
+
+    @pytest.mark.parametrize("post", [None, True, "5001", {"id": 5001}, object()])
+    def test_init_rejects_malformed_posts(self, post: object) -> None:
+        """ForumPostRevisionの初期化はForumPostだけ受け付ける"""
+        bad_post: Any = post
+
+        with pytest.raises(ValueError, match="post must be a ForumPost"):
+            ForumPostRevision(
+                post=bad_post,
+                id=9001,
+                rev_no=0,
+                created_by=_user(),
+                created_at=datetime.now(tz=timezone.utc),
+            )
 
 
 class TestForumPostRevisionHtml:
@@ -1135,7 +1162,7 @@ class TestForumPostRevisionHtml:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
             _html="<p>Cached HTML</p>",
         )
@@ -1147,7 +1174,7 @@ class TestForumPostRevisionHtml:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
@@ -1172,7 +1199,7 @@ class TestForumPostRevisionHtml:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         mock_response = MagicMock()
@@ -1198,7 +1225,7 @@ class TestForumPostRevisionHtml:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         revision.html = "<p>New HTML</p>"
@@ -1212,7 +1239,7 @@ class TestForumPostRevisionHtml:
             post=mock_forum_post_no_http,
             id=9001,
             rev_no=0,
-            created_by=None,
+            created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
         revision.html = "<p>Cached HTML</p>"
