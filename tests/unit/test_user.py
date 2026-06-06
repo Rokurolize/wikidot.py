@@ -144,6 +144,18 @@ class TestUserFromName:
 class TestUserCollection:
     """UserCollection のテスト"""
 
+    @pytest.mark.parametrize("users", [True, False, "1", ("1",), 1])
+    def test_init_rejects_non_list_users(self, users: Any) -> None:
+        """UserCollection初期化時のusersはlistまたはNoneだけ受け付ける"""
+        with pytest.raises(ValueError, match="users must be a list or None"):
+            UserCollection(users)
+
+    @pytest.mark.parametrize("user", [None, True, "1", {"id": 1}])
+    def test_init_rejects_non_user_entries(self, user: Any) -> None:
+        """UserCollection初期化時のusers要素はAbstractUserだけ受け付ける"""
+        with pytest.raises(ValueError, match="users list entries must be AbstractUser"):
+            UserCollection([user])
+
     def test_from_names_rejects_non_list_names_before_request(
         self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
     ) -> None:

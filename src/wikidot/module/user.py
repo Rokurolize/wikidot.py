@@ -33,6 +33,16 @@ def _validate_raise_when_not_found(value: object) -> bool:
     return value
 
 
+def _validate_user_collection_users(users: object) -> list["AbstractUser"]:
+    if users is None:
+        return []
+    if not isinstance(users, list):
+        raise ValueError("users must be a list or None")
+    if any(not isinstance(user, AbstractUser) for user in users):
+        raise ValueError("users list entries must be AbstractUser")
+    return cast(list["AbstractUser"], users)
+
+
 def _profile_parse_context(name: str, index: int, **details: object) -> str:
     context = [f"index={index}"]
     context.extend(f"{key}={value}" for key, value in details.items())
@@ -46,6 +56,17 @@ class UserCollection(list["AbstractUser"]):
     A list extension class for storing and manipulating multiple user objects.
     Provides functionality for iteration operations and bulk retrieval from usernames.
     """
+
+    def __init__(self, users: list["AbstractUser"] | None = None):
+        """
+        Initialize a user collection
+
+        Parameters
+        ----------
+        users : list[AbstractUser] | None, default None
+            Initial list of user objects
+        """
+        super().__init__(_validate_user_collection_users(users))
 
     def __iter__(self) -> Iterator["AbstractUser"]:
         """
