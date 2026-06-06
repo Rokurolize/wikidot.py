@@ -7,7 +7,7 @@ It enables operations such as retrieving and displaying vote information for pag
 
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from .user import AbstractUser
 
@@ -21,6 +21,14 @@ def _validate_vote_search_user(user: object) -> AbstractUser:
     if not isinstance(user.id, int) or isinstance(user.id, bool):
         raise ValueError("user.id must be an integer")
     return user
+
+
+def _validate_page_votes(votes: object) -> list["PageVote"]:
+    if not isinstance(votes, list):
+        raise ValueError("votes must be a list")
+    if any(not isinstance(vote, PageVote) for vote in votes):
+        raise ValueError("votes list entries must be PageVote")
+    return cast(list["PageVote"], votes)
 
 
 class PageVoteCollection(list["PageVote"]):
@@ -44,7 +52,7 @@ class PageVoteCollection(list["PageVote"]):
         votes : list[PageVote]
             List of votes to store
         """
-        super().__init__(votes)
+        super().__init__(_validate_page_votes(votes))
         self.page = page
 
     def __iter__(self) -> Iterator["PageVote"]:

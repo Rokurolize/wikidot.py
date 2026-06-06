@@ -1,5 +1,6 @@
 """PageVotesモジュールのユニットテスト"""
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -18,13 +19,33 @@ class TestPageVoteCollection:
     def test_init_with_page_and_votes(self):
         """ページと投票リストで初期化"""
         page = MagicMock()
-        vote1 = MagicMock(spec=PageVote)
-        vote2 = MagicMock(spec=PageVote)
+        user1 = self._user(1, "user-one")
+        user2 = self._user(2, "user-two")
+        vote1 = PageVote(page=page, user=user1, value=1)
+        vote2 = PageVote(page=page, user=user2, value=-1)
 
         collection = PageVoteCollection(page, [vote1, vote2])
 
         assert collection.page == page
         assert len(collection) == 2
+
+    @pytest.mark.parametrize("votes", [None, True, "vote", ("vote",)])
+    def test_init_rejects_non_list_votes(self, votes: object) -> None:
+        """投票コレクションの初期化はlistだけ受け付ける"""
+        page = MagicMock()
+        bad_votes: Any = votes
+
+        with pytest.raises(ValueError, match="votes must be a list"):
+            PageVoteCollection(page, bad_votes)
+
+    @pytest.mark.parametrize("vote", [None, True, "vote", {"user": 1}])
+    def test_init_rejects_non_vote_entries(self, vote: object) -> None:
+        """投票コレクションの初期化はPageVote要素だけ受け付ける"""
+        page = MagicMock()
+        bad_votes: Any = [vote]
+
+        with pytest.raises(ValueError, match="votes list entries must be PageVote"):
+            PageVoteCollection(page, bad_votes)
 
     def test_init_with_empty_votes(self):
         """空の投票リストで初期化"""

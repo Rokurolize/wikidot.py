@@ -2311,7 +2311,8 @@ class TestPageProperties:
         cached_vote = _cached_page_vote(mock_page_with_id)
         mock_page_with_id.votes = PageVoteCollection(mock_page_with_id, [cached_vote])
         bad_vote_entry: Any = bad_vote
-        bad_votes = PageVoteCollection(mock_page_with_id, [bad_vote_entry])
+        bad_votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        bad_votes[0] = bad_vote_entry
 
         with pytest.raises(ValueError, match="page.votes list entries must be PageVote"):
             mock_page_with_id.votes = bad_votes
