@@ -36,6 +36,12 @@ def _validate_forum_thread(thread: object) -> "ForumThread":
     return thread
 
 
+def _validate_post_id(post_id: object) -> int:
+    if not isinstance(post_id, int) or isinstance(post_id, bool):
+        raise ValueError("id must be an integer")
+    return post_id
+
+
 def _validate_post_created_by(created_by: object) -> "AbstractUser":
     from .user import AbstractUser
 
@@ -768,6 +774,9 @@ class ForumPost:
 
     def __post_init__(self) -> None:
         self.thread = _validate_forum_thread(self.thread)
+        self.id = _validate_post_id(self.id)
+        self.title = validate_text_field("title", self.title)
+        self.text = validate_text_field("text", self.text)
         self.created_by = _validate_post_created_by(self.created_by)
         self.created_at = _validate_post_created_at(self.created_at)
 

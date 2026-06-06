@@ -1203,6 +1203,66 @@ class TestForumPostBasic:
                 _source=mock_forum_post_no_http._source,
             )
 
+    @pytest.mark.parametrize("post_id", [None, True, "5001", 5001.0])
+    def test_init_rejects_malformed_id(self, mock_forum_post_no_http: ForumPost, post_id: object) -> None:
+        """ForumPostの初期化は整数の投稿IDだけ受け付ける"""
+        bad_post_id: Any = post_id
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=bad_post_id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    @pytest.mark.parametrize("title", [None, True, 5001, ["Test Post Title"]])
+    def test_init_rejects_malformed_title(self, mock_forum_post_no_http: ForumPost, title: object) -> None:
+        """ForumPostの初期化は文字列の投稿タイトルだけ受け付ける"""
+        bad_title: Any = title
+
+        with pytest.raises(ValueError, match="title must be a string"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=bad_title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    @pytest.mark.parametrize("text", [None, True, 5001, ["<p>Test post content</p>"]])
+    def test_init_rejects_malformed_text(self, mock_forum_post_no_http: ForumPost, text: object) -> None:
+        """ForumPostの初期化は文字列の投稿本文だけ受け付ける"""
+        bad_text: Any = text
+
+        with pytest.raises(ValueError, match="text must be a string"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=bad_text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
     @pytest.mark.parametrize("created_by", [None, True, 5001, "test_user", {"id": 12345}])
     def test_init_rejects_malformed_created_by(self, mock_forum_post_no_http: ForumPost, created_by: object) -> None:
         """ForumPostの初期化はAbstractUserの投稿者だけ受け付ける"""
