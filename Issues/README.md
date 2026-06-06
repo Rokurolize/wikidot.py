@@ -457,6 +457,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [451-pr-validate-private-message-id-field.md](451-pr-validate-private-message-id-field.md): upstream PR draft for the committed private message ID-field validation fix.
 - [452-pr-validate-forum-category-id-field.md](452-pr-validate-forum-category-id-field.md): upstream PR draft for the committed forum category ID-field validation fix.
 - [453-pr-validate-forum-category-count-fields.md](453-pr-validate-forum-category-count-fields.md): upstream PR draft for the committed forum category count-field validation fix.
+- [454-pr-validate-forum-category-text-fields.md](454-pr-validate-forum-category-text-fields.md): upstream PR draft for the committed forum category text-field validation fix.
 
 ## Local Evidence Index
 
@@ -822,5 +823,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 356: `54578e7 fix(private_message): validate message id`
 - Local implementation commits, continued 357: `f18b22f fix(forum_category): validate category id`
 - Local implementation commits, continued 358: `cd2543a fix(forum_category): validate category counts`
+- Local implementation commits, continued 359: `bfb2b49 fix(forum_category): validate category text fields`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
