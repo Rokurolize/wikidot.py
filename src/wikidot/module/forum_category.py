@@ -366,10 +366,10 @@ class ForumCategory:
         )[0].json()
 
         # responseからthreadIdを取得
-        if not isinstance(response.get("threadId"), int):
+        thread_id = response.get("threadId")
+        if not isinstance(thread_id, int) or isinstance(thread_id, bool):
             raise NoElementException(f"Thread ID is not found for site: {self.site.unix_name}, category: {self.id}")
 
-        thread_id: int = response["threadId"]
         _require_forum_category_action_status(self, "newThread", response)
         self._threads = None
 
