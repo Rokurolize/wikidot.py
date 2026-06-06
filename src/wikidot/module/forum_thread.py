@@ -799,6 +799,7 @@ class ForumThread:
     _posts: Optional["ForumPostCollection"] = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
+        self.id = _validate_thread_id(self.id)
         self.category = _validate_optional_forum_category(self.category)
 
     def __str__(self) -> str:

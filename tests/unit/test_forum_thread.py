@@ -888,6 +888,27 @@ class TestForumThreadCollectionAcquireFromIds:
 class TestForumThreadBasic:
     """ForumThreadの基本テスト"""
 
+    @pytest.mark.parametrize("thread_id", [None, True, "3001", 3001.0])
+    def test_init_rejects_non_integer_thread_id(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        thread_id: object,
+    ) -> None:
+        """スレッド初期化は整数以外のIDを拒否する"""
+        bad_thread_id: Any = thread_id
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=bad_thread_id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
     def test_str(self, mock_forum_thread_no_http: ForumThread) -> None:
         """__str__が正しい文字列を返す"""
         result = str(mock_forum_thread_no_http)
