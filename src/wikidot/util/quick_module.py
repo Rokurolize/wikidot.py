@@ -8,6 +8,18 @@ import httpx
 from .http import sync_get_with_retry
 
 
+def _validate_qmc_integer_field(field: str, value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer")
+    return value
+
+
+def _validate_qmc_text_field(field: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    return value
+
+
 @dataclass
 class QMCUser:
     """Class to store user information returned from QuickModule
@@ -22,6 +34,10 @@ class QMCUser:
 
     id: int
     name: str
+
+    def __post_init__(self) -> None:
+        self.id = _validate_qmc_integer_field("id", self.id)
+        self.name = _validate_qmc_text_field("name", self.name)
 
 
 @dataclass
@@ -38,6 +54,10 @@ class QMCPage:
 
     title: str
     unix_name: str
+
+    def __post_init__(self) -> None:
+        self.title = _validate_qmc_text_field("title", self.title)
+        self.unix_name = _validate_qmc_text_field("unix_name", self.unix_name)
 
 
 T = TypeVar("T", QMCUser, QMCPage)
@@ -152,6 +172,16 @@ class QuickModule:
         return item[field]
 
     @staticmethod
+    def _row_text_field(module_name: str, site_id: int, row_index: int, item: Any, field: str) -> str:
+        value = QuickModule._row_field(module_name, site_id, row_index, item, field)
+        if not isinstance(value, str):
+            raise ValueError(
+                f"QuickModule row field is malformed for module: {module_name}, site_id={site_id} "
+                f"(row={row_index}, field={field}, expected=str, actual={type(value).__name__})"
+            )
+        return value
+
+    @staticmethod
     def _map_user_item(module_name: str, site_id: int, row_index: int, item: dict[str, Any]) -> QMCUser:
         user_id_value = QuickModule._row_field(module_name, site_id, row_index, item, "user_id")
         try:
@@ -162,13 +192,13 @@ class QuickModule:
                 f"(row={row_index}, field=user_id, value={user_id_value})"
             ) from exc
 
-        return QMCUser(id=user_id, name=QuickModule._row_field(module_name, site_id, row_index, item, "name"))
+        return QMCUser(id=user_id, name=QuickModule._row_text_field(module_name, site_id, row_index, item, "name"))
 
     @staticmethod
     def _map_page_item(module_name: str, site_id: int, row_index: int, item: dict[str, Any]) -> QMCPage:
         return QMCPage(
-            title=QuickModule._row_field(module_name, site_id, row_index, item, "title"),
-            unix_name=QuickModule._row_field(module_name, site_id, row_index, item, "unix_name"),
+            title=QuickModule._row_text_field(module_name, site_id, row_index, item, "title"),
+            unix_name=QuickModule._row_text_field(module_name, site_id, row_index, item, "unix_name"),
         )
 
     @staticmethod

@@ -19,6 +19,22 @@ class TestQMCUser:
         assert user.id == 12345
         assert user.name == "test-user"
 
+    @pytest.mark.parametrize("user_id", [None, True, "12345", 12345.0, object()])
+    def test_init_rejects_malformed_ids(self, user_id: object) -> None:
+        """idは整数だけ受け付ける"""
+        bad_user_id: Any = user_id
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            QMCUser(id=bad_user_id, name="test-user")
+
+    @pytest.mark.parametrize("name", [None, True, 12345, [], object()])
+    def test_init_rejects_malformed_names(self, name: object) -> None:
+        """nameは文字列だけ受け付ける"""
+        bad_name: Any = name
+
+        with pytest.raises(ValueError, match="name must be a string"):
+            QMCUser(id=12345, name=bad_name)
+
 
 class TestQMCPage:
     """QMCPageデータクラスのテスト"""
@@ -29,6 +45,22 @@ class TestQMCPage:
 
         assert page.title == "Test Page"
         assert page.unix_name == "test-page"
+
+    @pytest.mark.parametrize("title", [None, True, 12345, [], object()])
+    def test_init_rejects_malformed_titles(self, title: object) -> None:
+        """titleは文字列だけ受け付ける"""
+        bad_title: Any = title
+
+        with pytest.raises(ValueError, match="title must be a string"):
+            QMCPage(title=bad_title, unix_name="test-page")
+
+    @pytest.mark.parametrize("unix_name", [None, True, 12345, [], object()])
+    def test_init_rejects_malformed_unix_names(self, unix_name: object) -> None:
+        """unix_nameは文字列だけ受け付ける"""
+        bad_unix_name: Any = unix_name
+
+        with pytest.raises(ValueError, match="unix_name must be a string"):
+            QMCPage(title="Test Page", unix_name=bad_unix_name)
 
 
 class TestQuickModuleRequest:
@@ -256,6 +288,24 @@ class TestQuickModuleMemberLookup:
         ):
             QuickModule.member_lookup(123456, "test")
 
+    def test_member_lookup_malformed_name_includes_module_site_row_field_and_type_context(self):
+        """メンバー検索のname異常値はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "12345", "name": 12345}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is malformed for module: MemberLookupQModule, site_id=123456 "
+                    r"\(row=1, field=name, expected=str, actual=int\)"
+                ),
+            ),
+        ):
+            QuickModule.member_lookup(123456, "test")
+
     def test_member_lookup_malformed_row_includes_module_site_row_and_type_context(self):
         """メンバー検索の行形状異常はQuickModule文脈付きで失敗する"""
         mock_response = MagicMock()
@@ -340,6 +390,24 @@ class TestQuickModuleUserLookup:
                 match=(
                     r"QuickModule user ID is malformed for module: UserLookupQModule, site_id=123456 "
                     r"\(row=1, field=user_id, value=latest\)"
+                ),
+            ),
+        ):
+            QuickModule.user_lookup(123456, "test")
+
+    def test_user_lookup_malformed_name_includes_module_site_row_field_and_type_context(self):
+        """ユーザー検索のname異常値はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "12345", "name": 12345}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is malformed for module: UserLookupQModule, site_id=123456 "
+                    r"\(row=1, field=name, expected=str, actual=int\)"
                 ),
             ),
         ):
@@ -465,6 +533,24 @@ class TestQuickModulePageLookup:
         ):
             QuickModule.page_lookup(123456, "test")
 
+    def test_page_lookup_malformed_title_includes_module_site_row_field_and_type_context(self):
+        """ページ検索のtitle異常値はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"pages": [{"title": 12345, "unix_name": "bad-page"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is malformed for module: PageLookupQModule, site_id=123456 "
+                    r"\(row=1, field=title, expected=str, actual=int\)"
+                ),
+            ),
+        ):
+            QuickModule.page_lookup(123456, "test")
+
     def test_page_lookup_missing_unix_name_includes_module_site_row_and_field_context(self):
         """ページ検索のunix_name欠落はQuickModule文脈付きで失敗する"""
         mock_response = MagicMock()
@@ -478,6 +564,24 @@ class TestQuickModulePageLookup:
                 match=(
                     r"QuickModule row field is missing for module: PageLookupQModule, site_id=123456 "
                     r"\(row=1, field=unix_name\)"
+                ),
+            ),
+        ):
+            QuickModule.page_lookup(123456, "test")
+
+    def test_page_lookup_malformed_unix_name_includes_module_site_row_field_and_type_context(self):
+        """ページ検索のunix_name異常値はQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"pages": [{"title": "Bad Page", "unix_name": ["bad-page"]}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is malformed for module: PageLookupQModule, site_id=123456 "
+                    r"\(row=1, field=unix_name, expected=str, actual=list\)"
                 ),
             ),
         ):
