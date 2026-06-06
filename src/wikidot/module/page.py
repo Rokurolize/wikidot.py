@@ -58,6 +58,12 @@ def _validate_page_text_field(field: str, value: object) -> str:
     return value
 
 
+def _validate_page_integer_field(field: str, value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer")
+    return value
+
+
 def _validate_page_bool_field(field: str, value: object) -> bool:
     if not isinstance(value, bool):
         raise ValueError(f"{field} must be a boolean")
@@ -1713,6 +1719,11 @@ class Page:
         self.name = _validate_page_text_field("name", self.name)
         self.category = _validate_page_text_field("category", self.category)
         self.title = _validate_page_text_field("title", self.title)
+        self.children_count = _validate_page_integer_field("children_count", self.children_count)
+        self.comments_count = _validate_page_integer_field("comments_count", self.comments_count)
+        self.size = _validate_page_integer_field("size", self.size)
+        self.votes_count = _validate_page_integer_field("votes_count", self.votes_count)
+        self.revisions_count = _validate_page_integer_field("revisions_count", self.revisions_count)
 
     def get_url(self) -> str:
         """

@@ -65,6 +65,11 @@ class TestPageInit:
         assert page.name == "test-page"
         assert page.category == "_default"
         assert page.title == "Test Page Title"
+        assert page.children_count == 0
+        assert page.comments_count == 0
+        assert page.size == 1000
+        assert page.votes_count == 5
+        assert page.revisions_count == 3
 
     @pytest.mark.parametrize(
         ("field", "value", "message"),
@@ -90,5 +95,34 @@ class TestPageInit:
     def test_init_rejects_malformed_identity_text(
         self, mock_site_no_http: Any, field: str, value: Any, message: str
     ) -> None:
+        with pytest.raises(ValueError, match=message):
+            _page(mock_site_no_http, **{field: value})
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("children_count", None, "children_count must be an integer"),
+            ("children_count", True, "children_count must be an integer"),
+            ("children_count", "0", "children_count must be an integer"),
+            ("children_count", 0.0, "children_count must be an integer"),
+            ("comments_count", None, "comments_count must be an integer"),
+            ("comments_count", True, "comments_count must be an integer"),
+            ("comments_count", "0", "comments_count must be an integer"),
+            ("comments_count", 0.0, "comments_count must be an integer"),
+            ("size", None, "size must be an integer"),
+            ("size", True, "size must be an integer"),
+            ("size", "1000", "size must be an integer"),
+            ("size", 1000.0, "size must be an integer"),
+            ("votes_count", None, "votes_count must be an integer"),
+            ("votes_count", True, "votes_count must be an integer"),
+            ("votes_count", "5", "votes_count must be an integer"),
+            ("votes_count", 5.0, "votes_count must be an integer"),
+            ("revisions_count", None, "revisions_count must be an integer"),
+            ("revisions_count", True, "revisions_count must be an integer"),
+            ("revisions_count", "3", "revisions_count must be an integer"),
+            ("revisions_count", 3.0, "revisions_count must be an integer"),
+        ],
+    )
+    def test_init_rejects_malformed_counts(self, mock_site_no_http: Any, field: str, value: Any, message: str) -> None:
         with pytest.raises(ValueError, match=message):
             _page(mock_site_no_http, **{field: value})
