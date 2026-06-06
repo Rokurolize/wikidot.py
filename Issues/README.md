@@ -885,5 +885,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 390: `8e3d776 fix(page): validate constructor tags`
 - Local implementation commits, continued 391: `3df4b37 fix(page): validate constructor site`
 - Local implementation commits, continued 392: `add8c11 fix(page): validate nullable metadata`
+- Local implementation commits, continued 393: `c9febc9 fix(page): validate rating percent`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
