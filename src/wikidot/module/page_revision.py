@@ -52,6 +52,12 @@ def _validate_revision_number(value: object) -> int:
     return value
 
 
+def _validate_revision_comment(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("comment must be a string")
+    return value
+
+
 def _validate_revision_source(value: object) -> PageSource:
     if not isinstance(value, PageSource):
         raise ValueError("revision.source must be PageSource")
@@ -399,6 +405,7 @@ class PageRevision:
         self.page = _validate_revision_page(self.page)
         self.id = _validate_revision_id(self.id)
         self.rev_no = _validate_revision_number(self.rev_no)
+        self.comment = _validate_revision_comment(self.comment)
 
     def is_source_acquired(self) -> bool:
         """

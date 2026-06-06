@@ -564,6 +564,21 @@ class TestPageRevision:
                 comment="Initial revision",
             )
 
+    @pytest.mark.parametrize("comment", [None, True, 1, []])
+    def test_init_rejects_malformed_comments(self, mock_page, mock_user, comment: object) -> None:
+        """PageRevisionは文字列のコメントだけ受け付ける"""
+        bad_comment: Any = comment
+
+        with pytest.raises(ValueError, match="comment must be a string"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment=bad_comment,
+            )
+
     def test_is_source_acquired_false(self, sample_revision):
         """ソース未取得の確認"""
         assert sample_revision.is_source_acquired() is False
