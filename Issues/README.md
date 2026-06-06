@@ -723,5 +723,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 307: `3105879 fix(amc): validate response status type`
 - Local implementation commits, continued 308: `b79d6ed fix(amc): redact malformed response diagnostics`
 - Local implementation commits, continued 309: `0aabffa fix(amc): redact user content from request logs`
+- Local implementation commits, continued 310: `e141515 fix(amc): use merged body in try-again logs`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
