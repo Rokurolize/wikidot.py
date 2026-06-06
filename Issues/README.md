@@ -466,6 +466,14 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [460-pr-validate-forum-post-identity-text-fields.md](460-pr-validate-forum-post-identity-text-fields.md): upstream PR draft for the committed forum post identity/text field validation fix.
 - [461-pr-validate-forum-post-edit-metadata-fields.md](461-pr-validate-forum-post-edit-metadata-fields.md): upstream PR draft for the committed forum post edit metadata field validation fix.
 - [462-pr-validate-forum-post-parent-id-field.md](462-pr-validate-forum-post-parent-id-field.md): upstream PR draft for the committed forum post parent-ID field validation fix.
+- [463-pr-validate-forum-post-revision-identity-fields.md](463-pr-validate-forum-post-revision-identity-fields.md): upstream PR draft for the committed forum post revision identity field validation fix.
+- [464-pr-validate-forum-post-revision-creator-time-fields.md](464-pr-validate-forum-post-revision-creator-time-fields.md): upstream PR draft for the committed forum post revision creator/time field validation fix.
+- [465-pr-validate-page-revision-identity-fields.md](465-pr-validate-page-revision-identity-fields.md): upstream PR draft for the committed page revision identity field validation fix.
+- [466-pr-validate-page-revision-comment-field.md](466-pr-validate-page-revision-comment-field.md): upstream PR draft for the committed page revision comment field validation fix.
+- [467-pr-validate-page-revision-creator-time-fields.md](467-pr-validate-page-revision-creator-time-fields.md): upstream PR draft for the committed page revision creator/time field validation fix.
+- [468-pr-validate-page-file-scalar-fields.md](468-pr-validate-page-file-scalar-fields.md): upstream PR draft for the committed page file scalar field validation fix.
+- [469-pr-validate-page-vote-user-value-fields.md](469-pr-validate-page-vote-user-value-fields.md): upstream PR draft for the committed page vote user/value field validation fix.
+- [470-pr-validate-page-vote-collection-page-field.md](470-pr-validate-page-vote-collection-page-field.md): upstream PR draft for the committed page vote collection page-field validation fix.
 
 ## Local Evidence Index
 
@@ -847,5 +855,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 372: `0214554 fix(page_revision): validate revision creator metadata`
 - Local implementation commits, continued 373: `a5d7784 fix(page_file): validate file scalar fields`
 - Local implementation commits, continued 374: `cbd4f55 fix(page_votes): validate vote user and value`
+- Local implementation commits, continued 375: `9c67e4c fix(page_votes): validate vote collection page`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
