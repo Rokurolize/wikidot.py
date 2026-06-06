@@ -377,7 +377,7 @@ class ForumPostCollection(list["ForumPost"]):
                     grandparent_class = grandparent.get("class")
                     if isinstance(grandparent_class, list) and "post-container" in grandparent_class:
                         parent_post = grandparent.find("div", class_="post", recursive=False)
-                        if parent_post is not None and hasattr(parent_post, "get"):
+                        if isinstance(parent_post, Tag):
                             parent_id_attr = parent_post.get("id")
                             if parent_id_attr is not None:
                                 parent_id = _parse_post_id_value(
@@ -751,6 +751,9 @@ class ForumPost:
     _parent_id: int | None = None
     _source: str | None = None
     _revisions: Optional["ForumPostRevisionCollection"] = None
+
+    def __post_init__(self) -> None:
+        self.thread = _validate_forum_thread(self.thread)
 
     def __str__(self) -> str:
         """

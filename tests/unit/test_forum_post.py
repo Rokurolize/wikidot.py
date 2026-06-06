@@ -77,9 +77,10 @@ class TestForumPostCollectionInit:
     ) -> None:
         """IDが整数でない場合は検索前に拒否する"""
         collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        bad_find_id: Any = bad_id
 
         with pytest.raises(ValueError, match="id must be an integer"):
-            collection.find(bad_id)
+            collection.find(bad_find_id)
 
 
 class TestForumPostCollectionParse:
@@ -272,8 +273,10 @@ class TestForumPostCollectionAcquireAll:
 
     def test_acquire_all_in_threads_rejects_non_list_threads_before_fetch(self) -> None:
         """threadsがlistでない場合は取得前に拒否する"""
+        bad_threads: Any = "3001"
+
         with pytest.raises(ValueError, match="threads must be a list"):
-            ForumPostCollection.acquire_all_in_threads("3001")
+            ForumPostCollection.acquire_all_in_threads(bad_threads)
 
     @pytest.mark.parametrize("bad_thread", [None, True, "3001"])
     def test_acquire_all_in_threads_rejects_non_thread_entries_before_fetch(
@@ -282,9 +285,10 @@ class TestForumPostCollectionAcquireAll:
         """threadsの要素がForumThreadでない場合は取得前に拒否する"""
         mock_forum_thread_no_http.site.amc_request = MagicMock()
         mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+        bad_threads: Any = [mock_forum_thread_no_http, bad_thread]
 
         with pytest.raises(ValueError, match="threads list entries must be ForumThread"):
-            ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, bad_thread])  # type: ignore[list-item]
+            ForumPostCollection.acquire_all_in_threads(bad_threads)
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
         mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
@@ -292,8 +296,10 @@ class TestForumPostCollectionAcquireAll:
     @pytest.mark.parametrize("thread", [None, True, "3001"])
     def test_acquire_all_in_thread_rejects_non_thread_before_fetch(self, thread: object) -> None:
         """単一threadがForumThreadでない場合は取得前に拒否する"""
+        bad_thread: Any = thread
+
         with pytest.raises(ValueError, match="thread must be a ForumThread"):
-            ForumPostCollection.acquire_all_in_thread(thread)
+            ForumPostCollection.acquire_all_in_thread(bad_thread)
 
     def test_acquire_all_single_page(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
@@ -862,7 +868,8 @@ class TestForumPostCollectionGetSources:
     ) -> None:
         """投稿以外のコレクション要素は取得処理前に拒否する"""
         collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
-        collection.append(bad_post)
+        bad_entry: Any = bad_post
+        collection.append(bad_entry)
         mock_forum_thread_no_http.site.amc_request = MagicMock()
         mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
 
@@ -1175,6 +1182,26 @@ class TestForumPostBasic:
 
         mock_forum_post_no_http._parent_id = 4999
         assert mock_forum_post_no_http.parent_id == 4999
+
+    @pytest.mark.parametrize("thread", [None, True, "3001", {"id": 3001}, object()])
+    def test_init_rejects_malformed_threads(self, mock_forum_post_no_http: ForumPost, thread: object) -> None:
+        """ForumPostの初期化はForumThreadだけ受け付ける"""
+        bad_thread: Any = thread
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            ForumPost(
+                thread=bad_thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
 
 
 class TestForumPostSource:
