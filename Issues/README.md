@@ -442,6 +442,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [436-pr-validate-site-change-revision-numbers.md](436-pr-validate-site-change-revision-numbers.md): upstream PR draft for the committed site change revision-number validation fix.
 - [437-pr-validate-site-change-text-fields.md](437-pr-validate-site-change-text-fields.md): upstream PR draft for the committed site change text-field validation fix.
 - [438-pr-validate-site-change-actor-time-fields.md](438-pr-validate-site-change-actor-time-fields.md): upstream PR draft for the committed site change actor/time validation fix.
+- [439-pr-validate-site-change-site-field.md](439-pr-validate-site-change-site-field.md): upstream PR draft for the committed site change site-field validation fix.
 
 ## Local Evidence Index
 
@@ -792,5 +793,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 341: `38c3092 fix(site): validate site change revision numbers`
 - Local implementation commits, continued 342: `d05fea8 fix(site): validate site change text fields`
 - Local implementation commits, continued 343: `57aca86 fix(site): validate site change actor time`
+- Local implementation commits, continued 344: `b7aaf03 fix(site): validate site change site`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
