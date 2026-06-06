@@ -21,12 +21,12 @@ from ..util.requestutil import RequestUtil
 from .page_revision import PageRevision, PageRevisionCollection
 from .page_source import PageSource, extract_page_source_text
 from .page_votes import PageVote, PageVoteCollection
+from .user import User
 
 if TYPE_CHECKING:
     from .forum_thread import ForumThread
     from .page_file import PageFileCollection
     from .site import Site
-    from .user import User
 
 
 class _UnsetParentType:
@@ -616,9 +616,11 @@ class SearchPagesQuery:
                 raise ValueError("tags list entries must be strings")
             res["tags"] = " ".join(res["tags"])
         if "created_by" in res and not isinstance(res["created_by"], str):
-            user_name = getattr(res["created_by"], "unix_name", None) or getattr(res["created_by"], "name", None)
+            if not isinstance(res["created_by"], User):
+                raise ValueError("created_by must be a string or User")
+            user_name = res["created_by"].unix_name
             if not isinstance(user_name, str) or user_name == "":
-                raise ValueError("created_by user must have a name or unix_name")
+                raise ValueError("created_by user must have a unix_name")
             res["created_by"] = user_name
         return res
 

@@ -1,6 +1,9 @@
 """SearchPagesQueryのユニットテスト"""
 
+from typing import Any, cast
 from unittest.mock import MagicMock
+
+import pytest
 
 from wikidot.module.page import SearchPagesQuery
 from wikidot.module.user import User
@@ -118,6 +121,30 @@ class TestSearchPagesQueryAsDict:
         query = SearchPagesQuery(created_by=user)
         result = query.as_dict()
         assert result["created_by"] == "test-user"
+
+    def test_as_dict_created_by_rejects_non_string_non_user(self):
+        """created_byは文字列またはUserだけ受け付ける"""
+
+        class UserLike:
+            unix_name = "not-a-user"
+
+        query = SearchPagesQuery(created_by=cast(Any, UserLike()))
+        with pytest.raises(ValueError, match="created_by must be a string or User"):
+            query.as_dict()
+
+    @pytest.mark.parametrize("unix_name", [None, ""])
+    def test_as_dict_created_by_requires_user_unix_name(self, unix_name):
+        """created_byのUserはUNIX名を持っている必要がある"""
+        user = User(
+            client=MagicMock(),
+            id=12345,
+            name="Test User",
+            unix_name=unix_name,
+            avatar_url="https://www.wikidot.com/avatar.php?userid=12345",
+        )
+        query = SearchPagesQuery(created_by=user)
+        with pytest.raises(ValueError, match="created_by user must have a unix_name"):
+            query.as_dict()
 
     def test_as_dict_excludes_none_values(self):
         """None値が除外されるテスト"""
