@@ -99,6 +99,18 @@ def _validate_page_revisions(page: "Page", value: object) -> PageRevisionCollect
     raise ValueError("page.revisions must be a list or PageRevisionCollection")
 
 
+def _validate_page_vote_entries(votes: PageVoteCollection) -> None:
+    if any(not isinstance(vote, PageVote) for vote in votes):
+        raise ValueError("page.votes list entries must be PageVote")
+
+
+def _validate_page_votes(value: object) -> PageVoteCollection:
+    if not isinstance(value, PageVoteCollection):
+        raise ValueError("page.votes must be PageVoteCollection")
+    _validate_page_vote_entries(value)
+    return value
+
+
 def _validate_page_vote_value(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
         raise ValueError("Vote value must be 1 or -1")
@@ -1917,7 +1929,7 @@ class Page:
         value : PageVoteCollection
             Vote information collection to set
         """
-        self._votes = value
+        self._votes = _validate_page_votes(value)
 
     @property
     def discussion(self) -> Optional["ForumThread"]:

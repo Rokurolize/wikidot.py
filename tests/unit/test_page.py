@@ -32,6 +32,10 @@ def _cached_page_revision(page: Page, comment: str = "cached revision") -> PageR
     )
 
 
+def _cached_page_vote(page: Page, value: int = 1) -> PageVote:
+    return PageVote(page=page, user=MagicMock(), value=value)
+
+
 # ============================================================
 # SearchPagesQueryテスト
 # ============================================================
@@ -2273,6 +2277,31 @@ class TestPageProperties:
             [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": 12345}]
         )
         assert mock_page_with_id._votes is None
+
+    @pytest.mark.parametrize("votes", [None, True, "100", {"user": 100}, []])
+    def test_votes_setter_rejects_invalid_collections(self, mock_page_with_id: Page, votes: object) -> None:
+        """不正なvotes代入は既存のキャッシュを破壊しない"""
+        cached_vote = _cached_page_vote(mock_page_with_id)
+        mock_page_with_id.votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        bad_votes: Any = votes
+
+        with pytest.raises(ValueError, match="page.votes must be PageVoteCollection"):
+            mock_page_with_id.votes = bad_votes
+
+        assert mock_page_with_id.votes[0].value == 1
+
+    @pytest.mark.parametrize("bad_vote", [None, True, "100", {"user": 100}])
+    def test_votes_setter_rejects_invalid_collection_entries(self, mock_page_with_id: Page, bad_vote: object) -> None:
+        """不正なvotes collection要素は既存のキャッシュを破壊しない"""
+        cached_vote = _cached_page_vote(mock_page_with_id)
+        mock_page_with_id.votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        bad_vote_entry: Any = bad_vote
+        bad_votes = PageVoteCollection(mock_page_with_id, [bad_vote_entry])
+
+        with pytest.raises(ValueError, match="page.votes list entries must be PageVote"):
+            mock_page_with_id.votes = bad_votes
+
+        assert mock_page_with_id.votes[0].value == 1
 
     def test_latest_revision(self, mock_page_with_id: Page, page_revisionlist: dict[str, Any]) -> None:
         """最新リビジョンを取得できる"""
