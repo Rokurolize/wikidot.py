@@ -42,6 +42,20 @@ def _validate_private_message_id(message_id: object) -> int:
     return message_id
 
 
+def _validate_private_message_user(field: str, user: object) -> "AbstractUser":
+    from .user import AbstractUser
+
+    if not isinstance(user, AbstractUser):
+        raise ValueError(f"{field} must be an AbstractUser")
+    return user
+
+
+def _validate_private_message_created_at(created_at: object) -> datetime:
+    if not isinstance(created_at, datetime):
+        raise ValueError("created_at must be a datetime")
+    return created_at
+
+
 def _validate_private_message_ids(message_ids: object) -> list[int]:
     if not isinstance(message_ids, list):
         raise ValueError("message_ids must be a list")
@@ -705,6 +719,11 @@ class PrivateMessage:
 
     def __post_init__(self) -> None:
         self.id = _validate_private_message_id(self.id)
+        self.sender = _validate_private_message_user("sender", self.sender)
+        self.recipient = _validate_private_message_user("recipient", self.recipient)
+        self.subject = validate_text_field("subject", self.subject)
+        self.body = validate_text_field("body", self.body)
+        self.created_at = _validate_private_message_created_at(self.created_at)
 
     def __str__(self) -> str:
         """

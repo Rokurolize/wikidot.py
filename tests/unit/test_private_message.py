@@ -51,6 +51,30 @@ def mock_user(mock_client):
 
 
 @pytest.fixture
+def sender_user(mock_client):
+    """テスト用の送信者ユーザー"""
+    return User(
+        client=mock_client,
+        id=11111,
+        name="sender",
+        unix_name="sender",
+        avatar_url="https://www.wikidot.com/avatar.php?userid=11111",
+    )
+
+
+@pytest.fixture
+def recipient_user(mock_client):
+    """テスト用の受信者ユーザー"""
+    return User(
+        client=mock_client,
+        id=22222,
+        name="recipient",
+        unix_name="recipient",
+        avatar_url="https://www.wikidot.com/avatar.php?userid=22222",
+    )
+
+
+@pytest.fixture
 def sample_message(mock_client, mock_user):
     """サンプルメッセージ"""
     return PrivateMessage(
@@ -159,7 +183,7 @@ class TestPrivateMessageCollection:
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
 
-    def test_from_ids_success(self, mock_client):
+    def test_from_ids_success(self, mock_client, mock_user):
         """from_idsの成功ケース"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -179,7 +203,7 @@ class TestPrivateMessageCollection:
         mock_client.amc_client.request.return_value = [mock_response]
 
         with patch("wikidot.module.private_message.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = mock_user
             with patch("wikidot.module.private_message.odate_parser") as mock_odate_parser:
                 mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
 
@@ -188,7 +212,7 @@ class TestPrivateMessageCollection:
                 assert len(result) == 1
                 assert result[0].id == 1
 
-    def test_from_ids_ignores_body_header_markup(self, mock_client):
+    def test_from_ids_ignores_body_header_markup(self, mock_client, sender_user, recipient_user):
         """本文内のheader風マークアップを送受信者メタデータとして扱わない"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -210,11 +234,11 @@ class TestPrivateMessageCollection:
             """
         }
         mock_client.amc_client.request.return_value = [mock_response]
-        sender = MagicMock()
-        recipient = MagicMock()
 
         with (
-            patch("wikidot.module.private_message.user_parser", side_effect=[sender, recipient]) as mock_user_parser,
+            patch(
+                "wikidot.module.private_message.user_parser", side_effect=[sender_user, recipient_user]
+            ) as mock_user_parser,
             patch("wikidot.module.private_message.odate_parser") as mock_odate_parser,
         ):
             mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
@@ -222,13 +246,13 @@ class TestPrivateMessageCollection:
             result = PrivateMessageCollection.from_ids(mock_client, [1])
 
         assert len(result) == 1
-        assert result[0].sender == sender
-        assert result[0].recipient == recipient
+        assert result[0].sender == sender_user
+        assert result[0].recipient == recipient_user
         assert result[0].subject == "Test Subject"
         assert "Test Body" in result[0].body
         assert mock_user_parser.call_count == 2
 
-    def test_from_ids_preserves_body_text_spacing(self, mock_client):
+    def test_from_ids_preserves_body_text_spacing(self, mock_client, mock_user):
         """本文内の段落や装飾タグのテキストを連結しない"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -245,11 +269,9 @@ class TestPrivateMessageCollection:
             """
         }
         mock_client.amc_client.request.return_value = [mock_response]
-        sender = MagicMock()
-        recipient = MagicMock()
 
         with (
-            patch("wikidot.module.private_message.user_parser", side_effect=[sender, recipient]),
+            patch("wikidot.module.private_message.user_parser", side_effect=[mock_user, mock_user]),
             patch("wikidot.module.private_message.odate_parser") as mock_odate_parser,
         ):
             mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
@@ -259,7 +281,7 @@ class TestPrivateMessageCollection:
         assert len(result) == 1
         assert result[0].body == "First message Second message"
 
-    def test_from_ids_preserves_subject_text_spacing(self, mock_client):
+    def test_from_ids_preserves_subject_text_spacing(self, mock_client, mock_user):
         """件名内の装飾タグや隣接要素のテキストを連結しない"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -276,11 +298,9 @@ class TestPrivateMessageCollection:
             """
         }
         mock_client.amc_client.request.return_value = [mock_response]
-        sender = MagicMock()
-        recipient = MagicMock()
 
         with (
-            patch("wikidot.module.private_message.user_parser", side_effect=[sender, recipient]),
+            patch("wikidot.module.private_message.user_parser", side_effect=[mock_user, mock_user]),
             patch("wikidot.module.private_message.odate_parser") as mock_odate_parser,
         ):
             mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
@@ -290,7 +310,7 @@ class TestPrivateMessageCollection:
         assert len(result) == 1
         assert result[0].subject == "First Part Subject"
 
-    def test_from_ids_retries_transient_detail_failures(self, mock_client):
+    def test_from_ids_retries_transient_detail_failures(self, mock_client, mock_user):
         """一時的なAMC失敗後にメッセージ詳細取得をリトライする"""
         mock_response = MagicMock()
         mock_response.json.return_value = {
@@ -310,7 +330,7 @@ class TestPrivateMessageCollection:
         mock_client.amc_client.request.side_effect = [(RuntimeError("temporary failure"),), (mock_response,)]
 
         with patch("wikidot.module.private_message.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = mock_user
             with patch("wikidot.module.private_message.odate_parser") as mock_odate_parser:
                 mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
 
@@ -319,7 +339,7 @@ class TestPrivateMessageCollection:
         assert len(result) == 1
         assert mock_client.amc_client.request.call_count == 2
 
-    def test_from_ids_deduplicates_duplicate_message_ids_preserving_order(self, mock_client):
+    def test_from_ids_deduplicates_duplicate_message_ids_preserving_order(self, mock_client, mock_user):
         """from_idsは重複IDの公開順序を保ったまま詳細リクエストを重複排除する"""
 
         def message_response(subject: str) -> MagicMock:
@@ -344,7 +364,7 @@ class TestPrivateMessageCollection:
         mock_client.amc_client.request.return_value = [first_response, second_response]
 
         with patch("wikidot.module.private_message.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = mock_user
             with patch("wikidot.module.private_message.odate_parser") as mock_odate_parser:
                 mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
 
@@ -410,7 +430,7 @@ class TestPrivateMessageCollection:
 
         mock_client.amc_client.request.assert_not_called()
 
-    def test_from_ids_uses_retry_defaults_when_config_attrs_are_missing(self, mock_client):
+    def test_from_ids_uses_retry_defaults_when_config_attrs_are_missing(self, mock_client, mock_user):
         """リトライ設定属性がないconfigでは既存のデフォルト値を使う"""
         mock_client.amc_client.config = object()
         mock_response = MagicMock()
@@ -430,7 +450,7 @@ class TestPrivateMessageCollection:
         mock_client.amc_client.request.return_value = [mock_response]
 
         with patch("wikidot.module.private_message.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = mock_user
             with patch("wikidot.module.private_message.odate_parser") as mock_odate_parser:
                 mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
 
@@ -961,6 +981,76 @@ class TestPrivateMessage:
                 subject="Test Subject",
                 body="Test Body",
                 created_at=datetime(2023, 1, 1, 12, 0, 0),
+            )
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("sender", None, "sender must be an AbstractUser"),
+            ("sender", True, "sender must be an AbstractUser"),
+            ("sender", {"id": 12345}, "sender must be an AbstractUser"),
+            ("recipient", None, "recipient must be an AbstractUser"),
+            ("recipient", True, "recipient must be an AbstractUser"),
+            ("recipient", {"id": 12345}, "recipient must be an AbstractUser"),
+        ],
+    )
+    def test_init_rejects_malformed_message_users(self, mock_client, mock_user, field, value, message):
+        """PrivateMessageの初期化は送受信者にAbstractUserだけ受け付ける"""
+        inputs = {
+            "client": mock_client,
+            "id": 1,
+            "sender": mock_user,
+            "recipient": mock_user,
+            "subject": "Test Subject",
+            "body": "Test Body",
+            "created_at": datetime(2023, 1, 1, 12, 0, 0),
+            field: value,
+        }
+
+        with pytest.raises(ValueError, match=message):
+            PrivateMessage(**inputs)
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("subject", None, "subject must be a string"),
+            ("subject", True, "subject must be a string"),
+            ("subject", 123, "subject must be a string"),
+            ("body", None, "body must be a string"),
+            ("body", True, "body must be a string"),
+            ("body", 123, "body must be a string"),
+        ],
+    )
+    def test_init_rejects_malformed_message_text_fields(self, mock_client, mock_user, field, value, message):
+        """PrivateMessageの初期化は件名と本文に文字列だけ受け付ける"""
+        inputs = {
+            "client": mock_client,
+            "id": 1,
+            "sender": mock_user,
+            "recipient": mock_user,
+            "subject": "Test Subject",
+            "body": "Test Body",
+            "created_at": datetime(2023, 1, 1, 12, 0, 0),
+            field: value,
+        }
+
+        with pytest.raises(ValueError, match=message):
+            PrivateMessage(**inputs)
+
+    @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-01-01", []])
+    def test_init_rejects_malformed_created_at(self, mock_client, mock_user, created_at):
+        """PrivateMessageの初期化は作成日時にdatetimeだけ受け付ける"""
+        bad_created_at: Any = created_at
+
+        with pytest.raises(ValueError, match="created_at must be a datetime"):
+            PrivateMessage(
+                client=mock_client,
+                id=1,
+                sender=mock_user,
+                recipient=mock_user,
+                subject="Test Subject",
+                body="Test Body",
+                created_at=bad_created_at,
             )
 
     def test_from_id(self, mock_client, sample_message):
