@@ -532,6 +532,46 @@ class TestAjaxModuleConnectorClientRequest:
         with pytest.raises(AMCHttpStatusCodeException):
             client.request([{"moduleName": "Test"}])
 
+    def test_http_error_log_masks_user_content_fields(
+        self, httpx_mock: HTTPXMock, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """HTTPエラー診断はユーザー作成内容のリクエスト値を露出しない"""
+        private_fields = {
+            "source": "PRIVATE_AMC_SOURCE_SHOULD_NOT_LEAK",
+            "body": "PRIVATE_AMC_BODY_FIELD_SHOULD_NOT_LEAK",
+            "text": "PRIVATE_AMC_TEXT_SHOULD_NOT_LEAK",
+            "subject": "PRIVATE_AMC_SUBJECT_SHOULD_NOT_LEAK",
+            "title": "PRIVATE_AMC_TITLE_SHOULD_NOT_LEAK",
+            "comment": "PRIVATE_AMC_COMMENT_SHOULD_NOT_LEAK",
+            "comments": "PRIVATE_AMC_COMMENTS_SHOULD_NOT_LEAK",
+            "description": "PRIVATE_AMC_DESCRIPTION_SHOULD_NOT_LEAK",
+        }
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            status_code=500,
+        )
+
+        caplog.set_level("ERROR")
+        config = AjaxModuleConnectorConfig(attempt_limit=1, retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(AMCHttpStatusCodeException):
+            client.request(
+                [
+                    {
+                        "moduleName": "Test",
+                        "page_id": 123,
+                        **private_fields,
+                    }
+                ]
+            )
+
+        for private_value in private_fields.values():
+            assert private_value not in caplog.text
+        assert "moduleName" in caplog.text
+        assert "page_id" in caplog.text
+        assert "***MASKED***" in caplog.text
+
     def test_retry_on_non_json_response(self, httpx_mock: HTTPXMock) -> None:
         """非JSONレスポンスでリトライ"""
         httpx_mock.add_response(

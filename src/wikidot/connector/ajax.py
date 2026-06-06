@@ -235,12 +235,26 @@ def _mask_sensitive_data(body: dict[str, Any]) -> dict[str, Any]:
     dict[str, Any]
         Dictionary with sensitive information masked
     """
-    sensitive_keys = {"password", "login", "WIKIDOT_SESSION_ID", "wikidot_token7", "lock_secret"}
+    redacted_keys = {
+        "password",
+        "login",
+        "WIKIDOT_SESSION_ID",
+        "wikidot_token7",
+        "lock_secret",
+        "source",
+        "body",
+        "text",
+        "subject",
+        "title",
+        "comment",
+        "comments",
+        "description",
+    }
 
     def mask_value(value: Any) -> Any:
         if isinstance(value, dict):
             return {
-                key: "***MASKED***" if key in sensitive_keys else mask_value(nested_value)
+                key: "***MASKED***" if key in redacted_keys else mask_value(nested_value)
                 for key, nested_value in value.items()
             }
         if isinstance(value, list):

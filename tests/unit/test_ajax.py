@@ -95,6 +95,44 @@ class TestMaskSensitiveData:
         assert body["params"]["password"] == "secret123"
         assert body["params"]["items"][0]["login"] == "private-user"
 
+    def test_masks_nested_user_content_fields_without_mutating_original(self):
+        """ネストしたリクエストデータ内のユーザー作成内容もマスクする"""
+        body = {
+            "moduleName": "test",
+            "source": "private source",
+            "params": {
+                "body": "private body",
+                "text": "private text",
+                "subject": "private subject",
+                "title": "private title",
+                "comment": "private comment",
+                "comments": "private comments",
+                "description": "private description",
+                "safe": "visible",
+                "items": [{"source": "nested private source"}],
+            },
+        }
+
+        result = _mask_sensitive_data(body)
+
+        assert result == {
+            "moduleName": "test",
+            "source": "***MASKED***",
+            "params": {
+                "body": "***MASKED***",
+                "text": "***MASKED***",
+                "subject": "***MASKED***",
+                "title": "***MASKED***",
+                "comment": "***MASKED***",
+                "comments": "***MASKED***",
+                "description": "***MASKED***",
+                "safe": "visible",
+                "items": [{"source": "***MASKED***"}],
+            },
+        }
+        assert body["source"] == "private source"
+        assert body["params"]["items"][0]["source"] == "nested private source"
+
     def test_empty_dict(self):
         """空の辞書でも動作する"""
         result = _mask_sensitive_data({})
