@@ -426,6 +426,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [420-pr-validate-page-file-collection-initialization.md](420-pr-validate-page-file-collection-initialization.md): upstream PR draft for the committed page file collection initialization validation fix.
 - [421-pr-validate-forum-post-revision-collection-initialization.md](421-pr-validate-forum-post-revision-collection-initialization.md): upstream PR draft for the committed forum post revision collection initialization validation fix.
 - [422-pr-validate-forum-post-collection-initialization.md](422-pr-validate-forum-post-collection-initialization.md): upstream PR draft for the committed forum post collection initialization validation fix.
+- [423-pr-validate-forum-thread-collection-initialization.md](423-pr-validate-forum-thread-collection-initialization.md): upstream PR draft for the committed forum thread collection initialization validation fix.
 
 ## Local Evidence Index
 
@@ -760,5 +761,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 325: `abdf95d fix(page_file): validate file collection initialization`
 - Local implementation commits, continued 326: `d20566a fix(forum_post_revision): validate revision collection initialization`
 - Local implementation commits, continued 327: `0cec732 fix(forum_post): validate post collection initialization`
+- Local implementation commits, continued 328: `14d3042 fix(forum_thread): validate thread collection initialization`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
