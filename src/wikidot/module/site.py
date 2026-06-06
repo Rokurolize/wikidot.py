@@ -135,6 +135,18 @@ def _validate_site_change_revision_no(value: object) -> int:
     return value
 
 
+def _validate_site_change_text_field(field_name: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be a string")
+    return value
+
+
+def _validate_site_change_comment(value: object) -> str | None:
+    if value is not None and not isinstance(value, str):
+        raise ValueError("comment must be a string or None")
+    return value
+
+
 def _validate_amc_retry_batch_size(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"batch_size must be positive, got {value}")
@@ -992,6 +1004,9 @@ class SiteChange:
     def __post_init__(self) -> None:
         self.flags = _validate_site_change_flags(self.flags)
         self.revision_no = _validate_site_change_revision_no(self.revision_no)
+        self.page_fullname = _validate_site_change_text_field("page_fullname", self.page_fullname)
+        self.page_title = _validate_site_change_text_field("page_title", self.page_title)
+        self.comment = _validate_site_change_comment(self.comment)
 
     def __str__(self) -> str:
         """

@@ -88,16 +88,24 @@ class TestSiteChangeDataclass:
     """SiteChangeデータクラスのテスト"""
 
     @staticmethod
-    def _site_change(mock_site_no_http: Site, *, flags: Any, revision_no: Any = 1) -> SiteChange:
+    def _site_change(
+        mock_site_no_http: Site,
+        *,
+        flags: Any,
+        page_fullname: Any = "test-page",
+        page_title: Any = "Test Page",
+        revision_no: Any = 1,
+        comment: Any = None,
+    ) -> SiteChange:
         return SiteChange(
             site=mock_site_no_http,
-            page_fullname="test-page",
-            page_title="Test Page",
+            page_fullname=page_fullname,
+            page_title=page_title,
             revision_no=revision_no,
             changed_by=User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester"),
             changed_at=datetime(2026, 6, 6),
             flags=flags,
-            comment=None,
+            comment=comment,
         )
 
     @pytest.mark.parametrize("flags", [None, True, "S", ("S",), 1])
@@ -123,6 +131,36 @@ class TestSiteChangeDataclass:
         """SiteChange初期化時のrevision_noは非bool整数だけ受け付ける"""
         with pytest.raises(ValueError, match="revision_no must be an integer"):
             self._site_change(mock_site_no_http, flags=["S"], revision_no=revision_no)
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("page_fullname", None, "page_fullname must be a string"),
+            ("page_fullname", True, "page_fullname must be a string"),
+            ("page_fullname", 1, "page_fullname must be a string"),
+            ("page_fullname", [], "page_fullname must be a string"),
+            ("page_title", None, "page_title must be a string"),
+            ("page_title", True, "page_title must be a string"),
+            ("page_title", 1, "page_title must be a string"),
+            ("page_title", [], "page_title must be a string"),
+            ("comment", True, "comment must be a string or None"),
+            ("comment", 1, "comment must be a string or None"),
+            ("comment", [], "comment must be a string or None"),
+        ],
+    )
+    def test_init_rejects_malformed_text_fields(
+        self, mock_site_no_http: Site, field: str, value: Any, message: str
+    ) -> None:
+        """SiteChange初期化時のテキスト項目は文字列型だけ受け付ける"""
+        with pytest.raises(ValueError, match=message):
+            self._site_change(mock_site_no_http, flags=["S"], **{field: value})
+
+    @pytest.mark.parametrize("comment", [None, "", "Updated source"])
+    def test_init_accepts_optional_string_comment(self, mock_site_no_http: Site, comment: str | None) -> None:
+        """SiteChange初期化時のcommentはNoneまたは文字列を保持する"""
+        change = self._site_change(mock_site_no_http, flags=["S"], comment=comment)
+
+        assert change.comment == comment
 
 
 class TestSitePagesAccessor:
