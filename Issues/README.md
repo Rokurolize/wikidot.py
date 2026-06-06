@@ -883,5 +883,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 388: `aa7e0d1 fix(page): validate constructor rating field`
 - Local implementation commits, continued 389: `3e9e051 fix(page): validate constructor parent fullname`
 - Local implementation commits, continued 390: `8e3d776 fix(page): validate constructor tags`
+- Local implementation commits, continued 391: `3df4b37 fix(page): validate constructor site`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
