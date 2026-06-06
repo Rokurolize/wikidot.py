@@ -16,10 +16,9 @@ from wikidot.module.page_source import PageSource
 
 
 @pytest.fixture
-def mock_page():
-    """モックページ"""
-    page = MagicMock()
-    page.site = MagicMock()
+def mock_page(mock_page_no_http):
+    """HTTPなしで使う実Page"""
+    page = mock_page_no_http
     page.site.amc_request = MagicMock()
     page.site.amc_request_with_retry = MagicMock()
     return page
@@ -519,6 +518,21 @@ class TestPageRevisionCollection:
 
 class TestPageRevision:
     """PageRevisionクラスのテスト"""
+
+    @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
+    def test_init_rejects_malformed_pages(self, mock_user, page: object) -> None:
+        """PageRevisionは実Page以外の親ページを受け付けない"""
+        bad_page: Any = page
+
+        with pytest.raises(ValueError, match="page must be a Page"):
+            PageRevision(
+                page=bad_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+            )
 
     def test_is_source_acquired_false(self, sample_revision):
         """ソース未取得の確認"""

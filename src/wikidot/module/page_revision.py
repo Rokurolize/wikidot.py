@@ -32,6 +32,14 @@ def _validate_revisions(revisions: object) -> list["PageRevision"]:
     return cast(list["PageRevision"], revisions)
 
 
+def _validate_revision_page(value: object) -> "Page":
+    from .page import Page
+
+    if not isinstance(value, Page):
+        raise ValueError("page must be a Page")
+    return value
+
+
 def _validate_revision_source(value: object) -> PageSource:
     if not isinstance(value, PageSource):
         raise ValueError("revision.source must be PageSource")
@@ -374,6 +382,9 @@ class PageRevision:
     comment: str
     _source: Optional["PageSource"] = None
     _html: str | None = None
+
+    def __post_init__(self) -> None:
+        self.page = _validate_revision_page(self.page)
 
     def is_source_acquired(self) -> bool:
         """
