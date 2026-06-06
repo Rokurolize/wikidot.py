@@ -23,12 +23,26 @@ def _member_user(user_id: int = 12345, name: str = "TestUser") -> User:
     return User(client=MagicMock(), id=user_id, name=name, unix_name="test-user")
 
 
+def _site(client: Any | None = None) -> Any:
+    site: Any = Site(
+        client=client or MagicMock(),
+        id=123456,
+        title="Test Site",
+        unix_name="test-site",
+        domain="test-site.wikidot.com",
+        ssl_supported=True,
+    )
+    site.amc_request = MagicMock()
+    site.amc_request_with_retry = MagicMock()
+    return site
+
+
 class TestSiteMemberDataclass:
     """SiteMemberデータクラスのテスト"""
 
     def test_init(self):
         """初期化のテスト"""
-        site = MagicMock()
+        site = _site()
         user = _member_user()
         joined_at = datetime.now(timezone.utc)
 
@@ -40,17 +54,26 @@ class TestSiteMemberDataclass:
 
     def test_init_without_joined_at(self):
         """joined_atなしでの初期化"""
-        site = MagicMock()
+        site = _site()
         user = _member_user()
 
         member = SiteMember(site=site, user=user, joined_at=None)
 
         assert member.joined_at is None
 
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_init_rejects_malformed_sites(self, site: object):
+        """SiteMember.siteがSiteでなければ初期化時に拒否する"""
+        user = _member_user()
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            SiteMember(site=bad_site, user=user, joined_at=None)
+
     @pytest.mark.parametrize("user", [None, True, "TestUser", {"id": 12345}, object()])
     def test_init_rejects_malformed_users(self, user: object):
         """SiteMember.userがAbstractUserでなければ初期化時に拒否する"""
-        site = MagicMock()
+        site = _site()
         bad_user: Any = user
 
         with pytest.raises(ValueError, match="member.user must be an AbstractUser"):
@@ -59,7 +82,7 @@ class TestSiteMemberDataclass:
     @pytest.mark.parametrize("joined_at", [True, 1700000000, "2024-01-01", []])
     def test_init_rejects_malformed_joined_at(self, joined_at: object) -> None:
         """SiteMember.joined_atはdatetimeまたはNoneだけ受け付ける"""
-        site = MagicMock()
+        site = _site()
         user = _member_user()
         bad_joined_at: Any = joined_at
 
@@ -85,7 +108,7 @@ class TestSiteMemberParse:
             """,
             "lxml",
         )
-        site = MagicMock()
+        site = _site()
         mock_user = _member_user()
 
         with (
@@ -116,7 +139,7 @@ class TestSiteMemberParse:
             """,
             "lxml",
         )
-        site = MagicMock()
+        site = _site()
         mock_user = _member_user()
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
@@ -144,7 +167,7 @@ class TestSiteMemberParse:
             """,
             "lxml",
         )
-        site = MagicMock()
+        site = _site()
         mock_user = _member_user()
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
@@ -172,7 +195,7 @@ class TestSiteMemberParse:
             """,
             "lxml",
         )
-        site = MagicMock()
+        site = _site()
         mock_user = _member_user()
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
@@ -207,7 +230,7 @@ class TestSiteMemberParse:
             """,
             "lxml",
         )
-        site = MagicMock()
+        site = _site()
         real_joined_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
 
         with (
@@ -235,7 +258,7 @@ class TestSiteMemberGet:
 
     def test_get_members_single_page(self):
         """単一ページのメンバー取得"""
-        site = MagicMock()
+        site = _site()
         response = self._members_response(
             """
                 <table>
@@ -299,7 +322,7 @@ class TestSiteMemberGet:
 
     def test_get_members_raises_when_first_page_retry_is_exhausted(self):
         """初回ページの再試行失敗はsite/group/page付きで失敗する"""
-        site = MagicMock()
+        site = _site()
         site.unix_name = "test-site"
         site.amc_request_with_retry.return_value = (None,)
 
@@ -313,7 +336,7 @@ class TestSiteMemberGet:
 
     def test_get_members_missing_first_page_response_body_includes_context(self):
         """初回ページのbody欠落はsite/group/page付きで失敗する"""
-        site = MagicMock()
+        site = _site()
         site.unix_name = "test-site"
         response = MagicMock()
         response.json.return_value = {}
@@ -333,7 +356,7 @@ class TestSiteMemberGet:
 
     def test_get_members_malformed_response_body_type_includes_context(self):
         """初回ページのbody型異常はsite/group/page/type付きで失敗する"""
-        site = MagicMock()
+        site = _site()
         site.unix_name = "test-site"
         response = MagicMock()
         response.json.return_value = {"body": ["not", "html"]}
@@ -356,7 +379,7 @@ class TestSiteMemberGet:
 
     def test_get_members_with_pagination(self):
         """ページネーション付きのメンバー取得"""
-        site = MagicMock()
+        site = _site()
 
         first_response = MagicMock()
         first_response.json.return_value = {
@@ -402,7 +425,7 @@ class TestSiteMemberGet:
 
     def test_get_members_raises_when_paginated_retry_is_exhausted(self):
         """ページネーション中の再試行失敗は部分的な一覧を返さない"""
-        site = MagicMock()
+        site = _site()
         site.unix_name = "test-site"
         first_response = self._members_response(
             """
@@ -435,7 +458,7 @@ class TestSiteMemberGet:
 
     def test_get_members_missing_paginated_response_body_includes_context(self):
         """ページネーション中のbody欠落はsite/group/page付きで失敗する"""
-        site = MagicMock()
+        site = _site()
         site.unix_name = "test-site"
         first_response = self._members_response(
             """
@@ -471,7 +494,7 @@ class TestSiteMemberGet:
 
     def test_get_members_malformed_user_includes_site_group_page_row_and_value_context(self):
         """メンバー行のprintuser異常値はsite/group/page/row/value付きで失敗する"""
-        site = MagicMock()
+        site = _site()
         site.unix_name = "test-site"
         response = self._members_response(
             """
@@ -499,7 +522,7 @@ class TestSiteMemberGet:
 
     def test_get_members_malformed_joined_at_includes_site_group_page_row_and_value_context(self):
         """メンバー行のodate異常値はsite/group/page/row/value付きで失敗する"""
-        site = MagicMock()
+        site = _site()
         site.unix_name = "test-site"
         response = self._members_response(
             """
@@ -532,7 +555,7 @@ class TestSiteMemberGet:
 
     def test_get_members_ignores_non_numeric_pager_links(self):
         """数値ページがないpagerでは単一ページとして扱う"""
-        site = MagicMock()
+        site = _site()
         response = MagicMock()
         response.json.return_value = {
             "body": """
@@ -559,7 +582,7 @@ class TestSiteMemberGet:
 
     def test_get_members_ignores_member_row_pager_markup(self):
         """メンバー行内のpager風マークアップをページネーションとして扱わない"""
-        site = MagicMock()
+        site = _site()
         response = self._members_response(
             """
                 <table>
@@ -590,7 +613,7 @@ class TestSiteMemberGet:
 
     def test_get_admins_group(self):
         """管理者グループ取得"""
-        site = MagicMock()
+        site = _site()
         response = MagicMock()
         response.json.return_value = {"body": "<table></table>"}
         site.amc_request_with_retry.return_value = (response,)
@@ -602,7 +625,7 @@ class TestSiteMemberGet:
 
     def test_get_moderators_group(self):
         """モデレーターグループ取得"""
-        site = MagicMock()
+        site = _site()
         response = MagicMock()
         response.json.return_value = {"body": "<table></table>"}
         site.amc_request_with_retry.return_value = (response,)
@@ -614,14 +637,14 @@ class TestSiteMemberGet:
 
     def test_get_invalid_group_raises(self):
         """無効なグループでValueError"""
-        site = MagicMock()
+        site = _site()
 
         with pytest.raises(ValueError, match="Invalid group"):
             SiteMember.get(site, "invalid_group")
 
     def test_get_default_group(self):
         """デフォルトグループ（None）"""
-        site = MagicMock()
+        site = _site()
         response = MagicMock()
         response.json.return_value = {"body": "<table></table>"}
         site.amc_request_with_retry.return_value = (response,)
@@ -641,7 +664,7 @@ class TestSiteMemberChangeGroup:
 
     def test_to_moderator_success(self):
         """モデレーター昇格成功"""
-        site = MagicMock()
+        site = _site()
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
@@ -657,7 +680,7 @@ class TestSiteMemberChangeGroup:
 
     def test_remove_moderator_success(self):
         """モデレーター降格成功"""
-        site = MagicMock()
+        site = _site()
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
@@ -671,7 +694,7 @@ class TestSiteMemberChangeGroup:
 
     def test_to_admin_success(self):
         """管理者昇格成功"""
-        site = MagicMock()
+        site = _site()
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
@@ -685,7 +708,7 @@ class TestSiteMemberChangeGroup:
 
     def test_remove_admin_success(self):
         """管理者降格成功"""
-        site = MagicMock()
+        site = _site()
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
@@ -710,7 +733,7 @@ class TestSiteMemberChangeGroup:
         self, method_name: str, cleared_cache: str, preserved_cache: str
     ):
         """権限変更成功後は対象ロールのメンバー一覧キャッシュを再取得させる"""
-        site = MagicMock()
+        site = _site()
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
@@ -731,7 +754,7 @@ class TestSiteMemberChangeGroup:
 
     def test_change_group_already_moderator_error(self):
         """既にモデレーターの場合のエラー"""
-        site = MagicMock()
+        site = _site()
         user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
@@ -745,7 +768,7 @@ class TestSiteMemberChangeGroup:
 
     def test_change_group_already_admin_error(self):
         """既に管理者の場合のエラー"""
-        site = MagicMock()
+        site = _site()
         user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
@@ -759,7 +782,7 @@ class TestSiteMemberChangeGroup:
 
     def test_change_group_not_already_error(self):
         """権限を持っていない場合のエラー"""
-        site = MagicMock()
+        site = _site()
         user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
@@ -773,7 +796,7 @@ class TestSiteMemberChangeGroup:
 
     def test_change_group_invalid_event_raises(self):
         """無効なイベントでValueError"""
-        site = MagicMock()
+        site = _site()
         user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
@@ -782,7 +805,7 @@ class TestSiteMemberChangeGroup:
 
     def test_change_group_missing_action_status_includes_site_user_event_and_field_context(self):
         """権限変更応答のstatus欠落は文脈付きNoElementException"""
-        site = MagicMock()
+        site = _site()
         site.unix_name = "test-site"
         cached_moderators = [object()]
         cached_admins = [object()]
@@ -809,7 +832,7 @@ class TestSiteMemberChangeGroup:
 
     def test_change_group_not_logged_in_raises_before_request(self):
         """未ログイン時は権限変更リクエストを送らない"""
-        site = MagicMock()
+        site = _site()
         site.client.login_check.side_effect = LoginRequiredException("Login required")
         user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
@@ -821,7 +844,7 @@ class TestSiteMemberChangeGroup:
 
     def test_change_group_other_error_reraises(self):
         """その他のエラーは再送出"""
-        site = MagicMock()
+        site = _site()
         user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
@@ -835,7 +858,7 @@ class TestSiteMemberChangeGroup:
 
     def test_change_group_rejects_non_user_before_login(self):
         """SiteMember.userがAbstractUserでなければログイン確認前に拒否する"""
-        site = MagicMock()
+        site = _site()
         site.client.login_check = MagicMock()
         site.amc_request = MagicMock()
         bad_user: Any = {"id": 12345, "name": "TestUser"}
@@ -848,6 +871,25 @@ class TestSiteMemberChangeGroup:
         site.client.login_check.assert_not_called()
         site.amc_request.assert_not_called()
 
+    def test_change_group_rejects_malformed_site_before_login(self):
+        """SiteMember.siteがSiteでなければログイン確認前に拒否する"""
+        member = SiteMember(site=_site(), user=self._user(), joined_at=None)
+        bad_site = MagicMock()
+        bad_site.client.login_check = MagicMock()
+        bad_site.amc_request = MagicMock()
+        bad_site._moderators = [object()]
+        bad_site._admins = [object()]
+        malformed_site: Any = bad_site
+        member.site = malformed_site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            member.to_moderator()
+
+        bad_site.client.login_check.assert_not_called()
+        bad_site.amc_request.assert_not_called()
+        assert bad_site._moderators
+        assert bad_site._admins
+
     @pytest.mark.parametrize(
         ("user_kwargs", "message"),
         [
@@ -858,7 +900,7 @@ class TestSiteMemberChangeGroup:
     )
     def test_change_group_rejects_malformed_user_before_login(self, user_kwargs: dict[str, Any], message: str) -> None:
         """SiteMember.userの必須フィールド不正はログイン確認やAMCリクエスト前に拒否する"""
-        site = MagicMock()
+        site = _site()
         site.client.login_check = MagicMock()
         site.amc_request = MagicMock()
         bad_user = User(client=MagicMock(), id=12345, name="TestUser", unix_name="test-user", avatar_url=None)

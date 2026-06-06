@@ -126,6 +126,14 @@ def _validate_site_member_user(user: object) -> AbstractUser:
     return user
 
 
+def _validate_site_member_site(site: object) -> "Site":
+    from .site import Site
+
+    if not isinstance(site, Site):
+        raise ValueError("site must be a Site")
+    return site
+
+
 def _validate_site_member_joined_at(joined_at: object) -> datetime | None:
     if joined_at is None:
         return None
@@ -165,6 +173,7 @@ class SiteMember:
     joined_at: datetime | None
 
     def __post_init__(self) -> None:
+        self.site = _validate_site_member_site(self.site)
         self.user = _validate_site_member_user(self.user)
         self.joined_at = _validate_site_member_joined_at(self.joined_at)
 
@@ -387,11 +396,12 @@ class SiteMember:
         ]:
             raise ValueError("Invalid event")
 
+        site = _validate_site_member_site(self.site)
         user = _validate_site_member_action_user(self.user)
-        self.site.client.login_check()
+        site.client.login_check()
 
         try:
-            response = self.site.amc_request(
+            response = site.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
@@ -403,9 +413,9 @@ class SiteMember:
             )[0]
             _require_site_member_action_status(self, event, response.json())
             if event in ("toModerators", "removeModerator"):
-                self.site._moderators = None
+                site._moderators = None
             else:
-                self.site._admins = None
+                site._admins = None
         except WikidotStatusCodeException as e:
             if e.status_code == "not_already":
                 raise TargetErrorException(f"User is not moderator/admin: {user.name}") from e
