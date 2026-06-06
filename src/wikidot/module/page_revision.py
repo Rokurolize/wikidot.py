@@ -40,6 +40,18 @@ def _validate_revision_page(value: object) -> "Page":
     return value
 
 
+def _validate_revision_id(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("id must be an integer")
+    return value
+
+
+def _validate_revision_number(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("rev_no must be an integer")
+    return value
+
+
 def _validate_revision_source(value: object) -> PageSource:
     if not isinstance(value, PageSource):
         raise ValueError("revision.source must be PageSource")
@@ -385,6 +397,8 @@ class PageRevision:
 
     def __post_init__(self) -> None:
         self.page = _validate_revision_page(self.page)
+        self.id = _validate_revision_id(self.id)
+        self.rev_no = _validate_revision_number(self.rev_no)
 
     def is_source_acquired(self) -> bool:
         """

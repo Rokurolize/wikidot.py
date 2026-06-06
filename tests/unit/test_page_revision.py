@@ -534,6 +534,36 @@ class TestPageRevision:
                 comment="Initial revision",
             )
 
+    @pytest.mark.parametrize("revision_id", [None, True, "100", 100.0])
+    def test_init_rejects_malformed_ids(self, mock_page, mock_user, revision_id: object) -> None:
+        """PageRevisionは整数IDだけ受け付ける"""
+        bad_revision_id: Any = revision_id
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            PageRevision(
+                page=mock_page,
+                id=bad_revision_id,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+            )
+
+    @pytest.mark.parametrize("rev_no", [None, True, "1", 1.0])
+    def test_init_rejects_malformed_revision_numbers(self, mock_page, mock_user, rev_no: object) -> None:
+        """PageRevisionは整数のリビジョン番号だけ受け付ける"""
+        bad_rev_no: Any = rev_no
+
+        with pytest.raises(ValueError, match="rev_no must be an integer"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=bad_rev_no,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+            )
+
     def test_is_source_acquired_false(self, sample_revision):
         """ソース未取得の確認"""
         assert sample_revision.is_source_acquired() is False
