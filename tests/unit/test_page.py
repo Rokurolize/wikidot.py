@@ -159,6 +159,20 @@ class TestPageCollectionInit:
         assert collection.site == mock_site_no_http
         assert len(collection) == 1
 
+    def test_init_infers_site_from_first_page(self, mock_page_no_http: Page) -> None:
+        """site未指定なら先頭ページから推定する"""
+        collection = PageCollection(pages=[mock_page_no_http])
+        assert collection.site == mock_page_no_http.site
+        assert len(collection) == 1
+
+    @pytest.mark.parametrize("site", [True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_init_rejects_malformed_sites(self, site: object) -> None:
+        """明示されたsiteはSiteだけ受け付ける"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            PageCollection(bad_site, pages=[])
+
     @pytest.mark.parametrize("pages", ["test-page", ("test-page",)])
     def test_init_rejects_non_list_pages(self, mock_site_no_http: Site, pages: object) -> None:
         """pagesはリストだけ受け付ける"""

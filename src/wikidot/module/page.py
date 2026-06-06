@@ -129,6 +129,14 @@ def _validate_pages(pages: object) -> list["Page"]:
     return cast(list["Page"], pages)
 
 
+def _validate_page_collection_site(site: object) -> "Site":
+    from .site import Site
+
+    if not isinstance(site, Site):
+        raise ValueError("site must be a Site")
+    return site
+
+
 def _validate_listpages_retry_max_retries(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
         raise ValueError(f"retry_max_retries must be a non-negative integer, got {value}")
@@ -665,7 +673,7 @@ class PageCollection(list["Page"]):
         super().__init__(validated_pages)
 
         if site is not None:
-            self.site = site
+            self.site = _validate_page_collection_site(site)
         else:
             self.site = self[0].site
 
