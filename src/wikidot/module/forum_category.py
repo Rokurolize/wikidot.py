@@ -67,6 +67,14 @@ def _validate_forum_category_collection_categories(categories: object) -> list["
     return cast(list["ForumCategory"], categories)
 
 
+def _validate_forum_category_threads(value: object) -> ForumThreadCollection:
+    if not isinstance(value, ForumThreadCollection):
+        raise ValueError("category.threads must be ForumThreadCollection")
+    if any(not isinstance(thread, ForumThread) for thread in value):
+        raise ValueError("category.threads list entries must be ForumThread")
+    return value
+
+
 class ForumCategoryCollection(list["ForumCategory"]):
     """
     Class representing a collection of forum categories
@@ -320,7 +328,7 @@ class ForumCategory:
         value : ForumThreadCollection
             Thread collection to set
         """
-        self._threads = value
+        self._threads = _validate_forum_category_threads(value)
 
     def reload_threads(self) -> ForumThreadCollection:
         """

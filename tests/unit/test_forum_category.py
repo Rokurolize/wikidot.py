@@ -357,6 +357,36 @@ class TestForumCategoryBasic:
         mock_forum_category_no_http.threads = threads
         assert mock_forum_category_no_http._threads == threads
 
+    @pytest.mark.parametrize("threads", [None, True, "3001", {"id": 3001}, []])
+    def test_threads_setter_rejects_invalid_collections(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread, threads: object
+    ) -> None:
+        """不正なthreads代入は既存のキャッシュを破壊しない"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        bad_threads: Any = threads
+
+        with pytest.raises(ValueError, match="category.threads must be ForumThreadCollection"):
+            mock_forum_category_no_http.threads = bad_threads
+
+        assert mock_forum_category_no_http.threads[0].id == 3001
+
+    @pytest.mark.parametrize("thread", [None, True, "3001", {"id": 3001}])
+    def test_threads_setter_rejects_invalid_collection_entries(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread, thread: object
+    ) -> None:
+        """不正なthreads collection要素は既存のキャッシュを破壊しない"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        bad_thread_entry: Any = thread
+        bad_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        bad_threads[0] = bad_thread_entry
+
+        with pytest.raises(ValueError, match="category.threads list entries must be ForumThread"):
+            mock_forum_category_no_http.threads = bad_threads
+
+        assert mock_forum_category_no_http.threads[0].id == 3001
+
 
 class TestForumCategoryCreateThread:
     """ForumCategory.create_threadのテスト"""
