@@ -1183,6 +1183,26 @@ class TestForumPostBasic:
         mock_forum_post_no_http._parent_id = 4999
         assert mock_forum_post_no_http.parent_id == 4999
 
+    @pytest.mark.parametrize("parent_id", [True, "4999", 4999.0, {"id": 4999}])
+    def test_init_rejects_malformed_parent_id(self, mock_forum_post_no_http: ForumPost, parent_id: object) -> None:
+        """ForumPostの初期化は整数またはNoneの親投稿IDだけ受け付ける"""
+        bad_parent_id: Any = parent_id
+
+        with pytest.raises(ValueError, match="parent_id must be an integer or None"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=bad_parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
     @pytest.mark.parametrize("thread", [None, True, "3001", {"id": 3001}, object()])
     def test_init_rejects_malformed_threads(self, mock_forum_post_no_http: ForumPost, thread: object) -> None:
         """ForumPostの初期化はForumThreadだけ受け付ける"""

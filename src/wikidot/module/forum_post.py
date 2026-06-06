@@ -42,6 +42,14 @@ def _validate_post_id(post_id: object) -> int:
     return post_id
 
 
+def _validate_optional_post_parent_id(parent_id: object) -> int | None:
+    if parent_id is None:
+        return None
+    if not isinstance(parent_id, int) or isinstance(parent_id, bool):
+        raise ValueError("parent_id must be an integer or None")
+    return parent_id
+
+
 def _validate_post_created_by(created_by: object) -> "AbstractUser":
     from .user import AbstractUser
 
@@ -794,6 +802,7 @@ class ForumPost:
     def __post_init__(self) -> None:
         self.thread = _validate_forum_thread(self.thread)
         self.id = _validate_post_id(self.id)
+        self._parent_id = _validate_optional_post_parent_id(self._parent_id)
         self.title = validate_text_field("title", self.title)
         self.text = validate_text_field("text", self.text)
         self.created_by = _validate_post_created_by(self.created_by)
