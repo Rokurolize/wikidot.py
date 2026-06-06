@@ -578,9 +578,20 @@ class TestPageRevision:
 
     def test_source_setter(self, sample_revision):
         """sourceセッター"""
-        mock_source = MagicMock()
-        sample_revision.source = mock_source
-        assert sample_revision._source == mock_source
+        source = PageSource(page=sample_revision.page, wiki_text="cached revision source")
+        sample_revision.source = source
+        assert sample_revision._source == source
+
+    @pytest.mark.parametrize("source", [None, True, "cached revision source", {"wiki_text": "cached revision source"}])
+    def test_source_setter_rejects_invalid_sources(self, sample_revision, source):
+        """sourceセッターはPageSource以外を受け付けない"""
+        cached_source = PageSource(page=sample_revision.page, wiki_text="cached revision source")
+        sample_revision.source = cached_source
+
+        with pytest.raises(ValueError, match="revision.source must be PageSource"):
+            sample_revision.source = source
+
+        assert sample_revision.source == cached_source
 
     def test_html_property_lazy_load(self, mock_page, sample_revision):
         """htmlプロパティの遅延読み込み"""

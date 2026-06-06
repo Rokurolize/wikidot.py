@@ -32,6 +32,12 @@ def _validate_revisions(revisions: object) -> list["PageRevision"]:
     return cast(list["PageRevision"], revisions)
 
 
+def _validate_revision_source(value: object) -> PageSource:
+    if not isinstance(value, PageSource):
+        raise ValueError("revision.source must be PageSource")
+    return value
+
+
 class PageRevisionCollection(list["PageRevision"]):
     """
     Class representing a collection of page revisions
@@ -416,7 +422,7 @@ class PageRevision:
         value : PageSource
             The source code to set
         """
-        self._source = value
+        self._source = _validate_revision_source(value)
 
     @property
     def html(self) -> str:
