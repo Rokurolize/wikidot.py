@@ -71,6 +71,14 @@ class TestPageRevisionCollection:
         assert len(collection) == 0
         assert collection.page == mock_page
 
+    @pytest.mark.parametrize("page", [True, "test-page", {"fullname": "test-page"}, object()])
+    def test_init_rejects_malformed_pages(self, page: object) -> None:
+        """明示されたpageはPageだけ受け付ける"""
+        bad_page: Any = page
+
+        with pytest.raises(ValueError, match="page must be a Page"):
+            PageRevisionCollection(page=bad_page, revisions=[])
+
     @pytest.mark.parametrize("revisions", [True, False, "100", ("100",), 100])
     def test_init_rejects_non_list_revisions(self, mock_page, revisions: object) -> None:
         """リビジョンコレクションの初期化はlistまたはNoneだけ受け付ける"""

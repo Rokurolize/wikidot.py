@@ -112,7 +112,7 @@ class PageRevisionCollection(list["PageRevision"]):
         """
         super().__init__(_validate_revisions(revisions))
         if page is not None:
-            self.page = page
+            self.page = _validate_revision_page(page)
         elif len(self) > 0:
             self.page = self[0].page
         else:
