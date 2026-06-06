@@ -36,6 +36,24 @@ class TestForumThreadCollectionInit:
         assert collection.site == mock_site_no_http
         assert len(collection) == 1
 
+    def test_init_infers_site_from_threads(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """サイト未指定時はスレッドからサイトを推測する"""
+        collection = ForumThreadCollection(threads=[mock_forum_thread_no_http])
+        assert collection.site == mock_forum_thread_no_http.site
+        assert len(collection) == 1
+
+    @pytest.mark.parametrize("threads", [True, False, "3001", ("3001",), 3001])
+    def test_init_rejects_non_list_threads(self, mock_site_no_http: Site, threads: object) -> None:
+        """スレッドコレクションの初期化はlistまたはNoneだけ受け付ける"""
+        with pytest.raises(ValueError, match="threads must be a list or None"):
+            ForumThreadCollection(mock_site_no_http, threads)
+
+    @pytest.mark.parametrize("thread", [None, True, "3001", {"id": 3001}])
+    def test_init_rejects_non_thread_entries(self, mock_site_no_http: Site, thread: object) -> None:
+        """スレッドコレクションの初期化はForumThreadだけ受け付ける"""
+        with pytest.raises(ValueError, match="threads list entries must be ForumThread"):
+            ForumThreadCollection(mock_site_no_http, [thread])  # type: ignore[list-item]
+
     def test_find_existing(self, mock_site_no_http: Site, mock_forum_thread_no_http: ForumThread) -> None:
         """存在するスレッドをIDで検索できる"""
         collection = ForumThreadCollection(mock_site_no_http, [mock_forum_thread_no_http])

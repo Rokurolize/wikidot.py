@@ -44,6 +44,16 @@ def _validate_thread_ids(thread_ids: object) -> list[int]:
     return cast(list[int], thread_ids)
 
 
+def _validate_forum_thread_collection_threads(threads: object) -> list["ForumThread"]:
+    if threads is None:
+        return []
+    if not isinstance(threads, list):
+        raise ValueError("threads must be a list or None")
+    if any(not isinstance(thread, ForumThread) for thread in threads):
+        raise ValueError("threads list entries must be ForumThread")
+    return cast(list["ForumThread"], threads)
+
+
 def _validate_optional_post_id(field: str, post_id: object) -> int | None:
     if post_id is None:
         return None
@@ -255,7 +265,7 @@ class ForumThreadCollection(list["ForumThread"]):
         threads : list[ForumThread] | None, default None
             List of threads to store
         """
-        super().__init__(threads or [])
+        super().__init__(_validate_forum_thread_collection_threads(threads))
 
         if site is not None:
             self.site = site
