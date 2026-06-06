@@ -566,6 +566,24 @@ class AjaxModuleConnectorClient:
                     await asyncio.sleep(backoff)
                     continue
 
+                if not isinstance(_response_body["status"], str):
+                    retry_count += 1
+                    if retry_count >= attempt_limit:
+                        wd_logger.error(f"AMC response status must be a string -> {_mask_sensitive_data(request_body)}")
+                        raise ResponseDataException("AMC response status must be a string")
+
+                    backoff = _calculate_backoff(
+                        retry_count,
+                        retry_interval,
+                        backoff_factor,
+                        max_backoff,
+                    )
+                    wd_logger.info(
+                        f"AMC response status must be a string (retry: {retry_count}, backoff: {backoff:.2f}s)"
+                    )
+                    await asyncio.sleep(backoff)
+                    continue
+
                 # Treat as error if status is not ok
                 if "status" in _response_body:
                     # Retry if status is try_again

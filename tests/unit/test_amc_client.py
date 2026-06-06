@@ -632,6 +632,24 @@ class TestAjaxModuleConnectorClientRequest:
         assert len(httpx_mock.get_requests()) == 2
         assert responses[0].json()["status"] == "ok"
 
+    def test_retry_on_non_string_status_response(self, httpx_mock: HTTPXMock) -> None:
+        """statusが文字列ではないJSONレスポンスでリトライ"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": 123, "body": ""},
+        )
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+        )
+
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+        responses = client.request([{"moduleName": "Test"}])
+
+        assert len(httpx_mock.get_requests()) == 2
+        assert responses[0].json()["status"] == "ok"
+
     @pytest.mark.httpx_mock(can_send_already_matched_responses=True)
     def test_empty_response_max_retry(self, httpx_mock: HTTPXMock) -> None:
         """空レスポンスでリトライ上限超過"""
@@ -658,6 +676,20 @@ class TestAjaxModuleConnectorClientRequest:
         client = AjaxModuleConnectorClient(site_name="www", config=config)
 
         with pytest.raises(ResponseDataException, match="AMC response is missing status field"):
+            client.request([{"moduleName": "Test"}])
+
+    @pytest.mark.httpx_mock(can_send_already_matched_responses=True)
+    def test_non_string_status_response_max_retry(self, httpx_mock: HTTPXMock) -> None:
+        """statusが文字列ではないJSONレスポンスでリトライ上限超過"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": 123, "body": ""},
+        )
+
+        config = AjaxModuleConnectorConfig(attempt_limit=2, retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(ResponseDataException, match="AMC response status must be a string"):
             client.request([{"moduleName": "Test"}])
 
     def test_return_exceptions_mode(self, httpx_mock: HTTPXMock) -> None:
