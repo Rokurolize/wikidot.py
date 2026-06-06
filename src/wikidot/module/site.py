@@ -141,6 +141,16 @@ def _validate_amc_retry_max_retries(value: object) -> int:
     return value
 
 
+def _validate_publish_result_source_matches(value: object) -> None:
+    if value is not None and not isinstance(value, bool):
+        raise ValueError("source_matches must be a boolean or None")
+
+
+def _validate_publish_result_boolean(value: object, field_name: str) -> None:
+    if not isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a boolean")
+
+
 @dataclass(frozen=True)
 class PagePublishResult:
     """
@@ -189,6 +199,13 @@ class PagePublishResult:
     parent_updated: bool
     metas_updated: bool
     created: bool = False
+
+    def __post_init__(self) -> None:
+        _validate_publish_result_source_matches(self.source_matches)
+        _validate_publish_result_boolean(self.tags_updated, "tags_updated")
+        _validate_publish_result_boolean(self.parent_updated, "parent_updated")
+        _validate_publish_result_boolean(self.metas_updated, "metas_updated")
+        _validate_publish_result_boolean(self.created, "created")
 
     @property
     def metadata_update_count(self) -> int:

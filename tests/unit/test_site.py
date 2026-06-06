@@ -1061,6 +1061,40 @@ class TestSitePageAccessor:
             "metadata_updated": True,
         }
 
+    @pytest.mark.parametrize("source_matches", ["false", 0, 1, []])
+    def test_publish_result_rejects_malformed_source_matches(self, source_matches: Any) -> None:
+        """PagePublishResultのsource_matchesはboolまたはNoneだけ受け付ける"""
+        page = MagicMock()
+
+        with pytest.raises(ValueError, match="source_matches must be a boolean or None"):
+            PagePublishResult(
+                page=page,
+                page_id=12345,
+                source_matches=source_matches,
+                tags_updated=False,
+                parent_updated=False,
+                metas_updated=False,
+            )
+
+    @pytest.mark.parametrize("field_name", ["tags_updated", "parent_updated", "metas_updated", "created"])
+    @pytest.mark.parametrize("value", [None, "false", 0, 1])
+    def test_publish_result_rejects_malformed_boolean_status_fields(self, field_name: str, value: Any) -> None:
+        """PagePublishResultの状態フラグはboolだけ受け付ける"""
+        page = MagicMock()
+        kwargs: dict[str, Any] = {
+            "page": page,
+            "page_id": 12345,
+            "source_matches": None,
+            "tags_updated": False,
+            "parent_updated": False,
+            "metas_updated": False,
+            "created": False,
+        }
+        kwargs[field_name] = value
+
+        with pytest.raises(ValueError, match=f"{field_name} must be a boolean"):
+            PagePublishResult(**kwargs)
+
     def test_publish_raises_when_verified_source_mismatches(self, mock_site_no_http: Site) -> None:
         """保存後のViewSourceModule取得結果が入力sourceと違う場合は例外にする"""
         mock_site_no_http.client.login_check = MagicMock()
