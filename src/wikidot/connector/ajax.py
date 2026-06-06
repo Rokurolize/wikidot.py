@@ -598,48 +598,44 @@ class AjaxModuleConnectorClient:
                     continue
 
                 # Treat as error if status is not ok
-                if "status" in _response_body:
-                    # Retry if status is try_again
-                    if _response_body["status"] == "try_again":
-                        retry_count += 1
-                        if retry_count >= attempt_limit:
-                            wd_logger.error(f'AMC is respond status: "try_again" -> {_mask_sensitive_data(_body)}')
-                            raise WikidotStatusCodeException('AMC is respond status: "try_again"', "try_again")
+                status = _response_body["status"]
+                if status == "try_again":
+                    retry_count += 1
+                    if retry_count >= attempt_limit:
+                        wd_logger.error(f'AMC is respond status: "try_again" -> {_mask_sensitive_data(request_body)}')
+                        raise WikidotStatusCodeException('AMC is respond status: "try_again"', "try_again")
 
-                        # Retry with exponential backoff interval
-                        backoff = _calculate_backoff(
-                            retry_count,
-                            retry_interval,
-                            backoff_factor,
-                            max_backoff,
-                        )
-                        wd_logger.info(
-                            f'AMC is respond status: "try_again" (retry: {retry_count}, backoff: {backoff:.2f}s)'
-                        )
-                        await asyncio.sleep(backoff)
-                        continue
+                    # Retry with exponential backoff interval
+                    backoff = _calculate_backoff(
+                        retry_count,
+                        retry_interval,
+                        backoff_factor,
+                        max_backoff,
+                    )
+                    wd_logger.info(
+                        f'AMC is respond status: "try_again" (retry: {retry_count}, backoff: {backoff:.2f}s)'
+                    )
+                    await asyncio.sleep(backoff)
+                    continue
 
-                    elif _response_body["status"] == "no_permission":
-                        target_str = "unknown"
-                        if "moduleName" in request_body:
-                            target_str = f"moduleName: {request_body['moduleName']}"
-                        elif "action" in request_body:
-                            target_str = (
-                                f"action: {request_body['action']}/"
-                                f"{request_body['event'] if 'event' in request_body else ''}"
-                            )
-                        raise ForbiddenException(f"Your account has no permission to perform this action: {target_str}")
+                elif status == "no_permission":
+                    target_str = "unknown"
+                    if "moduleName" in request_body:
+                        target_str = f"moduleName: {request_body['moduleName']}"
+                    elif "action" in request_body:
+                        target_str = (
+                            f"action: {request_body['action']}/"
+                            f"{request_body['event'] if 'event' in request_body else ''}"
+                        )
+                    raise ForbiddenException(f"Your account has no permission to perform this action: {target_str}")
 
-                    # Treat as error if status is not ok for other cases
-                    elif _response_body["status"] != "ok":
-                        wd_logger.error(
-                            f'AMC is respond error status: "{_response_body["status"]}" -> '
-                            f"{_mask_sensitive_data(request_body)}"
-                        )
-                        raise WikidotStatusCodeException(
-                            f'AMC is respond error status: "{_response_body["status"]}"',
-                            _response_body["status"],
-                        )
+                # Treat as error if status is not ok for other cases
+                elif status != "ok":
+                    wd_logger.error(f'AMC is respond error status: "{status}" -> {_mask_sensitive_data(request_body)}')
+                    raise WikidotStatusCodeException(
+                        f'AMC is respond error status: "{status}"',
+                        status,
+                    )
 
                 # Return response
                 return response

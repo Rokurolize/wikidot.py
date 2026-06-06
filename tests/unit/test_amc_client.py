@@ -477,6 +477,26 @@ class TestAjaxModuleConnectorClientRequest:
         with pytest.raises(WikidotStatusCodeException):
             client.request([{"moduleName": "Test"}])
 
+    def test_try_again_max_retry_log_uses_merged_request_body(
+        self, httpx_mock: HTTPXMock, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """try_again終端診断もmerged request bodyをマスクして記録する"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "try_again"},
+        )
+
+        caplog.set_level("ERROR")
+        config = AjaxModuleConnectorConfig(attempt_limit=1, retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(WikidotStatusCodeException):
+            client.request([{"moduleName": "Test"}])
+
+        assert "moduleName" in caplog.text
+        assert "wikidot_token7" in caplog.text
+        assert "***MASKED***" in caplog.text
+
     def test_no_permission_error(self, httpx_mock: HTTPXMock) -> None:
         """no_permissionでForbiddenException"""
         httpx_mock.add_response(
