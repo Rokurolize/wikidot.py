@@ -492,7 +492,7 @@ class SearchPagesQuery:
     def _validate_optional_integer(field: str, value: object) -> int | None:
         if value is None:
             return None
-        if not isinstance(value, int):
+        if not isinstance(value, int) or isinstance(value, bool):
             raise ValueError(f"{field} must be an integer or None")
         return value
 

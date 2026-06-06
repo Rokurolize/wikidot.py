@@ -256,6 +256,22 @@ class TestSearchPagesQueryValidation:
         with pytest.raises(ValueError, match="perPage must be an integer or None"):
             SearchPagesQuery(perPage=50.5)
 
+    def test_pagination_values_reject_booleans(self):
+        """ページネーション値はboolを整数として受け付けない"""
+        import pytest
+
+        invalid_values = [
+            ({"offset": True}, "offset must be an integer or None"),
+            ({"offset": False}, "offset must be an integer or None"),
+            ({"limit": True}, "limit must be an integer or None"),
+            ({"limit": False}, "limit must be an integer or None"),
+            ({"perPage": True}, "perPage must be an integer or None"),
+            ({"perPage": False}, "perPage must be an integer or None"),
+        ]
+        for kwargs, message in invalid_values:
+            with pytest.raises(ValueError, match=message):
+                SearchPagesQuery(**kwargs)
+
     def test_all_valid_parameters_work(self):
         """すべて有効なパラメータは正常に動作すること"""
         query = SearchPagesQuery(
