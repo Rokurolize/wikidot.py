@@ -191,6 +191,11 @@ def _validate_publish_result_boolean(value: object, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a boolean")
 
 
+def _validate_publish_result_page(value: object) -> None:
+    if not isinstance(value, Page):
+        raise ValueError("page must be a Page")
+
+
 def _validate_source_result_page(value: object) -> None:
     if not isinstance(value, Page):
         raise ValueError("page must be a Page")
@@ -267,6 +272,7 @@ class PagePublishResult:
         _validate_publish_result_boolean(self.parent_updated, "parent_updated")
         _validate_publish_result_boolean(self.metas_updated, "metas_updated")
         _validate_publish_result_boolean(self.created, "created")
+        _validate_publish_result_page(self.page)
 
     @property
     def metadata_update_count(self) -> int:

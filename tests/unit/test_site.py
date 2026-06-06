@@ -809,6 +809,24 @@ class TestSitePagesAccessor:
 class TestSitePageAccessor:
     """Site.pageアクセサのテスト"""
 
+    @staticmethod
+    def _page(site: Site, fullname: str = "test-page", page_id: int = 12345) -> Page:
+        return TestSitePagesAccessor._page(site, fullname, page_id)
+
+    @staticmethod
+    def _publishable_page(
+        site: Site,
+        fullname: str = "test-page",
+        page_id: int = 12345,
+        *,
+        wiki_text: str = "Saved source",
+    ) -> Page:
+        page = TestSitePageAccessor._page(site, fullname, page_id)
+        page_mock: Any = page
+        page_mock.set_metadata = MagicMock()
+        page_mock.refresh_source = MagicMock(return_value=PageSource(page=page, wiki_text=wiki_text))
+        return page
+
     def test_get_falls_back_to_default_category_name(
         self,
         mock_site_no_http: Site,
@@ -996,9 +1014,8 @@ class TestSitePageAccessor:
     def test_publish_edits_existing_page_sets_metadata_and_verifies_source(self, mock_site_no_http: Site) -> None:
         """既存ページの保存、メタデータ更新、ソース検証を一つのpublish操作で実行する"""
         mock_site_no_http.client.login_check = MagicMock()
-        saved_page = MagicMock()
-        saved_page.id = 12345
-        saved_page.refresh_source.return_value.wiki_text = "Saved source"
+        saved_page = self._publishable_page(mock_site_no_http, wiki_text="Saved source")
+        saved_page_mock: Any = saved_page
         existing_page = MagicMock()
         existing_page.edit.return_value = saved_page
         mock_site_no_http.page.get = MagicMock(return_value=existing_page)
@@ -1022,12 +1039,12 @@ class TestSitePageAccessor:
             comment="Automated publish",
             force_edit=True,
         )
-        saved_page.set_metadata.assert_called_once_with(
+        saved_page_mock.set_metadata.assert_called_once_with(
             tags=["published", "_hidden"],
             parent_fullname="parent-page",
             metas={"codex-source": "demo"},
         )
-        saved_page.refresh_source.assert_called_once_with()
+        saved_page_mock.refresh_source.assert_called_once_with()
         assert result.page is saved_page
         assert result.page_id == 12345
         assert result.source_matches is True
@@ -1038,8 +1055,8 @@ class TestSitePageAccessor:
     def test_publish_creates_missing_page_without_optional_steps(self, mock_site_no_http: Site) -> None:
         """未作成ページは作成し、任意のメタデータ更新やソース検証は省略できる"""
         mock_site_no_http.client.login_check = MagicMock()
-        created_page = MagicMock()
-        created_page.id = 67890
+        created_page = self._publishable_page(mock_site_no_http, "new-page", 67890, wiki_text="New source")
+        created_page_mock: Any = created_page
         mock_site_no_http.page.get = MagicMock(return_value=None)
 
         with patch.object(Page, "create_or_edit", return_value=created_page) as mock_create_or_edit:
@@ -1059,8 +1076,8 @@ class TestSitePageAccessor:
             force_edit=False,
             raise_on_exists=True,
         )
-        created_page.set_metadata.assert_not_called()
-        created_page.refresh_source.assert_not_called()
+        created_page_mock.set_metadata.assert_not_called()
+        created_page_mock.refresh_source.assert_not_called()
         assert result.page is created_page
         assert result.page_id == 67890
         assert result.source_matches is None
@@ -1072,8 +1089,7 @@ class TestSitePageAccessor:
         """publishの戻り値は新規作成か既存編集かを判別できる"""
         mock_site_no_http.client.login_check = MagicMock()
 
-        edited_page = MagicMock()
-        edited_page.id = 11111
+        edited_page = self._publishable_page(mock_site_no_http, "existing-page", 11111)
         existing_page = MagicMock()
         existing_page.edit.return_value = edited_page
         mock_site_no_http.page.get = MagicMock(return_value=existing_page)
@@ -1083,8 +1099,7 @@ class TestSitePageAccessor:
         assert edited_result.created is False
         assert edited_result.operation == "edit"
 
-        created_page = MagicMock()
-        created_page.id = 22222
+        created_page = self._publishable_page(mock_site_no_http, "new-page", 22222)
         mock_site_no_http.page.get = MagicMock(return_value=None)
 
         with patch.object(Page, "create_or_edit", return_value=created_page):
@@ -1093,12 +1108,14 @@ class TestSitePageAccessor:
         assert created_result.created is True
         assert created_result.operation == "create"
 
-    def test_publish_result_exposes_aggregate_operation_statuses(self) -> None:
+    def test_publish_result_exposes_aggregate_operation_statuses(self, mock_site_no_http: Site) -> None:
         """publishの戻り値は集約した後続処理ステータスも判別できる"""
-        page = MagicMock()
+        verified_page = self._page(mock_site_no_http, "verified-page", 12345)
+        skipped_page = self._page(mock_site_no_http, "skipped-page", 67890)
+        failed_page = self._page(mock_site_no_http, "failed-page", 13579)
 
         verified_with_metadata = PagePublishResult(
-            page=page,
+            page=verified_page,
             page_id=12345,
             source_matches=True,
             tags_updated=False,
@@ -1106,7 +1123,7 @@ class TestSitePageAccessor:
             metas_updated=False,
         )
         skipped_optional_steps = PagePublishResult(
-            page=page,
+            page=skipped_page,
             page_id=67890,
             source_matches=None,
             tags_updated=False,
@@ -1114,7 +1131,7 @@ class TestSitePageAccessor:
             metas_updated=False,
         )
         failed_source_check = PagePublishResult(
-            page=page,
+            page=failed_page,
             page_id=13579,
             source_matches=False,
             tags_updated=False,
@@ -1138,12 +1155,9 @@ class TestSitePageAccessor:
         assert failed_source_check.source_verified is False
         assert failed_source_check.source_verification_status == "mismatched"
 
-    def test_publish_result_exports_audit_record(self) -> None:
+    def test_publish_result_exports_audit_record(self, mock_site_no_http: Site) -> None:
         """PagePublishResultは監査ledger向けの辞書形式に変換できる"""
-        page = MagicMock()
-        page.site.unix_name = "test-site"
-        page.fullname = "test-page"
-        page.get_url.return_value = "https://test-site.wikidot.com/test-page"
+        page = self._page(mock_site_no_http, "test-page", 12345)
         result = PagePublishResult(
             page=page,
             page_id=12345,
@@ -1175,10 +1189,25 @@ class TestSitePageAccessor:
             "metadata_updated": True,
         }
 
+    @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
+    def test_publish_result_rejects_malformed_pages(self, page: Any) -> None:
+        """PagePublishResultのpageはPageだけ受け付ける"""
+        with pytest.raises(ValueError, match="page must be a Page"):
+            PagePublishResult(
+                page=page,
+                page_id=12345,
+                source_matches=None,
+                tags_updated=False,
+                parent_updated=False,
+                metas_updated=False,
+            )
+
     @pytest.mark.parametrize("source_matches", ["false", 0, 1, []])
-    def test_publish_result_rejects_malformed_source_matches(self, source_matches: Any) -> None:
+    def test_publish_result_rejects_malformed_source_matches(
+        self, mock_site_no_http: Site, source_matches: Any
+    ) -> None:
         """PagePublishResultのsource_matchesはboolまたはNoneだけ受け付ける"""
-        page = MagicMock()
+        page = self._page(mock_site_no_http)
 
         with pytest.raises(ValueError, match="source_matches must be a boolean or None"):
             PagePublishResult(
@@ -1191,9 +1220,9 @@ class TestSitePageAccessor:
             )
 
     @pytest.mark.parametrize("page_id", [None, True, False, "12345", 12345.0, []])
-    def test_publish_result_rejects_malformed_page_ids(self, page_id: Any) -> None:
+    def test_publish_result_rejects_malformed_page_ids(self, mock_site_no_http: Site, page_id: Any) -> None:
         """PagePublishResultのpage_idは非bool整数だけ受け付ける"""
-        page = MagicMock()
+        page = self._page(mock_site_no_http)
 
         with pytest.raises(ValueError, match="page_id must be an integer"):
             PagePublishResult(
@@ -1207,9 +1236,11 @@ class TestSitePageAccessor:
 
     @pytest.mark.parametrize("field_name", ["tags_updated", "parent_updated", "metas_updated", "created"])
     @pytest.mark.parametrize("value", [None, "false", 0, 1])
-    def test_publish_result_rejects_malformed_boolean_status_fields(self, field_name: str, value: Any) -> None:
+    def test_publish_result_rejects_malformed_boolean_status_fields(
+        self, mock_site_no_http: Site, field_name: str, value: Any
+    ) -> None:
         """PagePublishResultの状態フラグはboolだけ受け付ける"""
-        page = MagicMock()
+        page = self._page(mock_site_no_http)
         kwargs: dict[str, Any] = {
             "page": page,
             "page_id": 12345,
@@ -1277,9 +1308,8 @@ class TestSitePageAccessor:
     def test_publish_verifies_source_with_custom_normalizer(self, mock_site_no_http: Site) -> None:
         """呼び出し側の正規化ルールで保存後ソースを検証できる"""
         mock_site_no_http.client.login_check = MagicMock()
-        saved_page = MagicMock()
-        saved_page.id = 12345
-        saved_page.refresh_source.return_value.wiki_text = "\nSaved source\n"
+        saved_page = self._publishable_page(mock_site_no_http, wiki_text="\nSaved source\n")
+        saved_page_mock: Any = saved_page
         existing_page = MagicMock()
         existing_page.edit.return_value = saved_page
         mock_site_no_http.page.get = MagicMock(return_value=existing_page)
@@ -1295,7 +1325,7 @@ class TestSitePageAccessor:
             source_normalizer=normalize_source,
         )
 
-        saved_page.refresh_source.assert_called_once_with()
+        saved_page_mock.refresh_source.assert_called_once_with()
         assert result.source_matches is True
 
     def test_publish_rejects_non_callable_source_normalizer_before_save(self, mock_site_no_http: Site) -> None:
@@ -1482,22 +1512,22 @@ class TestSitePageAccessor:
         mock_site_no_http.client.login_check = MagicMock()
         mock_site_no_http.page.get = MagicMock(return_value=None)
 
-        class EventuallyVisiblePage:
-            def __init__(self) -> None:
-                self.id_attempts = 0
-                self.set_metadata = MagicMock()
-                self.refresh_source = MagicMock()
+        created_page = self._publishable_page(mock_site_no_http, "new-page", 24680, wiki_text="New source")
+        created_page._id = None
+        id_attempts = 0
 
-            @property
-            def id(self) -> int:
-                self.id_attempts += 1
-                if self.id_attempts == 1:
-                    raise UnexpectedException("Cannot find page id: new-page")
-                return 24680
+        def acquire_ids(_site: Site, pages: list[Page]) -> list[Page]:
+            nonlocal id_attempts
+            id_attempts += 1
+            if id_attempts == 1:
+                raise UnexpectedException("Cannot find page id: new-page")
+            pages[0].id = 24680
+            return pages
 
-        created_page = EventuallyVisiblePage()
-
-        with patch.object(Page, "create_or_edit", return_value=created_page):
+        with (
+            patch.object(Page, "create_or_edit", return_value=created_page),
+            patch.object(PageCollection, "_acquire_page_ids", side_effect=acquire_ids),
+        ):
             result = mock_site_no_http.page.publish(
                 "new-page",
                 title="New Title",
@@ -1506,7 +1536,7 @@ class TestSitePageAccessor:
                 post_save_visibility_interval=0,
             )
 
-        assert created_page.id_attempts == 2
+        assert id_attempts == 2
         assert result.page is created_page
         assert result.page_id == 24680
 
