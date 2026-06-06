@@ -19,13 +19,17 @@ from wikidot.module.site_member import SiteMember
 from wikidot.module.user import User
 
 
+def _member_user(user_id: int = 12345, name: str = "TestUser") -> User:
+    return User(client=MagicMock(), id=user_id, name=name, unix_name="test-user")
+
+
 class TestSiteMemberDataclass:
     """SiteMemberデータクラスのテスト"""
 
     def test_init(self):
         """初期化のテスト"""
         site = MagicMock()
-        user = MagicMock()
+        user = _member_user()
         joined_at = datetime.now(timezone.utc)
 
         member = SiteMember(site=site, user=user, joined_at=joined_at)
@@ -37,11 +41,20 @@ class TestSiteMemberDataclass:
     def test_init_without_joined_at(self):
         """joined_atなしでの初期化"""
         site = MagicMock()
-        user = MagicMock()
+        user = _member_user()
 
         member = SiteMember(site=site, user=user, joined_at=None)
 
         assert member.joined_at is None
+
+    @pytest.mark.parametrize("user", [None, True, "TestUser", {"id": 12345}, object()])
+    def test_init_rejects_malformed_users(self, user: object):
+        """SiteMember.userがAbstractUserでなければ初期化時に拒否する"""
+        site = MagicMock()
+        bad_user: Any = user
+
+        with pytest.raises(ValueError, match="member.user must be an AbstractUser"):
+            SiteMember(site=site, user=bad_user, joined_at=None)
 
 
 class TestSiteMemberParse:
@@ -63,7 +76,7 @@ class TestSiteMemberParse:
             "lxml",
         )
         site = MagicMock()
-        mock_user = MagicMock()
+        mock_user = _member_user()
 
         with (
             patch("wikidot.module.site_member.user_parser") as mock_user_parser,
@@ -94,7 +107,7 @@ class TestSiteMemberParse:
             "lxml",
         )
         site = MagicMock()
-        mock_user = MagicMock()
+        mock_user = _member_user()
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
             mock_user_parser.return_value = mock_user
@@ -122,7 +135,7 @@ class TestSiteMemberParse:
             "lxml",
         )
         site = MagicMock()
-        mock_user = MagicMock()
+        mock_user = _member_user()
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
             mock_user_parser.return_value = mock_user
@@ -150,7 +163,7 @@ class TestSiteMemberParse:
             "lxml",
         )
         site = MagicMock()
-        mock_user = MagicMock()
+        mock_user = _member_user()
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
             mock_user_parser.return_value = mock_user
@@ -191,13 +204,13 @@ class TestSiteMemberParse:
             patch("wikidot.module.site_member.user_parser") as mock_user_parser,
             patch("wikidot.module.site_member.odate_parser") as mock_odate_parser,
         ):
-            mock_user_parser.side_effect = lambda _client, elem: elem.get_text(strip=True)
+            mock_user_parser.side_effect = lambda _client, elem: _member_user(name=elem.get_text(strip=True))
             mock_odate_parser.return_value = real_joined_at
 
             members = SiteMember._parse(site, html)
 
             assert len(members) == 1
-            assert members[0].user == "Real User"
+            assert members[0].user.name == "Real User"
             assert members[0].joined_at == real_joined_at
 
 
@@ -227,7 +240,7 @@ class TestSiteMemberGet:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _member_user()
 
             members = SiteMember.get(site, "")
 
@@ -266,7 +279,7 @@ class TestSiteMemberGet:
         ]
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _member_user()
 
             members = SiteMember.get(site, "")
 
@@ -369,7 +382,7 @@ class TestSiteMemberGet:
         site.amc_request_with_retry.side_effect = [(first_response,), (second_response,)]
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _member_user()
 
             members = SiteMember.get(site, "")
 
@@ -405,7 +418,7 @@ class TestSiteMemberGet:
                 match="Cannot retrieve site members for site: test-site, group: members, page: 2",
             ),
         ):
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _member_user()
             SiteMember.get(site, "")
 
         site.amc_request.assert_not_called()
@@ -440,7 +453,7 @@ class TestSiteMemberGet:
                 match="Site member list response body is not found for site: test-site, group: members, page: 2",
             ),
         ):
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _member_user()
             SiteMember.get(site, "")
 
         site.amc_request.assert_not_called()
@@ -502,7 +515,7 @@ class TestSiteMemberGet:
                 ),
             ),
         ):
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _member_user()
             SiteMember.get(site, "")
 
         site.amc_request.assert_not_called()
@@ -526,7 +539,7 @@ class TestSiteMemberGet:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _member_user()
 
             members = SiteMember.get(site, "")
 
@@ -557,7 +570,7 @@ class TestSiteMemberGet:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _member_user()
 
             members = SiteMember.get(site, "")
 
@@ -614,7 +627,7 @@ class TestSiteMemberChangeGroup:
 
     @staticmethod
     def _user(user_id: int = 12345, name: str = "TestUser") -> User:
-        return User(client=MagicMock(), id=user_id, name=name, unix_name="test-user")
+        return _member_user(user_id=user_id, name=name)
 
     def test_to_moderator_success(self):
         """モデレーター昇格成功"""
@@ -751,7 +764,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_invalid_event_raises(self):
         """無効なイベントでValueError"""
         site = MagicMock()
-        user = MagicMock()
+        user = self._user()
         member = SiteMember(site=site, user=user, joined_at=None)
 
         with pytest.raises(ValueError, match="Invalid event"):
@@ -816,7 +829,8 @@ class TestSiteMemberChangeGroup:
         site.client.login_check = MagicMock()
         site.amc_request = MagicMock()
         bad_user: Any = {"id": 12345, "name": "TestUser"}
-        member = SiteMember(site=site, user=bad_user, joined_at=None)
+        member = SiteMember(site=site, user=self._user(), joined_at=None)
+        member.user = bad_user
 
         with pytest.raises(ValueError, match="member.user must be an AbstractUser"):
             member.to_moderator()

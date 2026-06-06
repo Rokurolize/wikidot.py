@@ -120,9 +120,14 @@ def _require_site_member_action_status(member: "SiteMember", event: str, data: d
     return status
 
 
-def _validate_site_member_action_user(user: object) -> AbstractUser:
+def _validate_site_member_user(user: object) -> AbstractUser:
     if not isinstance(user, AbstractUser):
         raise ValueError("member.user must be an AbstractUser")
+    return user
+
+
+def _validate_site_member_action_user(user: object) -> AbstractUser:
+    user = _validate_site_member_user(user)
     if not isinstance(user.id, int) or isinstance(user.id, bool):
         raise ValueError("member.user.id must be an integer")
     if not isinstance(user.name, str):
@@ -150,6 +155,9 @@ class SiteMember:
     site: "Site"
     user: "AbstractUser"
     joined_at: datetime | None
+
+    def __post_init__(self) -> None:
+        self.user = _validate_site_member_user(self.user)
 
     @staticmethod
     def _parse(
