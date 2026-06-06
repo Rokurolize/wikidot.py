@@ -190,6 +190,25 @@ def _validate_optional_page_vote_collection(value: object) -> PageVoteCollection
     return value
 
 
+def _validate_page_file_entries(files: "PageFileCollection") -> None:
+    from .page_file import PageFile
+
+    if any(not isinstance(file, PageFile) for file in files):
+        raise ValueError("page.files list entries must be PageFile")
+
+
+def _validate_optional_page_file_collection(value: object) -> "PageFileCollection | None":
+    if value is None:
+        return None
+
+    from .page_file import PageFileCollection
+
+    if not isinstance(value, PageFileCollection):
+        raise ValueError("page.files must be PageFileCollection or None")
+    _validate_page_file_entries(value)
+    return value
+
+
 def _validate_page_vote_value(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
         raise ValueError("Vote value must be 1 or -1")
@@ -1816,6 +1835,7 @@ class Page:
         self._source = _validate_optional_page_source_object(self._source)
         self._revisions = _validate_optional_page_revision_collection(self._revisions)
         self._votes = _validate_optional_page_vote_collection(self._votes)
+        self._files = _validate_optional_page_file_collection(self._files)
 
     def get_url(self) -> str:
         """

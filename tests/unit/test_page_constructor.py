@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from wikidot.module.page import Page
+from wikidot.module.page_file import PageFileCollection
 from wikidot.module.page_revision import PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.page_votes import PageVoteCollection
@@ -38,6 +39,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         "_source": None,
         "_revisions": None,
         "_votes": None,
+        "_files": None,
     }
     values.update(overrides)
 
@@ -66,6 +68,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         _source=values["_source"],
         _revisions=values["_revisions"],
         _votes=values["_votes"],
+        _files=values["_files"],
     )
 
 
@@ -327,3 +330,26 @@ class TestPageInit:
 
         with pytest.raises(ValueError, match=r"page\.votes list entries must be PageVote"):
             _page(mock_site_no_http, _votes=votes)
+
+    def test_init_accepts_valid_optional_files(self, mock_site_no_http: Any) -> None:
+        page_without_files = _page(mock_site_no_http)
+        files_owner = _page(mock_site_no_http)
+        files = PageFileCollection(files_owner, [])
+
+        page_with_files = _page(mock_site_no_http, _files=files)
+
+        assert page_without_files._files is None
+        assert page_with_files._files == files
+        assert page_with_files.files == files
+
+    @pytest.mark.parametrize("files", [True, "cached files", [], {"files": []}, object()])
+    def test_init_rejects_malformed_optional_files(self, mock_site_no_http: Any, files: Any) -> None:
+        with pytest.raises(ValueError, match=r"page\.files must be PageFileCollection or None"):
+            _page(mock_site_no_http, _files=files)
+
+    def test_init_rejects_malformed_optional_file_entries(self, mock_site_no_http: Any) -> None:
+        files: Any = PageFileCollection(_page(mock_site_no_http), [])
+        files.append(object())
+
+        with pytest.raises(ValueError, match=r"page\.files list entries must be PageFile"):
+            _page(mock_site_no_http, _files=files)
