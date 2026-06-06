@@ -1708,6 +1708,12 @@ class Page:
     _discussion_checked: bool = False
     _files: Optional["PageFileCollection"] = None
 
+    def __post_init__(self) -> None:
+        self.fullname = _validate_page_text_field("fullname", self.fullname)
+        self.name = _validate_page_text_field("name", self.name)
+        self.category = _validate_page_text_field("category", self.category)
+        self.title = _validate_page_text_field("title", self.title)
+
     def get_url(self) -> str:
         """
         Get the full URL of the page
