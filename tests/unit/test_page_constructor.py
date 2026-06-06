@@ -1,10 +1,12 @@
 """Page constructor validation tests."""
 
+from datetime import datetime
 from typing import Any
 
 import pytest
 
 from wikidot.module.page import Page
+from wikidot.module.user import User
 
 
 def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
@@ -182,3 +184,46 @@ class TestPageInit:
     def test_init_rejects_malformed_site(self, mock_site_no_http: Any, site: Any) -> None:
         with pytest.raises(ValueError, match="site must be a Site"):
             _page(mock_site_no_http, site=site)
+
+    def test_init_accepts_missing_user_and_timestamp_metadata(self, mock_site_no_http: Any) -> None:
+        page = _page(mock_site_no_http)
+
+        assert page.created_by is None
+        assert page.created_at is None
+        assert page.updated_by is None
+        assert page.updated_at is None
+        assert page.commented_by is None
+        assert page.commented_at is None
+
+    def test_init_accepts_valid_user_and_timestamp_metadata(self, mock_site_no_http: Any) -> None:
+        user = User(client=mock_site_no_http.client, id=12345, name="test-user", unix_name="test-user")
+        timestamp = datetime(2023, 1, 1, 12, 0, 0)
+
+        page = _page(
+            mock_site_no_http,
+            created_by=user,
+            created_at=timestamp,
+            updated_by=user,
+            updated_at=timestamp,
+            commented_by=user,
+            commented_at=timestamp,
+        )
+
+        assert page.created_by == user
+        assert page.created_at == timestamp
+        assert page.updated_by == user
+        assert page.updated_at == timestamp
+        assert page.commented_by == user
+        assert page.commented_at == timestamp
+
+    @pytest.mark.parametrize("field", ["created_by", "updated_by", "commented_by"])
+    @pytest.mark.parametrize("value", [True, 12345, "test-user", {"id": 12345}, object()])
+    def test_init_rejects_malformed_user_metadata(self, mock_site_no_http: Any, field: str, value: Any) -> None:
+        with pytest.raises(ValueError, match=f"{field} must be an AbstractUser or None"):
+            _page(mock_site_no_http, **{field: value})
+
+    @pytest.mark.parametrize("field", ["created_at", "updated_at", "commented_at"])
+    @pytest.mark.parametrize("value", [True, 1700000000, "2023-01-01", [], object()])
+    def test_init_rejects_malformed_timestamp_metadata(self, mock_site_no_http: Any, field: str, value: Any) -> None:
+        with pytest.raises(ValueError, match=f"{field} must be a datetime or None"):
+            _page(mock_site_no_http, **{field: value})

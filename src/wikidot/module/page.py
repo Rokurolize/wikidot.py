@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from .forum_thread import ForumThread
     from .page_file import PageFileCollection
     from .site import Site
-    from .user import User
+    from .user import AbstractUser, User
 
 
 class _UnsetParentType:
@@ -76,6 +76,25 @@ def _validate_page_tags(tags: object) -> list[str]:
     if any(not isinstance(tag, str) for tag in tags):
         raise ValueError("tags list entries must be strings")
     return cast(list[str], tags)
+
+
+def _validate_optional_page_user_field(field: str, value: object) -> "AbstractUser | None":
+    if value is None:
+        return None
+
+    from .user import AbstractUser
+
+    if not isinstance(value, AbstractUser):
+        raise ValueError(f"{field} must be an AbstractUser or None")
+    return value
+
+
+def _validate_optional_page_datetime_field(field: str, value: object) -> datetime | None:
+    if value is None:
+        return None
+    if not isinstance(value, datetime):
+        raise ValueError(f"{field} must be a datetime or None")
+    return value
 
 
 def _validate_page_bool_field(field: str, value: object) -> bool:
@@ -1679,15 +1698,15 @@ class Page:
         Fullname of parent page (None if no parent)
     tags : list[str]
         List of tags attached
-    created_by : User
-        Creator of the page
-    created_at : datetime
-        Date and time the page was created
-    updated_by : User
-        Last updater
-    updated_at : datetime
-        Last update date and time
-    commented_by : User | None
+    created_by : AbstractUser | None
+        Creator of the page (None if unavailable)
+    created_at : datetime | None
+        Date and time the page was created (None if unavailable)
+    updated_by : AbstractUser | None
+        Last updater (None if unavailable)
+    updated_at : datetime | None
+        Last update date and time (None if unavailable)
+    commented_by : AbstractUser | None
         User who last commented (None if no comments)
     commented_at : datetime | None
         Date and time of last comment (None if no comments)
@@ -1717,11 +1736,11 @@ class Page:
     revisions_count: int
     parent_fullname: str | None
     tags: list[str]
-    created_by: "User"
-    created_at: datetime
-    updated_by: "User"
-    updated_at: datetime
-    commented_by: Optional["User"]
+    created_by: Optional["AbstractUser"]
+    created_at: datetime | None
+    updated_by: Optional["AbstractUser"]
+    updated_at: datetime | None
+    commented_by: Optional["AbstractUser"]
     commented_at: datetime | None
     _id: int | None = None
     _source: PageSource | None = None
@@ -1746,6 +1765,12 @@ class Page:
         self.revisions_count = _validate_page_integer_field("revisions_count", self.revisions_count)
         self.parent_fullname = _normalize_parent_fullname(self.parent_fullname)
         self.tags = _validate_page_tags(self.tags)
+        self.created_by = _validate_optional_page_user_field("created_by", self.created_by)
+        self.created_at = _validate_optional_page_datetime_field("created_at", self.created_at)
+        self.updated_by = _validate_optional_page_user_field("updated_by", self.updated_by)
+        self.updated_at = _validate_optional_page_datetime_field("updated_at", self.updated_at)
+        self.commented_by = _validate_optional_page_user_field("commented_by", self.commented_by)
+        self.commented_at = _validate_optional_page_datetime_field("commented_at", self.commented_at)
 
     def get_url(self) -> str:
         """
