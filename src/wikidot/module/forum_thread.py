@@ -800,6 +800,8 @@ class ForumThread:
 
     def __post_init__(self) -> None:
         self.id = _validate_thread_id(self.id)
+        self.title = validate_text_field("title", self.title)
+        self.description = validate_text_field("description", self.description)
         self.category = _validate_optional_forum_category(self.category)
 
     def __str__(self) -> str:

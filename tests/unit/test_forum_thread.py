@@ -909,6 +909,48 @@ class TestForumThreadBasic:
                 category=mock_forum_thread_no_http.category,
             )
 
+    @pytest.mark.parametrize("title", [None, True, 3001, ["Test Thread"]])
+    def test_init_rejects_non_string_title(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        title: object,
+    ) -> None:
+        """文字列以外のスレッドタイトルを拒否する"""
+        bad_title: Any = title
+
+        with pytest.raises(ValueError, match="title must be a string"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=bad_title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
+    @pytest.mark.parametrize("description", [None, True, 3001, ["Test thread description"]])
+    def test_init_rejects_non_string_description(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        description: object,
+    ) -> None:
+        """文字列以外のスレッド説明を拒否する"""
+        bad_description: Any = description
+
+        with pytest.raises(ValueError, match="description must be a string"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=bad_description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
     def test_str(self, mock_forum_thread_no_http: ForumThread) -> None:
         """__str__が正しい文字列を返す"""
         result = str(mock_forum_thread_no_http)
