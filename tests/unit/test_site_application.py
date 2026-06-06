@@ -31,13 +31,17 @@ def create_mock_client(is_logged_in: bool = True) -> MagicMock:
     return mock_client
 
 
+def _application_user(client: Any | None = None, user_id: int = 12345, name: str = "TestUser") -> User:
+    return User(client=client or create_mock_client(), id=user_id, name=name, unix_name="test-user")
+
+
 class TestSiteApplicationDataclass:
     """SiteApplicationデータクラスのテスト"""
 
     def test_init(self):
         """初期化"""
         site = MagicMock()
-        user = MagicMock()
+        user = _application_user()
 
         app = SiteApplication(site=site, user=user, text="Please let me join")
 
@@ -48,9 +52,7 @@ class TestSiteApplicationDataclass:
     def test_str(self):
         """文字列表現"""
         site = MagicMock()
-        site.__str__ = lambda x: "TestSite"
-        user = MagicMock()
-        user.__str__ = lambda x: "TestUser"
+        user = _application_user()
 
         app = SiteApplication(site=site, user=user, text="Application text")
 
@@ -59,6 +61,15 @@ class TestSiteApplicationDataclass:
         assert "user=" in result
         assert "site=" in result
         assert "text=" in result
+
+    @pytest.mark.parametrize("user", [None, True, "TestUser", {"id": 12345}, object()])
+    def test_init_rejects_malformed_users(self, user: object):
+        """SiteApplication.userがAbstractUserでなければ初期化時に拒否する"""
+        site = MagicMock()
+        bad_user: Any = user
+
+        with pytest.raises(ValueError, match="application.user must be an AbstractUser"):
+            SiteApplication(site=site, user=bad_user, text="")
 
 
 class TestSiteApplicationAcquireAll:
@@ -103,7 +114,7 @@ class TestSiteApplicationAcquireAll:
         ]
 
         with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
-            mock_user = MagicMock()
+            mock_user = _application_user(mock_client)
             mock_user_parser.return_value = mock_user
 
             applications = site.applications
@@ -138,7 +149,7 @@ class TestSiteApplicationAcquireAll:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
-            mock_user = MagicMock()
+            mock_user = _application_user(mock_client)
             mock_user_parser.return_value = mock_user
 
             applications = SiteApplication.acquire_all(site)
@@ -174,7 +185,7 @@ class TestSiteApplicationAcquireAll:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _application_user(mock_client)
 
             applications = SiteApplication.acquire_all(site)
 
@@ -221,7 +232,7 @@ class TestSiteApplicationAcquireAll:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
-            mock_user = MagicMock()
+            mock_user = _application_user(mock_client)
             mock_user_parser.return_value = mock_user
 
             applications = SiteApplication.acquire_all(site)
@@ -256,7 +267,7 @@ class TestSiteApplicationAcquireAll:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_application.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = _application_user(mock_client)
 
             applications = SiteApplication.acquire_all(site)
 
@@ -548,7 +559,8 @@ class TestSiteApplicationProcess:
         site._members = cached_members
         bad_user: Any = {"id": 12345, "name": "TestUser"}
 
-        app = SiteApplication(site=site, user=bad_user, text="")
+        app = SiteApplication(site=site, user=_application_user(mock_client), text="")
+        app.user = bad_user
 
         with pytest.raises(ValueError, match="application.user must be an AbstractUser"):
             app.accept()

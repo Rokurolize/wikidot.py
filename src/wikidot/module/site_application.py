@@ -66,9 +66,14 @@ def _parse_application_user(
         raise exceptions.NoElementException(f"Site application user is malformed {parse_context}") from exc
 
 
-def _validate_site_application_user(user: object) -> AbstractUser:
+def _validate_site_application_user_object(user: object) -> AbstractUser:
     if not isinstance(user, AbstractUser):
         raise ValueError("application.user must be an AbstractUser")
+    return user
+
+
+def _validate_site_application_user(user: object) -> AbstractUser:
+    user = _validate_site_application_user_object(user)
     if not isinstance(user.id, int) or isinstance(user.id, bool):
         raise ValueError("application.user.id must be an integer")
     if not isinstance(user.name, str):
@@ -122,6 +127,9 @@ class SiteApplication:
     site: "Site"
     user: "AbstractUser"
     text: str
+
+    def __post_init__(self) -> None:
+        self.user = _validate_site_application_user_object(self.user)
 
     def __str__(self) -> str:
         """
