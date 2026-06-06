@@ -69,6 +69,14 @@ class TestPageVoteCollection:
         assert collection.page == page
         assert len(collection) == 2
 
+    @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
+    def test_init_rejects_malformed_pages(self, page: object) -> None:
+        """投票コレクションの初期化は実Pageだけ受け付ける"""
+        bad_page: Any = page
+
+        with pytest.raises(ValueError, match="page must be a Page"):
+            PageVoteCollection(bad_page, [])
+
     @pytest.mark.parametrize("votes", [None, True, "vote", ("vote",)])
     def test_init_rejects_non_list_votes(self, votes: object) -> None:
         """投票コレクションの初期化はlistだけ受け付ける"""

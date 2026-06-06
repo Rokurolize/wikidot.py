@@ -72,8 +72,8 @@ class PageVoteCollection(list["PageVote"]):
         votes : list[PageVote]
             List of votes to store
         """
+        self.page = _validate_vote_page(page)
         super().__init__(_validate_page_votes(votes))
-        self.page = page
 
     def __iter__(self) -> Iterator["PageVote"]:
         """
