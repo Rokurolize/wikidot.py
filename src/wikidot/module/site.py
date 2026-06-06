@@ -146,6 +146,11 @@ def _validate_publish_result_source_matches(value: object) -> None:
         raise ValueError("source_matches must be a boolean or None")
 
 
+def _validate_publish_result_page_id(value: object) -> None:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("page_id must be an integer")
+
+
 def _validate_publish_result_boolean(value: object, field_name: str) -> None:
     if not isinstance(value, bool):
         raise ValueError(f"{field_name} must be a boolean")
@@ -216,6 +221,7 @@ class PagePublishResult:
     created: bool = False
 
     def __post_init__(self) -> None:
+        _validate_publish_result_page_id(self.page_id)
         _validate_publish_result_source_matches(self.source_matches)
         _validate_publish_result_boolean(self.tags_updated, "tags_updated")
         _validate_publish_result_boolean(self.parent_updated, "parent_updated")

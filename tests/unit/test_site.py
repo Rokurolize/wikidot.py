@@ -1110,6 +1110,21 @@ class TestSitePageAccessor:
                 metas_updated=False,
             )
 
+    @pytest.mark.parametrize("page_id", [None, True, False, "12345", 12345.0, []])
+    def test_publish_result_rejects_malformed_page_ids(self, page_id: Any) -> None:
+        """PagePublishResultのpage_idは非bool整数だけ受け付ける"""
+        page = MagicMock()
+
+        with pytest.raises(ValueError, match="page_id must be an integer"):
+            PagePublishResult(
+                page=page,
+                page_id=page_id,
+                source_matches=None,
+                tags_updated=False,
+                parent_updated=False,
+                metas_updated=False,
+            )
+
     @pytest.mark.parametrize("field_name", ["tags_updated", "parent_updated", "metas_updated", "created"])
     @pytest.mark.parametrize("value", [None, "false", 0, 1])
     def test_publish_result_rejects_malformed_boolean_status_fields(self, field_name: str, value: Any) -> None:
