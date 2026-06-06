@@ -36,6 +36,28 @@ class TestForumPostCollectionInit:
         assert collection.thread == mock_forum_thread_no_http
         assert len(collection) == 1
 
+    def test_init_infers_thread_from_posts(self, mock_forum_post_no_http: ForumPost) -> None:
+        """スレッド未指定時は投稿からスレッドを推測する"""
+        collection = ForumPostCollection(posts=[mock_forum_post_no_http])
+        assert collection.thread == mock_forum_post_no_http.thread
+        assert len(collection) == 1
+
+    @pytest.mark.parametrize("posts", [True, False, "5001", ("5001",), 5001])
+    def test_init_rejects_non_list_posts(self, mock_forum_thread_no_http: ForumThread, posts: object) -> None:
+        """投稿コレクションの初期化はlistまたはNoneだけ受け付ける"""
+        bad_posts: Any = posts
+
+        with pytest.raises(ValueError, match="posts must be a list or None"):
+            ForumPostCollection(mock_forum_thread_no_http, bad_posts)
+
+    @pytest.mark.parametrize("post", [None, True, "5001", {"id": 5001}])
+    def test_init_rejects_non_post_entries(self, mock_forum_thread_no_http: ForumThread, post: object) -> None:
+        """投稿コレクションの初期化はForumPost要素だけ受け付ける"""
+        bad_posts: Any = [post]
+
+        with pytest.raises(ValueError, match="posts list entries must be ForumPost"):
+            ForumPostCollection(mock_forum_thread_no_http, bad_posts)
+
     def test_find_existing(self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost) -> None:
         """存在する投稿をIDで検索できる"""
         collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
@@ -839,10 +861,8 @@ class TestForumPostCollectionGetSources:
         self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost, bad_post: object
     ) -> None:
         """投稿以外のコレクション要素は取得処理前に拒否する"""
-        collection = ForumPostCollection(
-            mock_forum_thread_no_http,
-            [mock_forum_post_no_http, bad_post],  # type: ignore[list-item]
-        )
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        collection.append(bad_post)
         mock_forum_thread_no_http.site.amc_request = MagicMock()
         mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
 

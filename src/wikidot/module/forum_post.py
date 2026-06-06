@@ -54,6 +54,14 @@ def _validate_forum_posts(posts: object) -> list["ForumPost"]:
     return cast(list["ForumPost"], posts)
 
 
+def _validate_forum_post_collection_posts(posts: object) -> list["ForumPost"]:
+    if posts is None:
+        return []
+    if not isinstance(posts, list):
+        raise ValueError("posts must be a list or None")
+    return _validate_forum_posts(posts)
+
+
 def _post_list_parse_context(
     thread: "ForumThread",
     page: int | None,
@@ -194,7 +202,7 @@ class ForumPostCollection(list["ForumPost"]):
         posts : list[ForumPost] | None, default None
             List of posts to store
         """
-        super().__init__(posts or [])
+        super().__init__(_validate_forum_post_collection_posts(posts))
 
         if thread is not None:
             self.thread = thread
