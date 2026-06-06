@@ -13,6 +13,7 @@ import pytest
 from wikidot.common.exceptions import NoElementException, UnexpectedException
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
+from wikidot.module.user import User
 
 
 @pytest.fixture
@@ -25,12 +26,15 @@ def mock_page(mock_page_no_http):
 
 
 @pytest.fixture
-def mock_user():
+def mock_user(mock_page):
     """モックユーザー"""
-    user = MagicMock()
-    user.id = 12345
-    user.name = "test-user"
-    return user
+    return User(
+        client=mock_page.site.client,
+        id=12345,
+        name="test-user",
+        unix_name="test-user",
+        avatar_url="http://example.com/avatar.png",
+    )
 
 
 @pytest.fixture
@@ -577,6 +581,36 @@ class TestPageRevision:
                 created_by=mock_user,
                 created_at=datetime(2023, 1, 1, 12, 0, 0),
                 comment=bad_comment,
+            )
+
+    @pytest.mark.parametrize("created_by", [None, True, 12345, "test-user", {"id": 12345}])
+    def test_init_rejects_malformed_creators(self, mock_page, created_by: object) -> None:
+        """PageRevisionはAbstractUserの作成者だけ受け付ける"""
+        bad_created_by: Any = created_by
+
+        with pytest.raises(ValueError, match="created_by must be an AbstractUser"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=bad_created_by,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+            )
+
+    @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-01-01", []])
+    def test_init_rejects_malformed_created_at(self, mock_page, mock_user, created_at: object) -> None:
+        """PageRevisionはdatetimeの作成日時だけ受け付ける"""
+        bad_created_at: Any = created_at
+
+        with pytest.raises(ValueError, match="created_at must be a datetime"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=bad_created_at,
+                comment="Initial revision",
             )
 
     def test_is_source_acquired_false(self, sample_revision):

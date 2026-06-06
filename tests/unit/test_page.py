@@ -16,9 +16,20 @@ from wikidot.module.page_file import PageFile, PageFileCollection
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.page_votes import PageVote, PageVoteCollection
+from wikidot.module.user import User
 
 if TYPE_CHECKING:
     from wikidot.module.site import Site
+
+
+def _page_user(page: Page, user_id: int = 12345, name: str = "test-user") -> User:
+    return User(
+        client=page.site.client,
+        id=user_id,
+        name=name,
+        unix_name=name,
+        avatar_url="http://example.com/avatar.png",
+    )
 
 
 def _cached_page_revision(page: Page, comment: str = "cached revision") -> PageRevision:
@@ -26,7 +37,7 @@ def _cached_page_revision(page: Page, comment: str = "cached revision") -> PageR
         page=page,
         id=100,
         rev_no=1,
-        created_by=MagicMock(),
+        created_by=_page_user(page),
         created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
         comment=comment,
     )
@@ -91,7 +102,8 @@ class TestSearchPagesQuery:
 
     def test_as_dict_excludes_none(self) -> None:
         """None値は辞書に含まれない"""
-        query = SearchPagesQuery(fullname="test-page", tags=None, parent=None)
+        none_value: Any = None
+        query = SearchPagesQuery(fullname="test-page", tags=none_value, parent=none_value)
         result = query.as_dict()
         # tagsとparentはNoneなので含まれない
         assert "tags" not in result
@@ -185,8 +197,9 @@ class TestPageCollectionInit:
     ) -> None:
         """findの検索fullnameは文字列だけ受け付ける"""
         collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        bad_fullname_value: Any = bad_fullname
         with pytest.raises(ValueError, match="fullname must be a string"):
-            collection.find(bad_fullname)
+            collection.find(bad_fullname_value)
 
 
 class TestPageCollectionParse:
@@ -1362,7 +1375,7 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request = MagicMock()
         mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
 
-        parsed_user = MagicMock()
+        parsed_user = _page_user(mock_page_with_id)
         parsed_at = datetime(2023, 11, 14, tzinfo=timezone.utc)
         with (
             patch("wikidot.module.page.user_parser", return_value=parsed_user) as mock_user_parser,
@@ -1390,7 +1403,7 @@ class TestPageCollectionAcquire:
             page=mock_page_with_id,
             id=1000001,
             rev_no=1,
-            created_by=MagicMock(name="cached_user"),
+            created_by=_page_user(mock_page_with_id, name="cached-user"),
             created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
             comment="Cached revision",
         )
@@ -1596,7 +1609,7 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         with (
-            patch("wikidot.module.page.user_parser", return_value=MagicMock()),
+            patch("wikidot.module.page.user_parser", return_value=_page_user(mock_page_with_id)),
             pytest.raises(
                 exceptions.NoElementException,
                 match="Cannot find created at element for site: test-site, page: test-page, revision: 456",
@@ -1626,7 +1639,7 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 
         with (
-            patch("wikidot.module.page.user_parser", return_value=MagicMock()),
+            patch("wikidot.module.page.user_parser", return_value=_page_user(mock_page_with_id)),
             pytest.raises(
                 exceptions.NoElementException,
                 match=(
@@ -2343,8 +2356,8 @@ class TestPageProperties:
                     page=mock_page_with_id,
                     id=100,
                     rev_no=1,
-                    created_by=None,
-                    created_at=None,
+                    created_by=_page_user(mock_page_with_id),
+                    created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
                     comment="",
                 )
             ],
@@ -2506,8 +2519,8 @@ class TestPageWriteMethods:
                     page=mock_page_with_id,
                     id=1,
                     rev_no=1,
-                    created_by=mock_page_with_id.created_by,
-                    created_at=mock_page_with_id.created_at,
+                    created_by=_page_user(mock_page_with_id),
+                    created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
                     comment="cached revision",
                 )
             ],
@@ -3292,12 +3305,13 @@ class TestPageWriteMethods:
             ({"description": 3}, "metas values must be strings"),
         )
         for invalid_metas, message in invalid_cases:
+            invalid_metas_value: Any = invalid_metas
             mock_page_with_id._metas = {"description": "old"}
             mock_page_with_id.site.client.login_check = MagicMock()
             mock_page_with_id.site.amc_request = MagicMock()
 
             with pytest.raises(ValueError, match=message):
-                mock_page_with_id.set_metadata(metas=invalid_metas)
+                mock_page_with_id.set_metadata(metas=invalid_metas_value)
 
             mock_page_with_id.site.client.login_check.assert_not_called()
             mock_page_with_id.site.amc_request.assert_not_called()
@@ -3457,12 +3471,13 @@ class TestPageCreateOrEdit:
         """page_idは実整数またはNoneだけをlogin前に受け入れる"""
         mock_site_no_http.client.login_check = MagicMock()
         mock_site_no_http.amc_request = MagicMock()
+        page_id_value: Any = page_id
 
         with pytest.raises(ValueError, match="page_id must be an integer or None"):
             Page.create_or_edit(
                 mock_site_no_http,
                 "existing-page",
-                page_id=page_id,
+                page_id=page_id_value,
                 title="Updated Title",
                 source="Updated content",
             )
@@ -3792,7 +3807,7 @@ class TestPageEdit:
             page=mock_page_with_id,
             id=1,
             rev_no=1,
-            created_by=mock_page_with_id.updated_by,
+            created_by=_page_user(mock_page_with_id, name="updated-user"),
             created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
             comment="Old revision",
         )

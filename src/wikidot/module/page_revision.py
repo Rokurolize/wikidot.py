@@ -52,6 +52,20 @@ def _validate_revision_number(value: object) -> int:
     return value
 
 
+def _validate_revision_created_by(value: object) -> "AbstractUser":
+    from .user import AbstractUser
+
+    if not isinstance(value, AbstractUser):
+        raise ValueError("created_by must be an AbstractUser")
+    return value
+
+
+def _validate_revision_created_at(value: object) -> datetime:
+    if not isinstance(value, datetime):
+        raise ValueError("created_at must be a datetime")
+    return value
+
+
 def _validate_revision_comment(value: object) -> str:
     if not isinstance(value, str):
         raise ValueError("comment must be a string")
@@ -405,6 +419,8 @@ class PageRevision:
         self.page = _validate_revision_page(self.page)
         self.id = _validate_revision_id(self.id)
         self.rev_no = _validate_revision_number(self.rev_no)
+        self.created_by = _validate_revision_created_by(self.created_by)
+        self.created_at = _validate_revision_created_at(self.created_at)
         self.comment = _validate_revision_comment(self.comment)
 
     def is_source_acquired(self) -> bool:
