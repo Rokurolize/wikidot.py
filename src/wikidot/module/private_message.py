@@ -703,6 +703,9 @@ class PrivateMessage:
     body: str
     created_at: datetime
 
+    def __post_init__(self) -> None:
+        self.id = _validate_private_message_id(self.id)
+
     def __str__(self) -> str:
         """
         String representation of the object

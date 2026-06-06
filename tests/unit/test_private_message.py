@@ -82,8 +82,10 @@ class TestPrivateMessageCollection:
     @pytest.mark.parametrize("messages", [True, False, "1", ("1",), 1])
     def test_init_rejects_non_list_messages(self, messages: object):
         """メッセージコレクションの初期化はlistまたはNoneだけ受け付ける"""
+        bad_messages: Any = messages
+
         with pytest.raises(ValueError, match="messages must be a list or None"):
-            PrivateMessageCollection(messages)
+            PrivateMessageCollection(bad_messages)
 
     @pytest.mark.parametrize("message", [None, True, "1", {"id": 1}])
     def test_init_rejects_non_message_entries(self, message: object):
@@ -107,9 +109,10 @@ class TestPrivateMessageCollection:
     def test_find_rejects_non_integer_ids(self, sample_message, bad_id: object):
         """整数以外のメッセージID検索キーを拒否する"""
         collection = PrivateMessageCollection([sample_message])
+        bad_id_value: Any = bad_id
 
         with pytest.raises(ValueError, match="id must be an integer"):
-            collection.find(bad_id)
+            collection.find(bad_id_value)
 
     def test_from_ids_requires_login(self, mock_client):
         """from_idsはログインが必要"""
@@ -943,6 +946,22 @@ class TestPrivateMessage:
         result = str(sample_message)
         assert "PrivateMessage(" in result
         assert "id=1" in result
+
+    @pytest.mark.parametrize("message_id", [None, True, "1", 1.25])
+    def test_init_rejects_non_integer_message_id(self, mock_client, mock_user, message_id):
+        """PrivateMessageの初期化は整数IDだけ受け付ける"""
+        bad_message_id: Any = message_id
+
+        with pytest.raises(ValueError, match="message_id must be an integer"):
+            PrivateMessage(
+                client=mock_client,
+                id=bad_message_id,
+                sender=mock_user,
+                recipient=mock_user,
+                subject="Test Subject",
+                body="Test Body",
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+            )
 
     def test_from_id(self, mock_client, sample_message):
         """from_idのテスト"""
