@@ -87,6 +87,8 @@ class TestSiteDataclass:
 class TestSiteChangeDataclass:
     """SiteChangeデータクラスのテスト"""
 
+    _UNSET = object()
+
     @staticmethod
     def _site_change(
         mock_site_no_http: Site,
@@ -95,15 +97,22 @@ class TestSiteChangeDataclass:
         page_fullname: Any = "test-page",
         page_title: Any = "Test Page",
         revision_no: Any = 1,
+        changed_by: Any = _UNSET,
+        changed_at: Any = _UNSET,
         comment: Any = None,
     ) -> SiteChange:
+        if changed_by is TestSiteChangeDataclass._UNSET:
+            changed_by = User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester")
+        if changed_at is TestSiteChangeDataclass._UNSET:
+            changed_at = datetime(2026, 6, 6)
+
         return SiteChange(
             site=mock_site_no_http,
             page_fullname=page_fullname,
             page_title=page_title,
             revision_no=revision_no,
-            changed_by=User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester"),
-            changed_at=datetime(2026, 6, 6),
+            changed_by=changed_by,
+            changed_at=changed_at,
             flags=flags,
             comment=comment,
         )
@@ -161,6 +170,18 @@ class TestSiteChangeDataclass:
         change = self._site_change(mock_site_no_http, flags=["S"], comment=comment)
 
         assert change.comment == comment
+
+    @pytest.mark.parametrize("changed_by", [None, True, 1, "tester", {"id": 1}])
+    def test_init_rejects_malformed_changed_by(self, mock_site_no_http: Site, changed_by: Any) -> None:
+        """SiteChange初期化時のchanged_byはAbstractUserだけ受け付ける"""
+        with pytest.raises(ValueError, match="changed_by must be an AbstractUser"):
+            self._site_change(mock_site_no_http, flags=["S"], changed_by=changed_by)
+
+    @pytest.mark.parametrize("changed_at", [None, True, 1, "2026-06-06", []])
+    def test_init_rejects_malformed_changed_at(self, mock_site_no_http: Site, changed_at: Any) -> None:
+        """SiteChange初期化時のchanged_atはdatetimeだけ受け付ける"""
+        with pytest.raises(ValueError, match="changed_at must be a datetime"):
+            self._site_change(mock_site_no_http, flags=["S"], changed_at=changed_at)
 
 
 class TestSitePagesAccessor:
@@ -2312,6 +2333,10 @@ class TestSiteGetRecentChanges:
     """Site.get_recent_changes のテスト"""
 
     @staticmethod
+    def _parsed_user(site: Site) -> User:
+        return User(client=site.client, id=1, name="tester", unix_name="tester")
+
+    @staticmethod
     def _site_change_response(page_no: int, last_page: int) -> MagicMock:
         pager_links = "".join(f'<a href="#">{page}</a>' for page in range(1, last_page + 1))
         pager = f'<div class="pager">{pager_links}</div>'
@@ -2352,7 +2377,7 @@ class TestSiteGetRecentChanges:
         mock_client.amc_client.request.return_value = (mock_response,)
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user = MagicMock()
+            mock_user = self._parsed_user(site)
             mock_user_parser.return_value = mock_user
 
             changes = site.get_recent_changes()
@@ -2415,7 +2440,7 @@ Real edit comment
         mock_client.amc_client.request.return_value = (mock_response,)
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user = MagicMock()
+            mock_user = self._parsed_user(site)
             mock_user_parser.return_value = mock_user
 
             changes = site.get_recent_changes()
@@ -2447,7 +2472,7 @@ Real edit comment
         mock_client.amc_client.request.return_value = (mock_response,)
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = self._parsed_user(site)
 
             changes = site.get_recent_changes()
 
@@ -2474,7 +2499,7 @@ Real edit comment
         mock_client.amc_client.request.return_value = (mock_response,)
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = self._parsed_user(site)
 
             changes = site.get_recent_changes()
 
@@ -2701,7 +2726,7 @@ Real edit comment
         mock_client.amc_client.request.return_value = (mock_response,)
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user = MagicMock()
+            mock_user = self._parsed_user(site)
             mock_user_parser.return_value = mock_user
 
             changes = site.get_recent_changes(limit=1)
@@ -2729,7 +2754,7 @@ Real edit comment
         ]
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user = MagicMock()
+            mock_user = self._parsed_user(site)
             mock_user_parser.return_value = mock_user
 
             changes = site.get_recent_changes(limit=1)
@@ -2829,7 +2854,7 @@ Real edit comment
         mock_client.amc_client.request.side_effect = request_side_effect
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = self._parsed_user(site)
             with pytest.raises(
                 UnexpectedException,
                 match=r"Cannot retrieve recent changes for site: test, page: 2",
@@ -2862,7 +2887,7 @@ Real edit comment
         mock_client.amc_client.request.side_effect = request_side_effect
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = self._parsed_user(site)
             with pytest.raises(
                 NoElementException,
                 match=r"Recent changes response body is not found for site: test, page: 2",
@@ -2895,7 +2920,7 @@ Real edit comment
         mock_client.amc_client.request.side_effect = request_side_effect
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = self._parsed_user(site)
             with pytest.raises(
                 NoElementException,
                 match=(
@@ -2963,7 +2988,7 @@ Real edit comment
         mock_client.amc_client.request.return_value = (mock_response,)
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = self._parsed_user(site)
 
             changes = site.get_recent_changes()
 
@@ -2998,7 +3023,7 @@ Real edit comment
         mock_client.amc_client.request.return_value = (mock_response,)
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = self._parsed_user(site)
 
             changes = site.get_recent_changes()
 
@@ -3027,7 +3052,7 @@ Real edit comment
         mock_client.amc_client.request.side_effect = request_side_effect
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = self._parsed_user(site)
 
             changes = site.get_recent_changes()
 
@@ -3056,7 +3081,7 @@ Real edit comment
         mock_client.amc_client.request.side_effect = request_side_effect
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = MagicMock()
+            mock_user_parser.return_value = self._parsed_user(site)
 
             changes = site.get_recent_changes(limit=2)
 

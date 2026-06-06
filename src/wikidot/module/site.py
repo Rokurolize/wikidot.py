@@ -38,11 +38,10 @@ from .page import (
 from .page_source import PageSource
 from .site_application import SiteApplication
 from .site_member import SiteMember
-from .user import User
+from .user import AbstractUser, User
 
 if TYPE_CHECKING:
     from .client import Client
-    from .user import AbstractUser
 
 
 class _UnsetPublishParentType:
@@ -144,6 +143,18 @@ def _validate_site_change_text_field(field_name: str, value: object) -> str:
 def _validate_site_change_comment(value: object) -> str | None:
     if value is not None and not isinstance(value, str):
         raise ValueError("comment must be a string or None")
+    return value
+
+
+def _validate_site_change_changed_by(value: object) -> AbstractUser:
+    if not isinstance(value, AbstractUser):
+        raise ValueError("changed_by must be an AbstractUser")
+    return value
+
+
+def _validate_site_change_changed_at(value: object) -> datetime:
+    if not isinstance(value, datetime):
+        raise ValueError("changed_at must be a datetime")
     return value
 
 
@@ -1007,6 +1018,8 @@ class SiteChange:
         self.page_fullname = _validate_site_change_text_field("page_fullname", self.page_fullname)
         self.page_title = _validate_site_change_text_field("page_title", self.page_title)
         self.comment = _validate_site_change_comment(self.comment)
+        self.changed_by = _validate_site_change_changed_by(self.changed_by)
+        self.changed_at = _validate_site_change_changed_at(self.changed_at)
 
     def __str__(self) -> str:
         """
