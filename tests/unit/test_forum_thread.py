@@ -972,6 +972,48 @@ class TestForumThreadBasic:
                 category=mock_forum_thread_no_http.category,
             )
 
+    @pytest.mark.parametrize("created_by", [None, True, 3001, "test_user", {"id": 12345}])
+    def test_init_rejects_malformed_created_by(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        created_by: object,
+    ) -> None:
+        """スレッド作成者はAbstractUserだけ受け付ける"""
+        bad_created_by: Any = created_by
+
+        with pytest.raises(ValueError, match="created_by must be an AbstractUser"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=bad_created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
+    @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-11-14", []])
+    def test_init_rejects_malformed_created_at(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        created_at: object,
+    ) -> None:
+        """スレッド作成日時はdatetimeだけ受け付ける"""
+        bad_created_at: Any = created_at
+
+        with pytest.raises(ValueError, match="created_at must be a datetime"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=bad_created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
     def test_str(self, mock_forum_thread_no_http: ForumThread) -> None:
         """__str__が正しい文字列を返す"""
         result = str(mock_forum_thread_no_http)

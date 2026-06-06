@@ -36,6 +36,20 @@ def _validate_thread_id(thread_id: object) -> int:
     return thread_id
 
 
+def _validate_thread_created_by(created_by: object) -> "AbstractUser":
+    from .user import AbstractUser
+
+    if not isinstance(created_by, AbstractUser):
+        raise ValueError("created_by must be an AbstractUser")
+    return created_by
+
+
+def _validate_thread_created_at(created_at: object) -> datetime:
+    if not isinstance(created_at, datetime):
+        raise ValueError("created_at must be a datetime")
+    return created_at
+
+
 def _validate_thread_post_count(post_count: object) -> int:
     if not isinstance(post_count, int) or isinstance(post_count, bool):
         raise ValueError("post_count must be an integer")
@@ -808,6 +822,8 @@ class ForumThread:
         self.id = _validate_thread_id(self.id)
         self.title = validate_text_field("title", self.title)
         self.description = validate_text_field("description", self.description)
+        self.created_by = _validate_thread_created_by(self.created_by)
+        self.created_at = _validate_thread_created_at(self.created_at)
         self.post_count = _validate_thread_post_count(self.post_count)
         self.category = _validate_optional_forum_category(self.category)
 

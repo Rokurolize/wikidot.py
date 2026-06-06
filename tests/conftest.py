@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock
@@ -454,14 +455,21 @@ def forum_newthread_success() -> dict[str, Any]:
 def mock_forum_thread_no_http(mock_forum_category_no_http: Any) -> Any:
     """HTTPリクエストなしでForumThreadを作成"""
     from wikidot.module.forum_thread import ForumThread
+    from wikidot.module.user import User
 
     return ForumThread(
         site=mock_forum_category_no_http.site,
         id=3001,
         title="Test Thread",
         description="Test thread description",
-        created_by=None,
-        created_at=None,
+        created_by=User(
+            client=mock_forum_category_no_http.site.client,
+            id=12345,
+            name="test_user",
+            unix_name="test-user",
+            avatar_url="http://example.com/avatar.png",
+        ),
+        created_at=datetime.fromtimestamp(1700000000),
         post_count=5,
         category=mock_forum_category_no_http,
     )
