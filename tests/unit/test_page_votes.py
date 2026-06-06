@@ -45,6 +45,10 @@ def _page() -> Page:
     )
 
 
+def _vote_user(user_id: int = 12345, name: str = "test-user") -> User:
+    return User(client=MagicMock(), id=user_id, name=name, unix_name=name)
+
+
 class TestPageVoteCollection:
     """PageVoteCollectionのテスト"""
 
@@ -172,7 +176,7 @@ class TestPageVote:
     def test_init(self):
         """初期化"""
         page = _page()
-        user = MagicMock()
+        user = _vote_user()
 
         vote = PageVote(page=page, user=user, value=1)
 
@@ -183,7 +187,7 @@ class TestPageVote:
     def test_positive_vote(self):
         """正の投票"""
         page = _page()
-        user = MagicMock()
+        user = _vote_user()
 
         vote = PageVote(page=page, user=user, value=1)
 
@@ -192,7 +196,7 @@ class TestPageVote:
     def test_negative_vote(self):
         """負の投票"""
         page = _page()
-        user = MagicMock()
+        user = _vote_user()
 
         vote = PageVote(page=page, user=user, value=-1)
 
@@ -201,17 +205,35 @@ class TestPageVote:
     def test_numeric_vote(self):
         """数値投票（5段階評価など）"""
         page = _page()
-        user = MagicMock()
+        user = _vote_user()
 
         vote = PageVote(page=page, user=user, value=5)
 
         assert vote.value == 5
 
+    @pytest.mark.parametrize("user", [None, True, "test-user", {"id": 12345}, object()])
+    def test_init_rejects_malformed_users(self, user: object) -> None:
+        """投票の初期化はAbstractUserだけ受け付ける"""
+        page = _page()
+        bad_user: Any = user
+
+        with pytest.raises(ValueError, match="user must be an AbstractUser"):
+            PageVote(page=page, user=bad_user, value=1)
+
+    @pytest.mark.parametrize("value", [None, True, "1", 1.0, []])
+    def test_init_rejects_malformed_values(self, value: object) -> None:
+        """投票の初期化はbool以外の整数値だけ受け付ける"""
+        page = _page()
+        bad_value: Any = value
+
+        with pytest.raises(ValueError, match="value must be an integer"):
+            PageVote(page=page, user=_vote_user(), value=bad_value)
+
     @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
     def test_init_rejects_malformed_pages(self, page: object) -> None:
         """投票の初期化は実Pageだけ受け付ける"""
         bad_page: Any = page
-        user = MagicMock()
+        user = _vote_user()
 
         with pytest.raises(ValueError, match="page must be a Page"):
             PageVote(page=bad_page, user=user, value=1)

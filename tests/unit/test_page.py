@@ -44,7 +44,7 @@ def _cached_page_revision(page: Page, comment: str = "cached revision") -> PageR
 
 
 def _cached_page_vote(page: Page, value: int = 1) -> PageVote:
-    return PageVote(page=page, user=MagicMock(), value=value)
+    return PageVote(page=page, user=_page_user(page), value=value)
 
 
 # ============================================================
@@ -1883,7 +1883,7 @@ class TestPageCollectionAcquire:
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_whorated: dict[str, Any]
     ) -> None:
         """取得済みの重複ページvote一覧を未取得の同一IDページへ再利用する"""
-        cached_user = MagicMock(name="cached_user")
+        cached_user = _page_user(mock_page_with_id, 54321, "cached-user")
         cached_vote = PageVote(mock_page_with_id, cached_user, 1)
         mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
         duplicate_page = self._other_page(mock_site_no_http, mock_page_with_id)
@@ -2527,7 +2527,7 @@ class TestPageWriteMethods:
         )
         mock_page_with_id._votes = PageVoteCollection(
             mock_page_with_id,
-            [PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)],
+            [PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)],
         )
         mock_page_with_id._metas = {"cached": "meta"}
         mock_page_with_id._discussion = MagicMock()
@@ -2806,7 +2806,7 @@ class TestPageWriteMethods:
         self, mock_page_with_id: Page, page_ratepage_success: dict[str, Any]
     ) -> None:
         """投票成功後は古いvote一覧キャッシュを使い回さない"""
-        cached_vote = PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
         mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
         mock_response = MagicMock()
         mock_response.json.return_value = page_ratepage_success
@@ -2851,7 +2851,7 @@ class TestPageWriteMethods:
 
     def test_vote_missing_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
         """投票応答のstatus欠落はpointsがあってもローカル状態を更新しない"""
-        cached_vote = PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
         mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
         mock_response = MagicMock()
         mock_response.json.return_value = {"type": "P", "points": 11}
@@ -2923,7 +2923,7 @@ class TestPageWriteMethods:
         self, mock_page_with_id: Page, page_cancelvote_success: dict[str, Any]
     ) -> None:
         """投票取り消し成功後は古いvote一覧キャッシュを使い回さない"""
-        cached_vote = PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
         mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
         mock_response = MagicMock()
         mock_response.json.return_value = page_cancelvote_success
@@ -2959,7 +2959,7 @@ class TestPageWriteMethods:
 
     def test_cancel_vote_non_ok_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
         """投票取消応答の非ok statusはpointsがあってもローカル状態を更新しない"""
-        cached_vote = PageVote(mock_page_with_id, mock_page_with_id.updated_by, 1)
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
         mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "not_ok", "type": "P", "points": 7}
