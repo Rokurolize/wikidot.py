@@ -75,6 +75,12 @@ def _validate_forum_category_threads(value: object) -> ForumThreadCollection:
     return value
 
 
+def _validate_forum_category_id(category_id: object) -> int:
+    if not isinstance(category_id, int) or isinstance(category_id, bool):
+        raise ValueError("id must be an integer")
+    return category_id
+
+
 class ForumCategoryCollection(list["ForumCategory"]):
     """
     Class representing a collection of forum categories
@@ -133,8 +139,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
         ForumCategory | None
             Category object if found, None otherwise
         """
-        if not isinstance(id, int) or isinstance(id, bool):
-            raise ValueError("id must be an integer")
+        id = _validate_forum_category_id(id)
 
         for category in self:
             if category.id == id:
@@ -286,6 +291,9 @@ class ForumCategory:
     threads_count: int
     posts_count: int
     _threads: ForumThreadCollection | None = None
+
+    def __post_init__(self) -> None:
+        self.id = _validate_forum_category_id(self.id)
 
     def __str__(self) -> str:
         """

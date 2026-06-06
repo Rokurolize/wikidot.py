@@ -41,8 +41,10 @@ class TestForumCategoryCollectionInit:
     @pytest.mark.parametrize("categories", [True, False, "1001", ("1001",), 1001])
     def test_init_rejects_non_list_categories(self, mock_site_no_http: Site, categories: object) -> None:
         """カテゴリコレクションの初期化はlistまたはNoneだけ受け付ける"""
+        bad_categories: Any = categories
+
         with pytest.raises(ValueError, match="categories must be a list or None"):
-            ForumCategoryCollection(mock_site_no_http, categories)
+            ForumCategoryCollection(mock_site_no_http, bad_categories)
 
     @pytest.mark.parametrize("category", [None, True, "1001", {"id": 1001}])
     def test_init_rejects_non_category_entries(self, mock_site_no_http: Site, category: object) -> None:
@@ -69,9 +71,10 @@ class TestForumCategoryCollectionInit:
     ) -> None:
         """整数以外のカテゴリID検索キーを拒否する"""
         collection = ForumCategoryCollection(mock_site_no_http, [mock_forum_category_no_http])
+        bad_id_value: Any = bad_id
 
         with pytest.raises(ValueError, match="id must be an integer"):
-            collection.find(bad_id)
+            collection.find(bad_id_value)
 
 
 class TestForumCategoryCollectionAcquireAll:
@@ -341,6 +344,21 @@ class TestForumCategoryCollectionAcquireAll:
 
 class TestForumCategoryBasic:
     """ForumCategoryの基本テスト"""
+
+    @pytest.mark.parametrize("category_id", [None, True, "1001", 1001.0])
+    def test_init_rejects_non_integer_category_id(self, mock_site_no_http: Site, category_id: object) -> None:
+        """整数以外のカテゴリIDを拒否する"""
+        bad_category_id: Any = category_id
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumCategory(
+                site=mock_site_no_http,
+                id=bad_category_id,
+                title="Test Category",
+                description="Test category description",
+                threads_count=10,
+                posts_count=50,
+            )
 
     def test_str(self, mock_forum_category_no_http: ForumCategory) -> None:
         """__str__が正しい文字列を返す"""
