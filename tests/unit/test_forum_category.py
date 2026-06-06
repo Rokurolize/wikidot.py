@@ -360,6 +360,36 @@ class TestForumCategoryBasic:
                 posts_count=50,
             )
 
+    @pytest.mark.parametrize("threads_count", [None, True, "10", 10.0])
+    def test_init_rejects_non_integer_threads_count(self, mock_site_no_http: Site, threads_count: object) -> None:
+        """整数以外のスレッド数を拒否する"""
+        bad_threads_count: Any = threads_count
+
+        with pytest.raises(ValueError, match="threads_count must be an integer"):
+            ForumCategory(
+                site=mock_site_no_http,
+                id=1001,
+                title="Test Category",
+                description="Test category description",
+                threads_count=bad_threads_count,
+                posts_count=50,
+            )
+
+    @pytest.mark.parametrize("posts_count", [None, True, "50", 50.0])
+    def test_init_rejects_non_integer_posts_count(self, mock_site_no_http: Site, posts_count: object) -> None:
+        """整数以外の投稿数を拒否する"""
+        bad_posts_count: Any = posts_count
+
+        with pytest.raises(ValueError, match="posts_count must be an integer"):
+            ForumCategory(
+                site=mock_site_no_http,
+                id=1001,
+                title="Test Category",
+                description="Test category description",
+                threads_count=10,
+                posts_count=bad_posts_count,
+            )
+
     def test_str(self, mock_forum_category_no_http: ForumCategory) -> None:
         """__str__が正しい文字列を返す"""
         result = str(mock_forum_category_no_http)

@@ -81,6 +81,12 @@ def _validate_forum_category_id(category_id: object) -> int:
     return category_id
 
 
+def _validate_forum_category_count(field_name: str, count: object) -> int:
+    if not isinstance(count, int) or isinstance(count, bool):
+        raise ValueError(f"{field_name} must be an integer")
+    return count
+
+
 class ForumCategoryCollection(list["ForumCategory"]):
     """
     Class representing a collection of forum categories
@@ -294,6 +300,8 @@ class ForumCategory:
 
     def __post_init__(self) -> None:
         self.id = _validate_forum_category_id(self.id)
+        self.threads_count = _validate_forum_category_count("threads_count", self.threads_count)
+        self.posts_count = _validate_forum_category_count("posts_count", self.posts_count)
 
     def __str__(self) -> str:
         """
