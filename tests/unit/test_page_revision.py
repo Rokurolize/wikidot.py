@@ -636,3 +636,13 @@ class TestPageRevision:
         """htmlセッター"""
         sample_revision.html = "<p>New HTML</p>"
         assert sample_revision._html == "<p>New HTML</p>"
+
+    @pytest.mark.parametrize("html", [None, True, 1, ["<p>New HTML</p>"]])
+    def test_html_setter_rejects_invalid_html(self, sample_revision, html):
+        """htmlセッターは文字列以外を受け付けない"""
+        sample_revision.html = "<p>Cached HTML</p>"
+
+        with pytest.raises(ValueError, match="revision.html must be a string"):
+            sample_revision.html = html
+
+        assert sample_revision.html == "<p>Cached HTML</p>"

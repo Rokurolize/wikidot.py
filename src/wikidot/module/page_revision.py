@@ -38,6 +38,12 @@ def _validate_revision_source(value: object) -> PageSource:
     return value
 
 
+def _validate_revision_html(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("revision.html must be a string")
+    return value
+
+
 class PageRevisionCollection(list["PageRevision"]):
     """
     Class representing a collection of page revisions
@@ -455,4 +461,4 @@ class PageRevision:
         value : str
             The HTML display to set
         """
-        self._html = value
+        self._html = _validate_revision_html(value)
