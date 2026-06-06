@@ -21,6 +21,17 @@ if TYPE_CHECKING:
     from wikidot.module.site import Site
 
 
+def _cached_page_revision(page: Page, comment: str = "cached revision") -> PageRevision:
+    return PageRevision(
+        page=page,
+        id=100,
+        rev_no=1,
+        created_by=MagicMock(),
+        created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
+        comment=comment,
+    )
+
+
 # ============================================================
 # SearchPagesQueryテスト
 # ============================================================
@@ -2206,6 +2217,45 @@ class TestPageProperties:
             ]
         )
         assert mock_page_with_id._revisions is None
+
+    @pytest.mark.parametrize("revisions", [None, True, "100", {"id": 100}])
+    def test_revisions_setter_rejects_invalid_collections(self, mock_page_with_id: Page, revisions: object) -> None:
+        """不正なrevisions代入は既存のキャッシュを破壊しない"""
+        cached_revision = _cached_page_revision(mock_page_with_id)
+        mock_page_with_id.revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        bad_revisions: Any = revisions
+
+        with pytest.raises(ValueError, match="page.revisions must be a list or PageRevisionCollection"):
+            mock_page_with_id.revisions = bad_revisions
+
+        assert mock_page_with_id.revisions[0].comment == "cached revision"
+
+    @pytest.mark.parametrize("bad_revision", [None, True, "100", {"id": 100}])
+    def test_revisions_setter_rejects_invalid_entries(self, mock_page_with_id: Page, bad_revision: object) -> None:
+        """不正なrevisions要素は既存のキャッシュを破壊しない"""
+        cached_revision = _cached_page_revision(mock_page_with_id)
+        mock_page_with_id.revisions = [cached_revision]
+        bad_revision_entry: Any = bad_revision
+
+        with pytest.raises(ValueError, match="page.revisions list entries must be PageRevision"):
+            mock_page_with_id.revisions = [bad_revision_entry]
+
+        assert mock_page_with_id.revisions[0].comment == "cached revision"
+
+    @pytest.mark.parametrize("bad_revision", [None, True, "100", {"id": 100}])
+    def test_revisions_setter_rejects_invalid_collection_entries(
+        self, mock_page_with_id: Page, bad_revision: object
+    ) -> None:
+        """不正なrevisions collection要素は既存のキャッシュを破壊しない"""
+        cached_revision = _cached_page_revision(mock_page_with_id)
+        mock_page_with_id.revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        bad_revision_entry: Any = bad_revision
+        bad_revisions = PageRevisionCollection(mock_page_with_id, [bad_revision_entry])
+
+        with pytest.raises(ValueError, match="page.revisions list entries must be PageRevision"):
+            mock_page_with_id.revisions = bad_revisions
+
+        assert mock_page_with_id.revisions[0].comment == "cached revision"
 
     def test_votes_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
         """投票取得リトライが尽きた場合は対象サイト名とページ名を含めて失敗する"""

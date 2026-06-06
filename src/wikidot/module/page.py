@@ -84,6 +84,21 @@ def _validate_page_source_object(value: object) -> PageSource:
     return value
 
 
+def _validate_page_revision_entries(revisions: list[object] | PageRevisionCollection) -> None:
+    if any(not isinstance(revision, PageRevision) for revision in revisions):
+        raise ValueError("page.revisions list entries must be PageRevision")
+
+
+def _validate_page_revisions(page: "Page", value: object) -> PageRevisionCollection:
+    if isinstance(value, list):
+        _validate_page_revision_entries(value)
+        return PageRevisionCollection(page, cast(list[PageRevision], value))
+    if isinstance(value, PageRevisionCollection):
+        _validate_page_revision_entries(value)
+        return value
+    raise ValueError("page.revisions must be a list or PageRevisionCollection")
+
+
 def _validate_page_vote_value(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
         raise ValueError("Vote value must be 1 or -1")
@@ -1836,10 +1851,7 @@ class Page:
         value : list[PageRevision] | PageRevisionCollection
             List or collection of revisions to set
         """
-        if isinstance(value, list):
-            self._revisions = PageRevisionCollection(self, value)
-        else:
-            self._revisions = value
+        self._revisions = _validate_page_revisions(self, value)
 
     @property
     def latest_revision(self) -> PageRevision:
