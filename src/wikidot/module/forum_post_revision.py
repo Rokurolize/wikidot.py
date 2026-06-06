@@ -73,10 +73,14 @@ def _validate_with_html(value: object) -> bool:
     return value
 
 
-def _validate_forum_post_revisions(revisions: list["ForumPostRevision"]) -> list["ForumPostRevision"]:
+def _validate_forum_post_revisions(revisions: object) -> list["ForumPostRevision"]:
+    if revisions is None:
+        return []
+    if not isinstance(revisions, list):
+        raise ValueError("revisions must be a list or None")
     if any(not isinstance(revision, ForumPostRevision) for revision in revisions):
         raise ValueError("revisions list entries must be ForumPostRevision")
-    return revisions
+    return cast(list["ForumPostRevision"], revisions)
 
 
 def _revision_list_response_body(response: Any, post: "ForumPost") -> str:
@@ -130,7 +134,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         revisions : list[ForumPostRevision] | None, default None
             List of revisions to store
         """
-        super().__init__(revisions or [])
+        super().__init__(_validate_forum_post_revisions(revisions))
         if post is not None:
             self.post = post
         elif len(self) > 0:

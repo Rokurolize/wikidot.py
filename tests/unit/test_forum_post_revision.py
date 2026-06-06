@@ -44,6 +44,22 @@ class TestForumPostRevisionCollectionInit:
         assert collection.post == mock_forum_post_no_http
         assert len(collection) == 1
 
+    @pytest.mark.parametrize("revisions", [True, False, "9001", ("9001",), 9001])
+    def test_init_rejects_non_list_revisions(self, mock_forum_post_no_http: ForumPost, revisions: object) -> None:
+        """リビジョンコレクションの初期化はlistまたはNoneだけ受け付ける"""
+        bad_revisions: Any = revisions
+
+        with pytest.raises(ValueError, match="revisions must be a list or None"):
+            ForumPostRevisionCollection(mock_forum_post_no_http, bad_revisions)
+
+    @pytest.mark.parametrize("revision", [None, True, "9001", {"id": 9001}])
+    def test_init_rejects_non_revision_entries(self, mock_forum_post_no_http: ForumPost, revision: object) -> None:
+        """リビジョンコレクションの初期化はForumPostRevision要素だけ受け付ける"""
+        bad_revisions: Any = [revision]
+
+        with pytest.raises(ValueError, match="revisions list entries must be ForumPostRevision"):
+            ForumPostRevisionCollection(mock_forum_post_no_http, bad_revisions)
+
 
 class TestForumPostRevisionCollectionFind:
     """ForumPostRevisionCollection.findのテスト"""
@@ -857,10 +873,8 @@ class TestForumPostRevisionCollectionGetHtmls:
             created_by=None,
             created_at=datetime.now(tz=timezone.utc),
         )
-        collection = ForumPostRevisionCollection(
-            mock_forum_post_no_http,
-            [revision, bad_revision],  # type: ignore[list-item]
-        )
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+        collection.append(bad_revision)
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
         mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
 
