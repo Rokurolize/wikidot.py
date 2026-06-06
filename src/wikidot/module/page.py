@@ -160,6 +160,15 @@ def _validate_page_revisions(page: "Page", value: object) -> PageRevisionCollect
     raise ValueError("page.revisions must be a list or PageRevisionCollection")
 
 
+def _validate_optional_page_revision_collection(value: object) -> PageRevisionCollection | None:
+    if value is None:
+        return None
+    if not isinstance(value, PageRevisionCollection):
+        raise ValueError("page.revisions must be PageRevisionCollection or None")
+    _validate_page_revision_entries(value)
+    return value
+
+
 def _validate_page_vote_entries(votes: PageVoteCollection) -> None:
     if any(not isinstance(vote, PageVote) for vote in votes):
         raise ValueError("page.votes list entries must be PageVote")
@@ -1796,6 +1805,7 @@ class Page:
         self.commented_at = _validate_optional_page_datetime_field("commented_at", self.commented_at)
         self._id = _validate_optional_page_constructor_id(self._id)
         self._source = _validate_optional_page_source_object(self._source)
+        self._revisions = _validate_optional_page_revision_collection(self._revisions)
 
     def get_url(self) -> str:
         """

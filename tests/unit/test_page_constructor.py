@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from wikidot.module.page import Page
+from wikidot.module.page_revision import PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.user import User
 
@@ -34,6 +35,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         "commented_at": None,
         "_id": None,
         "_source": None,
+        "_revisions": None,
     }
     values.update(overrides)
 
@@ -60,6 +62,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         commented_at=values["commented_at"],
         _id=values["_id"],
         _source=values["_source"],
+        _revisions=values["_revisions"],
     )
 
 
@@ -275,3 +278,26 @@ class TestPageInit:
     def test_init_rejects_malformed_optional_source(self, mock_site_no_http: Any, source: Any) -> None:
         with pytest.raises(ValueError, match="page.source must be PageSource"):
             _page(mock_site_no_http, _source=source)
+
+    def test_init_accepts_valid_optional_revisions(self, mock_site_no_http: Any) -> None:
+        page_without_revisions = _page(mock_site_no_http)
+        revisions_owner = _page(mock_site_no_http)
+        revisions = PageRevisionCollection(revisions_owner, [])
+
+        page_with_revisions = _page(mock_site_no_http, _revisions=revisions)
+
+        assert page_without_revisions._revisions is None
+        assert page_with_revisions._revisions == revisions
+        assert page_with_revisions.revisions == revisions
+
+    @pytest.mark.parametrize("revisions", [True, "cached revisions", [], {"revisions": []}, object()])
+    def test_init_rejects_malformed_optional_revisions(self, mock_site_no_http: Any, revisions: Any) -> None:
+        with pytest.raises(ValueError, match=r"page\.revisions must be PageRevisionCollection or None"):
+            _page(mock_site_no_http, _revisions=revisions)
+
+    def test_init_rejects_malformed_optional_revision_entries(self, mock_site_no_http: Any) -> None:
+        revisions: Any = PageRevisionCollection(_page(mock_site_no_http), [])
+        revisions.append(object())
+
+        with pytest.raises(ValueError, match=r"page\.revisions list entries must be PageRevision"):
+            _page(mock_site_no_http, _revisions=revisions)
