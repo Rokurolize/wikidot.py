@@ -40,6 +40,14 @@ def _validate_files(files: object) -> list["PageFile"]:
     return cast(list["PageFile"], files)
 
 
+def _validate_file_page(value: object) -> "Page":
+    from .page import Page
+
+    if not isinstance(value, Page):
+        raise ValueError("page must be a Page")
+    return value
+
+
 class PageFileCollection(list["PageFile"]):
     """
     Class representing a collection of page files
@@ -344,6 +352,9 @@ class PageFile:
     url: str
     mime_type: str
     size: int
+
+    def __post_init__(self) -> None:
+        self.page = _validate_file_page(self.page)
 
     def __str__(self) -> str:
         """

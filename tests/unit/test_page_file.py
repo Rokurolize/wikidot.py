@@ -1,12 +1,49 @@
 """PageFileモジュールのユニットテスト"""
 
+from datetime import datetime
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 
 from wikidot.common import exceptions
+from wikidot.module.page import Page
 from wikidot.module.page_file import PageFile, PageFileCollection
+from wikidot.module.user import User
+
+
+def _page() -> Page:
+    """HTTPなしで使う実Page"""
+    site = MagicMock()
+    site.url = "https://test.wikidot.com"
+    site.unix_name = "test-site"
+    site.amc_request = MagicMock()
+    site.amc_request_with_retry = MagicMock()
+    user = User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
+    timestamp = datetime(2023, 1, 1, 12, 0, 0)
+    return Page(
+        site=site,
+        fullname="test-page",
+        name="test-page",
+        category="_default",
+        title="Test Page Title",
+        children_count=0,
+        comments_count=0,
+        size=1000,
+        rating=10,
+        votes_count=5,
+        rating_percent=0.5,
+        revisions_count=3,
+        parent_fullname=None,
+        tags=["tag1", "tag2"],
+        created_by=user,
+        created_at=timestamp,
+        updated_by=user,
+        updated_at=timestamp,
+        commented_by=None,
+        commented_at=None,
+        _id=12345,
+    )
 
 
 class TestPageFileCollection:
@@ -14,7 +51,7 @@ class TestPageFileCollection:
 
     def test_init_with_page(self):
         """ページを指定して初期化"""
-        page = MagicMock()
+        page = _page()
 
         collection = PageFileCollection(page=page, files=[])
 
@@ -23,7 +60,7 @@ class TestPageFileCollection:
 
     def test_init_infers_page_from_files(self):
         """ファイルリストからページを推測"""
-        page = MagicMock()
+        page = _page()
         file1 = PageFile(page=page, id=1, name="test.txt", url="", mime_type="", size=0)
 
         collection = PageFileCollection(page=None, files=[file1])
@@ -32,7 +69,7 @@ class TestPageFileCollection:
 
     def test_init_with_files(self):
         """ファイルリストを指定して初期化"""
-        page = MagicMock()
+        page = _page()
         file1 = PageFile(page=page, id=1, name="test.txt", url="", mime_type="", size=100)
         file2 = PageFile(page=page, id=2, name="image.png", url="", mime_type="", size=200)
 
@@ -43,7 +80,7 @@ class TestPageFileCollection:
     @pytest.mark.parametrize("files", [True, False, "file", ("file",), 100])
     def test_init_rejects_non_list_files(self, files: object):
         """filesはlistまたはNoneだけ受け付ける"""
-        page = MagicMock()
+        page = _page()
         bad_files: Any = files
 
         with pytest.raises(ValueError, match="files must be a list or None"):
@@ -52,7 +89,7 @@ class TestPageFileCollection:
     @pytest.mark.parametrize("file", [None, True, "file", {"id": 100}])
     def test_init_rejects_non_file_entries(self, file: object):
         """filesの要素はPageFileだけ受け付ける"""
-        page = MagicMock()
+        page = _page()
         bad_files: Any = [file]
 
         with pytest.raises(ValueError, match="files list entries must be PageFile"):
@@ -60,7 +97,7 @@ class TestPageFileCollection:
 
     def test_iter(self):
         """イテレーション"""
-        page = MagicMock()
+        page = _page()
         file1 = PageFile(page=page, id=1, name="a.txt", url="", mime_type="", size=0)
         file2 = PageFile(page=page, id=2, name="b.txt", url="", mime_type="", size=0)
 
@@ -73,7 +110,7 @@ class TestPageFileCollection:
 
     def test_find_existing_by_id(self):
         """IDで存在するファイルを検索"""
-        page = MagicMock()
+        page = _page()
         file1 = PageFile(page=page, id=123, name="test.txt", url="", mime_type="", size=0)
         file2 = PageFile(page=page, id=456, name="other.txt", url="", mime_type="", size=0)
 
@@ -86,7 +123,7 @@ class TestPageFileCollection:
 
     def test_find_nonexistent_by_id(self):
         """存在しないIDの検索でNone"""
-        page = MagicMock()
+        page = _page()
         file1 = PageFile(page=page, id=123, name="test.txt", url="", mime_type="", size=0)
 
         collection = PageFileCollection(page=page, files=[file1])
@@ -98,7 +135,7 @@ class TestPageFileCollection:
     @pytest.mark.parametrize("file_id", [None, True, "123", 123.0])
     def test_find_rejects_non_integer_ids(self, file_id):
         """findの検索IDはbool以外の整数だけ受け付ける"""
-        page = MagicMock()
+        page = _page()
         file1 = PageFile(page=page, id=1, name="test.txt", url="", mime_type="", size=0)
         collection = PageFileCollection(page=page, files=[file1])
 
@@ -107,7 +144,7 @@ class TestPageFileCollection:
 
     def test_find_by_name_existing(self):
         """名前で存在するファイルを検索"""
-        page = MagicMock()
+        page = _page()
         file1 = PageFile(page=page, id=1, name="image.png", url="", mime_type="", size=0)
         file2 = PageFile(page=page, id=2, name="document.pdf", url="", mime_type="", size=0)
 
@@ -120,7 +157,7 @@ class TestPageFileCollection:
 
     def test_find_by_name_nonexistent(self):
         """存在しない名前の検索でNone"""
-        page = MagicMock()
+        page = _page()
         file1 = PageFile(page=page, id=1, name="image.png", url="", mime_type="", size=0)
 
         collection = PageFileCollection(page=page, files=[file1])
@@ -132,7 +169,7 @@ class TestPageFileCollection:
     @pytest.mark.parametrize("file_name", [None, True, 123, 1.0])
     def test_find_by_name_rejects_non_string_names(self, file_name):
         """find_by_nameの検索名は文字列だけ受け付ける"""
-        page = MagicMock()
+        page = _page()
         file1 = PageFile(page=page, id=1, name="test.txt", url="", mime_type="", size=0)
         collection = PageFileCollection(page=page, files=[file1])
 
@@ -189,7 +226,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_skips_cached_page_files(self):
         """取得済みpage.filesは直接取得でも再取得しない"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         site = MagicMock()
         site.url = "https://test.wikidot.com"
@@ -215,7 +252,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_uses_retry_aware_amc(self):
         """直接ファイル取得でもリトライ対応AMCを使う"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         site = MagicMock()
         site.url = "https://test.wikidot.com"
@@ -263,7 +300,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_raises_when_retry_is_exhausted(self):
         """直接ファイル取得リトライが尽きた場合は明示的に失敗する"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         page.fullname = "test-page"
         site = MagicMock()
@@ -283,7 +320,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_missing_response_body_includes_page_context(self):
         """直接ファイル一覧応答のbody欠落時はsite/page付きで失敗する"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         page.fullname = "test-page"
         site = MagicMock()
@@ -305,7 +342,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_malformed_response_body_type_includes_page_context(self):
         """直接ファイル一覧応答のbody型異常はsite/page/type付きで失敗する"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         page.fullname = "test-page"
         page._files = None
@@ -332,7 +369,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_success(self):
         """ファイル取得成功"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         site = MagicMock()
         site.url = "https://test.wikidot.com"
@@ -365,7 +402,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_preserves_file_name_text_spacing(self):
         """装飾要素を含む添付ファイル名の語境界を保持する"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         site = MagicMock()
         site.url = "https://test.wikidot.com"
@@ -398,7 +435,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_preserves_absolute_file_url(self):
         """絶対URLの添付ファイルhrefを壊さない"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         site = MagicMock()
         site.url = "https://test.wikidot.com"
@@ -426,7 +463,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_requires_file_mime_title(self):
         """構造的に有効な添付ファイル行でMIME titleが欠落した場合は文脈付きで失敗する"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         page.fullname = "test-page"
         site = MagicMock()
@@ -461,7 +498,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_requires_parseable_file_size(self):
         """構造的に有効な添付ファイル行でサイズ値が壊れている場合は文脈付きで失敗する"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         page.fullname = "test-page"
         site = MagicMock()
@@ -496,7 +533,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_requires_file_link_href(self):
         """構造的に有効な添付ファイル行でhrefが欠落した場合は文脈付きで失敗する"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         page.fullname = "test-page"
         site = MagicMock()
@@ -531,7 +568,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_requires_file_name(self):
         """構造的に有効な添付ファイル行でファイル名が欠落した場合は文脈付きで失敗する"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         page.fullname = "test-page"
         site = MagicMock()
@@ -563,7 +600,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_malformed_file_row_id_includes_page_row_and_value_context(self):
         """不正なfile-row IDは行を黙って落とさずsite/page/row/value付きで失敗する"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         page.fullname = "test-page"
         site = MagicMock()
@@ -603,7 +640,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_empty(self):
         """ファイルなしの場合"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         site = MagicMock()
         page.site = site
@@ -619,7 +656,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_multiple_files(self):
         """複数ファイルの取得"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         site = MagicMock()
         site.url = "https://test.wikidot.com"
@@ -654,7 +691,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_skips_invalid_rows(self):
         """無効な行はスキップ"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         site = MagicMock()
         site.url = "https://test.wikidot.com"
@@ -691,7 +728,7 @@ class TestPageFileCollectionAcquire:
 
     def test_acquire_ignores_nested_file_rows(self):
         """添付ファイル行内のネストした表は構造的なファイル行として扱わない"""
-        page = MagicMock()
+        page = _page()
         page.id = 12345
         site = MagicMock()
         site.url = "https://test.wikidot.com"
@@ -738,7 +775,7 @@ class TestPageFile:
 
     def test_init(self):
         """初期化"""
-        page = MagicMock()
+        page = _page()
 
         file = PageFile(
             page=page,
@@ -756,9 +793,24 @@ class TestPageFile:
         assert file.mime_type == "text/plain"
         assert file.size == 1024
 
+    @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
+    def test_init_rejects_malformed_pages(self, page: object) -> None:
+        """pageはPageだけ受け付ける"""
+        bad_page: Any = page
+
+        with pytest.raises(ValueError, match="page must be a Page"):
+            PageFile(
+                page=bad_page,
+                id=123,
+                name="test.txt",
+                url="https://example.com/test.txt",
+                mime_type="text/plain",
+                size=1024,
+            )
+
     def test_str(self):
         """文字列表現"""
-        page = MagicMock()
+        page = _page()
 
         file = PageFile(
             page=page,
