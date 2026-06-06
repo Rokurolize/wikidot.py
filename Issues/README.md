@@ -493,6 +493,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [487-pr-validate-page-constructor-nullable-metadata.md](487-pr-validate-page-constructor-nullable-metadata.md): upstream PR draft for the committed page constructor nullable metadata validation fix.
 - [488-pr-validate-page-constructor-rating-percent.md](488-pr-validate-page-constructor-rating-percent.md): upstream PR draft for the committed page constructor rating-percent validation fix.
 - [489-pr-validate-page-constructor-id-field.md](489-pr-validate-page-constructor-id-field.md): upstream PR draft for the committed page constructor ID-field validation fix.
+- [490-pr-validate-page-constructor-source-field.md](490-pr-validate-page-constructor-source-field.md): upstream PR draft for the committed page constructor source-field validation fix.
 
 ## Local Evidence Index
 
@@ -894,5 +895,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 392: `add8c11 fix(page): validate nullable metadata`
 - Local implementation commits, continued 393: `c9febc9 fix(page): validate rating percent`
 - Local implementation commits, continued 394: `553fc50 fix(page): validate constructor page id`
+- Local implementation commits, continued 395: `6485945 fix(page): validate constructor page source`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
