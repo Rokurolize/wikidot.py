@@ -19,6 +19,7 @@ from wikidot.common.exceptions import (
 )
 from wikidot.module.client import Client
 from wikidot.module.page import Page, PageCollection
+from wikidot.module.page_source import PageSource
 from wikidot.module.site import PagePublishResult, PageSourceResult, Site, SiteChange
 from wikidot.module.user import User
 
@@ -589,6 +590,39 @@ class TestSitePagesAccessor:
 
         assert result.page_id is None
         mock_site_no_http.amc_request.assert_not_called()
+
+    @pytest.mark.parametrize("source", ["source", True, object()])
+    def test_source_result_rejects_malformed_source(self, mock_site_no_http: Site, source: Any) -> None:
+        """PageSourceResultのsourceはPageSourceまたはNoneだけ受け付ける"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+
+        with pytest.raises(ValueError, match="source must be PageSource or None"):
+            PageSourceResult(page=page, source=source, error=NotFoundException("missing"))
+
+    @pytest.mark.parametrize("error", ["missing", True, object()])
+    def test_source_result_rejects_malformed_error(self, mock_site_no_http: Site, error: Any) -> None:
+        """PageSourceResultのerrorはExceptionまたはNoneだけ受け付ける"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+
+        with pytest.raises(ValueError, match="error must be an Exception or None"):
+            PageSourceResult(page=page, source=None, error=error)
+
+    @pytest.mark.parametrize(
+        ("source", "error"),
+        [
+            (None, None),
+            ("valid-source", NotFoundException("also failed")),
+        ],
+    )
+    def test_source_result_rejects_ambiguous_outcomes(
+        self, mock_site_no_http: Site, source: str | None, error: Exception | None
+    ) -> None:
+        """PageSourceResultは成功sourceか失敗errorのどちらか一方だけを保持する"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        source_object = PageSource(page=page, wiki_text=source) if source is not None else None
+
+        with pytest.raises(ValueError, match="source and error must describe exactly one outcome"):
+            PageSourceResult(page=page, source=source_object, error=error)
 
     def test_iter_sources_result_exports_ledger_record(self, mock_site_no_http: Site) -> None:
         """PageSourceResultは永続化しやすい辞書形式に変換できる"""

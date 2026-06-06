@@ -151,6 +151,21 @@ def _validate_publish_result_boolean(value: object, field_name: str) -> None:
         raise ValueError(f"{field_name} must be a boolean")
 
 
+def _validate_source_result_source(value: object) -> None:
+    if value is not None and not isinstance(value, PageSource):
+        raise ValueError("source must be PageSource or None")
+
+
+def _validate_source_result_error(value: object) -> None:
+    if value is not None and not isinstance(value, Exception):
+        raise ValueError("error must be an Exception or None")
+
+
+def _validate_source_result_outcome(source: PageSource | None, error: Exception | None) -> None:
+    if (source is None) == (error is None):
+        raise ValueError("source and error must describe exactly one outcome")
+
+
 @dataclass(frozen=True)
 class PagePublishResult:
     """
@@ -304,6 +319,11 @@ class PageSourceResult:
     page: "Page"
     source: PageSource | None
     error: Exception | None = None
+
+    def __post_init__(self) -> None:
+        _validate_source_result_source(self.source)
+        _validate_source_result_error(self.error)
+        _validate_source_result_outcome(self.source, self.error)
 
     @property
     def ok(self) -> bool:
