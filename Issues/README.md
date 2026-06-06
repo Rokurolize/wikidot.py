@@ -474,6 +474,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [468-pr-validate-page-file-scalar-fields.md](468-pr-validate-page-file-scalar-fields.md): upstream PR draft for the committed page file scalar field validation fix.
 - [469-pr-validate-page-vote-user-value-fields.md](469-pr-validate-page-vote-user-value-fields.md): upstream PR draft for the committed page vote user/value field validation fix.
 - [470-pr-validate-page-vote-collection-page-field.md](470-pr-validate-page-vote-collection-page-field.md): upstream PR draft for the committed page vote collection page-field validation fix.
+- [471-pr-validate-page-file-collection-page-field.md](471-pr-validate-page-file-collection-page-field.md): upstream PR draft for the committed page file collection page-field validation fix.
 
 ## Local Evidence Index
 
@@ -856,5 +857,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 373: `a5d7784 fix(page_file): validate file scalar fields`
 - Local implementation commits, continued 374: `cbd4f55 fix(page_votes): validate vote user and value`
 - Local implementation commits, continued 375: `9c67e4c fix(page_votes): validate vote collection page`
+- Local implementation commits, continued 376: `ddda065 fix(page_file): validate file collection page`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
