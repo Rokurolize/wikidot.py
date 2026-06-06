@@ -164,6 +164,12 @@ def _validate_site_change_site(value: object) -> "Site":
     return value
 
 
+def _validate_site_accessor_site(value: object) -> "Site":
+    if not isinstance(value, Site):
+        raise ValueError("site must be a Site")
+    return value
+
+
 def _validate_amc_retry_batch_size(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"batch_size must be positive, got {value}")
@@ -449,7 +455,7 @@ class SitePagesAccessor:
         site : Site
             Parent site instance
         """
-        self.site = site
+        self.site = _validate_site_accessor_site(site)
 
     def search(self, **kwargs: Unpack[SearchPagesQueryParams]) -> "PageCollection":
         """
@@ -656,7 +662,7 @@ class SitePageAccessor:
         site : Site
             Parent site instance
         """
-        self.site = site
+        self.site = _validate_site_accessor_site(site)
 
     def get(self, fullname: str, raise_when_not_found: bool = True) -> Optional["Page"]:
         """
@@ -979,7 +985,7 @@ class SiteForumAccessor:
         site : Site
             Parent site instance
         """
-        self.site = site
+        self.site = _validate_site_accessor_site(site)
 
     @property
     def categories(self) -> "ForumCategoryCollection":
