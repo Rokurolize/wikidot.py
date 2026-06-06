@@ -168,7 +168,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         """
         super().__init__(_validate_forum_post_revisions(revisions))
         if post is not None:
-            self.post = post
+            self.post = _validate_forum_post(post)
         elif len(self) > 0:
             self.post = self[0].post
 

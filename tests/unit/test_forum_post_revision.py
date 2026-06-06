@@ -49,6 +49,14 @@ class TestForumPostRevisionCollectionInit:
         assert collection.post == mock_forum_post_no_http
         assert len(collection) == 1
 
+    @pytest.mark.parametrize("post", [True, "5001", {"id": 5001}, object()])
+    def test_init_rejects_malformed_posts(self, post: object) -> None:
+        """明示されたpostはForumPostだけ受け付ける"""
+        bad_post: Any = post
+
+        with pytest.raises(ValueError, match="post must be a ForumPost"):
+            ForumPostRevisionCollection(post=bad_post, revisions=[])
+
     @pytest.mark.parametrize("revisions", [True, False, "9001", ("9001",), 9001])
     def test_init_rejects_non_list_revisions(self, mock_forum_post_no_http: ForumPost, revisions: object) -> None:
         """リビジョンコレクションの初期化はlistまたはNoneだけ受け付ける"""
