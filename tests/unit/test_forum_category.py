@@ -52,6 +52,14 @@ class TestForumCategoryCollectionInit:
         with pytest.raises(ValueError, match="categories list entries must be ForumCategory"):
             ForumCategoryCollection(mock_site_no_http, [category])  # type: ignore[list-item]
 
+    @pytest.mark.parametrize("site", [True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_init_rejects_malformed_sites(self, site: object) -> None:
+        """明示されたsiteはSiteだけ受け付ける"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            ForumCategoryCollection(bad_site, categories=[])
+
     def test_find_existing(self, mock_site_no_http: Site, mock_forum_category_no_http: ForumCategory) -> None:
         """存在するカテゴリをIDで検索できる"""
         collection = ForumCategoryCollection(mock_site_no_http, [mock_forum_category_no_http])
