@@ -56,6 +56,25 @@ def _validate_post_created_at(created_at: object) -> datetime:
     return created_at
 
 
+def _validate_optional_post_edited_by(edited_by: object) -> Optional["AbstractUser"]:
+    if edited_by is None:
+        return None
+
+    from .user import AbstractUser
+
+    if not isinstance(edited_by, AbstractUser):
+        raise ValueError("edited_by must be an AbstractUser or None")
+    return edited_by
+
+
+def _validate_optional_post_edited_at(edited_at: object) -> datetime | None:
+    if edited_at is None:
+        return None
+    if not isinstance(edited_at, datetime):
+        raise ValueError("edited_at must be a datetime or None")
+    return edited_at
+
+
 def _validate_forum_threads(threads: object) -> list["ForumThread"]:
     from .forum_thread import ForumThread
 
@@ -779,6 +798,8 @@ class ForumPost:
         self.text = validate_text_field("text", self.text)
         self.created_by = _validate_post_created_by(self.created_by)
         self.created_at = _validate_post_created_at(self.created_at)
+        self.edited_by = _validate_optional_post_edited_by(self.edited_by)
+        self.edited_at = _validate_optional_post_edited_at(self.edited_at)
 
     def __str__(self) -> str:
         """
