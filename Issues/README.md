@@ -423,6 +423,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [417-pr-validate-page-collection-initialization.md](417-pr-validate-page-collection-initialization.md): upstream PR draft for the committed page collection initialization validation fix.
 - [418-pr-validate-page-vote-collection-initialization.md](418-pr-validate-page-vote-collection-initialization.md): upstream PR draft for the committed page vote collection initialization validation fix.
 - [419-pr-validate-page-revision-collection-initialization.md](419-pr-validate-page-revision-collection-initialization.md): upstream PR draft for the committed page revision collection initialization validation fix.
+- [420-pr-validate-page-file-collection-initialization.md](420-pr-validate-page-file-collection-initialization.md): upstream PR draft for the committed page file collection initialization validation fix.
 
 ## Local Evidence Index
 
