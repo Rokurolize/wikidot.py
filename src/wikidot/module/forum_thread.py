@@ -74,6 +74,14 @@ def _validate_forum_thread_collection_threads(threads: object) -> list["ForumThr
     return cast(list["ForumThread"], threads)
 
 
+def _validate_forum_thread_collection_site(site: object) -> "Site":
+    from .site import Site
+
+    if not isinstance(site, Site):
+        raise ValueError("site must be a Site")
+    return site
+
+
 def _validate_optional_forum_category(category: object) -> Optional["ForumCategory"]:
     if category is None:
         return None
@@ -298,7 +306,7 @@ class ForumThreadCollection(list["ForumThread"]):
         super().__init__(_validate_forum_thread_collection_threads(threads))
 
         if site is not None:
-            self.site = site
+            self.site = _validate_forum_thread_collection_site(site)
         else:
             self.site = self[0].site
 

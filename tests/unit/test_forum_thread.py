@@ -56,6 +56,14 @@ class TestForumThreadCollectionInit:
         with pytest.raises(ValueError, match="threads list entries must be ForumThread"):
             ForumThreadCollection(mock_site_no_http, [thread])  # type: ignore[list-item]
 
+    @pytest.mark.parametrize("site", [True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_init_rejects_malformed_sites(self, site: object) -> None:
+        """明示されたsiteはSiteだけ受け付ける"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            ForumThreadCollection(bad_site, threads=[])
+
     def test_find_existing(self, mock_site_no_http: Site, mock_forum_thread_no_http: ForumThread) -> None:
         """存在するスレッドをIDで検索できる"""
         collection = ForumThreadCollection(mock_site_no_http, [mock_forum_thread_no_http])
