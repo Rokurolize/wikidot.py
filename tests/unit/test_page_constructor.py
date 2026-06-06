@@ -71,6 +71,7 @@ class TestPageInit:
         assert page.rating == 10
         assert page.votes_count == 5
         assert page.revisions_count == 3
+        assert page.parent_fullname is None
 
     @pytest.mark.parametrize("rating", [10, 4.0])
     def test_init_accepts_valid_rating_numbers(self, mock_site_no_http: Any, rating: int | float) -> None:
@@ -138,3 +139,23 @@ class TestPageInit:
     def test_init_rejects_malformed_rating(self, mock_site_no_http: Any, rating: Any) -> None:
         with pytest.raises(ValueError, match="rating must be an integer or float"):
             _page(mock_site_no_http, rating=rating)
+
+    @pytest.mark.parametrize(
+        ("parent_fullname", "expected"),
+        [
+            ("parent-page", "parent-page"),
+            ("", None),
+            (None, None),
+        ],
+    )
+    def test_init_accepts_valid_parent_fullname(
+        self, mock_site_no_http: Any, parent_fullname: str | None, expected: str | None
+    ) -> None:
+        page = _page(mock_site_no_http, parent_fullname=parent_fullname)
+
+        assert page.parent_fullname == expected
+
+    @pytest.mark.parametrize("parent_fullname", [True, 3, []])
+    def test_init_rejects_malformed_parent_fullname(self, mock_site_no_http: Any, parent_fullname: Any) -> None:
+        with pytest.raises(ValueError, match="parent_fullname must be a string or None"):
+            _page(mock_site_no_http, parent_fullname=parent_fullname)

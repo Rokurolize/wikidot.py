@@ -1731,6 +1731,7 @@ class Page:
         self.rating = _validate_page_rating_field(self.rating)
         self.votes_count = _validate_page_integer_field("votes_count", self.votes_count)
         self.revisions_count = _validate_page_integer_field("revisions_count", self.revisions_count)
+        self.parent_fullname = _normalize_parent_fullname(self.parent_fullname)
 
     def get_url(self) -> str:
         """
