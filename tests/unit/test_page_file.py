@@ -46,6 +46,18 @@ def _page() -> Page:
     )
 
 
+def _page_file(
+    page: Page,
+    *,
+    file_id: Any = 123,
+    name: Any = "test.txt",
+    url: Any = "https://example.com/test.txt",
+    mime_type: Any = "text/plain",
+    size: Any = 1024,
+) -> PageFile:
+    return PageFile(page=page, id=file_id, name=name, url=url, mime_type=mime_type, size=size)
+
+
 class TestPageFileCollection:
     """PageFileCollectionのテスト"""
 
@@ -777,14 +789,7 @@ class TestPageFile:
         """初期化"""
         page = _page()
 
-        file = PageFile(
-            page=page,
-            id=123,
-            name="test.txt",
-            url="https://example.com/test.txt",
-            mime_type="text/plain",
-            size=1024,
-        )
+        file = _page_file(page)
 
         assert file.page == page
         assert file.id == 123
@@ -808,18 +813,59 @@ class TestPageFile:
                 size=1024,
             )
 
+    @pytest.mark.parametrize("file_id", [None, True, "123", 123.0])
+    def test_init_rejects_malformed_ids(self, file_id: object) -> None:
+        """PageFileは整数IDだけ受け付ける"""
+        page = _page()
+        bad_file_id: Any = file_id
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            _page_file(page, file_id=bad_file_id)
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("name", None, "name must be a string"),
+            ("name", True, "name must be a string"),
+            ("name", 123, "name must be a string"),
+            ("name", [], "name must be a string"),
+            ("url", None, "url must be a string"),
+            ("url", True, "url must be a string"),
+            ("url", 123, "url must be a string"),
+            ("url", [], "url must be a string"),
+            ("mime_type", None, "mime_type must be a string"),
+            ("mime_type", True, "mime_type must be a string"),
+            ("mime_type", 123, "mime_type must be a string"),
+            ("mime_type", [], "mime_type must be a string"),
+        ],
+    )
+    def test_init_rejects_malformed_text_fields(self, field: str, value: object, message: str) -> None:
+        """PageFileは文字列のテキストフィールドだけ受け付ける"""
+        page = _page()
+        bad_value: Any = value
+
+        with pytest.raises(ValueError, match=message):
+            if field == "name":
+                _page_file(page, name=bad_value)
+            elif field == "url":
+                _page_file(page, url=bad_value)
+            else:
+                _page_file(page, mime_type=bad_value)
+
+    @pytest.mark.parametrize("size", [None, True, "1024", 1024.0])
+    def test_init_rejects_malformed_sizes(self, size: object) -> None:
+        """PageFileは整数サイズだけ受け付ける"""
+        page = _page()
+        bad_size: Any = size
+
+        with pytest.raises(ValueError, match="size must be an integer"):
+            _page_file(page, size=bad_size)
+
     def test_str(self):
         """文字列表現"""
         page = _page()
 
-        file = PageFile(
-            page=page,
-            id=123,
-            name="test.txt",
-            url="https://example.com/test.txt",
-            mime_type="text/plain",
-            size=1024,
-        )
+        file = _page_file(page)
 
         result = str(file)
 
