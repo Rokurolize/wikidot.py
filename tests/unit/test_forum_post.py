@@ -1203,6 +1203,46 @@ class TestForumPostBasic:
                 _source=mock_forum_post_no_http._source,
             )
 
+    @pytest.mark.parametrize("created_by", [None, True, 5001, "test_user", {"id": 12345}])
+    def test_init_rejects_malformed_created_by(self, mock_forum_post_no_http: ForumPost, created_by: object) -> None:
+        """ForumPostの初期化はAbstractUserの投稿者だけ受け付ける"""
+        bad_created_by: Any = created_by
+
+        with pytest.raises(ValueError, match="created_by must be an AbstractUser"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=bad_created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-11-14", []])
+    def test_init_rejects_malformed_created_at(self, mock_forum_post_no_http: ForumPost, created_at: object) -> None:
+        """ForumPostの初期化はdatetimeの作成日時だけ受け付ける"""
+        bad_created_at: Any = created_at
+
+        with pytest.raises(ValueError, match="created_at must be a datetime"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=bad_created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
 
 class TestForumPostSource:
     """ForumPost.sourceプロパティのテスト"""

@@ -36,6 +36,20 @@ def _validate_forum_thread(thread: object) -> "ForumThread":
     return thread
 
 
+def _validate_post_created_by(created_by: object) -> "AbstractUser":
+    from .user import AbstractUser
+
+    if not isinstance(created_by, AbstractUser):
+        raise ValueError("created_by must be an AbstractUser")
+    return created_by
+
+
+def _validate_post_created_at(created_at: object) -> datetime:
+    if not isinstance(created_at, datetime):
+        raise ValueError("created_at must be a datetime")
+    return created_at
+
+
 def _validate_forum_threads(threads: object) -> list["ForumThread"]:
     from .forum_thread import ForumThread
 
@@ -754,6 +768,8 @@ class ForumPost:
 
     def __post_init__(self) -> None:
         self.thread = _validate_forum_thread(self.thread)
+        self.created_by = _validate_post_created_by(self.created_by)
+        self.created_at = _validate_post_created_at(self.created_at)
 
     def __str__(self) -> str:
         """

@@ -498,10 +498,12 @@ def mock_forum_post_no_http(mock_forum_thread_no_http: Any) -> Any:
     from bs4 import BeautifulSoup
 
     from wikidot.module.forum_post import ForumPost
+    from wikidot.module.user import User
 
     # elementはダミーのTag
     html = BeautifulSoup('<div class="post" id="post-5001"></div>', "lxml")
     element = html.select_one("div.post")
+    assert element is not None
 
     return ForumPost(
         thread=mock_forum_thread_no_http,
@@ -509,8 +511,14 @@ def mock_forum_post_no_http(mock_forum_thread_no_http: Any) -> Any:
         title="Test Post Title",
         text="<p>Test post content</p>",
         element=element,
-        created_by=None,
-        created_at=None,
+        created_by=User(
+            client=mock_forum_thread_no_http.site.client,
+            id=12345,
+            name="test_user",
+            unix_name="test-user",
+            avatar_url="http://example.com/avatar.png",
+        ),
+        created_at=datetime.fromtimestamp(1700000000),
         edited_by=None,
         edited_at=None,
         _parent_id=None,
