@@ -120,9 +120,10 @@ class TestAjaxRequestHeader:
     def test_set_cookie_rejects_non_string_cookie_name(self) -> None:
         """Cookie名は文字列だけを受け付ける"""
         header = AjaxRequestHeader()
+        invalid_name: Any = 123
 
         with pytest.raises(TypeError, match="cookie name must be str"):
-            header.set_cookie(123, "value")
+            header.set_cookie(invalid_name, "value")
 
     def test_delete_cookie(self) -> None:
         """Cookieを削除できる"""

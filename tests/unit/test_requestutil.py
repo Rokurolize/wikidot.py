@@ -13,25 +13,36 @@ from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.util.requestutil import RequestUtil
 
 
+def _assert_response(result: httpx.Response | Exception) -> httpx.Response:
+    assert isinstance(result, httpx.Response)
+    return result
+
+
 class TestRequestUtilEmpty:
     """空URL入力のテスト"""
 
     def test_empty_get_urls_returns_empty_without_client_config(self):
         """URLがないGETはクライアント設定なしで空結果を返す"""
-        result = RequestUtil.request(object(), "GET", [])
+        client_without_config: Any = object()
+
+        result = RequestUtil.request(client_without_config, "GET", [])
 
         assert result == []
 
     def test_empty_post_urls_returns_empty_without_client_config(self):
         """URLがないPOSTはクライアント設定なしで空結果を返す"""
-        result = RequestUtil.request(object(), "POST", [])
+        client_without_config: Any = object()
+
+        result = RequestUtil.request(client_without_config, "POST", [])
 
         assert result == []
 
     def test_empty_urls_still_validate_method(self):
         """URLがない場合も不正なHTTPメソッドは握りつぶさない"""
+        client_without_config: Any = object()
+
         with pytest.raises(ValueError, match="Invalid method"):
-            RequestUtil.request(object(), "DELETE", [])
+            RequestUtil.request(client_without_config, "DELETE", [])
 
     @pytest.mark.parametrize("method", ["GET", "POST"])
     @pytest.mark.parametrize("return_exceptions", [None, "false", 0, 1])
@@ -39,8 +50,10 @@ class TestRequestUtilEmpty:
         self, method: str, return_exceptions: Any
     ) -> None:
         """return_exceptionsは空URL短絡前に真偽値として検証する"""
+        client_without_config: Any = object()
+
         with pytest.raises(ValueError, match="return_exceptions must be a boolean"):
-            RequestUtil.request(object(), method, [], return_exceptions=return_exceptions)
+            RequestUtil.request(client_without_config, method, [], return_exceptions=return_exceptions)
 
 
 class TestRequestUtilClientReuse:
@@ -163,8 +176,7 @@ class TestRequestUtilConfigValidation:
         results = RequestUtil.request(mock_client, method, ["https://example.com/test"])
 
         assert len(results) == 1
-        assert isinstance(results[0], httpx.Response)
-        assert results[0].status_code == 200
+        assert _assert_response(results[0]).status_code == 200
 
 
 class TestRequestUtilGet:
@@ -188,8 +200,8 @@ class TestRequestUtilGet:
         )
 
         assert len(results) == 2
-        assert all(isinstance(r, httpx.Response) for r in results)
-        assert all(r.status_code == 200 for r in results)
+        responses = [_assert_response(result) for result in results]
+        assert all(response.status_code == 200 for response in responses)
 
     def test_get_sends_client_headers(self, httpx_mock):
         """Wikidot宛てGET時にクライアントのCookieヘッダを送る"""
@@ -239,7 +251,7 @@ class TestRequestUtilGet:
         )
 
         assert len(results) == 1
-        assert results[0].status_code == 200
+        assert _assert_response(results[0]).status_code == 200
 
     def test_get_no_retry_on_4xx(self, httpx_mock):
         """GET 4xxエラーはリトライしない"""
@@ -298,7 +310,7 @@ class TestRequestUtilGet:
         )
 
         assert len(results) == 1
-        assert results[0].status_code == 200
+        assert _assert_response(results[0]).status_code == 200
 
 
 class TestRequestUtilPost:
@@ -321,7 +333,7 @@ class TestRequestUtilPost:
         )
 
         assert len(results) == 1
-        assert results[0].status_code == 200
+        assert _assert_response(results[0]).status_code == 200
 
     def test_post_sends_client_headers(self, httpx_mock):
         """Wikidot宛てPOST時にクライアントのCookieヘッダを送る"""
@@ -371,7 +383,7 @@ class TestRequestUtilPost:
         )
 
         assert len(results) == 1
-        assert results[0].status_code == 200
+        assert _assert_response(results[0]).status_code == 200
 
     def test_post_no_retry_on_4xx(self, httpx_mock):
         """POST 4xxエラーはリトライしない"""
@@ -410,7 +422,7 @@ class TestRequestUtilPost:
         )
 
         assert len(results) == 1
-        assert results[0].status_code == 200
+        assert _assert_response(results[0]).status_code == 200
 
 
 class TestRequestUtilInvalidMethod:

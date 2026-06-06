@@ -1863,8 +1863,9 @@ class TestSiteAmcRequest:
             def amc_client(self):
                 raise AssertionError("empty AMC batches should not read amc_client")
 
+        client_without_amc: Any = ClientWithoutAmc()
         site = Site(
-            client=ClientWithoutAmc(),
+            client=client_without_amc,
             id=1,
             title="Test",
             unix_name="test",
@@ -1888,8 +1889,9 @@ class TestSiteAmcRequest:
             def amc_client(self):
                 raise AssertionError("malformed return_exceptions should not read amc_client")
 
+        client_without_amc: Any = ClientWithoutAmc()
         site = Site(
-            client=ClientWithoutAmc(),
+            client=client_without_amc,
             id=1,
             title="Test",
             unix_name="test",
@@ -1908,8 +1910,9 @@ class TestSiteAmcRequest:
             def amc_client(self):
                 raise AssertionError("empty retry batches should not read amc_client")
 
+        client_without_amc: Any = ClientWithoutAmc()
         site = Site(
-            client=ClientWithoutAmc(),
+            client=client_without_amc,
             id=1,
             title="Test",
             unix_name="test",
@@ -2035,9 +2038,10 @@ class TestSiteInviteUser:
         mock_client.amc_client.request.return_value = (mock_response,)
 
         mock_user = User(client=mock_client, id=12345, name="test-user")
+        invalid_text: Any = 3
 
         with pytest.raises(ValueError, match="text must be a string"):
-            site.invite_user(mock_user, 3)
+            site.invite_user(mock_user, invalid_text)
 
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
@@ -2347,9 +2351,11 @@ class TestSiteMemberLookup:
             ssl_supported=True,
         )
 
+        invalid_user_name: Any = {"name": "test-user"}
+
         with patch("wikidot.module.site.QuickModule.member_lookup") as mock_lookup:
             with pytest.raises(ValueError, match="user_name must be a string"):
-                site.member_lookup({"name": "test-user"})
+                site.member_lookup(invalid_user_name)
 
             mock_lookup.assert_not_called()
 
@@ -2366,9 +2372,11 @@ class TestSiteMemberLookup:
             ssl_supported=True,
         )
 
+        invalid_user_id: Any = user_id
+
         with patch("wikidot.module.site.QuickModule.member_lookup") as mock_lookup:
             with pytest.raises(ValueError, match="user_id must be an integer"):
-                site.member_lookup("test-user", user_id=user_id)
+                site.member_lookup("test-user", user_id=invalid_user_id)
 
             mock_lookup.assert_not_called()
 
@@ -3004,8 +3012,10 @@ Real edit comment
             ssl_supported=True,
         )
 
+        invalid_limit_value: Any = invalid_limit
+
         with pytest.raises(ValueError, match="limit must be an integer or None"):
-            site.get_recent_changes(limit=invalid_limit)
+            site.get_recent_changes(limit=invalid_limit_value)
 
         mock_client.amc_client.request.assert_not_called()
 

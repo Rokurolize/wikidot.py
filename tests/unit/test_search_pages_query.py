@@ -1,5 +1,6 @@
 """SearchPagesQueryのユニットテスト"""
 
+from typing import Any
 from unittest.mock import MagicMock
 
 from wikidot.module.page import SearchPagesQuery
@@ -96,7 +97,9 @@ class TestSearchPagesQueryAsDict:
         """タグリストの要素は文字列だけ受け付ける"""
         import pytest
 
-        query = SearchPagesQuery(tags=["scp", 3])
+        invalid_tags: Any = ["scp", 3]
+
+        query = SearchPagesQuery(tags=invalid_tags)
         with pytest.raises(ValueError, match="tags list entries must be strings"):
             query.as_dict()
 
@@ -204,22 +207,28 @@ class TestSearchPagesQueryValidation:
         """無効なパラメータでValueErrorが発生すること"""
         import pytest
 
+        invalid_params: dict[str, Any] = {"invalid_param": "value"}
+
         with pytest.raises(ValueError, match="Invalid query parameters"):
-            SearchPagesQuery(invalid_param="value")
+            SearchPagesQuery(**invalid_params)
 
     def test_multiple_invalid_parameters_raises_value_error(self):
         """複数の無効なパラメータでValueErrorが発生すること"""
         import pytest
 
+        invalid_params: dict[str, Any] = {"invalid_param1": "value1", "invalid_param2": "value2"}
+
         with pytest.raises(ValueError, match="Invalid query parameters"):
-            SearchPagesQuery(invalid_param1="value1", invalid_param2="value2")
+            SearchPagesQuery(**invalid_params)
 
     def test_mixed_valid_invalid_parameters_raises_value_error(self):
         """有効なパラメータと無効なパラメータが混在する場合にValueErrorが発生すること"""
         import pytest
 
+        invalid_params: dict[str, Any] = {"category": "scp", "invalid_param": "value"}
+
         with pytest.raises(ValueError, match="Invalid query parameters"):
-            SearchPagesQuery(category="scp", invalid_param="value")
+            SearchPagesQuery(**invalid_params)
 
     def test_per_page_must_be_positive(self):
         """perPageは正の値だけ受け付ける"""
@@ -239,28 +248,34 @@ class TestSearchPagesQueryValidation:
         """offsetは整数だけ受け付ける"""
         import pytest
 
+        invalid_offset: Any = "0"
+
         with pytest.raises(ValueError, match="offset must be an integer or None"):
-            SearchPagesQuery(offset="0")
+            SearchPagesQuery(offset=invalid_offset)
 
     def test_limit_must_be_integer(self):
         """limitは整数またはNoneだけ受け付ける"""
         import pytest
 
+        invalid_limit: Any = "50"
+
         with pytest.raises(ValueError, match="limit must be an integer or None"):
-            SearchPagesQuery(limit="50")
+            SearchPagesQuery(limit=invalid_limit)
 
     def test_per_page_must_be_integer(self):
         """perPageは整数またはNoneだけ受け付ける"""
         import pytest
 
+        invalid_per_page: Any = 50.5
+
         with pytest.raises(ValueError, match="perPage must be an integer or None"):
-            SearchPagesQuery(perPage=50.5)
+            SearchPagesQuery(perPage=invalid_per_page)
 
     def test_pagination_values_reject_booleans(self):
         """ページネーション値はboolを整数として受け付けない"""
         import pytest
 
-        invalid_values = [
+        invalid_values: list[tuple[dict[str, Any], str]] = [
             ({"offset": True}, "offset must be an integer or None"),
             ({"offset": False}, "offset must be an integer or None"),
             ({"limit": True}, "limit must be an integer or None"),

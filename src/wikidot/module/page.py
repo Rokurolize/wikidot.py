@@ -511,8 +511,8 @@ class SearchPagesQueryParams(TypedDict, total=False):
         Page type (e.g., "normal", "admin", etc.). Default: "*"
     category : str
         Category name. Default: "*"
-    tags : str | list[str]
-        Tags to search for (string or list of strings)
+    tags : str | list[str] | None
+        Tags to search for (string, list of strings, or None)
     parent : str
         Parent page name
     link_to : str
@@ -537,7 +537,7 @@ class SearchPagesQueryParams(TypedDict, total=False):
         Sort order (e.g., "created_at desc", "title asc"). Default: "created_at desc"
     offset : int
         Starting position for retrieval. Default: 0
-    limit : int
+    limit : int | None
         Limit on number of items to retrieve
     perPage : int
         Number of items displayed per page. Default: 250
@@ -549,7 +549,7 @@ class SearchPagesQueryParams(TypedDict, total=False):
 
     pagetype: str
     category: str
-    tags: "str | list[str]"
+    tags: "str | list[str] | None"
     parent: str
     link_to: str
     created_at: str
@@ -562,7 +562,7 @@ class SearchPagesQueryParams(TypedDict, total=False):
     range: str
     order: str
     offset: int
-    limit: int
+    limit: int | None
     perPage: int
     separate: str
     wrapper: str
