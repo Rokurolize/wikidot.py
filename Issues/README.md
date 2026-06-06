@@ -859,6 +859,8 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [853-pr-validate-page-write-response-counts.md](853-pr-validate-page-write-response-counts.md): upstream PR draft for the committed page write response-count validation fix.
 - [854-pr-validate-page-single-action-response-counts.md](854-pr-validate-page-single-action-response-counts.md): upstream PR draft for the committed page single-action response-count validation fix.
 - [855-pr-validate-listpages-response-count.md](855-pr-validate-listpages-response-count.md): upstream PR draft for the committed ListPages response-count validation fix.
+- [856-pr-validate-site-invitation-response-count.md](856-pr-validate-site-invitation-response-count.md): upstream PR draft for the committed site invitation response-count validation fix.
+- [857-pr-validate-search-created-by-filter.md](857-pr-validate-search-created-by-filter.md): upstream PR draft for the committed search created-by filter validation fix.
 
 ## Local Evidence Index
 
@@ -1605,5 +1607,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 737: `9928a87 fix(page): validate single action response counts`
 - Local implementation commits, continued 738: `f0782aa fix(page): validate listpages response count`
 - Local implementation commits, continued 739: `1bd370a fix(site): validate invite response count`
+- Local implementation commits, continued 740: `a24d842 fix: harden live smoke parser and release paths`
+- Local implementation commits, continued 741: `e52abb1 fix(page): validate search created_by filters`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
