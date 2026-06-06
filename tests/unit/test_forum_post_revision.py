@@ -1205,6 +1205,25 @@ class TestForumPostRevisionHtml:
         assert revision.html == "<p>New HTML</p>"
         assert revision.is_html_acquired() is True
 
+    @pytest.mark.parametrize("html", [None, True, 1, ["<p>New HTML</p>"]])
+    def test_html_setter_rejects_invalid_html(self, mock_forum_post_no_http: ForumPost, html: object) -> None:
+        """htmlセッターは文字列以外をキャッシュしない"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=None,
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        revision.html = "<p>Cached HTML</p>"
+        bad_html: Any = html
+
+        with pytest.raises(ValueError, match="revision.html must be a string"):
+            revision.html = bad_html
+
+        assert revision.html == "<p>Cached HTML</p>"
+        assert revision.is_html_acquired() is True
+
 
 # ============================================================
 # ForumPost.has_revisionsテスト

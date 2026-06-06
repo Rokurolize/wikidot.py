@@ -73,6 +73,12 @@ def _validate_with_html(value: object) -> bool:
     return value
 
 
+def _validate_revision_html(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("revision.html must be a string")
+    return value
+
+
 def _validate_forum_post_revisions(revisions: object) -> list["ForumPostRevision"]:
     if revisions is None:
         return []
@@ -581,4 +587,4 @@ class ForumPostRevision:
         value : str
             The HTML content to set
         """
-        self._html = value
+        self._html = _validate_revision_html(value)
