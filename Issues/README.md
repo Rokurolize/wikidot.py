@@ -406,6 +406,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [400-pr-validate-amc-header-values.md](400-pr-validate-amc-header-values.md): upstream PR draft for the committed AMC request-header value validation fix.
 - [401-pr-validate-amc-request-bodies.md](401-pr-validate-amc-request-bodies.md): upstream PR draft for the committed AMC request-body batch validation fix.
 - [402-pr-validate-amc-response-status.md](402-pr-validate-amc-response-status.md): upstream PR draft for the committed AMC response-status field validation fix.
+- [403-pr-validate-amc-response-status-type.md](403-pr-validate-amc-response-status-type.md): upstream PR draft for the committed AMC response-status type validation fix.
 
 ## Local Evidence Index
 
@@ -719,5 +720,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 304: `eb9de8f fix(amc): validate request header values`
 - Local implementation commits, continued 305: `1d6dc9c fix(amc): validate request body batches`
 - Local implementation commits, continued 306: `d536b7d fix(amc): validate response status field`
+- Local implementation commits, continued 307: `3105879 fix(amc): validate response status type`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
