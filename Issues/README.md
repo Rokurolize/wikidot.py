@@ -404,6 +404,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [398-pr-validate-amc-cookie-names.md](398-pr-validate-amc-cookie-names.md): upstream PR draft for the committed AMC header cookie-name validation fix.
 - [399-pr-validate-amc-cookie-values.md](399-pr-validate-amc-cookie-values.md): upstream PR draft for the committed AMC header cookie-value validation fix.
 - [400-pr-validate-amc-header-values.md](400-pr-validate-amc-header-values.md): upstream PR draft for the committed AMC request-header value validation fix.
+- [401-pr-validate-amc-request-bodies.md](401-pr-validate-amc-request-bodies.md): upstream PR draft for the committed AMC request-body batch validation fix.
 
 ## Local Evidence Index
 
@@ -715,5 +716,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 302: `b545e14 fix(amc): validate cookie names`
 - Local implementation commits, continued 303: `37189c5 fix(amc): validate cookie values`
 - Local implementation commits, continued 304: `eb9de8f fix(amc): validate request header values`
+- Local implementation commits, continued 305: `1d6dc9c fix(amc): validate request body batches`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
