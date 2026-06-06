@@ -8,7 +8,7 @@ It enables operations such as retrieving category information and thread lists.
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 from bs4 import BeautifulSoup
 
@@ -57,6 +57,16 @@ def _require_forum_category_action_status(category: "ForumCategory", event: str,
     return status
 
 
+def _validate_forum_category_collection_categories(categories: object) -> list["ForumCategory"]:
+    if categories is None:
+        return []
+    if not isinstance(categories, list):
+        raise ValueError("categories must be a list or None")
+    if any(not isinstance(category, ForumCategory) for category in categories):
+        raise ValueError("categories list entries must be ForumCategory")
+    return cast(list["ForumCategory"], categories)
+
+
 class ForumCategoryCollection(list["ForumCategory"]):
     """
     Class representing a collection of forum categories
@@ -81,7 +91,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
         categories : list[ForumCategory] | None, default None
             List of categories to store
         """
-        super().__init__(categories or [])
+        super().__init__(_validate_forum_category_collection_categories(categories))
 
         if site is not None:
             self.site = site

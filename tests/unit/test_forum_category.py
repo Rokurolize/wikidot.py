@@ -38,6 +38,18 @@ class TestForumCategoryCollectionInit:
         assert collection.site == mock_site_no_http
         assert len(collection) == 1
 
+    @pytest.mark.parametrize("categories", [True, False, "1001", ("1001",), 1001])
+    def test_init_rejects_non_list_categories(self, mock_site_no_http: Site, categories: object) -> None:
+        """カテゴリコレクションの初期化はlistまたはNoneだけ受け付ける"""
+        with pytest.raises(ValueError, match="categories must be a list or None"):
+            ForumCategoryCollection(mock_site_no_http, categories)
+
+    @pytest.mark.parametrize("category", [None, True, "1001", {"id": 1001}])
+    def test_init_rejects_non_category_entries(self, mock_site_no_http: Site, category: object) -> None:
+        """カテゴリコレクションの初期化はForumCategoryだけ受け付ける"""
+        with pytest.raises(ValueError, match="categories list entries must be ForumCategory"):
+            ForumCategoryCollection(mock_site_no_http, [category])  # type: ignore[list-item]
+
     def test_find_existing(self, mock_site_no_http: Site, mock_forum_category_no_http: ForumCategory) -> None:
         """存在するカテゴリをIDで検索できる"""
         collection = ForumCategoryCollection(mock_site_no_http, [mock_forum_category_no_http])
