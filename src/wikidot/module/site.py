@@ -384,7 +384,7 @@ class SitePagesAccessor:
 
     @staticmethod
     def _validate_positive_integer(field_name: str, value: object) -> int:
-        if not isinstance(value, int):
+        if not isinstance(value, int) or isinstance(value, bool):
             raise ValueError(f"{field_name} must be an integer")
         if value <= 0:
             raise ValueError(f"{field_name} must be greater than 0")

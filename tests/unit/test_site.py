@@ -273,6 +273,29 @@ class TestSitePagesAccessor:
 
             search_pages.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"source_batch_size": True}, "source_batch_size must be an integer"),
+            ({"source_batch_size": False}, "source_batch_size must be an integer"),
+            ({"fallback_batch_size": True}, "fallback_batch_size must be an integer"),
+            ({"fallback_batch_size": False}, "fallback_batch_size must be an integer"),
+        ],
+    )
+    def test_iter_sources_batch_sizes_reject_booleans_before_search(
+        self, mock_site_no_http: Site, kwargs: dict[str, Any], message: str
+    ) -> None:
+        """iter_sourcesのバッチサイズはboolを整数として受け入れない"""
+        with (
+            patch.object(
+                PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])
+            ) as search_pages,
+            pytest.raises(ValueError, match=message),
+        ):
+            list(mock_site_no_http.pages.iter_sources(limit=1, **kwargs))
+
+        search_pages.assert_not_called()
+
     def test_iter_sources_yields_sources_in_search_order(self, mock_site_no_http: Site) -> None:
         """iter_sourcesは検索順を保ったままsourceを分割取得して結果を返す"""
         pages = [
