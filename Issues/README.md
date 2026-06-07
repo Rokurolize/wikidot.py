@@ -559,6 +559,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [553-pr-validate-client-constructor-credentials.md](553-pr-validate-client-constructor-credentials.md): upstream PR draft for the committed Client constructor credential type validation fix.
 - [554-pr-validate-client-constructor-amc-config.md](554-pr-validate-client-constructor-amc-config.md): upstream PR draft for the committed Client constructor AMC config validation fix.
 - [555-pr-validate-private-message-mailbox-client.md](555-pr-validate-private-message-mailbox-client.md): upstream PR draft for the committed private-message mailbox acquire client validation fix.
+- [556-pr-validate-site-application-acquire-site.md](556-pr-validate-site-application-acquire-site.md): upstream PR draft for the committed site-application direct acquire site validation fix.
 
 ## Local Evidence Index
 
@@ -1026,5 +1027,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 458: `e84487b fix(client): validate constructor credentials`
 - Local implementation commits, continued 459: `be9c779 fix(client): validate constructor amc config`
 - Local implementation commits, continued 460: `2862682 fix(private_message): validate mailbox acquire client`
+- Local implementation commits, continued 461: `a7f4508 fix(site_application): validate acquire site`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
