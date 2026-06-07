@@ -526,6 +526,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [520-pr-validate-amc-config-fields.md](520-pr-validate-amc-config-fields.md): upstream PR draft for the committed Ajax module connector config-field construction validation fix.
 - [521-pr-validate-amc-header-serialization-state.md](521-pr-validate-amc-header-serialization-state.md): upstream PR draft for the committed AMC header serialization-state validation fix.
 - [522-pr-validate-amc-request-state-objects.md](522-pr-validate-amc-request-state-objects.md): upstream PR draft for the committed AMC request-state object validation fix.
+- [523-pr-validate-requestutil-config-object.md](523-pr-validate-requestutil-config-object.md): upstream PR draft for the committed RequestUtil config-object state validation fix.
 
 ## Local Evidence Index
 
@@ -960,5 +961,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 425: `b030374 fix(amc): validate config field construction`
 - Local implementation commits, continued 426: `bfee861 fix(amc): validate header serialization state`
 - Local implementation commits, continued 427: `8b65a66 fix(amc): validate request state objects`
+- Local implementation commits, continued 428: `56272fe fix(requestutil): validate config object state`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
