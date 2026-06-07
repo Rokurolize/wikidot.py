@@ -50,6 +50,11 @@ def _validate_private_message_user(field: str, user: object) -> "AbstractUser":
     return user
 
 
+def _validate_private_message_user_client(client: "Client", field: str, user: "AbstractUser") -> None:
+    if user.client is not client:
+        raise ValueError(f"{field} must belong to the client")
+
+
 def _validate_private_message_created_at(created_at: object) -> datetime:
     if not isinstance(created_at, datetime):
         raise ValueError("created_at must be a datetime")
@@ -732,6 +737,8 @@ class PrivateMessage:
         self.client = _validate_private_message_client(self.client)
         self.sender = _validate_private_message_user("sender", self.sender)
         self.recipient = _validate_private_message_user("recipient", self.recipient)
+        _validate_private_message_user_client(self.client, "sender", self.sender)
+        _validate_private_message_user_client(self.client, "recipient", self.recipient)
         self.subject = validate_text_field("subject", self.subject)
         self.body = validate_text_field("body", self.body)
         self.created_at = _validate_private_message_created_at(self.created_at)

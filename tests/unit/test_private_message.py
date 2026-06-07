@@ -1052,6 +1052,33 @@ class TestPrivateMessage:
             PrivateMessage(**inputs)
 
     @pytest.mark.parametrize(
+        ("field", "message"),
+        [
+            ("sender", "sender must belong to the client"),
+            ("recipient", "recipient must belong to the client"),
+        ],
+    )
+    def test_init_rejects_message_users_from_different_client(
+        self, mock_client, mock_user, field: str, message: str
+    ) -> None:
+        """PrivateMessageの送受信者は親Clientと同じClientだけ受け付ける"""
+        other_client = create_autospec(Client, instance=True)
+        other_user = User(client=other_client, id=67890, name="other-user", unix_name="other-user")
+        inputs = {
+            "client": mock_client,
+            "id": 1,
+            "sender": mock_user,
+            "recipient": mock_user,
+            "subject": "Test Subject",
+            "body": "Test Body",
+            "created_at": datetime(2023, 1, 1, 12, 0, 0),
+            field: other_user,
+        }
+
+        with pytest.raises(ValueError, match=message):
+            PrivateMessage(**inputs)
+
+    @pytest.mark.parametrize(
         ("field", "value", "message"),
         [
             ("subject", None, "subject must be a string"),
