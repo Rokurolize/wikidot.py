@@ -78,6 +78,12 @@ def _validate_revision_source(value: object) -> PageSource:
     return value
 
 
+def _validate_optional_revision_source(value: object) -> PageSource | None:
+    if value is None:
+        return None
+    return _validate_revision_source(value)
+
+
 def _validate_revision_html(value: object) -> str:
     if not isinstance(value, str):
         raise ValueError("revision.html must be a string")
@@ -422,6 +428,7 @@ class PageRevision:
         self.created_by = _validate_revision_created_by(self.created_by)
         self.created_at = _validate_revision_created_at(self.created_at)
         self.comment = _validate_revision_comment(self.comment)
+        self._source = _validate_optional_revision_source(self._source)
 
     def is_source_acquired(self) -> bool:
         """

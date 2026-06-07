@@ -630,6 +630,50 @@ class TestPageRevision:
         sample_revision._source = MagicMock()
         assert sample_revision.is_source_acquired() is True
 
+    @pytest.mark.parametrize(
+        "source",
+        [
+            True,
+            100,
+            "cached revision source",
+            ["cached revision source"],
+            {"wiki_text": "cached revision source"},
+            object(),
+        ],
+    )
+    def test_init_rejects_malformed_source_cache(self, mock_page, mock_user, source: object) -> None:
+        """PageRevisionの初期sourceキャッシュはPageSourceまたはNoneだけ受け付ける"""
+        bad_source: Any = source
+
+        with pytest.raises(ValueError, match="revision.source must be PageSource"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+                _source=bad_source,
+            )
+
+    def test_init_accepts_valid_source_cache(self, mock_page, mock_user) -> None:
+        """有効なPageSourceキャッシュを初期化時に保持できる"""
+        source = PageSource(page=mock_page, wiki_text="cached revision source")
+
+        revision = PageRevision(
+            page=mock_page,
+            id=100,
+            rev_no=1,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 1, 12, 0, 0),
+            comment="Initial revision",
+            _source=source,
+        )
+
+        assert revision.source == source
+        assert revision.is_source_acquired() is True
+        mock_page.site.amc_request_with_retry.assert_not_called()
+
     def test_is_html_acquired_false(self, sample_revision):
         """HTML未取得の確認"""
         assert sample_revision.is_html_acquired() is False
