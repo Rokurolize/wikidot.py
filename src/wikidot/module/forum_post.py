@@ -50,6 +50,14 @@ def _validate_optional_post_parent_id(parent_id: object) -> int | None:
     return parent_id
 
 
+def _validate_optional_post_source(source: object) -> str | None:
+    if source is None:
+        return None
+    if not isinstance(source, str):
+        raise ValueError("post.source must be a string or None")
+    return source
+
+
 def _validate_post_created_by(created_by: object) -> "AbstractUser":
     from .user import AbstractUser
 
@@ -803,6 +811,7 @@ class ForumPost:
         self.thread = _validate_forum_thread(self.thread)
         self.id = _validate_post_id(self.id)
         self._parent_id = _validate_optional_post_parent_id(self._parent_id)
+        self._source = _validate_optional_post_source(self._source)
         self.title = validate_text_field("title", self.title)
         self.text = validate_text_field("text", self.text)
         self.created_by = _validate_post_created_by(self.created_by)

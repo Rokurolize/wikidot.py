@@ -1191,6 +1191,44 @@ class TestForumPostBasic:
         mock_forum_post_no_http._parent_id = 4999
         assert mock_forum_post_no_http.parent_id == 4999
 
+    @pytest.mark.parametrize("source", [True, 5001, ["cached source"], {"source": "cached source"}, object()])
+    def test_init_rejects_malformed_source_cache(self, mock_forum_post_no_http: ForumPost, source: object) -> None:
+        """ForumPostの初期ソースキャッシュは文字列またはNoneだけ受け付ける"""
+        bad_source: Any = source
+
+        with pytest.raises(ValueError, match="post.source must be a string or None"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=bad_source,
+            )
+
+    def test_init_accepts_valid_source_cache(self, mock_forum_post_no_http: ForumPost) -> None:
+        """有効な文字列ソースキャッシュを初期化時に保持できる"""
+        post = ForumPost(
+            thread=mock_forum_post_no_http.thread,
+            id=mock_forum_post_no_http.id,
+            title=mock_forum_post_no_http.title,
+            text=mock_forum_post_no_http.text,
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=mock_forum_post_no_http.edited_by,
+            edited_at=mock_forum_post_no_http.edited_at,
+            _parent_id=mock_forum_post_no_http._parent_id,
+            _source="cached source",
+        )
+
+        assert post.source == "cached source"
+
     @pytest.mark.parametrize("parent_id", [True, "4999", 4999.0, {"id": 4999}])
     def test_init_rejects_malformed_parent_id(self, mock_forum_post_no_http: ForumPost, parent_id: object) -> None:
         """ForumPostの初期化は整数またはNoneの親投稿IDだけ受け付ける"""
