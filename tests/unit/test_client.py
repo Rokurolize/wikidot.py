@@ -91,6 +91,22 @@ class TestClient:
         mock_login.assert_not_called()
         mock_from_name.assert_not_called()
 
+    @pytest.mark.parametrize("amc_config", [True, "config", {}, object()])
+    def test_init_rejects_malformed_amc_config_before_client_setup(self, amc_config: object) -> None:
+        bad_amc_config: Any = amc_config
+
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient") as mock_amc_client,
+            patch("wikidot.module.client.HTTPAuthentication.login") as mock_login,
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+            pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"),
+        ):
+            Client(amc_config=bad_amc_config)
+
+        mock_amc_client.assert_not_called()
+        mock_login.assert_not_called()
+        mock_from_name.assert_not_called()
+
     @pytest.mark.parametrize("logging_level", [None, True, False, 1.5, object(), [], {}])
     def test_init_rejects_malformed_logging_level_before_client_setup(self, logging_level: Any) -> None:
         with (

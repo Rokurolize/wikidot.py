@@ -30,6 +30,14 @@ def _validate_client_credentials_pair(username: object, password: object) -> Non
         raise ValueError("password must be a string")
 
 
+def _validate_client_amc_config(value: object) -> AjaxModuleConnectorConfig | None:
+    if value is None:
+        return None
+    if not isinstance(value, AjaxModuleConnectorConfig):
+        raise ValueError("config must be AjaxModuleConnectorConfig")
+    return value
+
+
 class ClientUserAccessor:
     """
     A class that provides user-related operations
@@ -256,6 +264,7 @@ class Client:
             Logging level
         """
         _validate_client_credentials_pair(username, password)
+        amc_config = _validate_client_amc_config(amc_config)
 
         # ロギング設定を行う
         from wikidot.common.logger import setup_console_handler
