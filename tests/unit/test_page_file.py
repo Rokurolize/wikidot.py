@@ -257,6 +257,14 @@ class TestPageFileCollectionParseSize:
 class TestPageFileCollectionAcquire:
     """PageFileCollection.acquireのテスト"""
 
+    @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
+    def test_acquire_rejects_malformed_page_before_fetch(self, page: object) -> None:
+        """直接取得のpageはPageだけ受け付ける"""
+        bad_page: Any = page
+
+        with pytest.raises(ValueError, match="page must be a Page"):
+            PageFileCollection.acquire(bad_page)
+
     def test_acquire_skips_cached_page_files(self):
         """取得済みpage.filesは直接取得でも再取得しない"""
         page = _page()

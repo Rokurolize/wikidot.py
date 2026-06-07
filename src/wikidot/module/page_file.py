@@ -306,6 +306,7 @@ class PageFileCollection(list["PageFile"]):
         PageFileCollection
             Collection of files attached to the page
         """
+        page = _validate_file_page(page)
         cached_files = getattr(page, "_files", None)
         if isinstance(cached_files, PageFileCollection):
             return cached_files
