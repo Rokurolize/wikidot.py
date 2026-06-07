@@ -1905,7 +1905,8 @@ class Page:
             Full URL of the page
         """
         site = _validate_page_site(self.site)
-        return f"{site.url}/{self.fullname}"
+        fullname = _validate_page_text_field("fullname", self.fullname)
+        return f"{site.url}/{fullname}"
 
     @property
     def id(self) -> int:
