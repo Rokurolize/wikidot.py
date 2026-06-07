@@ -2012,8 +2012,9 @@ class Page:
         NotFoundException
             When the page source is not found
         """
+        site = _validate_page_site(self.site)
         self._source = None
-        PageCollection(self.site, [self]).get_page_sources()
+        PageCollection(site, [self]).get_page_sources()
 
         if self._source is None:
             raise self._source_not_found_exception()

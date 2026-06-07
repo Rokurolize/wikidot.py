@@ -2265,6 +2265,22 @@ class TestPageProperties:
         )
         assert mock_page_with_id._source is None
 
+    def test_refresh_source_rejects_malformed_site_before_clearing_cache(self, mock_page_with_id: Page) -> None:
+        """refresh_sourceのsite型異常はキャッシュ破棄やAMC前に拒否する"""
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id._source = cached_source
+        malformed_site = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        malformed_site.amc_request_with_retry = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_with_id.refresh_source()
+
+        malformed_site.amc_request.assert_not_called()
+        malformed_site.amc_request_with_retry.assert_not_called()
+        assert mock_page_with_id._source is cached_source
+
     def test_revisions_property(self, mock_page_with_id: Page, page_revisionlist: dict[str, Any]) -> None:
         """リビジョンプロパティが正しく動作する"""
         mock_response = MagicMock()
