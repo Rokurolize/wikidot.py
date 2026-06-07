@@ -155,7 +155,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
     batch retrieval of HTML content.
     """
 
-    post: "ForumPost"
+    post: "ForumPost | None"
 
     def __init__(
         self,
@@ -177,6 +177,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             self.post = _validate_forum_post(post)
         elif len(self) > 0:
             self.post = self[0].post
+        else:
+            self.post = None
 
     def __iter__(self) -> Iterator["ForumPostRevision"]:
         """
@@ -520,7 +522,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         if len(target_revisions) == 0:
             return self
 
-        responses = self.post.thread.site.amc_request_with_retry(
+        post = _validate_forum_post(self.post)
+        responses = post.thread.site.amc_request_with_retry(
             [{"moduleName": "forum/sub/ForumPostRevisionModule", "revisionId": r.id} for r in target_revisions]
         )
 

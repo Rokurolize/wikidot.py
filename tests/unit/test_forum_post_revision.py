@@ -36,6 +36,12 @@ class TestForumPostRevisionCollectionInit:
         assert collection.post == mock_forum_post_no_http
         assert len(collection) == 0
 
+    def test_init_empty_without_post_exposes_none_post(self) -> None:
+        """空の親なしリビジョンコレクションはpost=Noneを保持する"""
+        collection = ForumPostRevisionCollection(post=None, revisions=[])
+        assert collection.post is None
+        assert len(collection) == 0
+
     def test_init_with_post_and_revisions(self, mock_forum_post_no_http: ForumPost) -> None:
         """ポストとリビジョンリストで初期化できる"""
         revision = ForumPostRevision(
