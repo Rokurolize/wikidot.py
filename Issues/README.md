@@ -571,6 +571,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [565-pr-validate-page-metas-setter-site.md](565-pr-validate-page-metas-setter-site.md): upstream PR draft for the committed page metas setter action-time site validation fix.
 - [566-pr-validate-page-refresh-source-site.md](566-pr-validate-page-refresh-source-site.md): upstream PR draft for the committed page refresh-source action-time site validation fix.
 - [567-pr-validate-page-discussion-site.md](567-pr-validate-page-discussion-site.md): upstream PR draft for the committed page discussion read-time site validation fix.
+- [568-pr-validate-page-metas-getter-site.md](568-pr-validate-page-metas-getter-site.md): upstream PR draft for the committed page metas getter read-time site validation fix.
 
 ## Local Evidence Index
 
@@ -1050,5 +1051,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 470: `7103a78 fix(page): validate metas setter site`
 - Local implementation commits, continued 471: `02d7867 fix(page): validate refresh source site`
 - Local implementation commits, continued 472: `971d888 fix(page): validate discussion site`
+- Local implementation commits, continued 473: `c83a856 fix(page): validate metas getter site`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
