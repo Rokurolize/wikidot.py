@@ -37,6 +37,30 @@ def _category_on_other_site(category: ForumCategory) -> ForumCategory:
     )
 
 
+def _category_with_id(source_category: ForumCategory, category_id: int) -> ForumCategory:
+    return ForumCategory(
+        site=source_category.site,
+        id=category_id,
+        title=f"Category {category_id}",
+        description=source_category.description,
+        threads_count=source_category.threads_count,
+        posts_count=source_category.posts_count,
+    )
+
+
+def _thread_in_category(source_thread: ForumThread, category: ForumCategory, thread_id: int = 3002) -> ForumThread:
+    return ForumThread(
+        site=category.site,
+        id=thread_id,
+        title=f"Thread {thread_id}",
+        description=source_thread.description,
+        created_by=source_thread.created_by,
+        created_at=source_thread.created_at,
+        post_count=source_thread.post_count,
+        category=category,
+    )
+
+
 # ============================================================
 # ForumCategoryCollectionテスト
 # ============================================================
@@ -531,6 +555,45 @@ class TestForumCategoryBasic:
 
         assert category.threads is threads
 
+    def test_init_rejects_threads_cache_from_different_site(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+    ) -> None:
+        """別サイト用のスレッドキャッシュは初期化時に拒否する"""
+        threads = ForumThreadCollection(_category_on_other_site(mock_forum_category_no_http).site, [])
+
+        with pytest.raises(ValueError, match="category.threads must belong to the category"):
+            ForumCategory(
+                site=mock_forum_category_no_http.site,
+                id=mock_forum_category_no_http.id,
+                title=mock_forum_category_no_http.title,
+                description=mock_forum_category_no_http.description,
+                threads_count=mock_forum_category_no_http.threads_count,
+                posts_count=mock_forum_category_no_http.posts_count,
+                _threads=threads,
+            )
+
+    def test_init_rejects_threads_cache_entry_from_different_category(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """キャッシュ内の別カテゴリスレッドは初期化時に拒否する"""
+        other_category = _category_with_id(mock_forum_category_no_http, 1002)
+        threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        threads.append(_thread_in_category(mock_forum_thread_no_http, other_category))
+
+        with pytest.raises(ValueError, match="category.threads must belong to the category"):
+            ForumCategory(
+                site=mock_forum_category_no_http.site,
+                id=mock_forum_category_no_http.id,
+                title=mock_forum_category_no_http.title,
+                description=mock_forum_category_no_http.description,
+                threads_count=mock_forum_category_no_http.threads_count,
+                posts_count=mock_forum_category_no_http.posts_count,
+                _threads=threads,
+            )
+
     @pytest.mark.parametrize("thread", [None, True, "3001", {"id": 3001}])
     def test_init_rejects_malformed_threads_cache_entries(
         self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread, thread: object
@@ -595,6 +658,39 @@ class TestForumCategoryBasic:
             mock_forum_category_no_http.threads = bad_threads
 
         assert mock_forum_category_no_http.threads[0].id == 3001
+
+    def test_threads_setter_rejects_collection_from_different_site(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """別サイト用threads collection代入は既存のキャッシュを破壊しない"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        bad_threads = ForumThreadCollection(_category_on_other_site(mock_forum_category_no_http).site, [])
+
+        with pytest.raises(ValueError, match="category.threads must belong to the category"):
+            mock_forum_category_no_http.threads = bad_threads
+
+        assert mock_forum_category_no_http.threads is cached_threads
+
+    def test_threads_setter_rejects_collection_entry_from_different_category(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """別カテゴリスレッドを含むthreads collection代入は既存のキャッシュを破壊しない"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        bad_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        bad_threads.append(
+            _thread_in_category(mock_forum_thread_no_http, _category_with_id(mock_forum_category_no_http, 1002))
+        )
+
+        with pytest.raises(ValueError, match="category.threads must belong to the category"):
+            mock_forum_category_no_http.threads = bad_threads
+
+        assert mock_forum_category_no_http.threads is cached_threads
 
 
 class TestForumCategoryCreateThread:

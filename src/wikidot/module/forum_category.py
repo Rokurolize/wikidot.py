@@ -72,6 +72,12 @@ def _validate_categories_belong_to_site(site: "Site", categories: list["ForumCat
         raise ValueError("categories must belong to the collection site")
 
 
+def _validate_forum_category(category: object) -> "ForumCategory":
+    if not isinstance(category, ForumCategory):
+        raise ValueError("category must be a ForumCategory")
+    return category
+
+
 def _validate_forum_category_site(site: object) -> "Site":
     from .site import Site
 
@@ -96,6 +102,36 @@ def _validate_optional_forum_category_threads(value: object) -> ForumThreadColle
     if any(not isinstance(thread, ForumThread) for thread in value):
         raise ValueError("category.threads list entries must be ForumThread")
     return value
+
+
+def _validate_threads_cache_site_matches(category_site: "Site", candidate_site: object) -> None:
+    threads_site = _validate_forum_category_site(candidate_site)
+    if threads_site is not category_site:
+        raise ValueError("category.threads must belong to the category")
+
+
+def _validate_threads_cache_category_matches(
+    category: "ForumCategory",
+    category_site: "Site",
+    candidate_category: object,
+) -> None:
+    thread_category = _validate_forum_category(candidate_category)
+    thread_category_site = _validate_forum_category_site(thread_category.site)
+    if thread_category.id != category.id or thread_category_site is not category_site:
+        raise ValueError("category.threads must belong to the category")
+
+
+def _validate_threads_cache_belongs_to_category(
+    category: "ForumCategory",
+    threads: ForumThreadCollection,
+) -> None:
+    category_site = _validate_forum_category_site(category.site)
+    if threads.site is not None:
+        _validate_threads_cache_site_matches(category_site, threads.site)
+    for thread in threads:
+        _validate_threads_cache_site_matches(category_site, thread.site)
+        if thread.category is not None:
+            _validate_threads_cache_category_matches(category, category_site, thread.category)
 
 
 def _validate_forum_category_id(category_id: object) -> int:
@@ -338,6 +374,8 @@ class ForumCategory:
         self.threads_count = _validate_forum_category_count("threads_count", self.threads_count)
         self.posts_count = _validate_forum_category_count("posts_count", self.posts_count)
         self._threads = _validate_optional_forum_category_threads(self._threads)
+        if self._threads is not None:
+            _validate_threads_cache_belongs_to_category(self, self._threads)
 
     def __str__(self) -> str:
         """
@@ -380,7 +418,9 @@ class ForumCategory:
         value : ForumThreadCollection
             Thread collection to set
         """
-        self._threads = _validate_forum_category_threads(value)
+        threads = _validate_forum_category_threads(value)
+        _validate_threads_cache_belongs_to_category(self, threads)
+        self._threads = threads
 
     def reload_threads(self) -> ForumThreadCollection:
         """
