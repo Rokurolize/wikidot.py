@@ -207,6 +207,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
         NoElementException
             If required HTML elements are not found
         """
+        site = _validate_forum_category_site(site)
         categories = []
 
         response = site.amc_request_with_retry([{"moduleName": "forum/ForumStartModule", "hidden": "true"}])[0]

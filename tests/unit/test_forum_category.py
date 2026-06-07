@@ -124,6 +124,14 @@ class TestForumCategoryCollectionAcquireAll:
         collection = ForumCategoryCollection.acquire_all(mock_site_no_http)
         assert len(collection) == 2
 
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_acquire_all_rejects_malformed_site_before_request(self, site: object) -> None:
+        """カテゴリ一覧取得の直接site引数はSiteだけ受け付ける"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            ForumCategoryCollection.acquire_all(bad_site)
+
     def test_acquire_all_parse_fields(self, mock_site_no_http: Site, forum_start: dict[str, Any]) -> None:
         """カテゴリの各フィールドが正しくパースされる"""
         mock_response = MagicMock()
