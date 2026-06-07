@@ -514,6 +514,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [508-pr-validate-forum-post-revision-html-cache.md](508-pr-validate-forum-post-revision-html-cache.md): upstream PR draft for the committed forum-post revision HTML-cache validation fix.
 - [509-pr-validate-page-revision-source-cache.md](509-pr-validate-page-revision-source-cache.md): upstream PR draft for the committed page-revision source-cache validation fix.
 - [510-pr-validate-page-revision-html-cache.md](510-pr-validate-page-revision-html-cache.md): upstream PR draft for the committed page-revision HTML-cache validation fix.
+- [511-pr-validate-page-constructor-metas-cache.md](511-pr-validate-page-constructor-metas-cache.md): upstream PR draft for the committed page constructor metas-cache validation fix.
 
 ## Local Evidence Index
 
@@ -936,5 +937,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 413: `4bf0c59 fix(forum_post_revision): validate html cache`
 - Local implementation commits, continued 414: `f122b36 fix(page_revision): validate source cache`
 - Local implementation commits, continued 415: `00af4d1 fix(page_revision): validate html cache`
+- Local implementation commits, continued 416: `0707c96 fix(page): validate metas cache`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
