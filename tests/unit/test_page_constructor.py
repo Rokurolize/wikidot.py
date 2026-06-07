@@ -39,6 +39,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         "_source": None,
         "_revisions": None,
         "_votes": None,
+        "_metas": None,
         "_files": None,
     }
     values.update(overrides)
@@ -68,6 +69,7 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         _source=values["_source"],
         _revisions=values["_revisions"],
         _votes=values["_votes"],
+        _metas=values["_metas"],
         _files=values["_files"],
     )
 
@@ -353,3 +355,28 @@ class TestPageInit:
 
         with pytest.raises(ValueError, match=r"page\.files list entries must be PageFile"):
             _page(mock_site_no_http, _files=files)
+
+    def test_init_accepts_valid_optional_metas(self, mock_site_no_http: Any) -> None:
+        page_without_metas = _page(mock_site_no_http)
+        metas = {"description": "cached description", "og:title": "Cached title"}
+
+        page_with_metas = _page(mock_site_no_http, _metas=metas)
+
+        assert page_without_metas._metas is None
+        assert page_with_metas._metas == metas
+        assert page_with_metas.metas == metas
+
+    @pytest.mark.parametrize("metas", [True, "cached metas", [("description", "cached")], object()])
+    def test_init_rejects_non_dict_optional_metas(self, mock_site_no_http: Any, metas: Any) -> None:
+        with pytest.raises(ValueError, match="metas must be a dictionary"):
+            _page(mock_site_no_http, _metas=metas)
+
+    @pytest.mark.parametrize("metas", [{3: "description"}, {None: "description"}])
+    def test_init_rejects_non_string_optional_meta_keys(self, mock_site_no_http: Any, metas: Any) -> None:
+        with pytest.raises(ValueError, match="metas keys must be strings"):
+            _page(mock_site_no_http, _metas=metas)
+
+    @pytest.mark.parametrize("metas", [{"description": 3}, {"description": None}, {"description": object()}])
+    def test_init_rejects_non_string_optional_meta_values(self, mock_site_no_http: Any, metas: Any) -> None:
+        with pytest.raises(ValueError, match="metas values must be strings"):
+            _page(mock_site_no_http, _metas=metas)
