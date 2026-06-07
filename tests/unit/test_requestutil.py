@@ -103,6 +103,23 @@ class TestRequestUtilConfigValidation:
     """RequestUtil.requestの設定値検証テスト"""
 
     @pytest.mark.parametrize("method", ["GET", "POST"])
+    @pytest.mark.parametrize("config", [None, object(), {}, "config", True])
+    def test_rejects_invalid_config_object_before_request(
+        self,
+        httpx_mock,
+        method: str,
+        config: Any,
+    ) -> None:
+        """直接URLリクエストもAMC設定オブジェクトをHTTP前に型検証する"""
+        mock_client = MagicMock()
+        mock_client.amc_client.config = config
+
+        with pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"):
+            RequestUtil.request(mock_client, method, ["https://example.com/test"])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
     @pytest.mark.parametrize("request_timeout", [None, True, "1", 0, -0.1])
     def test_rejects_invalid_request_timeout_before_request(
         self,

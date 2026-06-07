@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 
 import httpx
 
+from ..connector.ajax import AjaxModuleConnectorConfig
 from .async_helper import run_coroutine
 from .http import (
     _is_retryable_status,
@@ -24,7 +25,13 @@ def _validate_positive_number_option(field_name: str, value: object) -> float:
     return float(value)
 
 
-def _validate_request_config(config: object) -> tuple[float, int, float, float, float, int]:
+def _validate_request_config_object(config: object) -> AjaxModuleConnectorConfig:
+    if not isinstance(config, AjaxModuleConnectorConfig):
+        raise ValueError("config must be AjaxModuleConnectorConfig")
+    return config
+
+
+def _validate_request_config(config: AjaxModuleConnectorConfig) -> tuple[float, int, float, float, float, int]:
     return (
         _validate_positive_number_option("request_timeout", getattr(config, "request_timeout", None)),
         _validate_positive_int_option("attempt_limit", getattr(config, "attempt_limit", None)),
@@ -91,7 +98,7 @@ class RequestUtil:
             backoff_factor,
             max_backoff,
             semaphore_limit,
-        ) = _validate_request_config(config)
+        ) = _validate_request_config(_validate_request_config_object(config))
         semaphore = asyncio.Semaphore(semaphore_limit)
 
         def _get_headers() -> dict[str, str] | None:
