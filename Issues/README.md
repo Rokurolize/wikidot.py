@@ -517,6 +517,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [511-pr-validate-page-constructor-metas-cache.md](511-pr-validate-page-constructor-metas-cache.md): upstream PR draft for the committed page constructor metas-cache validation fix.
 - [512-pr-validate-page-constructor-discussion-cache.md](512-pr-validate-page-constructor-discussion-cache.md): upstream PR draft for the committed page constructor discussion-cache validation fix.
 - [513-pr-validate-login-credential-types.md](513-pr-validate-login-credential-types.md): upstream PR draft for the committed login credential type validation fix.
+- [514-pr-validate-client-partial-credentials.md](514-pr-validate-client-partial-credentials.md): upstream PR draft for the committed client partial-credential validation fix.
 
 ## Local Evidence Index
 
@@ -942,5 +943,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 416: `0707c96 fix(page): validate metas cache`
 - Local implementation commits, continued 417: `5099201 fix(page): validate discussion cache`
 - Local implementation commits, continued 418: `42f0a0e fix(auth): validate login credentials`
+- Local implementation commits, continued 419: `a4724d6 fix(client): reject partial credentials`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
