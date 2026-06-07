@@ -7,7 +7,7 @@ import pytest
 
 from wikidot.module.forum_thread import ForumThread
 from wikidot.module.page import Page
-from wikidot.module.page_file import PageFileCollection
+from wikidot.module.page_file import PageFile, PageFileCollection
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.page_votes import PageVote, PageVoteCollection
@@ -95,6 +95,17 @@ def _page_vote(page: Page, value: int = 1) -> PageVote:
         page=page,
         user=User(client=page.site.client, id=12345, name="test-user", unix_name="test-user"),
         value=value,
+    )
+
+
+def _page_file(page: Page, file_id: int = 100) -> PageFile:
+    return PageFile(
+        page=page,
+        id=file_id,
+        name="cached.txt",
+        url=f"{page.site.url}/local--files/{page.fullname}/cached.txt",
+        mime_type="text/plain",
+        size=100,
     )
 
 
@@ -406,6 +417,20 @@ class TestPageInit:
         files.append(object())
 
         with pytest.raises(ValueError, match=r"page\.files list entries must be PageFile"):
+            _page(mock_site_no_http, _files=files)
+
+    def test_init_rejects_files_cache_from_different_page(self, mock_site_no_http: Any) -> None:
+        files = PageFileCollection(_page(mock_site_no_http, fullname="other-page", name="other-page"), [])
+
+        with pytest.raises(ValueError, match=r"page\.files must belong to the page"):
+            _page(mock_site_no_http, _files=files)
+
+    def test_init_rejects_files_cache_entry_from_different_page(self, mock_site_no_http: Any) -> None:
+        files_owner = _page(mock_site_no_http)
+        files: Any = PageFileCollection(files_owner, [_page_file(files_owner)])
+        files[0] = _page_file(_page(mock_site_no_http, fullname="other-page", name="other-page"), 101)
+
+        with pytest.raises(ValueError, match=r"page\.files must belong to the page"):
             _page(mock_site_no_http, _files=files)
 
     def test_init_accepts_valid_optional_metas(self, mock_site_no_http: Any) -> None:

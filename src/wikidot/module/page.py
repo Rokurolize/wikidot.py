@@ -258,6 +258,14 @@ def _validate_optional_page_file_collection(value: object) -> "PageFileCollectio
     return value
 
 
+def _validate_files_cache_belongs_to_page(page: "Page", files: "PageFileCollection") -> None:
+    message = "page.files must belong to the page"
+    if files.page is not None:
+        _validate_page_cache_owner(page, files.page, message)
+    for file in files:
+        _validate_page_cache_owner(page, file.page, message)
+
+
 def _validate_page_vote_value(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
         raise ValueError("Vote value must be 1 or -1")
@@ -1940,6 +1948,8 @@ class Page:
         self._discussion = _validate_optional_page_discussion(self._discussion)
         self._discussion_checked = _validate_page_bool_field("page.discussion_checked", self._discussion_checked)
         self._files = _validate_optional_page_file_collection(self._files)
+        if self._files is not None:
+            _validate_files_cache_belongs_to_page(self, self._files)
 
     def get_url(self) -> str:
         """
