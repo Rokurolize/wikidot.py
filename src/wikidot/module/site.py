@@ -34,6 +34,7 @@ from .page import (
     _validate_metas,
     _validate_page_bool_field,
     _validate_page_source,
+    _validate_page_tags,
     _validate_page_text_field,
 )
 from .page_source import PageSource
@@ -927,6 +928,8 @@ class SitePageAccessor:
         comment = _validate_page_text_field("comment", comment)
         if verify_source and source_normalizer is not None and not callable(source_normalizer):
             raise ValueError("source_normalizer must be callable or None")
+        if tags is not None:
+            tags = _validate_page_tags(tags)
         if metas is not None:
             metas = _validate_metas(metas)
         parent_value: str | None = None

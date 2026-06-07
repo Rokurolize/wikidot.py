@@ -3312,6 +3312,33 @@ class TestPageWriteMethods:
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id.parent_fullname == "old-parent"
 
+    @pytest.mark.parametrize(
+        ("invalid_tags", "message"),
+        [
+            (3, "tags must be a list"),
+            ("tag-one tag-two", "tags must be a list"),
+            (("tag-one",), "tags must be a list"),
+            (["tag-one", 3], "tags list entries must be strings"),
+        ],
+    )
+    def test_set_metadata_rejects_invalid_tags_before_request(
+        self,
+        mock_page_with_id: Page,
+        invalid_tags: Any,
+        message: str,
+    ) -> None:
+        """set_metadataのtagsは文字列リストだけ受け付ける"""
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match=message):
+            mock_page_with_id.set_metadata(tags=invalid_tags)
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.tags == ["old-tag"]
+
     def test_set_metadata_rejects_invalid_metas_before_request(self, mock_page_with_id: Page) -> None:
         """set_metadataのmetasは文字列キーと文字列値の辞書だけ受け付ける"""
         invalid_cases: tuple[tuple[Any, str], ...] = (

@@ -1392,6 +1392,35 @@ class TestSitePageAccessor:
         mock_site_no_http.page.get.assert_not_called()
         create_or_edit.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("invalid_tags", "message"),
+        [
+            (3, "tags must be a list"),
+            ("tag-one tag-two", "tags must be a list"),
+            (("tag-one",), "tags must be a list"),
+            (["tag-one", 3], "tags list entries must be strings"),
+        ],
+    )
+    def test_publish_rejects_invalid_tags_before_save(
+        self,
+        mock_site_no_http: Site,
+        invalid_tags: Any,
+        message: str,
+    ) -> None:
+        """publishのtagsは保存前に文字列リストとして検証する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match=message),
+        ):
+            mock_site_no_http.page.publish("new-page", tags=invalid_tags)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
     def test_publish_rejects_invalid_metas_before_save(self, mock_site_no_http: Site) -> None:
         """publishのmetasは保存前に文字列キーと文字列値の辞書として検証する"""
         invalid_metas: dict[str, Any] = {"description": 3}

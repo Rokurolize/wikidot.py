@@ -2384,6 +2384,8 @@ class Page:
             When setting metadata fails
         """
         parent_value: str | None = None
+        if tags is not None:
+            tags = _validate_page_tags(tags)
         if parent_fullname is not _UNSET_PARENT:
             parent_value = _normalize_parent_fullname(parent_fullname)
         if metas is not None:
