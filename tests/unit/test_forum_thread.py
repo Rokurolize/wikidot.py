@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -1078,6 +1078,13 @@ class TestForumThreadBasic:
         url = mock_forum_thread_no_http.url
         assert "test-site.wikidot.com" in url
         assert "forum/t-3001" in url
+
+    def test_url_rejects_mutated_site(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """URL生成時のsiteはSiteだけ受け付ける"""
+        mock_forum_thread_no_http.site = cast("Site", MagicMock())
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            _ = mock_forum_thread_no_http.url
 
     @pytest.mark.parametrize("category", [True, "1001", {"id": 1001}, object()])
     def test_init_rejects_malformed_categories(

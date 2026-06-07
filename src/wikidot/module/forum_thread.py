@@ -889,7 +889,8 @@ class ForumThread:
         str
             Thread URL
         """
-        return f"{self.site.url}/forum/t-{self.id}/"
+        site = _validate_forum_thread_site(self.site)
+        return f"{site.url}/forum/t-{self.id}/"
 
     @property
     def posts(self) -> "ForumPostCollection":
