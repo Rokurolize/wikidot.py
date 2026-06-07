@@ -165,6 +165,17 @@ class TestPageCollectionInit:
         assert collection.site == mock_page_no_http.site
         assert len(collection) == 1
 
+    def test_init_empty_without_site_exposes_none_site(self) -> None:
+        """空コレクションでsite未指定ならNoneを保持する"""
+        collection = PageCollection()
+        assert collection.site is None
+        assert len(collection) == 0
+        assert collection.get_page_ids() is collection
+        assert collection.get_page_sources() is collection
+        assert collection.get_page_revisions() is collection
+        assert collection.get_page_votes() is collection
+        assert collection.get_page_files() is collection
+
     @pytest.mark.parametrize("site", [True, "test-site", {"unix_name": "test-site"}, object()])
     def test_init_rejects_malformed_sites(self, site: object) -> None:
         """明示されたsiteはSiteだけ受け付ける"""

@@ -768,7 +768,7 @@ class PageCollection(list["Page"]):
     Consolidates features such as page search, batch retrieval, and batch operations.
     """
 
-    site: "Site"
+    site: "Site | None"
 
     @staticmethod
     def _is_inside_listpages_result(element: Tag) -> bool:
@@ -803,8 +803,15 @@ class PageCollection(list["Page"]):
 
         if site is not None:
             self.site = _validate_page_collection_site(site)
+        elif len(self) == 0:
+            self.site = None
         else:
             self.site = self[0].site
+
+    def _get_site_for_batch(self) -> "Site | None":
+        if self.site is None and len(self) > 0:
+            raise ValueError("site must be a Site")
+        return self.site
 
     def __iter__(self) -> Iterator["Page"]:
         """
@@ -1259,7 +1266,10 @@ class PageCollection(list["Page"]):
         PageCollection
             Self (for method chaining)
         """
-        PageCollection._acquire_page_ids(self.site, self)
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_ids(site, self)
         return self
 
     @staticmethod
@@ -1363,7 +1373,10 @@ class PageCollection(list["Page"]):
         PageCollection
             Self (for method chaining)
         """
-        PageCollection._acquire_page_sources(self.site, self)
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_sources(site, self)
         return self
 
     @staticmethod
@@ -1523,7 +1536,10 @@ class PageCollection(list["Page"]):
         PageCollection
             Self (for method chaining)
         """
-        PageCollection._acquire_page_revisions(self.site, self)
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_revisions(site, self)
         return self
 
     @staticmethod
@@ -1655,7 +1671,10 @@ class PageCollection(list["Page"]):
         PageCollection
             Self (for method chaining)
         """
-        PageCollection._acquire_page_votes(self.site, self)
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_votes(site, self)
         return self
 
     @staticmethod
@@ -1746,7 +1765,10 @@ class PageCollection(list["Page"]):
         PageCollection
             Self (for method chaining)
         """
-        PageCollection._acquire_page_files(self.site, self)
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_files(site, self)
         return self
 
 
