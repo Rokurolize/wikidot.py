@@ -171,6 +171,20 @@ def _validate_revision_html_targets(revisions: list["ForumPostRevision"]) -> Non
         _validate_forum_thread_site(revision_thread.site)
 
 
+def _validate_revisions_belong_to_post(post: "ForumPost", revisions: list["ForumPostRevision"]) -> None:
+    if len(revisions) == 0:
+        return
+
+    post_thread = _validate_forum_post_thread(post.thread)
+    post_site = _validate_forum_thread_site(post_thread.site)
+    for revision in revisions:
+        revision_post = _validate_forum_post(revision.post)
+        revision_thread = _validate_forum_post_thread(revision_post.thread)
+        revision_site = _validate_forum_thread_site(revision_thread.site)
+        if revision_post.id != post.id or revision_thread.id != post_thread.id or revision_site is not post_site:
+            raise ValueError("revisions must belong to the collection post")
+
+
 def _validate_single_site(sites: list["Site"]) -> "Site":
     site = sites[0]
     if any(candidate is not site for candidate in sites[1:]):
@@ -204,13 +218,16 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         revisions : list[ForumPostRevision] | None, default None
             List of revisions to store
         """
-        super().__init__(_validate_forum_post_revisions(revisions))
+        validated_revisions = _validate_forum_post_revisions(revisions)
         if post is not None:
             self.post = _validate_forum_post(post)
-        elif len(self) > 0:
-            self.post = self[0].post
+            _validate_revisions_belong_to_post(self.post, validated_revisions)
+        elif len(validated_revisions) > 0:
+            self.post = _validate_forum_post(validated_revisions[0].post)
+            _validate_revisions_belong_to_post(self.post, validated_revisions)
         else:
             self.post = None
+        super().__init__(validated_revisions)
 
     def __iter__(self) -> Iterator["ForumPostRevision"]:
         """

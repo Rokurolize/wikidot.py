@@ -24,6 +24,21 @@ def _user() -> User:
     return User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
 
 
+def _post_with_id(source_post: ForumPost, post_id: int) -> ForumPost:
+    return ForumPost(
+        thread=source_post.thread,
+        id=post_id,
+        title=f"Post {post_id}",
+        text=source_post.text,
+        element=source_post.element,
+        created_by=source_post.created_by,
+        created_at=source_post.created_at,
+        edited_by=source_post.edited_by,
+        edited_at=source_post.edited_at,
+        _parent_id=source_post.parent_id,
+    )
+
+
 # ============================================================
 # ForumPostRevisionCollectionテスト
 # ============================================================
@@ -56,6 +71,41 @@ class TestForumPostRevisionCollectionInit:
         collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
         assert collection.post == mock_forum_post_no_http
         assert len(collection) == 1
+
+    def test_init_rejects_revision_from_different_post(self, mock_forum_post_no_http: ForumPost) -> None:
+        """明示親と異なるpostのrevisionは初期化時に拒否する"""
+        revision = ForumPostRevision(
+            post=_post_with_id(mock_forum_post_no_http, 5002),
+            id=9001,
+            rev_no=0,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+
+        with pytest.raises(ValueError, match="revisions must belong to the collection post"):
+            ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+    def test_init_rejects_mixed_post_revisions_when_post_is_inferred(self, mock_forum_post_no_http: ForumPost) -> None:
+        """推論親と異なるpostのrevision混在も初期化時に拒否する"""
+        revisions = [
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=0,
+                created_by=_user(),
+                created_at=datetime.now(tz=timezone.utc),
+            ),
+            ForumPostRevision(
+                post=_post_with_id(mock_forum_post_no_http, 5002),
+                id=9002,
+                rev_no=1,
+                created_by=_user(),
+                created_at=datetime.now(tz=timezone.utc),
+            ),
+        ]
+
+        with pytest.raises(ValueError, match="revisions must belong to the collection post"):
+            ForumPostRevisionCollection(post=None, revisions=revisions)
 
     @pytest.mark.parametrize("post", [True, "5001", {"id": 5001}, object()])
     def test_init_rejects_malformed_posts(self, post: object) -> None:
@@ -795,7 +845,8 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
-        cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
+        cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [])
+        cached_collection.append(cached_revision)
         mock_forum_post_no_http._revisions = cached_collection
         bad_thread: Any = MagicMock()
         revision_post.thread = bad_thread
@@ -1107,7 +1158,8 @@ class TestForumPostRevisionCollectionGetHtmls:
             created_by=_user(),
             created_at=datetime.now(tz=timezone.utc),
         )
-        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [])
+        collection.append(revision)
         bad_thread: Any = MagicMock()
         revision_post.thread = bad_thread
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
