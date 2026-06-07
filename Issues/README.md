@@ -554,6 +554,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [548-pr-validate-site-lookup-client.md](548-pr-validate-site-lookup-client.md): upstream PR draft for the committed direct site lookup client-argument validation fix.
 - [549-pr-validate-auth-client.md](549-pr-validate-auth-client.md): upstream PR draft for the committed direct auth client-argument validation fix.
 - [550-pr-validate-user-lookup-client.md](550-pr-validate-user-lookup-client.md): upstream PR draft for the committed direct user lookup client-argument validation fix.
+- [551-pr-validate-requestutil-client.md](551-pr-validate-requestutil-client.md): upstream PR draft for the committed non-empty RequestUtil client-argument validation fix.
 
 ## Local Evidence Index
 
@@ -1016,5 +1017,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 453: `d218eba fix(site): validate lookup client`
 - Local implementation commits, continued 454: `b4d517b fix(auth): validate auth client`
 - Local implementation commits, continued 455: `3653528 fix(user): validate lookup client`
+- Local implementation commits, continued 456: `bfec3ae fix(requestutil): validate request client`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
