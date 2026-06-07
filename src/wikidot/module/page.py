@@ -1904,7 +1904,8 @@ class Page:
         str
             Full URL of the page
         """
-        return f"{self.site.url}/{self.fullname}"
+        site = _validate_page_site(self.site)
+        return f"{site.url}/{self.fullname}"
 
     @property
     def id(self) -> int:

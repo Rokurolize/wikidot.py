@@ -2160,6 +2160,13 @@ class TestPageProperties:
         url = mock_page_no_http.get_url()
         assert url == "https://test-site.wikidot.com/test-page"
 
+    def test_get_url_rejects_malformed_site(self, mock_page_no_http: Page) -> None:
+        """URL生成前に保持しているサイトを検証する"""
+        mock_page_no_http.site = cast("Site", MagicMock())
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_no_http.get_url()
+
     def test_id_property_acquired(self, mock_page_with_id: Page) -> None:
         """取得済みIDが返される"""
         assert mock_page_with_id.id == 12345
