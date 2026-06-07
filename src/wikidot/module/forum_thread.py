@@ -299,7 +299,7 @@ class ForumThreadCollection(list["ForumThread"]):
     Provides functionality such as retrieving thread lists within specific categories。
     """
 
-    site: "Site"
+    site: "Site | None"
 
     def __init__(
         self,
@@ -320,8 +320,10 @@ class ForumThreadCollection(list["ForumThread"]):
 
         if site is not None:
             self.site = _validate_forum_thread_site(site)
-        else:
+        elif len(self) > 0:
             self.site = self[0].site
+        else:
+            self.site = None
 
     def __iter__(self) -> Iterator["ForumThread"]:
         """

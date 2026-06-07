@@ -24,6 +24,13 @@ if TYPE_CHECKING:
 class TestForumThreadCollectionInit:
     """ForumThreadCollectionの初期化テスト"""
 
+    def test_init_empty_without_site_exposes_none_site(self) -> None:
+        """空で親サイトも未指定ならsiteはNoneとして公開する"""
+        collection = ForumThreadCollection()
+
+        assert collection.site is None
+        assert len(collection) == 0
+
     def test_init_with_site_and_empty_threads(self, mock_site_no_http: Site) -> None:
         """サイトと空のスレッドリストで初期化できる"""
         collection = ForumThreadCollection(mock_site_no_http, [])
