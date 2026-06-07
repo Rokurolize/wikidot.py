@@ -3498,6 +3498,27 @@ class TestPageWriteMethods:
         assert mock_page_with_id.parent_fullname == "old-parent"
         assert mock_page_with_id._metas == {"keep": "same"}
 
+    def test_set_metadata_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
+        """metadata更新時のsite型異常はログイン確認前に拒否する"""
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {"keep": "same"}
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        malformed_site.amc_request_with_retry = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_with_id.set_metadata(tags=["new-tag"])
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        malformed_site.amc_request_with_retry.assert_not_called()
+        assert mock_page_with_id.tags == ["old-tag"]
+        assert mock_page_with_id.parent_fullname == "old-parent"
+        assert mock_page_with_id._metas == {"keep": "same"}
+
     def test_set_metadata_can_clear_parent(self, mock_page_with_id: Page) -> None:
         """parent_fullname=Noneを明示すると親ページをクリアする"""
         mock_page_with_id.parent_fullname = "old-parent"

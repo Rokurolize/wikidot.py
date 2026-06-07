@@ -2418,7 +2418,8 @@ class Page:
         if metas is not None:
             metas = _validate_metas(metas)
 
-        self.site.client.login_check()
+        site = _validate_page_site(self.site)
+        site.client.login_check()
 
         request_bodies: list[dict[str, Any]] = []
         if tags is not None:
@@ -2447,10 +2448,10 @@ class Page:
             request_bodies.extend(self._meta_update_request_bodies(metas))
 
         if request_bodies:
-            responses = self.site.amc_request(request_bodies)
+            responses = site.amc_request(request_bodies)
             for request_body, response in zip(request_bodies, responses, strict=True):
                 _require_page_metadata_action_status(
-                    self.site,
+                    site,
                     self,
                     str(request_body.get("event", "unknown")),
                     response.json(),
