@@ -2785,8 +2785,9 @@ class Page:
             When renaming the page fails (e.g., when a page with the same name exists)
         """
         new_fullname = _validate_page_text_field("new_fullname", new_fullname)
-        self.site.client.login_check()
-        response = self.site.amc_request(
+        site = _validate_page_site(self.site)
+        site.client.login_check()
+        response = site.amc_request(
             [
                 {
                     "action": "WikiPageAction",
@@ -2797,7 +2798,7 @@ class Page:
                 }
             ]
         )[0]
-        _require_page_action_status(self.site, self, "renamePage", response.json())
+        _require_page_action_status(site, self, "renamePage", response.json())
         self.fullname = new_fullname
         if ":" in new_fullname:
             self.category, self.name = new_fullname.split(":", 1)

@@ -2967,6 +2967,32 @@ class TestPageWriteMethods:
         assert mock_page_with_id.category == "_default"
         assert mock_page_with_id.name == "test-page"
 
+    def test_rename_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
+        """rename時のsite型異常はログイン確認前に拒否する"""
+        cached_file = PageFile(
+            page=mock_page_with_id,
+            id=1,
+            name="cached.txt",
+            url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+            mime_type="text/plain",
+            size=10,
+        )
+        mock_page_with_id._files = PageFileCollection(mock_page_with_id, [cached_file])
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_with_id.rename("component:new-name")
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        assert mock_page_with_id.fullname == "test-page"
+        assert mock_page_with_id.category == "_default"
+        assert mock_page_with_id.name == "test-page"
+        assert mock_page_with_id._files is not None
+
     def test_vote_positive(self, mock_page_with_id: Page, page_ratepage_success: dict[str, Any]) -> None:
         """正の投票ができる"""
         mock_response = MagicMock()
