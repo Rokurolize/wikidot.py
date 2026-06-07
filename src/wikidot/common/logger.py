@@ -30,6 +30,17 @@ def get_logger(name: str = "wikidot") -> logging.Logger:
     return _logger
 
 
+def _validate_logging_level(level: object) -> int:
+    if isinstance(level, str):
+        level_value = getattr(logging, level.upper(), None)
+        if not isinstance(level_value, int):
+            raise ValueError(f"Invalid logging level: {level}")
+        return level_value
+    if isinstance(level, bool) or not isinstance(level, int):
+        raise ValueError("logging level must be a string or integer")
+    return level
+
+
 def setup_console_handler(logger: logging.Logger, level: str | int = logging.WARNING) -> None:
     """
     Configure console output handler
@@ -41,6 +52,8 @@ def setup_console_handler(logger: logging.Logger, level: str | int = logging.WAR
     level : str | int, default logging.WARNING
         Log level
     """
+    level_value = _validate_logging_level(level)
+
     # Remove existing StreamHandler (to avoid duplicates)
     for handler in logger.handlers[:]:
         if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.NullHandler):
@@ -52,14 +65,7 @@ def setup_console_handler(logger: logging.Logger, level: str | int = logging.WAR
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
 
-    # Set log level (convert if string)
-    if isinstance(level, str):
-        level_attr = level.upper()
-        level_value = getattr(logging, level_attr, None)
-        if level_value is None:
-            raise ValueError(f"Invalid logging level: {level}")
-        level = level_value
-    logger.setLevel(level)
+    logger.setLevel(level_value)
 
 
 # Default logger used throughout the package

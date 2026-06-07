@@ -235,7 +235,7 @@ class Client:
         username: str | None = None,
         password: str | None = None,
         amc_config: AjaxModuleConnectorConfig | None = None,
-        logging_level: str = "WARNING",
+        logging_level: str | int = "WARNING",
     ):
         """
         Initialize the client and optionally perform authentication
@@ -248,7 +248,7 @@ class Client:
             Password. If provided, authentication will be attempted
         amc_config : AjaxModuleConnectorConfig | None, default None
             AjaxModuleConnector configuration
-        logging_level : str, default "WARNING"
+        logging_level : str | int, default "WARNING"
             Logging level
         """
         _validate_client_credentials_pair(username, password)

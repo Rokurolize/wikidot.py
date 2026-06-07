@@ -64,6 +64,16 @@ class TestClient:
         mock_login.assert_not_called()
         mock_from_name.assert_not_called()
 
+    @pytest.mark.parametrize("logging_level", [None, True, False, 1.5, object(), [], {}])
+    def test_init_rejects_malformed_logging_level_before_client_setup(self, logging_level: Any) -> None:
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient") as mock_amc_client,
+            pytest.raises(ValueError, match="logging level must be a string or integer"),
+        ):
+            Client(logging_level=logging_level)
+
+        mock_amc_client.assert_not_called()
+
     def test_context_manager_protocol(self):
         """with文でのコンテキストマネージャプロトコル"""
         with patch("wikidot.module.client.AjaxModuleConnectorClient"), Client() as client:
