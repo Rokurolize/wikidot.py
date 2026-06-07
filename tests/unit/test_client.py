@@ -42,6 +42,28 @@ class TestClient:
             assert client.is_logged_in is True
             assert client.username == "test-user"
 
+    @pytest.mark.parametrize(
+        ("username", "password"),
+        [
+            ("test-user", None),
+            (None, "test-password"),
+        ],
+    )
+    def test_init_rejects_partial_credentials_before_client_setup(
+        self, username: str | None, password: str | None
+    ) -> None:
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient") as mock_amc_client,
+            patch("wikidot.module.client.HTTPAuthentication.login") as mock_login,
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+            pytest.raises(ValueError, match="username and password must be provided together"),
+        ):
+            Client(username=username, password=password)
+
+        mock_amc_client.assert_not_called()
+        mock_login.assert_not_called()
+        mock_from_name.assert_not_called()
+
     def test_context_manager_protocol(self):
         """with文でのコンテキストマネージャプロトコル"""
         with patch("wikidot.module.client.AjaxModuleConnectorClient"), Client() as client:

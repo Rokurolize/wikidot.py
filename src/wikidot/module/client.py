@@ -21,6 +21,11 @@ def _validate_client_accessor_client(value: object) -> "Client":
     return value
 
 
+def _validate_client_credentials_pair(username: object, password: object) -> None:
+    if (username is None) != (password is None):
+        raise ValueError("username and password must be provided together")
+
+
 class ClientUserAccessor:
     """
     A class that provides user-related operations
@@ -246,6 +251,8 @@ class Client:
         logging_level : str, default "WARNING"
             Logging level
         """
+        _validate_client_credentials_pair(username, password)
+
         # ロギング設定を行う
         from wikidot.common.logger import setup_console_handler
 
