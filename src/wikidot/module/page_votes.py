@@ -29,6 +29,11 @@ def _validate_vote_user(value: object) -> AbstractUser:
     return value
 
 
+def _validate_vote_user_site(page: "Page", user: AbstractUser) -> None:
+    if user.client is not page.site.client:
+        raise ValueError("user must belong to the site")
+
+
 def _validate_vote_value(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("value must be an integer")
@@ -138,4 +143,5 @@ class PageVote:
     def __post_init__(self) -> None:
         self.page = _validate_vote_page(self.page)
         self.user = _validate_vote_user(self.user)
+        _validate_vote_user_site(self.page, self.user)
         self.value = _validate_vote_value(self.value)

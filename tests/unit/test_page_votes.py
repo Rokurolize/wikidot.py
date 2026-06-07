@@ -24,7 +24,7 @@ def _page() -> Page:
     )
     site.amc_request = MagicMock()
     site.amc_request_with_retry = MagicMock()
-    user = User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
+    user = User(client=site.client, id=12345, name="test-user", unix_name="test-user")
     timestamp = datetime(2023, 1, 1, 12, 0, 0)
     return Page(
         site=site,
@@ -60,22 +60,22 @@ def _page_on_same_site(page: Page, fullname: str = "other-page") -> Page:
     return other_page
 
 
-def _vote_user(user_id: int = 12345, name: str = "test-user") -> User:
-    return User(client=MagicMock(), id=user_id, name=name, unix_name=name)
+def _vote_user(page: Page, user_id: int = 12345, name: str = "test-user") -> User:
+    return User(client=page.site.client, id=user_id, name=name, unix_name=name)
 
 
 class TestPageVoteCollection:
     """PageVoteCollectionのテスト"""
 
     @staticmethod
-    def _user(user_id: int, name: str = "test-user") -> User:
-        return User(client=MagicMock(), id=user_id, name=name, unix_name=name)
+    def _user(page: Page, user_id: int, name: str = "test-user") -> User:
+        return User(client=page.site.client, id=user_id, name=name, unix_name=name)
 
     def test_init_with_page_and_votes(self):
         """ページと投票リストで初期化"""
         page = _page()
-        user1 = self._user(1, "user-one")
-        user2 = self._user(2, "user-two")
+        user1 = self._user(page, 1, "user-one")
+        user2 = self._user(page, 2, "user-two")
         vote1 = PageVote(page=page, user=user1, value=1)
         vote2 = PageVote(page=page, user=user2, value=-1)
 
@@ -88,7 +88,7 @@ class TestPageVoteCollection:
         """投票コレクションの要素はcollection pageに属する投票だけ受け付ける"""
         page = _page()
         other_page = _page_on_same_site(page)
-        vote = PageVote(page=other_page, user=self._user(1), value=1)
+        vote = PageVote(page=other_page, user=self._user(other_page, 1), value=1)
 
         with pytest.raises(ValueError, match="votes must belong to the collection page"):
             PageVoteCollection(page, [vote])
@@ -131,8 +131,8 @@ class TestPageVoteCollection:
     def test_iter(self):
         """イテレーション"""
         page = _page()
-        user1 = self._user(1, "user-one")
-        user2 = self._user(2, "user-two")
+        user1 = self._user(page, 1, "user-one")
+        user2 = self._user(page, 2, "user-two")
         vote1 = PageVote(page=page, user=user1, value=1)
         vote2 = PageVote(page=page, user=user2, value=-1)
 
@@ -146,14 +146,14 @@ class TestPageVoteCollection:
     def test_find_existing_vote(self):
         """存在する投票を検索"""
         page = _page()
-        user1 = self._user(12345, "user-one")
-        user2 = self._user(67890, "user-two")
+        user1 = self._user(page, 12345, "user-one")
+        user2 = self._user(page, 67890, "user-two")
         vote1 = PageVote(page=page, user=user1, value=1)
         vote2 = PageVote(page=page, user=user2, value=-1)
 
         collection = PageVoteCollection(page, [vote1, vote2])
 
-        search_user = self._user(12345, "search-user")
+        search_user = self._user(page, 12345, "search-user")
 
         result = collection.find(search_user)
 
@@ -163,12 +163,12 @@ class TestPageVoteCollection:
     def test_find_nonexistent_vote_raises(self):
         """存在しない投票の検索でValueError"""
         page = _page()
-        user1 = self._user(12345, "user-one")
+        user1 = self._user(page, 12345, "user-one")
         vote1 = PageVote(page=page, user=user1, value=1)
 
         collection = PageVoteCollection(page, [vote1])
 
-        search_user = self._user(99999, "unknown-user")
+        search_user = self._user(page, 99999, "unknown-user")
 
         with pytest.raises(ValueError, match="has not voted"):
             collection.find(search_user)
@@ -177,7 +177,7 @@ class TestPageVoteCollection:
     def test_find_rejects_non_user_values(self, user: object) -> None:
         """findの検索対象はAbstractUserだけ受け付ける"""
         page = _page()
-        collection = PageVoteCollection(page, [PageVote(page=page, user=self._user(1), value=1)])
+        collection = PageVoteCollection(page, [PageVote(page=page, user=self._user(page, 1), value=1)])
         bad_user: Any = user
 
         with pytest.raises(ValueError, match="user must be an AbstractUser"):
@@ -194,9 +194,9 @@ class TestPageVoteCollection:
     def test_find_rejects_users_without_integer_id(self, user_id: object, name: str) -> None:
         """findの検索対象user.idはbool以外の整数だけ受け付ける"""
         page = _page()
-        collection = PageVoteCollection(page, [PageVote(page=page, user=self._user(1), value=1)])
+        collection = PageVoteCollection(page, [PageVote(page=page, user=self._user(page, 1), value=1)])
         bad_user_id: Any = user_id
-        user = User(client=MagicMock(), id=12345, name=name, unix_name=name)
+        user = User(client=page.site.client, id=12345, name=name, unix_name=name)
         user.id = bad_user_id
 
         with pytest.raises(ValueError, match="user.id must be an integer"):
@@ -209,7 +209,7 @@ class TestPageVote:
     def test_init(self):
         """初期化"""
         page = _page()
-        user = _vote_user()
+        user = _vote_user(page)
 
         vote = PageVote(page=page, user=user, value=1)
 
@@ -220,7 +220,7 @@ class TestPageVote:
     def test_positive_vote(self):
         """正の投票"""
         page = _page()
-        user = _vote_user()
+        user = _vote_user(page)
 
         vote = PageVote(page=page, user=user, value=1)
 
@@ -229,7 +229,7 @@ class TestPageVote:
     def test_negative_vote(self):
         """負の投票"""
         page = _page()
-        user = _vote_user()
+        user = _vote_user(page)
 
         vote = PageVote(page=page, user=user, value=-1)
 
@@ -238,7 +238,7 @@ class TestPageVote:
     def test_numeric_vote(self):
         """数値投票（5段階評価など）"""
         page = _page()
-        user = _vote_user()
+        user = _vote_user(page)
 
         vote = PageVote(page=page, user=user, value=5)
 
@@ -253,6 +253,14 @@ class TestPageVote:
         with pytest.raises(ValueError, match="user must be an AbstractUser"):
             PageVote(page=page, user=bad_user, value=1)
 
+    def test_init_rejects_user_from_different_client(self) -> None:
+        """投票ユーザーはページのsite clientに属するユーザーだけ受け付ける"""
+        page = _page()
+        user = User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
+
+        with pytest.raises(ValueError, match="user must belong to the site"):
+            PageVote(page=page, user=user, value=1)
+
     @pytest.mark.parametrize("value", [None, True, "1", 1.0, []])
     def test_init_rejects_malformed_values(self, value: object) -> None:
         """投票の初期化はbool以外の整数値だけ受け付ける"""
@@ -260,13 +268,14 @@ class TestPageVote:
         bad_value: Any = value
 
         with pytest.raises(ValueError, match="value must be an integer"):
-            PageVote(page=page, user=_vote_user(), value=bad_value)
+            PageVote(page=page, user=_vote_user(page), value=bad_value)
 
     @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
     def test_init_rejects_malformed_pages(self, page: object) -> None:
         """投票の初期化は実Pageだけ受け付ける"""
         bad_page: Any = page
-        user = _vote_user()
+        reference_page = _page()
+        user = _vote_user(reference_page)
 
         with pytest.raises(ValueError, match="page must be a Page"):
             PageVote(page=bad_page, user=user, value=1)
