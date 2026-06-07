@@ -599,6 +599,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [593-pr-validate-forum-post-revision-collection-post-ownership.md](593-pr-validate-forum-post-revision-collection-post-ownership.md): upstream PR draft for the committed forum post revision collection target-post ownership validation fix.
 - [594-pr-validate-forum-post-revisions-cache-ownership.md](594-pr-validate-forum-post-revisions-cache-ownership.md): upstream PR draft for the committed forum post revisions cache target-post ownership validation fix.
 - [595-pr-validate-forum-thread-posts-cache-ownership.md](595-pr-validate-forum-thread-posts-cache-ownership.md): upstream PR draft for the committed forum thread posts cache target-thread ownership validation fix.
+- [596-pr-validate-forum-category-threads-cache-ownership.md](596-pr-validate-forum-category-threads-cache-ownership.md): upstream PR draft for the committed forum category threads cache target-category ownership validation fix.
 
 ## Local Evidence Index
 
@@ -1106,5 +1107,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 498: `395d504 fix(forum_post_revision): validate revision collection post ownership`
 - Local implementation commits, continued 499: `05855a4 fix(forum_post): validate revisions cache ownership`
 - Local implementation commits, continued 500: `d3c7ae7 fix(forum_thread): validate posts cache ownership`
+- Local implementation commits, continued 501: `091faf8 fix(forum_category): validate threads cache ownership`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
