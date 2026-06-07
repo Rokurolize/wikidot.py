@@ -11,6 +11,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from wikidot.common.exceptions import NoElementException, UnexpectedException
+from wikidot.module.page import Page
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.user import User
@@ -47,6 +48,31 @@ def sample_revision(mock_page, mock_user):
         created_by=mock_user,
         created_at=datetime(2023, 1, 1, 12, 0, 0),
         comment="Initial revision",
+    )
+
+
+def _page_on_same_site(page: Page, fullname: str = "other-page") -> Page:
+    return Page(
+        site=page.site,
+        fullname=fullname,
+        name=fullname,
+        category="_default",
+        title="Other Page",
+        children_count=0,
+        comments_count=0,
+        size=1000,
+        rating=10,
+        votes_count=5,
+        rating_percent=None,
+        revisions_count=3,
+        parent_fullname=None,
+        tags=["tag1", "tag2"],
+        created_by=None,
+        created_at=None,
+        updated_by=None,
+        updated_at=None,
+        commented_by=None,
+        commented_at=None,
     )
 
 
@@ -280,6 +306,30 @@ class TestPageRevisionCollection:
 
         mock_page.site.amc_request.assert_not_called()
         assert result == collection
+
+    def test_get_sources_rejects_revision_from_different_page_before_fetch(self, mock_page, mock_user):
+        """get_sourcesはコレクションページと異なるリビジョンを送信前に拒否する"""
+        other_page = _page_on_same_site(mock_page)
+        other_revision = PageRevision(
+            page=other_page,
+            id=101,
+            rev_no=2,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 2, 12, 0, 0),
+            comment="Other page revision",
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": '<div class="page-source">Wrong page source</div>'}
+        mock_page.site.amc_request_with_retry.return_value = (mock_response,)
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[other_revision])
+
+        with pytest.raises(ValueError, match="revisions must belong to the collection page"):
+            collection.get_sources()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_not_called()
+        assert other_revision._source is None
 
     def test_get_sources_deduplicates_duplicate_revision_ids(self, mock_page, sample_revision, mock_user):
         """重複リビジョンIDはソース取得を1回だけ行い、各エントリへ反映する"""
@@ -526,6 +576,30 @@ class TestPageRevisionCollection:
 
         mock_page.site.amc_request.assert_not_called()
         assert result == collection
+
+    def test_get_htmls_rejects_revision_from_different_page_before_fetch(self, mock_page, mock_user):
+        """get_htmlsはコレクションページと異なるリビジョンを送信前に拒否する"""
+        other_page = _page_on_same_site(mock_page)
+        other_revision = PageRevision(
+            page=other_page,
+            id=101,
+            rev_no=2,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 2, 12, 0, 0),
+            comment="Other page revision",
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "<p>Wrong page HTML</p>"}
+        mock_page.site.amc_request_with_retry.return_value = (mock_response,)
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[other_revision])
+
+        with pytest.raises(ValueError, match="revisions must belong to the collection page"):
+            collection.get_htmls()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_not_called()
+        assert other_revision._html is None
 
 
 class TestPageRevision:

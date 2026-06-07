@@ -40,6 +40,11 @@ def _validate_revision_page(value: object) -> "Page":
     return value
 
 
+def _validate_revisions_belong_to_page(page: "Page", revisions: list["PageRevision"]) -> None:
+    if any(revision.page is not page for revision in revisions):
+        raise ValueError("revisions must belong to the collection page")
+
+
 def _validate_revision_id(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("id must be an integer")
@@ -196,6 +201,7 @@ class PageRevisionCollection(list["PageRevision"]):
         """
         if any(not isinstance(revision, PageRevision) for revision in revisions):
             raise ValueError("revisions list entries must be PageRevision")
+        _validate_revisions_belong_to_page(page, revisions)
 
         acquired_revisions_by_id: dict[int, PageRevision] = {}
         if copy_acquired_func is not None:
