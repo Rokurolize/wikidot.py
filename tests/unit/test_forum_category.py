@@ -443,6 +443,60 @@ class TestForumCategoryBasic:
                 posts_count=50,
             )
 
+    @pytest.mark.parametrize("threads", [True, "3001", {"threads": []}, [], object()])
+    def test_init_rejects_malformed_threads_cache(self, mock_site_no_http: Site, threads: object) -> None:
+        """ForumCategoryの初期キャッシュはForumThreadCollectionだけ受け付ける"""
+        bad_threads: Any = threads
+
+        with pytest.raises(ValueError, match="category.threads must be ForumThreadCollection or None"):
+            ForumCategory(
+                site=mock_site_no_http,
+                id=1001,
+                title="Test Category",
+                description="Test category description",
+                threads_count=10,
+                posts_count=50,
+                _threads=bad_threads,
+            )
+
+    def test_init_accepts_valid_threads_cache(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """有効なForumThreadCollectionキャッシュを初期化時に保持できる"""
+        threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+
+        category = ForumCategory(
+            site=mock_forum_category_no_http.site,
+            id=1001,
+            title="Test Category",
+            description="Test category description",
+            threads_count=10,
+            posts_count=50,
+            _threads=threads,
+        )
+
+        assert category.threads is threads
+
+    @pytest.mark.parametrize("thread", [None, True, "3001", {"id": 3001}])
+    def test_init_rejects_malformed_threads_cache_entries(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread, thread: object
+    ) -> None:
+        """ForumCategoryの初期キャッシュ要素はForumThreadだけ受け付ける"""
+        bad_thread: Any = thread
+        threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        threads[0] = bad_thread
+
+        with pytest.raises(ValueError, match="category.threads list entries must be ForumThread"):
+            ForumCategory(
+                site=mock_forum_category_no_http.site,
+                id=1001,
+                title="Test Category",
+                description="Test category description",
+                threads_count=10,
+                posts_count=50,
+                _threads=threads,
+            )
+
     def test_str(self, mock_forum_category_no_http: ForumCategory) -> None:
         """__str__が正しい文字列を返す"""
         result = str(mock_forum_category_no_http)

@@ -83,6 +83,16 @@ def _validate_forum_category_threads(value: object) -> ForumThreadCollection:
     return value
 
 
+def _validate_optional_forum_category_threads(value: object) -> ForumThreadCollection | None:
+    if value is None:
+        return None
+    if not isinstance(value, ForumThreadCollection):
+        raise ValueError("category.threads must be ForumThreadCollection or None")
+    if any(not isinstance(thread, ForumThread) for thread in value):
+        raise ValueError("category.threads list entries must be ForumThread")
+    return value
+
+
 def _validate_forum_category_id(category_id: object) -> int:
     if not isinstance(category_id, int) or isinstance(category_id, bool):
         raise ValueError("id must be an integer")
@@ -313,6 +323,7 @@ class ForumCategory:
         self.description = validate_text_field("description", self.description)
         self.threads_count = _validate_forum_category_count("threads_count", self.threads_count)
         self.posts_count = _validate_forum_category_count("posts_count", self.posts_count)
+        self._threads = _validate_optional_forum_category_threads(self._threads)
 
     def __str__(self) -> str:
         """
