@@ -1099,6 +1099,29 @@ class TestForumThreadBasic:
                 category=mock_forum_thread_no_http.category,
             )
 
+    def test_init_rejects_created_by_from_different_client(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """スレッド作成者が別client由来なら初期化時に拒否する"""
+        from wikidot.module.user import User
+
+        created_by = User(
+            client=MagicMock(),
+            id=12345,
+            name="test_user",
+            unix_name="test-user",
+        )
+
+        with pytest.raises(ValueError, match="created_by must belong to the site"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
     @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-11-14", []])
     def test_init_rejects_malformed_created_at(
         self,

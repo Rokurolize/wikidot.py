@@ -44,6 +44,11 @@ def _validate_thread_created_by(created_by: object) -> "AbstractUser":
     return created_by
 
 
+def _validate_thread_created_by_site(site: "Site", created_by: "AbstractUser") -> None:
+    if created_by.client is not site.client:
+        raise ValueError("created_by must belong to the site")
+
+
 def _validate_thread_created_at(created_at: object) -> datetime:
     if not isinstance(created_at, datetime):
         raise ValueError("created_at must be a datetime")
@@ -897,6 +902,7 @@ class ForumThread:
         self._posts = _validate_optional_forum_thread_posts(self._posts)
         if self._posts is not None:
             _validate_posts_cache_belongs_to_thread(self, self._posts)
+        _validate_thread_created_by_site(self.site, self.created_by)
 
     def __str__(self) -> str:
         """
