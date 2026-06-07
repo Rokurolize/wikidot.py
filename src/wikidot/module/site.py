@@ -1320,7 +1320,7 @@ class Site:
         if len(bodies) == 0:
             return ()
 
-        config = self.client.amc_client.config
+        config = _validate_site_config_object(self.client.amc_client.config)
         batch_size = batch_size if batch_size is not None else _validate_amc_retry_batch_size(config.retry_batch_size)
         max_retries = (
             max_retries if max_retries is not None else _validate_amc_retry_max_retries(config.retry_max_retries)

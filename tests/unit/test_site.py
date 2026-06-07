@@ -17,6 +17,7 @@ from wikidot.common.exceptions import (
     UnexpectedException,
     WikidotStatusCodeException,
 )
+from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.module.client import Client
 from wikidot.module.page import Page, PageCollection
 from wikidot.module.page_source import PageSource
@@ -33,9 +34,11 @@ def create_mock_client(is_logged_in: bool = True) -> MagicMock:
     else:
         mock_client.login_check.side_effect = LoginRequiredException("Login required")
     mock_client.amc_client = MagicMock()
-    mock_client.amc_client.config.request_timeout = 30.0
-    mock_client.amc_client.config.retry_batch_size = 50
-    mock_client.amc_client.config.retry_max_retries = 3
+    mock_client.amc_client.config = AjaxModuleConnectorConfig(
+        request_timeout=30,
+        retry_batch_size=50,
+        retry_max_retries=3,
+    )
     return mock_client
 
 
@@ -1941,6 +1944,28 @@ class TestSiteAmcRequest:
         """空AMC retry batchでも明示的な不正batch_sizeは拒否する"""
         with pytest.raises(ValueError, match="batch_size must be positive"):
             mock_site_no_http.amc_request_with_retry([], batch_size=0)
+
+    @pytest.mark.parametrize("config", [None, object(), {}, "config", True])
+    def test_amc_request_with_retry_rejects_invalid_config_object_before_request(
+        self,
+        config: Any,
+    ) -> None:
+        """AMC retry helperは置換されたconfig objectをrequest前に拒否する"""
+        mock_client = create_mock_client()
+        mock_client.amc_client.config = config
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"):
+            site.amc_request_with_retry([{"moduleName": "Test"}])
+
+        mock_client.amc_client.request.assert_not_called()
 
     @pytest.mark.parametrize("batch_size", [None, True, False, "2", 0, -1, 1.5])
     def test_amc_request_with_retry_rejects_invalid_config_batch_size_before_request(

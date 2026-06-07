@@ -14,6 +14,7 @@ from wikidot.common.exceptions import (
     UnexpectedException,
     WikidotStatusCodeException,
 )
+from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.module.site import Site
 from wikidot.module.site_member import SiteMember
 from wikidot.module.user import User
@@ -285,8 +286,7 @@ class TestSiteMemberGet:
         """メンバー一覧の初回取得は一時的なAMC失敗を再試行する"""
         mock_client = MagicMock()
         mock_client.amc_client = MagicMock()
-        mock_client.amc_client.config.retry_batch_size = 50
-        mock_client.amc_client.config.retry_max_retries = 3
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(retry_batch_size=50, retry_max_retries=3)
         site = Site(
             client=mock_client,
             id=123456,
