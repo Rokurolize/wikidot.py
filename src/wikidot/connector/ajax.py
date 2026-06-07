@@ -140,11 +140,18 @@ class AjaxRequestHeader:
         dict
             Header dictionary for HTTP requests
         """
+        if not isinstance(self.cookie, dict):
+            raise ValueError("cookie must be a dictionary")
         return {
-            "Content-Type": self.content_type,
-            "User-Agent": self.user_agent,
-            "Referer": self.referer,
-            "Cookie": "".join([f"{name}={value};" for name, value in self.cookie.items()]),
+            "Content-Type": _validate_header_value("content_type", self.content_type),
+            "User-Agent": _validate_header_value("user_agent", self.user_agent),
+            "Referer": _validate_header_value("referer", self.referer),
+            "Cookie": "".join(
+                [
+                    f"{_validate_cookie_name(name)}={_validate_cookie_value(value)};"
+                    for name, value in self.cookie.items()
+                ]
+            ),
         }
 
 

@@ -166,6 +166,61 @@ class TestAjaxRequestHeader:
         assert "Cookie" in result
         assert "wikidot_token7=123456" in result["Cookie"]
 
+    @pytest.mark.parametrize("field", ["content_type", "user_agent", "referer"])
+    @pytest.mark.parametrize("value", ["bad\nvalue", "bad\rvalue"])
+    def test_get_header_rejects_mutated_header_line_breaks(self, field: str, value: str) -> None:
+        """直接変更された通常ヘッダ値もシリアライズ前に検証する"""
+        header = AjaxRequestHeader()
+        setattr(header, field, value)
+
+        with pytest.raises(ValueError, match=f"{field} must not contain line breaks"):
+            header.get_header()
+
+    @pytest.mark.parametrize("field", ["content_type", "user_agent", "referer"])
+    def test_get_header_rejects_mutated_non_string_header_values(self, field: str) -> None:
+        """直接変更された通常ヘッダ値も文字列だけを受け付ける"""
+        header = AjaxRequestHeader()
+        setattr(header, field, 123)
+
+        with pytest.raises(TypeError, match=f"{field} must be str"):
+            header.get_header()
+
+    @pytest.mark.parametrize("cookie", [None, [], "cookie", True, object()])
+    def test_get_header_rejects_mutated_non_dict_cookie_state(self, cookie: Any) -> None:
+        """直接変更されたCookie状態も辞書だけを受け付ける"""
+        header = AjaxRequestHeader()
+        header.cookie = cookie
+
+        with pytest.raises(ValueError, match="cookie must be a dictionary"):
+            header.get_header()
+
+    @pytest.mark.parametrize("name", ["", " ", "bad name", "bad=name", "bad;name", "bad\nname"])
+    def test_get_header_rejects_mutated_cookie_names(self, name: str) -> None:
+        """直接変更されたCookie名もシリアライズ前に検証する"""
+        header = AjaxRequestHeader()
+        header.cookie[name] = "value"
+
+        with pytest.raises(ValueError, match="cookie name must be a non-empty string without whitespace, '=' or ';'"):
+            header.get_header()
+
+    def test_get_header_rejects_mutated_non_string_cookie_name(self) -> None:
+        """直接変更されたCookie名も文字列だけを受け付ける"""
+        header = AjaxRequestHeader()
+        invalid_name: Any = 123
+        header.cookie[invalid_name] = "value"
+
+        with pytest.raises(TypeError, match="cookie name must be str"):
+            header.get_header()
+
+    @pytest.mark.parametrize("value", ["bad value", "bad;value", "bad\nvalue", "bad\tvalue"])
+    def test_get_header_rejects_mutated_cookie_values(self, value: str) -> None:
+        """直接変更されたCookie値もシリアライズ前に検証する"""
+        header = AjaxRequestHeader()
+        header.cookie["session"] = value
+
+        with pytest.raises(ValueError, match="cookie value must serialize without whitespace or ';'"):
+            header.get_header()
+
 
 class TestAjaxModuleConnectorConfig:
     """AjaxModuleConnectorConfigのテスト"""
