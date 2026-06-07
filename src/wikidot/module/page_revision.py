@@ -65,6 +65,11 @@ def _validate_revision_created_by(value: object) -> "AbstractUser":
     return value
 
 
+def _validate_revision_created_by_site(page: "Page", created_by: "AbstractUser") -> None:
+    if created_by.client is not page.site.client:
+        raise ValueError("created_by must belong to the site")
+
+
 def _validate_revision_created_at(value: object) -> datetime:
     if not isinstance(value, datetime):
         raise ValueError("created_at must be a datetime")
@@ -455,6 +460,7 @@ class PageRevision:
         self.id = _validate_revision_id(self.id)
         self.rev_no = _validate_revision_number(self.rev_no)
         self.created_by = _validate_revision_created_by(self.created_by)
+        _validate_revision_created_by_site(self.page, self.created_by)
         self.created_at = _validate_revision_created_at(self.created_at)
         self.comment = _validate_revision_comment(self.comment)
         self._source = _validate_optional_revision_source(self._source)

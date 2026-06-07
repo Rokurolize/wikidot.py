@@ -680,6 +680,20 @@ class TestPageRevision:
                 comment="Initial revision",
             )
 
+    def test_init_rejects_created_by_from_different_client(self, mock_page) -> None:
+        """PageRevisionは親pageのsiteと異なるclientの作成者を拒否する"""
+        other_client_user = User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
+
+        with pytest.raises(ValueError, match="created_by must belong to the site"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=other_client_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+            )
+
     @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-01-01", []])
     def test_init_rejects_malformed_created_at(self, mock_page, mock_user, created_at: object) -> None:
         """PageRevisionはdatetimeの作成日時だけ受け付ける"""
