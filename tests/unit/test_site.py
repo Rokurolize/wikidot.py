@@ -938,6 +938,23 @@ class TestSitePageAccessor:
         search.assert_not_called()
         direct_lookup.assert_not_called()
 
+    @pytest.mark.parametrize("bad_fullname", [None, True, 123, 1.0])
+    def test_get_rejects_non_string_fullnames_before_lookup(
+        self, mock_site_no_http: Site, bad_fullname: object
+    ) -> None:
+        """page.getのfullnameは検索前に文字列として検証する"""
+        bad_fullname_value: Any = bad_fullname
+
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])) as search,
+            patch.object(mock_site_no_http.page, "_get_by_direct_page_id", return_value=None) as direct_lookup,
+            pytest.raises(ValueError, match="fullname must be a string"),
+        ):
+            mock_site_no_http.page.get(bad_fullname_value)
+
+        search.assert_not_called()
+        direct_lookup.assert_not_called()
+
     def test_get_surfaces_unexpected_direct_page_id_probe_errors(self, mock_site_no_http: Site) -> None:
         """直接pageId取得の構造エラーはページ欠落として隠さない"""
         direct_error = UnexpectedException("Unexpected response type for page: stale-page")
@@ -1025,6 +1042,25 @@ class TestSitePageAccessor:
             pytest.raises(ValueError, match="force_edit must be a boolean"),
         ):
             mock_site_no_http.page.create("test-page", force_edit=invalid_force_edit)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
+    @pytest.mark.parametrize("bad_fullname", [None, True, 123, 1.0])
+    def test_create_rejects_non_string_fullnames_before_login(
+        self, mock_site_no_http: Site, bad_fullname: object
+    ) -> None:
+        """createのfullnameはログインや既存ページ確認より前に文字列として検証する"""
+        bad_fullname_value: Any = bad_fullname
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match="fullname must be a string"),
+        ):
+            mock_site_no_http.page.create(bad_fullname_value)
 
         mock_site_no_http.client.login_check.assert_not_called()
         mock_site_no_http.page.get.assert_not_called()
@@ -1472,6 +1508,26 @@ class TestSitePageAccessor:
             pytest.raises(ValueError, match=message),
         ):
             mock_site_no_http.page.publish("new-page", **kwargs)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
+    @pytest.mark.parametrize("bad_fullname", [None, True, 123, 1.0])
+    def test_publish_rejects_non_string_fullnames_before_save(
+        self, mock_site_no_http: Site, bad_fullname: object
+    ) -> None:
+        """publishのfullnameは保存前に文字列として検証する"""
+        bad_fullname_value: Any = bad_fullname
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+        created_page = self._publishable_page(mock_site_no_http, "new-page", 12345)
+
+        with (
+            patch.object(Page, "create_or_edit", return_value=created_page) as create_or_edit,
+            pytest.raises(ValueError, match="fullname must be a string"),
+        ):
+            mock_site_no_http.page.publish(bad_fullname_value)
 
         mock_site_no_http.client.login_check.assert_not_called()
         mock_site_no_http.page.get.assert_not_called()

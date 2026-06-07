@@ -839,6 +839,7 @@ class PageCollection(list["Page"]):
 
     @staticmethod
     def _split_fullname(fullname: str) -> tuple[str, str]:
+        fullname = _validate_page_text_field("fullname", fullname)
         if ":" in fullname:
             category, name = fullname.split(":", 1)
             return category, name
@@ -2494,6 +2495,7 @@ class Page:
         NotFoundException
             When the page cannot be found after creation
         """
+        fullname = _validate_page_text_field("fullname", fullname)
         title = _validate_page_text_field("title", title)
         source = _validate_page_source(source)
         comment = _validate_page_text_field("comment", comment)

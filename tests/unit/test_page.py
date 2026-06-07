@@ -215,6 +215,23 @@ class TestPageCollectionInit:
         with pytest.raises(ValueError, match="fullname must be a string"):
             collection.find(bad_fullname_value)
 
+    @pytest.mark.parametrize("bad_fullname", [None, True, 123, 1.0])
+    def test_get_by_fullname_rejects_non_string_fullnames_before_search(
+        self,
+        mock_site_no_http: Site,
+        bad_fullname: object,
+    ) -> None:
+        """get_by_fullnameの検索fullnameはListPages検索前に文字列として検証する"""
+        bad_fullname_value: Any = bad_fullname
+
+        with (
+            patch.object(PageCollection, "search_pages") as search_pages,
+            pytest.raises(ValueError, match="fullname must be a string"),
+        ):
+            PageCollection.get_by_fullname(mock_site_no_http, bad_fullname_value)
+
+        search_pages.assert_not_called()
+
 
 class TestPageCollectionParse:
     """PageCollection._parseのテスト"""
@@ -3545,6 +3562,26 @@ class TestPageCreateOrEdit:
                 mock_site_no_http,
                 "existing-page",
                 page_id=page_id_value,
+                title="Updated Title",
+                source="Updated content",
+            )
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
+    @pytest.mark.parametrize("bad_fullname", [None, True, 123, 1.0])
+    def test_create_or_edit_rejects_non_string_fullnames_before_request(
+        self, mock_site_no_http: Site, bad_fullname: object
+    ) -> None:
+        """create_or_editのfullnameはログインや保存前に文字列として検証する"""
+        bad_fullname_value: Any = bad_fullname
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="fullname must be a string"):
+            Page.create_or_edit(
+                mock_site_no_http,
+                bad_fullname_value,
                 title="Updated Title",
                 source="Updated content",
             )

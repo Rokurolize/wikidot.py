@@ -714,6 +714,7 @@ class SitePageAccessor:
         NotFoundException
             When raise_when_not_found is True and the page is not found
         """
+        fullname = _validate_page_text_field("fullname", fullname)
         raise_when_not_found = _validate_page_bool_field("raise_when_not_found", raise_when_not_found)
         page = PageCollection.get_by_fullname(self.site, fullname)
         if page is None:
@@ -799,6 +800,7 @@ class SitePageAccessor:
         TargetErrorException
             When the page already exists and force_edit is False
         """
+        fullname = _validate_page_text_field("fullname", fullname)
         title = _validate_page_text_field("title", title)
         source = _validate_page_source(source)
         comment = _validate_page_text_field("comment", comment)
@@ -919,6 +921,7 @@ class SitePageAccessor:
         WikidotStatusCodeException
             When saving the page or metadata fails.
         """
+        fullname = _validate_page_text_field("fullname", fullname)
         force_edit = _validate_page_bool_field("force_edit", force_edit)
         verify_source = _validate_page_bool_field("verify_source", verify_source)
         post_save_visibility_attempts = self._validate_post_save_visibility_attempts(post_save_visibility_attempts)
