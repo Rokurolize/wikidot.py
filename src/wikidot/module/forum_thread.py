@@ -82,6 +82,11 @@ def _validate_forum_thread_site(site: object) -> "Site":
     return site
 
 
+def _validate_threads_belong_to_site(site: "Site", threads: list["ForumThread"]) -> None:
+    if any(thread.site is not site for thread in threads):
+        raise ValueError("threads must belong to the collection site")
+
+
 def _validate_forum_category(category: object) -> "ForumCategory":
     from .forum_category import ForumCategory
 
@@ -324,14 +329,18 @@ class ForumThreadCollection(list["ForumThread"]):
         threads : list[ForumThread] | None, default None
             List of threads to store
         """
-        super().__init__(_validate_forum_thread_collection_threads(threads))
+        threads = _validate_forum_thread_collection_threads(threads)
 
         if site is not None:
             self.site = _validate_forum_thread_site(site)
-        elif len(self) > 0:
-            self.site = self[0].site
+            _validate_threads_belong_to_site(self.site, threads)
+        elif len(threads) > 0:
+            self.site = threads[0].site
+            _validate_threads_belong_to_site(self.site, threads)
         else:
             self.site = None
+
+        super().__init__(threads)
 
     def __iter__(self) -> Iterator["ForumThread"]:
         """

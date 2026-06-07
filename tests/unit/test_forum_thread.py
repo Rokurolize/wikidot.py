@@ -16,6 +16,29 @@ if TYPE_CHECKING:
     from wikidot.module.site import Site
 
 
+def _thread_on_other_site(thread: ForumThread) -> ForumThread:
+    from wikidot.module.site import Site
+
+    other_site = Site(
+        client=thread.site.client,
+        id=654321,
+        title="Other Site",
+        unix_name="other-site",
+        domain="other-site.wikidot.com",
+        ssl_supported=True,
+    )
+    return ForumThread(
+        site=other_site,
+        id=3002,
+        title=thread.title,
+        description=thread.description,
+        created_by=thread.created_by,
+        created_at=thread.created_at,
+        post_count=thread.post_count,
+        category=None,
+    )
+
+
 # ============================================================
 # ForumThreadCollectionテスト
 # ============================================================
@@ -43,11 +66,29 @@ class TestForumThreadCollectionInit:
         assert collection.site == mock_site_no_http
         assert len(collection) == 1
 
+    def test_init_rejects_thread_from_different_site(
+        self, mock_site_no_http: Site, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """明示siteと異なるsiteのスレッドは保持しない"""
+        other_thread = _thread_on_other_site(mock_forum_thread_no_http)
+
+        with pytest.raises(ValueError, match="threads must belong to the collection site"):
+            ForumThreadCollection(mock_site_no_http, [other_thread])
+
     def test_init_infers_site_from_threads(self, mock_forum_thread_no_http: ForumThread) -> None:
         """サイト未指定時はスレッドからサイトを推測する"""
         collection = ForumThreadCollection(threads=[mock_forum_thread_no_http])
         assert collection.site == mock_forum_thread_no_http.site
         assert len(collection) == 1
+
+    def test_init_rejects_mixed_site_threads_when_site_is_inferred(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """site未指定時も推測siteと異なるスレッドは保持しない"""
+        other_thread = _thread_on_other_site(mock_forum_thread_no_http)
+
+        with pytest.raises(ValueError, match="threads must belong to the collection site"):
+            ForumThreadCollection(threads=[mock_forum_thread_no_http, other_thread])
 
     @pytest.mark.parametrize("threads", [True, False, "3001", ("3001",), 3001])
     def test_init_rejects_non_list_threads(self, mock_site_no_http: Site, threads: object) -> None:
