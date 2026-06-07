@@ -51,6 +51,11 @@ def _validate_page_votes(votes: object) -> list["PageVote"]:
     return cast(list["PageVote"], votes)
 
 
+def _validate_votes_belong_to_page(page: "Page", votes: list["PageVote"]) -> None:
+    if any(vote.page is not page for vote in votes):
+        raise ValueError("votes must belong to the collection page")
+
+
 class PageVoteCollection(list["PageVote"]):
     """
     Class representing a collection of page votes
@@ -73,7 +78,9 @@ class PageVoteCollection(list["PageVote"]):
             List of votes to store
         """
         self.page = _validate_vote_page(page)
-        super().__init__(_validate_page_votes(votes))
+        votes = _validate_page_votes(votes)
+        _validate_votes_belong_to_page(self.page, votes)
+        super().__init__(votes)
 
     def __iter__(self) -> Iterator["PageVote"]:
         """

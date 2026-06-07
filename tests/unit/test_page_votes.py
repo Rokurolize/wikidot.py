@@ -51,6 +51,15 @@ def _page() -> Page:
     )
 
 
+def _page_on_same_site(page: Page, fullname: str = "other-page") -> Page:
+    other_page = _page()
+    other_page.site = page.site
+    other_page.fullname = fullname
+    other_page.name = fullname
+    other_page._id = 67890
+    return other_page
+
+
 def _vote_user(user_id: int = 12345, name: str = "test-user") -> User:
     return User(client=MagicMock(), id=user_id, name=name, unix_name=name)
 
@@ -74,6 +83,15 @@ class TestPageVoteCollection:
 
         assert collection.page == page
         assert len(collection) == 2
+
+    def test_init_rejects_vote_from_different_page(self) -> None:
+        """投票コレクションの要素はcollection pageに属する投票だけ受け付ける"""
+        page = _page()
+        other_page = _page_on_same_site(page)
+        vote = PageVote(page=other_page, user=self._user(1), value=1)
+
+        with pytest.raises(ValueError, match="votes must belong to the collection page"):
+            PageVoteCollection(page, [vote])
 
     @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
     def test_init_rejects_malformed_pages(self, page: object) -> None:
