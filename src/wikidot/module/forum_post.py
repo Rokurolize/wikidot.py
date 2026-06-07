@@ -52,6 +52,14 @@ def _validate_single_thread_site(sites: list["Site"]) -> "Site":
     return site
 
 
+def _validate_posts_belong_to_thread(thread: "ForumThread", site: "Site", posts: list["ForumPost"]) -> None:
+    for post in posts:
+        post_thread = _validate_forum_thread(post.thread)
+        post_site = _validate_forum_thread_site(post_thread.site)
+        if post_thread.id != thread.id or post_site is not site:
+            raise ValueError("posts must belong to the collection thread")
+
+
 def _validate_post_id(post_id: object) -> int:
     if not isinstance(post_id, int) or isinstance(post_id, bool):
         raise ValueError("id must be an integer")
@@ -727,6 +735,7 @@ class ForumPostCollection(list["ForumPost"]):
         thread = _validate_forum_thread(thread)
         site = _validate_forum_thread_site(thread.site)
         posts = _validate_forum_posts(posts)
+        _validate_posts_belong_to_thread(thread, site, posts)
         if len(posts) == 0:
             return posts
 

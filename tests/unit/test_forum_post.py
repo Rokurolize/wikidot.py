@@ -974,6 +974,40 @@ class TestForumPostCollectionGetSources:
         bad_site.amc_request_with_retry.assert_not_called()
         assert mock_forum_post_no_http._source is None
 
+    def test_get_post_sources_rejects_post_from_different_thread_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """コレクション親と異なるスレッドの投稿はソース取得前に拒否する"""
+        other_thread = ForumThread(
+            site=mock_forum_thread_no_http.site,
+            id=3002,
+            title="Other Thread",
+            description="Other thread description",
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=1,
+            category=mock_forum_thread_no_http.category,
+        )
+        other_post = ForumPost(
+            thread=other_thread,
+            id=6001,
+            title="Other Post",
+            text="<p>Other post content</p>",
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+        )
+        collection = ForumPostCollection(mock_forum_thread_no_http, [other_post])
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=())
+
+        with pytest.raises(ValueError, match="posts must belong to the collection thread"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert other_post._source is None
+
     def test_get_post_sources_success(
         self,
         mock_forum_thread_no_http: ForumThread,
