@@ -590,6 +590,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [584-pr-reject-mixed-site-forum-post-list-batches.md](584-pr-reject-mixed-site-forum-post-list-batches.md): upstream PR draft for the committed mixed-site forum post-list batch rejection fix.
 - [585-pr-validate-forum-post-source-target-thread.md](585-pr-validate-forum-post-source-target-thread.md): upstream PR draft for the committed forum post source target-thread ownership validation fix.
 - [586-pr-validate-page-batch-target-site.md](586-pr-validate-page-batch-target-site.md): upstream PR draft for the committed page batch target-site ownership validation fix.
+- [587-pr-validate-page-revision-collection-page-ownership.md](587-pr-validate-page-revision-collection-page-ownership.md): upstream PR draft for the committed page revision collection target-page ownership validation fix.
 
 ## Local Evidence Index
 
@@ -1088,5 +1089,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 489: `ec721e6 fix(forum_post): reject mixed-site post-list batches`
 - Local implementation commits, continued 490: `0c23d7f fix(forum_post): validate source post thread ownership`
 - Local implementation commits, continued 491: `ed737bc fix(page): validate batch page site ownership`
+- Local implementation commits, continued 492: `bc702e0 fix(page_revision): validate revision collection page ownership`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
