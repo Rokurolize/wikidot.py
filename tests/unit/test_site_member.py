@@ -642,6 +642,14 @@ class TestSiteMemberGet:
         with pytest.raises(ValueError, match="Invalid group"):
             SiteMember.get(site, "invalid_group")
 
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_get_rejects_malformed_site_before_request(self, site: object):
+        """SiteMember.getは不正なsiteをリクエスト前に拒否する"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            SiteMember.get(bad_site, "")
+
     def test_get_default_group(self):
         """デフォルトグループ（None）"""
         site = _site()

@@ -292,6 +292,7 @@ class SiteMember:
         if group not in ["admins", "moderators", ""]:
             raise ValueError("Invalid group")
 
+        site = _validate_site_member_site(site)
         group_label = group or "members"
         members: list[SiteMember] = []
 
