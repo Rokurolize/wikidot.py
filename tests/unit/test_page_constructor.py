@@ -8,7 +8,7 @@ import pytest
 from wikidot.module.forum_thread import ForumThread
 from wikidot.module.page import Page
 from wikidot.module.page_file import PageFileCollection
-from wikidot.module.page_revision import PageRevisionCollection
+from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.page_votes import PageVoteCollection
 from wikidot.module.user import User
@@ -76,6 +76,17 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         _discussion=values["_discussion"],
         _discussion_checked=values["_discussion_checked"],
         _files=values["_files"],
+    )
+
+
+def _page_revision(page: Page, revision_id: int = 100) -> PageRevision:
+    return PageRevision(
+        page=page,
+        id=revision_id,
+        rev_no=1,
+        created_by=User(client=page.site.client, id=12345, name="test-user", unix_name="test-user"),
+        created_at=datetime(2023, 1, 1),
+        comment="cached revision",
     )
 
 
@@ -313,6 +324,20 @@ class TestPageInit:
         revisions.append(object())
 
         with pytest.raises(ValueError, match=r"page\.revisions list entries must be PageRevision"):
+            _page(mock_site_no_http, _revisions=revisions)
+
+    def test_init_rejects_revisions_cache_from_different_page(self, mock_site_no_http: Any) -> None:
+        revisions = PageRevisionCollection(_page(mock_site_no_http, fullname="other-page", name="other-page"), [])
+
+        with pytest.raises(ValueError, match=r"page\.revisions must belong to the page"):
+            _page(mock_site_no_http, _revisions=revisions)
+
+    def test_init_rejects_revisions_cache_entry_from_different_page(self, mock_site_no_http: Any) -> None:
+        revisions_owner = _page(mock_site_no_http)
+        revisions: Any = PageRevisionCollection(revisions_owner, [_page_revision(revisions_owner)])
+        revisions[0] = _page_revision(_page(mock_site_no_http, fullname="other-page", name="other-page"), 101)
+
+        with pytest.raises(ValueError, match=r"page\.revisions must belong to the page"):
             _page(mock_site_no_http, _revisions=revisions)
 
     def test_init_accepts_valid_optional_votes(self, mock_site_no_http: Any) -> None:

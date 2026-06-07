@@ -166,14 +166,39 @@ def _validate_page_revision_entries(revisions: list[object] | PageRevisionCollec
         raise ValueError("page.revisions list entries must be PageRevision")
 
 
+def _validate_page_cache_owner(page: "Page", candidate_page: object, message: str) -> None:
+    if not isinstance(candidate_page, Page):
+        raise ValueError(message)
+    candidate_site = _validate_page_site(candidate_page.site)
+    if candidate_site is not page.site:
+        raise ValueError(message)
+    if page._id is not None and candidate_page._id is not None:
+        if candidate_page._id != page._id:
+            raise ValueError(message)
+        return
+    if candidate_page.fullname != page.fullname:
+        raise ValueError(message)
+
+
+def _validate_revisions_cache_belongs_to_page(page: "Page", revisions: PageRevisionCollection) -> None:
+    message = "page.revisions must belong to the page"
+    if revisions.page is not None:
+        _validate_page_cache_owner(page, revisions.page, message)
+    for revision in revisions:
+        _validate_page_cache_owner(page, revision.page, message)
+
+
 def _validate_page_revisions(page: "Page", value: object) -> PageRevisionCollection:
-    if isinstance(value, list):
-        _validate_page_revision_entries(value)
-        return PageRevisionCollection(page, cast(list[PageRevision], value))
     if isinstance(value, PageRevisionCollection):
         _validate_page_revision_entries(value)
-        return value
-    raise ValueError("page.revisions must be a list or PageRevisionCollection")
+        revisions = value
+    elif isinstance(value, list):
+        _validate_page_revision_entries(value)
+        revisions = PageRevisionCollection(page, cast(list[PageRevision], value))
+    else:
+        raise ValueError("page.revisions must be a list or PageRevisionCollection")
+    _validate_revisions_cache_belongs_to_page(page, revisions)
+    return revisions
 
 
 def _validate_optional_page_revision_collection(value: object) -> PageRevisionCollection | None:
@@ -1898,6 +1923,8 @@ class Page:
         self._id = _validate_optional_page_constructor_id(self._id)
         self._source = _validate_optional_page_source_object(self._source)
         self._revisions = _validate_optional_page_revision_collection(self._revisions)
+        if self._revisions is not None:
+            _validate_revisions_cache_belongs_to_page(self, self._revisions)
         self._votes = _validate_optional_page_vote_collection(self._votes)
         self._metas = _validate_optional_metas(self._metas)
         self._discussion = _validate_optional_page_discussion(self._discussion)

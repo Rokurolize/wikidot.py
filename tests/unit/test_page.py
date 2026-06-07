@@ -45,6 +45,32 @@ def _cached_page_vote(page: Page, value: int = 1) -> PageVote:
     return PageVote(page=page, user=_page_user(page), value=value)
 
 
+def _other_page_like(page: Page, *, fullname: str = "other-page", page_id: int | None = 222) -> Page:
+    return Page(
+        site=page.site,
+        fullname=fullname,
+        name=fullname,
+        category=page.category,
+        title="Other Page",
+        children_count=page.children_count,
+        comments_count=page.comments_count,
+        size=page.size,
+        rating=page.rating,
+        votes_count=page.votes_count,
+        rating_percent=page.rating_percent,
+        revisions_count=page.revisions_count,
+        parent_fullname=page.parent_fullname,
+        tags=list(page.tags),
+        created_by=page.created_by,
+        created_at=page.created_at,
+        updated_by=page.updated_by,
+        updated_at=page.updated_at,
+        commented_by=page.commented_by,
+        commented_at=page.commented_at,
+        _id=page_id,
+    )
+
+
 # ============================================================
 # SearchPagesQueryテスト
 # ============================================================
@@ -2439,6 +2465,29 @@ class TestPageProperties:
 
         with pytest.raises(ValueError, match="page.revisions list entries must be PageRevision"):
             mock_page_with_id.revisions = bad_revisions
+
+        assert mock_page_with_id.revisions[0].comment == "cached revision"
+
+    def test_revisions_setter_rejects_collection_from_different_page(self, mock_page_with_id: Page) -> None:
+        """別ページのrevisions collectionは既存のキャッシュを破壊しない"""
+        cached_revision = _cached_page_revision(mock_page_with_id)
+        mock_page_with_id.revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        other_page = _other_page_like(mock_page_with_id)
+        bad_revisions = PageRevisionCollection(other_page, [])
+
+        with pytest.raises(ValueError, match=r"page\.revisions must belong to the page"):
+            mock_page_with_id.revisions = bad_revisions
+
+        assert mock_page_with_id.revisions[0].comment == "cached revision"
+
+    def test_revisions_setter_rejects_list_entry_from_different_page(self, mock_page_with_id: Page) -> None:
+        """別ページのrevisions list要素は既存のキャッシュを破壊しない"""
+        cached_revision = _cached_page_revision(mock_page_with_id)
+        mock_page_with_id.revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        other_revision = _cached_page_revision(_other_page_like(mock_page_with_id), "other page revision")
+
+        with pytest.raises(ValueError, match=r"page\.revisions must belong to the page"):
+            mock_page_with_id.revisions = [other_revision]
 
         assert mock_page_with_id.revisions[0].comment == "cached revision"
 
