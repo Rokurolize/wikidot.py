@@ -2626,6 +2626,32 @@ class TestPageWriteMethods:
         with pytest.raises(exceptions.LoginRequiredException):
             mock_page_with_id.commit_tags()
 
+    @pytest.mark.parametrize(
+        ("invalid_tags", "message"),
+        [
+            (3, "tags must be a list"),
+            ("tag-one tag-two", "tags must be a list"),
+            (("tag-one",), "tags must be a list"),
+            (["tag-one", 3], "tags list entries must be strings"),
+        ],
+    )
+    def test_commit_tags_rejects_invalid_tags_before_request(
+        self,
+        mock_page_with_id: Page,
+        invalid_tags: Any,
+        message: str,
+    ) -> None:
+        """commit_tagsは保存前に現在のtags状態を文字列リストとして検証する"""
+        mock_page_with_id.tags = invalid_tags
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match=message):
+            mock_page_with_id.commit_tags()
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+
     def test_commit_tags_missing_action_status_includes_site_page_event_and_field_context(
         self,
         mock_page_with_id: Page,

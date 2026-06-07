@@ -2673,11 +2673,12 @@ class Page:
         WikidotStatusCodeException
             When saving tags fails
         """
+        tags = _validate_page_tags(self.tags)
         self.site.client.login_check()
         response = self.site.amc_request(
             [
                 {
-                    "tags": " ".join(self.tags),
+                    "tags": " ".join(tags),
                     "action": "WikiPageAction",
                     "event": "saveTags",
                     "pageId": self.id,
