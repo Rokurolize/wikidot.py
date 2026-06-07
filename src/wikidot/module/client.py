@@ -24,6 +24,10 @@ def _validate_client_accessor_client(value: object) -> "Client":
 def _validate_client_credentials_pair(username: object, password: object) -> None:
     if (username is None) != (password is None):
         raise ValueError("username and password must be provided together")
+    if username is not None and not isinstance(username, str):
+        raise ValueError("username must be a string")
+    if password is not None and not isinstance(password, str):
+        raise ValueError("password must be a string")
 
 
 class ClientUserAccessor:
