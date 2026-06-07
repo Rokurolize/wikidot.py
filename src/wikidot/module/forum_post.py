@@ -45,6 +45,12 @@ def _validate_forum_thread_site(site: object) -> "Site":
     return site
 
 
+def _validate_forum_post(post: object) -> "ForumPost":
+    if not isinstance(post, ForumPost):
+        raise ValueError("post must be a ForumPost")
+    return post
+
+
 def _validate_single_thread_site(sites: list["Site"]) -> "Site":
     site = sites[0]
     if any(candidate is not site for candidate in sites[1:]):
@@ -93,6 +99,28 @@ def _validate_optional_post_revisions(revisions: object) -> Optional["ForumPostR
     if any(not isinstance(revision, ForumPostRevision) for revision in revisions):
         raise ValueError("post.revisions list entries must be ForumPostRevision")
     return revisions
+
+
+def _validate_revisions_cache_post_matches(
+    post: "ForumPost",
+    post_thread: "ForumThread",
+    post_site: "Site",
+    candidate_post: object,
+) -> None:
+    revision_post = _validate_forum_post(candidate_post)
+    revision_thread = _validate_forum_thread(revision_post.thread)
+    revision_site = _validate_forum_thread_site(revision_thread.site)
+    if revision_post.id != post.id or revision_thread.id != post_thread.id or revision_site is not post_site:
+        raise ValueError("post.revisions must belong to the post")
+
+
+def _validate_revisions_cache_belongs_to_post(post: "ForumPost", revisions: "ForumPostRevisionCollection") -> None:
+    post_thread = _validate_forum_thread(post.thread)
+    post_site = _validate_forum_thread_site(post_thread.site)
+    if revisions.post is not None:
+        _validate_revisions_cache_post_matches(post, post_thread, post_site, revisions.post)
+    for revision in revisions:
+        _validate_revisions_cache_post_matches(post, post_thread, post_site, revision.post)
 
 
 def _validate_post_created_by(created_by: object) -> "AbstractUser":
@@ -869,6 +897,8 @@ class ForumPost:
         self._parent_id = _validate_optional_post_parent_id(self._parent_id)
         self._source = _validate_optional_post_source(self._source)
         self._revisions = _validate_optional_post_revisions(self._revisions)
+        if self._revisions is not None:
+            _validate_revisions_cache_belongs_to_post(self, self._revisions)
         self.title = validate_text_field("title", self.title)
         self.text = validate_text_field("text", self.text)
         self.created_by = _validate_post_created_by(self.created_by)

@@ -11,7 +11,7 @@ from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
 from wikidot.module.forum_post import ForumPost, ForumPostCollection
-from wikidot.module.forum_post_revision import ForumPostRevisionCollection
+from wikidot.module.forum_post_revision import ForumPostRevision, ForumPostRevisionCollection
 from wikidot.module.forum_thread import ForumThread
 from wikidot.module.site import Site
 
@@ -39,6 +39,21 @@ def _post_on_other_thread(post: ForumPost) -> ForumPost:
         element=post.element,
         created_by=post.created_by,
         created_at=post.created_at,
+    )
+
+
+def _post_with_id(source_post: ForumPost, post_id: int) -> ForumPost:
+    return ForumPost(
+        thread=source_post.thread,
+        id=post_id,
+        title=f"Post {post_id}",
+        text=source_post.text,
+        element=source_post.element,
+        created_by=source_post.created_by,
+        created_at=source_post.created_at,
+        edited_by=source_post.edited_by,
+        edited_at=source_post.edited_at,
+        _parent_id=source_post.parent_id,
     )
 
 
@@ -1435,6 +1450,55 @@ class TestForumPostBasic:
         )
 
         assert post.revisions is revisions
+
+    def test_init_rejects_revisions_cache_from_different_post(self, mock_forum_post_no_http: ForumPost) -> None:
+        """初期リビジョンキャッシュの親postが異なる場合は拒否する"""
+        revisions = ForumPostRevisionCollection(_post_with_id(mock_forum_post_no_http, 5002), [])
+
+        with pytest.raises(ValueError, match="post.revisions must belong to the post"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+                _revisions=revisions,
+            )
+
+    def test_init_rejects_revisions_cache_entry_from_different_post(self, mock_forum_post_no_http: ForumPost) -> None:
+        """初期リビジョンキャッシュ内のrevision親postが異なる場合は拒否する"""
+        revisions = ForumPostRevisionCollection(mock_forum_post_no_http, [])
+        revisions.append(
+            ForumPostRevision(
+                post=_post_with_id(mock_forum_post_no_http, 5002),
+                id=9001,
+                rev_no=0,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=datetime.now(),
+            )
+        )
+
+        with pytest.raises(ValueError, match="post.revisions must belong to the post"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+                _revisions=revisions,
+            )
 
     @pytest.mark.parametrize("parent_id", [True, "4999", 4999.0, {"id": 4999}])
     def test_init_rejects_malformed_parent_id(self, mock_forum_post_no_http: ForumPost, parent_id: object) -> None:
