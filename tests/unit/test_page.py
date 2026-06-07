@@ -3100,6 +3100,23 @@ class TestPageWriteMethods:
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id.rating == 10
 
+    def test_vote_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
+        """投票時のsite型異常はログイン確認前に拒否する"""
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_with_id.vote(1)
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is not None
+
     def test_vote_not_logged_in(self, mock_page_with_id: Page) -> None:
         """ログインしていない場合に例外"""
         mock_page_with_id.site.client.is_logged_in = False

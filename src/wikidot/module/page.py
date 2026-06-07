@@ -2836,8 +2836,9 @@ class Page:
         """
         value = _validate_page_vote_value(value)
 
-        self.site.client.login_check()
-        response = self.site.amc_request(
+        site = _validate_page_site(self.site)
+        site.client.login_check()
+        response = site.amc_request(
             [
                 {
                     "action": "RateAction",
@@ -2850,8 +2851,8 @@ class Page:
             ]
         )[0]
         response_data = response.json()
-        _require_page_rating_action_status(self.site, self, "ratePage", response_data)
-        new_rating = _parse_page_rating_points(self.site, self, "ratePage", response_data)
+        _require_page_rating_action_status(site, self, "ratePage", response_data)
+        new_rating = _parse_page_rating_points(site, self, "ratePage", response_data)
         self.rating = new_rating
         self._votes = None
         return new_rating
