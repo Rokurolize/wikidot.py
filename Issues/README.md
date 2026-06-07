@@ -557,6 +557,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [551-pr-validate-requestutil-client.md](551-pr-validate-requestutil-client.md): upstream PR draft for the committed non-empty RequestUtil client-argument validation fix.
 - [552-pr-validate-requestutil-url-strings.md](552-pr-validate-requestutil-url-strings.md): upstream PR draft for the committed RequestUtil URL string validation fix.
 - [553-pr-validate-client-constructor-credentials.md](553-pr-validate-client-constructor-credentials.md): upstream PR draft for the committed Client constructor credential type validation fix.
+- [554-pr-validate-client-constructor-amc-config.md](554-pr-validate-client-constructor-amc-config.md): upstream PR draft for the committed Client constructor AMC config validation fix.
 
 ## Local Evidence Index
 
@@ -1022,5 +1023,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 456: `bfec3ae fix(requestutil): validate request client`
 - Local implementation commits, continued 457: `c569130 fix(requestutil): validate URL strings`
 - Local implementation commits, continued 458: `e84487b fix(client): validate constructor credentials`
+- Local implementation commits, continued 459: `be9c779 fix(client): validate constructor amc config`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
