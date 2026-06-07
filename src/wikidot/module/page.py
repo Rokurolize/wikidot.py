@@ -2266,7 +2266,8 @@ class Page:
             When meta tag information cannot be retrieved after retries
         """
         if self._metas is None:
-            response = self.site.amc_request_with_retry(
+            site = _validate_page_site(self.site)
+            response = site.amc_request_with_retry(
                 [
                     {
                         "pageId": self.id,
@@ -2276,18 +2277,18 @@ class Page:
             )[0]
             if response is None:
                 raise exceptions.UnexpectedException(
-                    f"Cannot retrieve page metas for site: {self.site.unix_name}, page: {self.fullname}"
+                    f"Cannot retrieve page metas for site: {site.unix_name}, page: {self.fullname}"
                 )
 
             # レスポンス解析
             body = response.json().get("body")
             if body is None:
                 raise exceptions.NoElementException(
-                    f"Page metas response body is not found for site: {self.site.unix_name}, page: {self.fullname}"
+                    f"Page metas response body is not found for site: {site.unix_name}, page: {self.fullname}"
                 )
             if not isinstance(body, str):
                 raise exceptions.NoElementException(
-                    f"Page metas response body is malformed for site: {self.site.unix_name}, "
+                    f"Page metas response body is malformed for site: {site.unix_name}, "
                     f"page: {self.fullname} "
                     f"(id={self.id}, field=body, expected=str, actual={type(body).__name__})"
                 )

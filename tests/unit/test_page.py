@@ -3342,6 +3342,21 @@ class TestPageWriteMethods:
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id._metas is None
 
+    def test_metas_getter_rejects_malformed_site_before_request(self, mock_page_with_id: Page) -> None:
+        """metas getterのsite型異常はAMCやキャッシュ更新前に拒否する"""
+        mock_page_with_id._metas = None
+        malformed_site = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        malformed_site.amc_request_with_retry = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            _ = mock_page_with_id.metas
+
+        malformed_site.amc_request.assert_not_called()
+        malformed_site.amc_request_with_retry.assert_not_called()
+        assert mock_page_with_id._metas is None
+
     def test_metas_setter_batches_changes(self, mock_page_with_id: Page) -> None:
         """metaタグの削除・追加・更新は1つのAMCバッチで送信する"""
         mock_page_with_id._metas = {
