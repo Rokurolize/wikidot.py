@@ -253,7 +253,7 @@ class ForumPostCollection(list["ForumPost"]):
     A list extension class for storing multiple posts within a forum thread and performing batch operations。
     """
 
-    thread: "ForumThread"
+    thread: "ForumThread | None"
 
     def __init__(
         self,
@@ -274,8 +274,10 @@ class ForumPostCollection(list["ForumPost"]):
 
         if thread is not None:
             self.thread = _validate_forum_thread(thread)
-        else:
+        elif len(self) > 0:
             self.thread = self[0].thread
+        else:
+            self.thread = None
 
     def __iter__(self) -> Iterator["ForumPost"]:
         """
@@ -769,6 +771,9 @@ class ForumPostCollection(list["ForumPost"]):
         ForumPostCollection
             Self (for method chaining)
         """
+        if self.thread is None:
+            return self
+
         ForumPostCollection._acquire_post_sources(self.thread, self)
         return self
 

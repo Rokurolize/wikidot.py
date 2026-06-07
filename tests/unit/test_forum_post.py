@@ -22,6 +22,13 @@ from wikidot.module.forum_thread import ForumThread
 class TestForumPostCollectionInit:
     """ForumPostCollectionの初期化テスト"""
 
+    def test_init_empty_without_thread_exposes_none_thread(self) -> None:
+        """空で親スレッドも未指定ならthreadはNoneとして公開する"""
+        collection = ForumPostCollection()
+
+        assert collection.thread is None
+        assert len(collection) == 0
+
     def test_init_with_thread_and_empty_posts(self, mock_forum_thread_no_http: ForumThread) -> None:
         """スレッドと空の投稿リストで初期化できる"""
         collection = ForumPostCollection(mock_forum_thread_no_http, [])
