@@ -588,6 +588,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [582-pr-validate-forum-post-revision-html-target-post-thread.md](582-pr-validate-forum-post-revision-html-target-post-thread.md): upstream PR draft for the committed forum post revision HTML target-post retained-thread validation fix.
 - [583-pr-reject-mixed-site-forum-post-revision-batches.md](583-pr-reject-mixed-site-forum-post-revision-batches.md): upstream PR draft for the committed mixed-site forum post revision batch rejection fix.
 - [584-pr-reject-mixed-site-forum-post-list-batches.md](584-pr-reject-mixed-site-forum-post-list-batches.md): upstream PR draft for the committed mixed-site forum post-list batch rejection fix.
+- [585-pr-validate-forum-post-source-target-thread.md](585-pr-validate-forum-post-source-target-thread.md): upstream PR draft for the committed forum post source target-thread ownership validation fix.
 
 ## Local Evidence Index
 
@@ -1084,5 +1085,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 487: `60dcaf1 fix(forum_post_revision): validate revision html target post thread`
 - Local implementation commits, continued 488: `c1dfb38 fix(forum_post_revision): reject mixed-site revision batches`
 - Local implementation commits, continued 489: `ec721e6 fix(forum_post): reject mixed-site post-list batches`
+- Local implementation commits, continued 490: `0c23d7f fix(forum_post): validate source post thread ownership`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
