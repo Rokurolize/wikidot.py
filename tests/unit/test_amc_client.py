@@ -180,6 +180,8 @@ class TestAjaxModuleConnectorConfig:
         assert config.max_backoff == 60.0
         assert config.backoff_factor == 2.0
         assert config.semaphore_limit == 10
+        assert config.retry_batch_size == 50
+        assert config.retry_max_retries == 3
 
     def test_custom_values(self) -> None:
         """カスタム値が正しく設定される"""
@@ -190,6 +192,8 @@ class TestAjaxModuleConnectorConfig:
             max_backoff=120.0,
             backoff_factor=3.0,
             semaphore_limit=20,
+            retry_batch_size=25,
+            retry_max_retries=7,
         )
 
         assert config.request_timeout == 30
@@ -198,6 +202,34 @@ class TestAjaxModuleConnectorConfig:
         assert config.max_backoff == 120.0
         assert config.backoff_factor == 3.0
         assert config.semaphore_limit == 20
+        assert config.retry_batch_size == 25
+        assert config.retry_max_retries == 7
+
+    @pytest.mark.parametrize("request_timeout", [None, True, False, "1", 0, -0.1])
+    def test_rejects_invalid_request_timeout(self, request_timeout: Any) -> None:
+        """request_timeoutは構築時に正の数値として検証する"""
+        with pytest.raises(ValueError, match="request_timeout must be a positive number"):
+            AjaxModuleConnectorConfig(request_timeout=request_timeout)
+
+    @pytest.mark.parametrize("field", ["attempt_limit", "semaphore_limit", "retry_batch_size"])
+    @pytest.mark.parametrize("value", [None, True, False, "1", 0, -1, 1.5])
+    def test_rejects_invalid_positive_integer_fields(self, field: str, value: Any) -> None:
+        """正の整数設定は構築時に検証する"""
+        with pytest.raises(ValueError, match=rf"{field} must be a positive integer"):
+            AjaxModuleConnectorConfig(**{field: value})
+
+    @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
+    @pytest.mark.parametrize("value", [None, True, False, "1", -0.1])
+    def test_rejects_invalid_non_negative_number_fields(self, field: str, value: Any) -> None:
+        """非負の数値設定は構築時に検証する"""
+        with pytest.raises(ValueError, match=rf"{field} must be a non-negative number"):
+            AjaxModuleConnectorConfig(**{field: value})
+
+    @pytest.mark.parametrize("retry_max_retries", [None, True, False, "1", -1, 1.5])
+    def test_rejects_invalid_retry_max_retries(self, retry_max_retries: Any) -> None:
+        """retry_max_retriesは構築時に非負の整数として検証する"""
+        with pytest.raises(ValueError, match="retry_max_retries must be a non-negative integer"):
+            AjaxModuleConnectorConfig(retry_max_retries=retry_max_retries)
 
 
 class TestAjaxModuleConnectorClientInit:
@@ -365,7 +397,8 @@ class TestAjaxModuleConnectorClientRequest:
         request_timeout: Any,
     ) -> None:
         """AMCのtimeout設定は正の数値だけを受け付ける"""
-        config = AjaxModuleConnectorConfig(request_timeout=request_timeout, retry_interval=0)
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        config.request_timeout = request_timeout
         client = AjaxModuleConnectorClient(site_name="www", config=config)
 
         with pytest.raises(ValueError, match="request_timeout must be a positive number"):

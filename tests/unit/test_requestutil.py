@@ -112,7 +112,9 @@ class TestRequestUtilConfigValidation:
     ) -> None:
         """request_timeoutはHTTPリクエスト前に正の数値として検証する"""
         mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(request_timeout=request_timeout, retry_interval=0)
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        config.request_timeout = request_timeout
+        mock_client.amc_client.config = config
 
         with pytest.raises(ValueError, match="request_timeout must be a positive number"):
             RequestUtil.request(mock_client, method, ["https://example.com/test"])

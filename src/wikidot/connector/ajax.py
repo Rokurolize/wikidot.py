@@ -184,6 +184,16 @@ class AjaxModuleConnectorConfig:
     retry_batch_size: int = 50
     retry_max_retries: int = 3
 
+    def __post_init__(self) -> None:
+        _validate_positive_number_option("request_timeout", self.request_timeout)
+        _validate_positive_int_option("attempt_limit", self.attempt_limit)
+        _validate_non_negative_number_option("retry_interval", self.retry_interval)
+        _validate_non_negative_number_option("max_backoff", self.max_backoff)
+        _validate_non_negative_number_option("backoff_factor", self.backoff_factor)
+        _validate_positive_int_option("semaphore_limit", self.semaphore_limit)
+        _validate_positive_int_option("retry_batch_size", self.retry_batch_size)
+        _validate_non_negative_int_option("retry_max_retries", self.retry_max_retries)
+
 
 def _validate_amc_config(config: object) -> AjaxModuleConnectorConfig:
     if config is None:
@@ -198,6 +208,14 @@ def _validate_positive_int_option(field_name: str, value: object) -> int:
         raise ValueError(f"{field_name} must be a positive integer")
     if value <= 0:
         raise ValueError(f"{field_name} must be a positive integer")
+    return value
+
+
+def _validate_non_negative_int_option(field_name: str, value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{field_name} must be a non-negative integer")
+    if value < 0:
+        raise ValueError(f"{field_name} must be a non-negative integer")
     return value
 
 
