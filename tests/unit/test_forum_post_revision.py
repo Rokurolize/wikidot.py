@@ -922,6 +922,25 @@ class TestForumPostRevisionCollectionGetHtmls:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
 
+    def test_get_htmls_rejects_mutated_post_thread_before_fetch(self, mock_forum_post_no_http: ForumPost) -> None:
+        """get_htmlsはmutateされた非ForumThread親を取得前に拒否する"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+        bad_thread: Any = MagicMock()
+        mock_forum_post_no_http.thread = bad_thread
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            collection.get_htmls()
+
+        bad_thread.site.amc_request_with_retry.assert_not_called()
+        assert revision.is_html_acquired() is False
+
     def test_get_htmls_retries_transient_fetch_failures(
         self, mock_forum_post_no_http: ForumPost, forum_post_revision_content: dict[str, Any]
     ) -> None:
@@ -1300,6 +1319,24 @@ class TestForumPostRevisionHtml:
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once_with(
             [{"moduleName": "forum/sub/ForumPostRevisionModule", "revisionId": 9001}]
         )
+
+    def test_html_property_rejects_mutated_post_thread_before_fetch(self, mock_forum_post_no_http: ForumPost) -> None:
+        """未取得htmlはmutateされた非ForumThread親を取得前に拒否する"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        bad_thread: Any = MagicMock()
+        mock_forum_post_no_http.thread = bad_thread
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            _ = revision.html
+
+        bad_thread.site.amc_request_with_retry.assert_not_called()
+        assert revision.is_html_acquired() is False
 
     def test_html_property_missing_response_content_includes_site_post_revision_and_field_context(
         self, mock_forum_post_no_http: ForumPost

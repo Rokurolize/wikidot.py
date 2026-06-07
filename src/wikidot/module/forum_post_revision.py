@@ -550,7 +550,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             return self
 
         post = _validate_forum_post(self.post)
-        responses = post.thread.site.amc_request_with_retry(
+        thread = _validate_forum_post_thread(post.thread)
+        site = _validate_forum_thread_site(thread.site)
+        responses = site.amc_request_with_retry(
             [{"moduleName": "forum/sub/ForumPostRevisionModule", "revisionId": r.id} for r in target_revisions]
         )
 
