@@ -33,6 +33,14 @@ def _validate_raise_when_not_found(value: object) -> bool:
     return value
 
 
+def _validate_user_lookup_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
 def _validate_user_id_field(field: str, value: object) -> int | None:
     if value is None:
         return None
@@ -124,6 +132,7 @@ class UserCollection(list["AbstractUser"]):
         """
         names = _validate_user_names(names)
         raise_when_not_found = _validate_raise_when_not_found(raise_when_not_found)
+        client = _validate_user_lookup_client(client)
         responses = RequestUtil.request(
             client,
             "GET",

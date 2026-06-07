@@ -7,6 +7,8 @@ import pytest
 from pytest_httpx import HTTPXMock
 
 from wikidot.common.exceptions import NoElementException, NotFoundException
+from wikidot.connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
+from wikidot.module.client import Client
 from wikidot.module.user import (
     AnonymousUser,
     DeletedUser,
@@ -15,6 +17,14 @@ from wikidot.module.user import (
     UserCollection,
     WikidotUser,
 )
+
+
+def create_lookup_client() -> Any:
+    client = object.__new__(Client)
+    client.amc_client = MagicMock()
+    client.amc_client.config = AjaxModuleConnectorConfig(retry_interval=0)
+    client.amc_client.header = AjaxRequestHeader()
+    return client
 
 
 class TestUserDataclasses:
@@ -122,46 +132,43 @@ class TestUserDataclasses:
 class TestUserFromName:
     """User.from_name のテスト"""
 
-    def test_from_name_success(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, user_profile_html: str
-    ) -> None:
+    def test_from_name_success(self, httpx_mock: HTTPXMock, user_profile_html: str) -> None:
         """ユーザー名からユーザーを取得できる"""
+        client = create_lookup_client()
         httpx_mock.add_response(
             url="https://www.wikidot.com/user:info/test-user",
             text=user_profile_html,
         )
 
-        result = User.from_name(mock_client_no_http, "test-user")
+        result = User.from_name(client, "test-user")
 
         assert result is not None
         assert isinstance(result, User)
         assert result.id == 12345
         assert result.name == "test-user"
 
-    def test_from_name_not_found_no_raise(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, user_profile_not_found_html: str
-    ) -> None:
+    def test_from_name_not_found_no_raise(self, httpx_mock: HTTPXMock, user_profile_not_found_html: str) -> None:
         """ユーザーが見つからない場合Noneを返す"""
+        client = create_lookup_client()
         httpx_mock.add_response(
             url="https://www.wikidot.com/user:info/nonexistent",
             text=user_profile_not_found_html,
         )
 
-        result = User.from_name(mock_client_no_http, "nonexistent", raise_when_not_found=False)
+        result = User.from_name(client, "nonexistent", raise_when_not_found=False)
 
         assert result is None
 
-    def test_from_name_not_found_raise(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, user_profile_not_found_html: str
-    ) -> None:
+    def test_from_name_not_found_raise(self, httpx_mock: HTTPXMock, user_profile_not_found_html: str) -> None:
         """ユーザーが見つからない場合NotFoundException"""
+        client = create_lookup_client()
         httpx_mock.add_response(
             url="https://www.wikidot.com/user:info/nonexistent",
             text=user_profile_not_found_html,
         )
 
         with pytest.raises(NotFoundException):
-            User.from_name(mock_client_no_http, "nonexistent", raise_when_not_found=True)
+            User.from_name(client, "nonexistent", raise_when_not_found=True)
 
     def test_from_name_rejects_non_string_name_before_request(
         self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
@@ -181,6 +188,16 @@ class TestUserFromName:
         """raise_when_not_foundはboolだけ受け付ける"""
         with pytest.raises(ValueError, match="raise_when_not_found must be a boolean"):
             User.from_name(mock_client_no_http, "test-user", raise_when_not_found=raise_when_not_found)
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_from_name_rejects_malformed_client_before_request(self, httpx_mock: HTTPXMock, client: object) -> None:
+        """clientがClientでない場合はリクエスト前に拒否"""
+        bad_client: Any = client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            User.from_name(bad_client, "test-user")
 
         assert httpx_mock.get_requests() == []
 
@@ -211,6 +228,16 @@ class TestUserCollection:
 
         assert httpx_mock.get_requests() == []
 
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_from_names_rejects_malformed_client_before_request(self, httpx_mock: HTTPXMock, client: object) -> None:
+        """一括取得のclientがClientでない場合はリクエスト前に拒否"""
+        bad_client: Any = client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            UserCollection.from_names(bad_client, ["test-user"])
+
+        assert httpx_mock.get_requests() == []
+
     def test_from_names_rejects_non_string_name_before_request(
         self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
     ) -> None:
@@ -232,8 +259,9 @@ class TestUserCollection:
 
         assert httpx_mock.get_requests() == []
 
-    def test_from_names_multiple(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_names_multiple(self, httpx_mock: HTTPXMock) -> None:
         """複数ユーザーを一度に取得できる"""
+        client = create_lookup_client()
         html1 = """
         <!DOCTYPE html>
         <html>
@@ -271,17 +299,16 @@ class TestUserCollection:
             text=html2,
         )
 
-        result = UserCollection.from_names(mock_client_no_http, ["user1", "user2"])
+        result = UserCollection.from_names(client, ["user1", "user2"])
 
         assert len(result) == 2
         names = [u.name for u in result]
         assert "user1" in names
         assert "user2" in names
 
-    def test_from_names_skip_not_found(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, user_profile_not_found_html: str
-    ) -> None:
+    def test_from_names_skip_not_found(self, httpx_mock: HTTPXMock, user_profile_not_found_html: str) -> None:
         """見つからないユーザーをスキップできる"""
+        client = create_lookup_client()
         html = """
         <!DOCTYPE html>
         <html>
@@ -305,15 +332,14 @@ class TestUserCollection:
             text=user_profile_not_found_html,
         )
 
-        result = UserCollection.from_names(mock_client_no_http, ["exists", "nonexistent"], raise_when_not_found=False)
+        result = UserCollection.from_names(client, ["exists", "nonexistent"], raise_when_not_found=False)
 
         assert len(result) == 1
         assert result[0].name == "exists"
 
-    def test_from_names_extracts_id_from_href_with_query(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
-    ) -> None:
+    def test_from_names_extracts_id_from_href_with_query(self, httpx_mock: HTTPXMock) -> None:
         """クエリ付きID URLからユーザーIDを抽出できる"""
+        client = create_lookup_client()
         html = """
         <!DOCTYPE html>
         <html>
@@ -332,15 +358,14 @@ class TestUserCollection:
             text=html,
         )
 
-        result = UserCollection.from_names(mock_client_no_http, ["user-query"])
+        result = UserCollection.from_names(client, ["user-query"])
 
         assert len(result) == 1
         assert result[0].id == 444
 
-    def test_from_names_preserves_profile_title_text_spacing(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
-    ) -> None:
+    def test_from_names_preserves_profile_title_text_spacing(self, httpx_mock: HTTPXMock) -> None:
         """プロフィール名内の装飾タグや隣接要素のテキストを連結しない"""
+        client = create_lookup_client()
         html = """
         <!DOCTYPE html>
         <html>
@@ -359,15 +384,16 @@ class TestUserCollection:
             text=html,
         )
 
-        result = UserCollection.from_names(mock_client_no_http, ["first-part-user"])
+        result = UserCollection.from_names(client, ["first-part-user"])
 
         assert len(result) == 1
         assert result[0].id == 555
         assert result[0].name == "First Part User"
         assert result[0].unix_name == "first-part-user"
 
-    def test_from_names_missing_id_element(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_names_missing_id_element(self, httpx_mock: HTTPXMock) -> None:
         """ID要素がない場合NoElementException"""
+        client = create_lookup_client()
         html = """
         <!DOCTYPE html>
         <html>
@@ -389,10 +415,11 @@ class TestUserCollection:
             NoElementException,
             match=r"User ID element not found for requested user: bad \(index=1\)",
         ):
-            UserCollection.from_names(mock_client_no_http, ["bad"])
+            UserCollection.from_names(client, ["bad"])
 
-    def test_from_names_malformed_id_href_raises(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_names_malformed_id_href_raises(self, httpx_mock: HTTPXMock) -> None:
         """IDを含まないhrefはNoElementException"""
+        client = create_lookup_client()
         html = """
         <!DOCTYPE html>
         <html>
@@ -418,10 +445,11 @@ class TestUserCollection:
                 r"\(index=1, field=user_id, value=http://www\.wikidot\.com/userkarma\.php/not-a-number\)"
             ),
         ):
-            UserCollection.from_names(mock_client_no_http, ["bad"])
+            UserCollection.from_names(client, ["bad"])
 
-    def test_from_names_missing_name_element(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_names_missing_name_element(self, httpx_mock: HTTPXMock) -> None:
         """名前要素がない場合NoElementException"""
+        client = create_lookup_client()
         html = """
         <!DOCTYPE html>
         <html>
@@ -445,7 +473,7 @@ class TestUserCollection:
             NoElementException,
             match=r"User name element not found for requested user: bad \(index=1\)",
         ):
-            UserCollection.from_names(mock_client_no_http, ["bad"])
+            UserCollection.from_names(client, ["bad"])
 
     def test_iteration(self, mock_client_no_http: MagicMock) -> None:
         """UserCollectionはイテレート可能"""
