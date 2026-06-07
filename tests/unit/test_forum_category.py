@@ -24,6 +24,13 @@ if TYPE_CHECKING:
 class TestForumCategoryCollectionInit:
     """ForumCategoryCollectionの初期化テスト"""
 
+    def test_init_empty_without_site_exposes_none_site(self) -> None:
+        """空で親サイトも未指定ならsiteはNoneとして公開する"""
+        collection = ForumCategoryCollection()
+
+        assert collection.site is None
+        assert len(collection) == 0
+
     def test_init_with_site_and_empty_categories(self, mock_site_no_http: Site) -> None:
         """サイトと空のカテゴリリストで初期化できる"""
         collection = ForumCategoryCollection(mock_site_no_http, [])

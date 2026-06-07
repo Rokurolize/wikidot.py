@@ -112,7 +112,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
     A list extension class for storing multiple forum categories and performing batch operations.
     """
 
-    site: "Site"
+    site: "Site | None"
 
     def __init__(
         self,
@@ -133,8 +133,10 @@ class ForumCategoryCollection(list["ForumCategory"]):
 
         if site is not None:
             self.site = _validate_forum_category_site(site)
-        else:
+        elif len(self) > 0:
             self.site = self[0].site
+        else:
+            self.site = None
 
     def __iter__(self) -> Iterator["ForumCategory"]:
         """
