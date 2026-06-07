@@ -134,6 +134,11 @@ def _validate_site_member_site(site: object) -> "Site":
     return site
 
 
+def _validate_site_member_user_site(site: "Site", user: AbstractUser) -> None:
+    if user.client is not site.client:
+        raise ValueError("member.user must belong to the site")
+
+
 def _validate_site_member_joined_at(joined_at: object) -> datetime | None:
     if joined_at is None:
         return None
@@ -175,6 +180,7 @@ class SiteMember:
     def __post_init__(self) -> None:
         self.site = _validate_site_member_site(self.site)
         self.user = _validate_site_member_user(self.user)
+        _validate_site_member_user_site(self.site, self.user)
         self.joined_at = _validate_site_member_joined_at(self.joined_at)
 
     @staticmethod
@@ -399,6 +405,7 @@ class SiteMember:
 
         site = _validate_site_member_site(self.site)
         user = _validate_site_member_action_user(self.user)
+        _validate_site_member_user_site(site, user)
         site.client.login_check()
 
         try:

@@ -20,8 +20,8 @@ from wikidot.module.site_member import SiteMember
 from wikidot.module.user import User
 
 
-def _member_user(user_id: int = 12345, name: str = "TestUser") -> User:
-    return User(client=MagicMock(), id=user_id, name=name, unix_name="test-user")
+def _member_user(user_id: int = 12345, name: str = "TestUser", client: Any | None = None) -> User:
+    return User(client=client or MagicMock(), id=user_id, name=name, unix_name="test-user")
 
 
 def _site(client: Any | None = None) -> Any:
@@ -44,7 +44,7 @@ class TestSiteMemberDataclass:
     def test_init(self):
         """初期化のテスト"""
         site = _site()
-        user = _member_user()
+        user = _member_user(client=site.client)
         joined_at = datetime.now(timezone.utc)
 
         member = SiteMember(site=site, user=user, joined_at=joined_at)
@@ -56,7 +56,7 @@ class TestSiteMemberDataclass:
     def test_init_without_joined_at(self):
         """joined_atなしでの初期化"""
         site = _site()
-        user = _member_user()
+        user = _member_user(client=site.client)
 
         member = SiteMember(site=site, user=user, joined_at=None)
 
@@ -80,11 +80,19 @@ class TestSiteMemberDataclass:
         with pytest.raises(ValueError, match="member.user must be an AbstractUser"):
             SiteMember(site=site, user=bad_user, joined_at=None)
 
+    def test_init_rejects_user_from_different_client(self) -> None:
+        """SiteMember.userはsiteと同じClientだけ受け付ける"""
+        site = _site()
+        user = _member_user(client=MagicMock())
+
+        with pytest.raises(ValueError, match="member.user must belong to the site"):
+            SiteMember(site=site, user=user, joined_at=None)
+
     @pytest.mark.parametrize("joined_at", [True, 1700000000, "2024-01-01", []])
     def test_init_rejects_malformed_joined_at(self, joined_at: object) -> None:
         """SiteMember.joined_atはdatetimeまたはNoneだけ受け付ける"""
         site = _site()
-        user = _member_user()
+        user = _member_user(client=site.client)
         bad_joined_at: Any = joined_at
 
         with pytest.raises(ValueError, match="joined_at must be a datetime or None"):
@@ -110,7 +118,7 @@ class TestSiteMemberParse:
             "lxml",
         )
         site = _site()
-        mock_user = _member_user()
+        mock_user = _member_user(client=site.client)
 
         with (
             patch("wikidot.module.site_member.user_parser") as mock_user_parser,
@@ -141,7 +149,7 @@ class TestSiteMemberParse:
             "lxml",
         )
         site = _site()
-        mock_user = _member_user()
+        mock_user = _member_user(client=site.client)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
             mock_user_parser.return_value = mock_user
@@ -169,7 +177,7 @@ class TestSiteMemberParse:
             "lxml",
         )
         site = _site()
-        mock_user = _member_user()
+        mock_user = _member_user(client=site.client)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
             mock_user_parser.return_value = mock_user
@@ -197,7 +205,7 @@ class TestSiteMemberParse:
             "lxml",
         )
         site = _site()
-        mock_user = _member_user()
+        mock_user = _member_user(client=site.client)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
             mock_user_parser.return_value = mock_user
@@ -238,7 +246,9 @@ class TestSiteMemberParse:
             patch("wikidot.module.site_member.user_parser") as mock_user_parser,
             patch("wikidot.module.site_member.odate_parser") as mock_odate_parser,
         ):
-            mock_user_parser.side_effect = lambda _client, elem: _member_user(name=elem.get_text(strip=True))
+            mock_user_parser.side_effect = lambda _client, elem: _member_user(
+                name=elem.get_text(strip=True), client=_client
+            )
             mock_odate_parser.return_value = real_joined_at
 
             members = SiteMember._parse(site, html)
@@ -274,7 +284,7 @@ class TestSiteMemberGet:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = _member_user()
+            mock_user_parser.return_value = _member_user(client=site.client)
 
             members = SiteMember.get(site, "")
 
@@ -312,7 +322,7 @@ class TestSiteMemberGet:
         ]
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = _member_user()
+            mock_user_parser.return_value = _member_user(client=site.client)
 
             members = SiteMember.get(site, "")
 
@@ -415,7 +425,7 @@ class TestSiteMemberGet:
         site.amc_request_with_retry.side_effect = [(first_response,), (second_response,)]
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = _member_user()
+            mock_user_parser.return_value = _member_user(client=site.client)
 
             members = SiteMember.get(site, "")
 
@@ -451,7 +461,7 @@ class TestSiteMemberGet:
                 match="Cannot retrieve site members for site: test-site, group: members, page: 2",
             ),
         ):
-            mock_user_parser.return_value = _member_user()
+            mock_user_parser.return_value = _member_user(client=site.client)
             SiteMember.get(site, "")
 
         site.amc_request.assert_not_called()
@@ -486,7 +496,7 @@ class TestSiteMemberGet:
                 match="Site member list response body is not found for site: test-site, group: members, page: 2",
             ),
         ):
-            mock_user_parser.return_value = _member_user()
+            mock_user_parser.return_value = _member_user(client=site.client)
             SiteMember.get(site, "")
 
         site.amc_request.assert_not_called()
@@ -548,7 +558,7 @@ class TestSiteMemberGet:
                 ),
             ),
         ):
-            mock_user_parser.return_value = _member_user()
+            mock_user_parser.return_value = _member_user(client=site.client)
             SiteMember.get(site, "")
 
         site.amc_request.assert_not_called()
@@ -572,7 +582,7 @@ class TestSiteMemberGet:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = _member_user()
+            mock_user_parser.return_value = _member_user(client=site.client)
 
             members = SiteMember.get(site, "")
 
@@ -603,7 +613,7 @@ class TestSiteMemberGet:
         site.amc_request_with_retry.return_value = (response,)
 
         with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
-            mock_user_parser.return_value = _member_user()
+            mock_user_parser.return_value = _member_user(client=site.client)
 
             members = SiteMember.get(site, "")
 
@@ -667,8 +677,8 @@ class TestSiteMemberChangeGroup:
     """SiteMember._change_groupのテスト"""
 
     @staticmethod
-    def _user(user_id: int = 12345, name: str = "TestUser") -> User:
-        return _member_user(user_id=user_id, name=name)
+    def _user(user_id: int = 12345, name: str = "TestUser", client: Any | None = None) -> User:
+        return _member_user(user_id=user_id, name=name, client=client)
 
     def test_to_moderator_success(self):
         """モデレーター昇格成功"""
@@ -676,7 +686,7 @@ class TestSiteMemberChangeGroup:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         member.to_moderator()
@@ -692,7 +702,7 @@ class TestSiteMemberChangeGroup:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         member.remove_moderator()
@@ -706,7 +716,7 @@ class TestSiteMemberChangeGroup:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         member.to_admin()
@@ -720,7 +730,7 @@ class TestSiteMemberChangeGroup:
         mock_response = MagicMock()
         mock_response.json.return_value = {"status": "ok"}
         site.amc_request.return_value = (mock_response,)
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         member.remove_admin()
@@ -751,7 +761,7 @@ class TestSiteMemberChangeGroup:
         site._members = cached_members
         site._moderators = cached_moderators
         site._admins = cached_admins
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         getattr(member, method_name)()
@@ -763,7 +773,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_already_moderator_error(self):
         """既にモデレーターの場合のエラー"""
         site = _site()
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         site.amc_request.side_effect = WikidotStatusCodeException(
@@ -777,7 +787,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_already_admin_error(self):
         """既に管理者の場合のエラー"""
         site = _site()
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         site.amc_request.side_effect = WikidotStatusCodeException(
@@ -791,7 +801,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_not_already_error(self):
         """権限を持っていない場合のエラー"""
         site = _site()
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         site.amc_request.side_effect = WikidotStatusCodeException(
@@ -805,7 +815,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_invalid_event_raises(self):
         """無効なイベントでValueError"""
         site = _site()
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         with pytest.raises(ValueError, match="Invalid event"):
@@ -822,7 +832,7 @@ class TestSiteMemberChangeGroup:
         mock_response = MagicMock()
         mock_response.json.return_value = {}
         site.amc_request.return_value = (mock_response,)
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         with pytest.raises(
@@ -842,7 +852,7 @@ class TestSiteMemberChangeGroup:
         """未ログイン時は権限変更リクエストを送らない"""
         site = _site()
         site.client.login_check.side_effect = LoginRequiredException("Login required")
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         with pytest.raises(LoginRequiredException):
@@ -853,7 +863,7 @@ class TestSiteMemberChangeGroup:
     def test_change_group_other_error_reraises(self):
         """その他のエラーは再送出"""
         site = _site()
-        user = self._user()
+        user = self._user(client=site.client)
         member = SiteMember(site=site, user=user, joined_at=None)
 
         site.amc_request.side_effect = WikidotStatusCodeException(
@@ -870,7 +880,7 @@ class TestSiteMemberChangeGroup:
         site.client.login_check = MagicMock()
         site.amc_request = MagicMock()
         bad_user: Any = {"id": 12345, "name": "TestUser"}
-        member = SiteMember(site=site, user=self._user(), joined_at=None)
+        member = SiteMember(site=site, user=self._user(client=site.client), joined_at=None)
         member.user = bad_user
 
         with pytest.raises(ValueError, match="member.user must be an AbstractUser"):
@@ -881,7 +891,8 @@ class TestSiteMemberChangeGroup:
 
     def test_change_group_rejects_malformed_site_before_login(self):
         """SiteMember.siteがSiteでなければログイン確認前に拒否する"""
-        member = SiteMember(site=_site(), user=self._user(), joined_at=None)
+        site = _site()
+        member = SiteMember(site=site, user=self._user(client=site.client), joined_at=None)
         bad_site = MagicMock()
         bad_site.client.login_check = MagicMock()
         bad_site.amc_request = MagicMock()
@@ -911,12 +922,26 @@ class TestSiteMemberChangeGroup:
         site = _site()
         site.client.login_check = MagicMock()
         site.amc_request = MagicMock()
-        bad_user = User(client=MagicMock(), id=12345, name="TestUser", unix_name="test-user", avatar_url=None)
+        bad_user = User(client=site.client, id=12345, name="TestUser", unix_name="test-user", avatar_url=None)
         for field, value in user_kwargs.items():
             setattr(bad_user, field, value)
         member = SiteMember(site=site, user=bad_user, joined_at=None)
 
         with pytest.raises(ValueError, match=message):
+            member.to_moderator()
+
+        site.client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
+
+    def test_change_group_rejects_user_from_different_client_before_login(self) -> None:
+        """権限変更時のSiteMember.userはsiteと同じClientだけ受け付ける"""
+        site = _site()
+        site.client.login_check = MagicMock()
+        site.amc_request = MagicMock()
+        member = SiteMember(site=site, user=self._user(client=site.client), joined_at=None)
+        member.user = self._user(client=MagicMock())
+
+        with pytest.raises(ValueError, match="member.user must belong to the site"):
             member.to_moderator()
 
         site.client.login_check.assert_not_called()
