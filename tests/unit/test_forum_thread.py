@@ -1327,6 +1327,19 @@ class TestForumThreadReply:
         mock_forum_thread_no_http.site.client.login_check.assert_not_called()
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_reply_rejects_mutated_site_before_login(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """返信実行時の親サイト不正値はログイン確認やAMCリクエスト前に拒否する"""
+        bad_site = MagicMock()
+        bad_site.client.login_check = MagicMock()
+        bad_site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site = cast("Site", bad_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_forum_thread_no_http.reply(source="Test reply")
+
+        bad_site.client.login_check.assert_not_called()
+        bad_site.amc_request.assert_not_called()
+
     def test_reply_to_parent_post(
         self, mock_forum_thread_no_http: ForumThread, amc_ok_response: dict[str, Any]
     ) -> None:

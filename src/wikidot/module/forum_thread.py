@@ -942,8 +942,9 @@ class ForumThread:
         source = validate_text_field("source", source)
         title = validate_text_field("title", title)
         parent_post_id = _validate_optional_post_id("parent_post_id", parent_post_id)
-        self.site.client.login_check()
-        response = self.site.amc_request(
+        site = _validate_forum_thread_site(self.site)
+        site.client.login_check()
+        response = site.amc_request(
             [
                 {
                     "threadId": str(self.id),
