@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,6 +13,9 @@ from wikidot.common import exceptions
 from wikidot.module.forum_post import ForumPost, ForumPostCollection
 from wikidot.module.forum_post_revision import ForumPostRevisionCollection
 from wikidot.module.forum_thread import ForumThread
+
+if TYPE_CHECKING:
+    from wikidot.module.site import Site
 
 # ============================================================
 # ForumPostCollectionテスト
@@ -315,6 +318,19 @@ class TestForumPostCollectionAcquireAll:
 
         with pytest.raises(ValueError, match="thread must be a ForumThread"):
             ForumPostCollection.acquire_all_in_thread(bad_thread)
+
+    def test_acquire_all_in_threads_rejects_mutated_thread_site_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """スレッドの親サイト不正値は投稿一覧取得前に拒否する"""
+        bad_site = MagicMock()
+        bad_site.amc_request_with_retry = MagicMock()
+        mock_forum_thread_no_http.site = cast("Site", bad_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http])
+
+        bad_site.amc_request_with_retry.assert_not_called()
 
     def test_acquire_all_single_page(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]

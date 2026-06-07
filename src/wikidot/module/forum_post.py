@@ -20,6 +20,7 @@ from ._validation import validate_text_field
 if TYPE_CHECKING:
     from .forum_post_revision import ForumPostRevisionCollection
     from .forum_thread import ForumThread
+    from .site import Site
     from .user import AbstractUser
 
 
@@ -34,6 +35,14 @@ def _validate_forum_thread(thread: object) -> "ForumThread":
     if not isinstance(thread, ForumThread):
         raise ValueError("thread must be a ForumThread")
     return thread
+
+
+def _validate_forum_thread_site(site: object) -> "Site":
+    from .site import Site
+
+    if not isinstance(site, Site):
+        raise ValueError("site must be a Site")
+    return site
 
 
 def _validate_post_id(post_id: object) -> int:
@@ -591,7 +600,6 @@ class ForumPostCollection(list["ForumPost"]):
             return {}
 
         result: dict[int, ForumPostCollection] = {}
-        site = threads[0].site
         cached_posts_by_id: dict[int, ForumPostCollection] = {}
         for thread in threads:
             if thread._posts is not None and thread.id not in cached_posts_by_id:
@@ -614,6 +622,9 @@ class ForumPostCollection(list["ForumPost"]):
 
         if len(target_threads) == 0:
             return result
+
+        target_sites = [_validate_forum_thread_site(thread.site) for thread in target_threads]
+        site = target_sites[0]
 
         # Step 1: Get the first page of all threads
         first_page_responses = site.amc_request_with_retry(
