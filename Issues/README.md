@@ -994,5 +994,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 442: `7deab5c fix(forum_post): preserve empty collection parent`
 - Local implementation commits, continued 443: `6c102a5 fix(forum_category): preserve empty collection parent`
 - Local implementation commits, continued 444: `7ce2be9 fix(forum_thread): preserve empty collection parent`
+- Local implementation commits, continued 445: `873d826 fix(page): preserve empty collection parent`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
