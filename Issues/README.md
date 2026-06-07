@@ -592,6 +592,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [586-pr-validate-page-batch-target-site.md](586-pr-validate-page-batch-target-site.md): upstream PR draft for the committed page batch target-site ownership validation fix.
 - [587-pr-validate-page-revision-collection-page-ownership.md](587-pr-validate-page-revision-collection-page-ownership.md): upstream PR draft for the committed page revision collection target-page ownership validation fix.
 - [588-pr-validate-page-vote-collection-page-ownership.md](588-pr-validate-page-vote-collection-page-ownership.md): upstream PR draft for the committed page vote collection target-page ownership validation fix.
+- [589-pr-validate-page-file-collection-page-ownership.md](589-pr-validate-page-file-collection-page-ownership.md): upstream PR draft for the committed page file collection target-page ownership validation fix.
 
 ## Local Evidence Index
 
@@ -1092,5 +1093,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 491: `ed737bc fix(page): validate batch page site ownership`
 - Local implementation commits, continued 492: `bc702e0 fix(page_revision): validate revision collection page ownership`
 - Local implementation commits, continued 493: `b0fa6b7 fix(page_votes): validate vote collection page ownership`
+- Local implementation commits, continued 494: `26fae84 fix(page_file): validate file collection page ownership`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
