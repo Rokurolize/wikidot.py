@@ -74,7 +74,7 @@ def _validate_forum_thread_collection_threads(threads: object) -> list["ForumThr
     return cast(list["ForumThread"], threads)
 
 
-def _validate_forum_thread_collection_site(site: object) -> "Site":
+def _validate_forum_thread_site(site: object) -> "Site":
     from .site import Site
 
     if not isinstance(site, Site):
@@ -306,7 +306,7 @@ class ForumThreadCollection(list["ForumThread"]):
         super().__init__(_validate_forum_thread_collection_threads(threads))
 
         if site is not None:
-            self.site = _validate_forum_thread_collection_site(site)
+            self.site = _validate_forum_thread_site(site)
         else:
             self.site = self[0].site
 
@@ -827,6 +827,7 @@ class ForumThread:
     _posts: Optional["ForumPostCollection"] = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
+        self.site = _validate_forum_thread_site(self.site)
         self.id = _validate_thread_id(self.id)
         self.title = validate_text_field("title", self.title)
         self.description = validate_text_field("description", self.description)

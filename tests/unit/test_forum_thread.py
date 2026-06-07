@@ -896,6 +896,27 @@ class TestForumThreadCollectionAcquireFromIds:
 class TestForumThreadBasic:
     """ForumThreadの基本テスト"""
 
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_init_rejects_malformed_sites(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        site: object,
+    ) -> None:
+        """スレッドの親サイトはSiteだけ受け付ける"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            ForumThread(
+                site=bad_site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
     @pytest.mark.parametrize("thread_id", [None, True, "3001", 3001.0])
     def test_init_rejects_non_integer_thread_id(
         self,
