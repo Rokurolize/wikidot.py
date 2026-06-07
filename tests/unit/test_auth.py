@@ -11,7 +11,7 @@ import httpx
 import pytest
 
 from wikidot.common.exceptions import SessionCreateException
-from wikidot.connector.ajax import AjaxModuleConnectorConfig
+from wikidot.connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
 from wikidot.module.auth import HTTPAuthentication
 
 
@@ -21,7 +21,11 @@ class TestHTTPAuthentication:
     @staticmethod
     def _mock_client() -> MagicMock:
         mock_client = MagicMock()
-        mock_client.amc_client.header.get_header.return_value = {}
+        header: Any = AjaxRequestHeader()
+        header.get_header = MagicMock(return_value={})
+        header.set_cookie = MagicMock()
+        header.delete_cookie = MagicMock()
+        mock_client.amc_client.header = header
         mock_client.amc_client.config = AjaxModuleConnectorConfig(retry_interval=0)
         return mock_client
 
@@ -85,6 +89,20 @@ class TestHTTPAuthentication:
         mock_client.amc_client.header.get_header.assert_not_called()
         mock_client.amc_client.header.set_cookie.assert_not_called()
 
+    @pytest.mark.parametrize("header", [None, object(), {}, "header", True])
+    def test_login_rejects_invalid_header_object_before_request(self, header: Any) -> None:
+        """認証リクエスト前に置換されたheader objectを拒否する"""
+        mock_client = self._mock_client()
+        mock_client.amc_client.header = header
+
+        with (
+            patch("wikidot.module.auth.httpx.post") as mock_post,
+            pytest.raises(ValueError, match="header must be AjaxRequestHeader"),
+        ):
+            HTTPAuthentication.login(mock_client, "test-user", "test-password")
+
+        mock_post.assert_not_called()
+
     def test_login_invalid_credentials(self):
         """認証失敗（ユーザー名/パスワード不一致）"""
         mock_client = self._mock_client()
@@ -146,16 +164,27 @@ class TestHTTPAuthentication:
 
     def test_logout(self):
         """ログアウト成功"""
-        mock_client = MagicMock()
+        mock_client = self._mock_client()
 
         HTTPAuthentication.logout(mock_client)
 
         mock_client.amc_client.request.assert_called_once()
         mock_client.amc_client.header.delete_cookie.assert_called_once_with("WIKIDOT_SESSION_ID")
 
+    @pytest.mark.parametrize("header", [None, object(), {}, "header", True])
+    def test_logout_rejects_invalid_header_object_before_mutation(self, header: Any) -> None:
+        """ログアウト前に置換されたheader objectを拒否する"""
+        mock_client = self._mock_client()
+        mock_client.amc_client.header = header
+
+        with pytest.raises(ValueError, match="header must be AjaxRequestHeader"):
+            HTTPAuthentication.logout(mock_client)
+
+        mock_client.amc_client.request.assert_not_called()
+
     def test_logout_suppresses_errors(self):
         """ログアウト時のエラーが抑制される"""
-        mock_client = MagicMock()
+        mock_client = self._mock_client()
         mock_client.amc_client.request.side_effect = Exception("Network error")
 
         # エラーが発生しても例外が送出されない

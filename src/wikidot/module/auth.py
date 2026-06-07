@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from ..common.exceptions import SessionCreateException
-from ..connector.ajax import AjaxModuleConnectorConfig
+from ..connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
 from ..util.http import sync_post_with_retry
 
 if TYPE_CHECKING:
@@ -24,6 +24,12 @@ def _validate_login_config_object(config: object) -> AjaxModuleConnectorConfig:
     if not isinstance(config, AjaxModuleConnectorConfig):
         raise ValueError("config must be AjaxModuleConnectorConfig")
     return config
+
+
+def _validate_auth_header_object(header: object) -> AjaxRequestHeader:
+    if not isinstance(header, AjaxRequestHeader):
+        raise ValueError("header must be AjaxRequestHeader")
+    return header
 
 
 class HTTPAuthentication:
@@ -61,6 +67,7 @@ class HTTPAuthentication:
 
         # Execute login request with retry (reduced retry limit to prevent account lockout)
         config = _validate_login_config_object(client.amc_client.config)
+        header = _validate_auth_header_object(client.amc_client.header)
         response = sync_post_with_retry(
             url="https://www.wikidot.com/default--flow/login__LoginPopupScreen",
             data={
@@ -69,7 +76,7 @@ class HTTPAuthentication:
                 "action": "Login2Action",
                 "event": "login",
             },
-            headers=client.amc_client.header.get_header(),
+            headers=header.get_header(),
             timeout=config.request_timeout,
             attempt_limit=LOGIN_RETRY_LIMIT,
             retry_interval=config.retry_interval,
@@ -97,7 +104,7 @@ class HTTPAuthentication:
             raise SessionCreateException("Login attempt is failed because WIKIDOT_SESSION_ID cookie is empty")
 
         # Set cookies
-        client.amc_client.header.set_cookie("WIKIDOT_SESSION_ID", session_cookie)
+        header.set_cookie("WIKIDOT_SESSION_ID", session_cookie)
 
     @staticmethod
     def logout(client: "Client") -> None:
@@ -113,7 +120,8 @@ class HTTPAuthentication:
         -----
         Errors during the logout process are ignored, and cookie deletion is always performed.
         """
+        header = _validate_auth_header_object(client.amc_client.header)
         with contextlib.suppress(Exception):
             client.amc_client.request([{"action": "Login2Action", "event": "logout", "moduleName": "Empty"}])
 
-        client.amc_client.header.delete_cookie("WIKIDOT_SESSION_ID")
+        header.delete_cookie("WIKIDOT_SESSION_ID")
