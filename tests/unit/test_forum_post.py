@@ -910,6 +910,20 @@ class TestForumPostCollectionGetSources:
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
         mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
 
+    def test_get_post_sources_rejects_mutated_thread_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """コレクションの親スレッド不正値はソース取得前に拒否する"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        bad_thread = MagicMock()
+        bad_thread.site.amc_request_with_retry = MagicMock()
+        collection.thread = cast("ForumThread", bad_thread)
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            collection.get_post_sources()
+
+        bad_thread.site.amc_request_with_retry.assert_not_called()
+
     def test_get_post_sources_success(
         self,
         mock_forum_thread_no_http: ForumThread,

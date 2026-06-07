@@ -717,6 +717,7 @@ class ForumPostCollection(list["ForumPost"]):
         NoElementException
             When source elements are not found
         """
+        thread = _validate_forum_thread(thread)
         posts = _validate_forum_posts(posts)
         if len(posts) == 0:
             return posts
