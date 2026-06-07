@@ -966,6 +966,23 @@ class TestPrivateMessageSentBox:
             assert isinstance(result, PrivateMessageSentBox)
 
 
+class TestPrivateMessageMailboxAcquire:
+    """Inbox/SentBox acquire共通のテスト"""
+
+    @pytest.mark.parametrize("collection_cls", [PrivateMessageInbox, PrivateMessageSentBox])
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_acquire_rejects_malformed_client_before_fetch(self, collection_cls: Any, client: object) -> None:
+        bad_client: Any = client
+
+        with (
+            patch.object(PrivateMessageCollection, "_amc_request_with_retry") as mock_request,
+            pytest.raises(ValueError, match="client must be a Client"),
+        ):
+            collection_cls.acquire(bad_client)
+
+        mock_request.assert_not_called()
+
+
 class TestPrivateMessage:
     """PrivateMessageクラスのテスト"""
 

@@ -589,6 +589,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         LoginRequiredException
             If not logged in
         """
+        client = _validate_private_message_client(client)
         return cls(PrivateMessageCollection._acquire(client, module_name))
 
 
