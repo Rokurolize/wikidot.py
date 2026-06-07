@@ -2847,6 +2847,21 @@ class TestPageWriteMethods:
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id.parent_fullname == "old-parent"
 
+    def test_set_parent_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
+        """親ページ更新時のsite型異常はログイン確認前に拒否する"""
+        mock_page_with_id.parent_fullname = "old-parent"
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_with_id.set_parent("new-parent")
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        assert mock_page_with_id.parent_fullname == "old-parent"
+
     def test_set_parent_missing_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
         """親ページ更新応答のstatus欠落は文脈付きで失敗しローカル状態を更新しない"""
         mock_page_with_id.parent_fullname = "old-parent"

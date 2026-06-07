@@ -2743,8 +2743,9 @@ class Page:
             When setting the parent page fails
         """
         parent_value = _normalize_parent_fullname(parent_fullname)
-        self.site.client.login_check()
-        response = self.site.amc_request(
+        site = _validate_page_site(self.site)
+        site.client.login_check()
+        response = site.amc_request(
             [
                 {
                     "action": "WikiPageAction",
@@ -2755,7 +2756,7 @@ class Page:
                 }
             ]
         )[0]
-        _require_page_metadata_action_status(self.site, self, "setParentPage", response.json())
+        _require_page_metadata_action_status(site, self, "setParentPage", response.json())
         self.parent_fullname = parent_value
         return self
 
