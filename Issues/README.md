@@ -530,6 +530,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [524-pr-validate-auth-login-config-object.md](524-pr-validate-auth-login-config-object.md): upstream PR draft for the committed auth login config-object state validation fix.
 - [525-pr-validate-site-lookup-config-object.md](525-pr-validate-site-lookup-config-object.md): upstream PR draft for the committed site lookup config-object state validation fix.
 - [526-pr-validate-site-amc-retry-config-object.md](526-pr-validate-site-amc-retry-config-object.md): upstream PR draft for the committed Site AMC retry config-object state validation fix.
+- [527-pr-validate-auth-header-object.md](527-pr-validate-auth-header-object.md): upstream PR draft for the committed auth header-object state validation fix.
 
 ## Local Evidence Index
 
@@ -968,5 +969,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 429: `0a8a05e fix(auth): validate login config object state`
 - Local implementation commits, continued 430: `3f1add8 fix(site): validate lookup config object state`
 - Local implementation commits, continued 431: `08b5104 fix(site): validate amc retry config object state`
+- Local implementation commits, continued 432: `5d42f59 fix(auth): validate header object state`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
