@@ -48,6 +48,11 @@ def _validate_file_page(value: object) -> "Page":
     return value
 
 
+def _validate_files_belong_to_page(page: "Page", files: list["PageFile"]) -> None:
+    if any(file.page is not page for file in files):
+        raise ValueError("files must belong to the collection page")
+
+
 def _validate_file_id(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("id must be an integer")
@@ -91,14 +96,18 @@ class PageFileCollection(list["PageFile"]):
         files : list[PageFile] | None, default None
             List of files to store
         """
-        super().__init__(_validate_files(files))
+        files = _validate_files(files)
 
         if page is not None:
             self.page = _validate_file_page(page)
-        elif len(self) > 0:
-            self.page = self[0].page
+            _validate_files_belong_to_page(self.page, files)
+        elif len(files) > 0:
+            self.page = files[0].page
+            _validate_files_belong_to_page(self.page, files)
         else:
             self.page = None
+
+        super().__init__(files)
 
     def __iter__(self) -> Iterator["PageFile"]:
         """

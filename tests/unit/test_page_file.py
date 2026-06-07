@@ -52,6 +52,15 @@ def _page() -> Page:
     )
 
 
+def _page_on_same_site(page: Page, fullname: str = "other-page") -> Page:
+    other_page = _page()
+    other_page.site = page.site
+    other_page.fullname = fullname
+    other_page.name = fullname
+    other_page._id = 67890
+    return other_page
+
+
 def _page_file(
     page: Page,
     *,
@@ -109,6 +118,23 @@ class TestPageFileCollection:
         collection = PageFileCollection(page=page, files=[file1, file2])
 
         assert len(collection) == 2
+
+    def test_init_rejects_file_from_different_page(self) -> None:
+        page = _page()
+        other_page = _page_on_same_site(page)
+        file = _page_file(other_page)
+
+        with pytest.raises(ValueError, match="files must belong to the collection page"):
+            PageFileCollection(page=page, files=[file])
+
+    def test_init_rejects_mixed_page_files_when_page_is_inferred(self) -> None:
+        page = _page()
+        other_page = _page_on_same_site(page)
+        file1 = _page_file(page, file_id=1)
+        file2 = _page_file(other_page, file_id=2)
+
+        with pytest.raises(ValueError, match="files must belong to the collection page"):
+            PageFileCollection(page=None, files=[file1, file2])
 
     @pytest.mark.parametrize("files", [True, False, "file", ("file",), 100])
     def test_init_rejects_non_list_files(self, files: object):
