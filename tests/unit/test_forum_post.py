@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,9 +13,7 @@ from wikidot.common import exceptions
 from wikidot.module.forum_post import ForumPost, ForumPostCollection
 from wikidot.module.forum_post_revision import ForumPostRevisionCollection
 from wikidot.module.forum_thread import ForumThread
-
-if TYPE_CHECKING:
-    from wikidot.module.site import Site
+from wikidot.module.site import Site
 
 # ============================================================
 # ForumPostCollectionテスト
@@ -331,6 +329,43 @@ class TestForumPostCollectionAcquireAll:
             ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http])
 
         bad_site.amc_request_with_retry.assert_not_called()
+
+    def test_acquire_all_in_threads_rejects_mixed_site_threads_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """複数siteのthread混在は先頭siteへ誤送信せず取得前に拒否する"""
+        other_site = Site(
+            client=mock_forum_thread_no_http.site.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        other_thread = ForumThread(
+            site=other_site,
+            id=3002,
+            title="Other Site Thread",
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=mock_forum_thread_no_http.post_count,
+            category=mock_forum_thread_no_http.category,
+        )
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+        other_site.amc_request = MagicMock()
+        other_site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="threads must belong to the same Site"):
+            ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, other_thread])
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        other_site.amc_request.assert_not_called()
+        other_site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_thread_no_http._posts is None
+        assert other_thread._posts is None
 
     def test_acquire_all_single_page(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]

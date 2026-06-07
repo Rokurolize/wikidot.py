@@ -45,6 +45,13 @@ def _validate_forum_thread_site(site: object) -> "Site":
     return site
 
 
+def _validate_single_thread_site(sites: list["Site"]) -> "Site":
+    site = sites[0]
+    if any(candidate is not site for candidate in sites[1:]):
+        raise ValueError("threads must belong to the same Site")
+    return site
+
+
 def _validate_post_id(post_id: object) -> int:
     if not isinstance(post_id, int) or isinstance(post_id, bool):
         raise ValueError("id must be an integer")
@@ -624,7 +631,7 @@ class ForumPostCollection(list["ForumPost"]):
             return result
 
         target_sites = [_validate_forum_thread_site(thread.site) for thread in target_threads]
-        site = target_sites[0]
+        site = _validate_single_thread_site(target_sites)
 
         # Step 1: Get the first page of all threads
         first_page_responses = site.amc_request_with_retry(
