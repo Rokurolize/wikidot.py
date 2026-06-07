@@ -175,6 +175,14 @@ class AjaxModuleConnectorConfig:
     retry_max_retries: int = 3
 
 
+def _validate_amc_config(config: object) -> AjaxModuleConnectorConfig:
+    if config is None:
+        return AjaxModuleConnectorConfig()
+    if not isinstance(config, AjaxModuleConnectorConfig):
+        raise ValueError("config must be AjaxModuleConnectorConfig")
+    return config
+
+
 def _validate_positive_int_option(field_name: str, value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{field_name} must be a positive integer")
@@ -326,7 +334,7 @@ class AjaxModuleConnectorClient:
         """
         self.site_name: str = site_name if site_name is not None else "www"
         StringUtil.validate_site_unix_name(self.site_name)
-        self.config: AjaxModuleConnectorConfig = config if config is not None else AjaxModuleConnectorConfig()
+        self.config: AjaxModuleConnectorConfig = _validate_amc_config(config)
 
         # Check SSL support
         self.ssl_supported: bool = self._check_existence_and_ssl()

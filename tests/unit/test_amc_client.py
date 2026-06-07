@@ -2,6 +2,7 @@
 
 import copy
 from typing import Any
+from unittest.mock import patch
 
 import pytest
 from pytest_httpx import HTTPXMock
@@ -241,6 +242,22 @@ class TestAjaxModuleConnectorClientInit:
         with pytest.raises(ValueError, match="Invalid Wikidot site UNIX name"):
             AjaxModuleConnectorClient(site_name="127.0.0.1:8000#")
 
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("config", [object(), {}, "config", True])
+    def test_invalid_config_object_rejected_before_header_setup(
+        self,
+        httpx_mock: HTTPXMock,
+        config: Any,
+    ) -> None:
+        """AMC設定オブジェクトは初期化副作用の前に型検証する"""
+        with (
+            patch("wikidot.connector.ajax.AjaxRequestHeader") as mock_header,
+            pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"),
+        ):
+            AjaxModuleConnectorClient(site_name="www", config=config)
+
+        mock_header.assert_not_called()
         assert httpx_mock.get_requests() == []
 
 
