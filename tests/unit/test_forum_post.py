@@ -14,6 +14,7 @@ from wikidot.module.forum_post import ForumPost, ForumPostCollection
 from wikidot.module.forum_post_revision import ForumPostRevision, ForumPostRevisionCollection
 from wikidot.module.forum_thread import ForumThread
 from wikidot.module.site import Site
+from wikidot.module.user import User
 
 # ============================================================
 # ForumPostCollectionテスト
@@ -1620,6 +1621,30 @@ class TestForumPostBasic:
                 _source=mock_forum_post_no_http._source,
             )
 
+    def test_init_rejects_created_by_from_different_client(self, mock_forum_post_no_http: ForumPost) -> None:
+        """投稿者が別client由来なら初期化時に拒否する"""
+        created_by = User(
+            client=MagicMock(),
+            id=12345,
+            name="test_user",
+            unix_name="test-user",
+        )
+
+        with pytest.raises(ValueError, match="created_by must belong to the site"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
     @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-11-14", []])
     def test_init_rejects_malformed_created_at(self, mock_forum_post_no_http: ForumPost, created_at: object) -> None:
         """ForumPostの初期化はdatetimeの作成日時だけ受け付ける"""
@@ -1656,6 +1681,30 @@ class TestForumPostBasic:
                 created_at=mock_forum_post_no_http.created_at,
                 edited_by=bad_edited_by,
                 edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    def test_init_rejects_edited_by_from_different_client(self, mock_forum_post_no_http: ForumPost) -> None:
+        """編集者が別client由来なら初期化時に拒否する"""
+        edited_by = User(
+            client=MagicMock(),
+            id=54322,
+            name="edit_user",
+            unix_name="edit-user",
+        )
+
+        with pytest.raises(ValueError, match="edited_by must belong to the site"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=edited_by,
+                edited_at=mock_forum_post_no_http.created_at,
                 _parent_id=mock_forum_post_no_http._parent_id,
                 _source=mock_forum_post_no_http._source,
             )

@@ -131,6 +131,11 @@ def _validate_post_created_by(created_by: object) -> "AbstractUser":
     return created_by
 
 
+def _validate_post_created_by_site(site: "Site", created_by: "AbstractUser") -> None:
+    if created_by.client is not site.client:
+        raise ValueError("created_by must belong to the site")
+
+
 def _validate_post_created_at(created_at: object) -> datetime:
     if not isinstance(created_at, datetime):
         raise ValueError("created_at must be a datetime")
@@ -146,6 +151,11 @@ def _validate_optional_post_edited_by(edited_by: object) -> Optional["AbstractUs
     if not isinstance(edited_by, AbstractUser):
         raise ValueError("edited_by must be an AbstractUser or None")
     return edited_by
+
+
+def _validate_optional_post_edited_by_site(site: "Site", edited_by: Optional["AbstractUser"]) -> None:
+    if edited_by is not None and edited_by.client is not site.client:
+        raise ValueError("edited_by must belong to the site")
 
 
 def _validate_optional_post_edited_at(edited_at: object) -> datetime | None:
@@ -905,6 +915,9 @@ class ForumPost:
         self.created_at = _validate_post_created_at(self.created_at)
         self.edited_by = _validate_optional_post_edited_by(self.edited_by)
         self.edited_at = _validate_optional_post_edited_at(self.edited_at)
+        post_site = _validate_forum_thread_site(self.thread.site)
+        _validate_post_created_by_site(post_site, self.created_by)
+        _validate_optional_post_edited_by_site(post_site, self.edited_by)
 
     def __str__(self) -> str:
         """
