@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, cast
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -16,10 +16,8 @@ from wikidot.module.page_file import PageFile, PageFileCollection
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.page_votes import PageVote, PageVoteCollection
+from wikidot.module.site import Site
 from wikidot.module.user import User
-
-if TYPE_CHECKING:
-    from wikidot.module.site import Site
 
 
 def _page_user(page: Page, user_id: int = 12345, name: str = "test-user") -> User:
@@ -914,6 +912,52 @@ class TestPageCollectionAcquire:
         request.assert_not_called()
         mock_site_no_http.amc_request.assert_not_called()
         mock_site_no_http.amc_request_with_retry.assert_not_called()
+
+    def test_get_page_ids_rejects_page_from_different_site_before_fetch(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+    ) -> None:
+        """コレクション親と異なるサイトのページはID取得前に拒否する"""
+        other_site = Site(
+            client=mock_site_no_http.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        other_page = Page(
+            site=other_site,
+            fullname="other-page",
+            name="other-page",
+            category="_default",
+            title="Other Page",
+            children_count=0,
+            comments_count=0,
+            size=1000,
+            rating=10,
+            votes_count=5,
+            rating_percent=0.0,
+            revisions_count=3,
+            parent_fullname=None,
+            tags=["tag1"],
+            created_by=mock_page_no_http.created_by,
+            created_at=mock_page_no_http.created_at,
+            updated_by=mock_page_no_http.updated_by,
+            updated_at=mock_page_no_http.updated_at,
+            commented_by=None,
+            commented_at=None,
+        )
+        collection = PageCollection(mock_site_no_http, [other_page])
+        request = MagicMock(return_value=[])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        with pytest.raises(ValueError, match="pages must belong to the collection site"):
+            collection.get_page_ids()
+
+        request.assert_not_called()
 
     @staticmethod
     def _other_page(mock_site_no_http: Site, mock_page_no_http: Page) -> Page:
