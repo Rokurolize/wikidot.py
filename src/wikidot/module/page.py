@@ -2225,8 +2225,9 @@ class Page:
         WikidotStatusCodeException
             When deletion fails
         """
-        self.site.client.login_check()
-        response = self.site.amc_request(
+        site = _validate_page_site(self.site)
+        site.client.login_check()
+        response = site.amc_request(
             [
                 {
                     "action": "WikiPageAction",
@@ -2236,7 +2237,7 @@ class Page:
                 }
             ]
         )[0]
-        _require_page_action_status(self.site, self, "deletePage", response.json())
+        _require_page_action_status(site, self, "deletePage", response.json())
         self._source = None
         self._revisions = None
         self._votes = None

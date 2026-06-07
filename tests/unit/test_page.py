@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -2631,6 +2631,66 @@ class TestPageWriteMethods:
 
         with pytest.raises(exceptions.LoginRequiredException):
             mock_page_with_id.destroy()
+
+    def test_destroy_rejects_malformed_site_before_login_or_cache_clear(self, mock_page_with_id: Page) -> None:
+        """破棄時に壊れた親サイトへログイン確認やAMC削除を進めない"""
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        cached_revisions = PageRevisionCollection(
+            mock_page_with_id,
+            [
+                PageRevision(
+                    page=mock_page_with_id,
+                    id=1,
+                    rev_no=1,
+                    created_by=_page_user(mock_page_with_id),
+                    created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
+                    comment="cached revision",
+                )
+            ],
+        )
+        cached_votes = PageVoteCollection(
+            mock_page_with_id,
+            [PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)],
+        )
+        cached_metas = {"cached": "meta"}
+        cached_discussion = MagicMock()
+        cached_files = PageFileCollection(
+            mock_page_with_id,
+            [
+                PageFile(
+                    page=mock_page_with_id,
+                    id=1,
+                    name="cached.txt",
+                    url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+                    mime_type="text/plain",
+                    size=10,
+                )
+            ],
+        )
+        mock_page_with_id._source = cached_source
+        mock_page_with_id._revisions = cached_revisions
+        mock_page_with_id._votes = cached_votes
+        mock_page_with_id._metas = cached_metas
+        mock_page_with_id._discussion = cached_discussion
+        mock_page_with_id._discussion_checked = True
+        mock_page_with_id._files = cached_files
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_with_id.destroy()
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        assert mock_page_with_id._source is cached_source
+        assert mock_page_with_id._revisions is cached_revisions
+        assert mock_page_with_id._votes is cached_votes
+        assert mock_page_with_id._metas is cached_metas
+        assert mock_page_with_id._discussion is cached_discussion
+        assert mock_page_with_id._discussion_checked is True
+        assert mock_page_with_id._files is cached_files
 
     def test_destroy_missing_action_status_includes_site_page_event_and_field_context(
         self,
