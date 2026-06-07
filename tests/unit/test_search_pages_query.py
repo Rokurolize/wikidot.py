@@ -105,6 +105,22 @@ class TestSearchPagesQueryAsDict:
         with pytest.raises(ValueError, match="tags list entries must be strings"):
             query.as_dict()
 
+    @pytest.mark.parametrize(
+        "invalid_tags",
+        [
+            123,
+            True,
+            ("scp",),
+            {"tag": "scp"},
+            object(),
+        ],
+    )
+    def test_as_dict_tags_must_be_string_list_or_none(self, invalid_tags: Any):
+        """tagsは文字列、リスト、Noneだけ受け付ける"""
+        query = SearchPagesQuery(tags=invalid_tags)
+        with pytest.raises(ValueError, match="tags must be a string, list, or None"):
+            query.as_dict()
+
     def test_as_dict_tags_string_unchanged(self):
         """タグ文字列がそのまま保持されるテスト"""
         query = SearchPagesQuery(tags="scp euclid")

@@ -365,6 +365,32 @@ class TestSitePagesAccessor:
 
         search_pages.assert_not_called()
 
+    @pytest.mark.parametrize(
+        "invalid_tags",
+        [
+            123,
+            True,
+            ("scp",),
+            {"scp": True},
+            object(),
+        ],
+    )
+    def test_iter_search_required_tags_must_be_string_list_or_none(
+        self,
+        mock_site_no_http: Site,
+        invalid_tags: Any,
+    ) -> None:
+        """required_tagsは文字列、リスト、Noneだけ受け付ける"""
+        with (
+            patch.object(
+                PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])
+            ) as search_pages,
+            pytest.raises(ValueError, match="required_tags must be a string, list, or None"),
+        ):
+            list(mock_site_no_http.pages.iter_search(required_tags=invalid_tags, limit=1))
+
+        search_pages.assert_not_called()
+
     def test_iter_sources_source_batch_size_must_be_integer(self, mock_site_no_http: Site) -> None:
         """source_batch_sizeは検索前に整数として検証する"""
         invalid_sizes: tuple[Any, ...] = ("2", 1.5)

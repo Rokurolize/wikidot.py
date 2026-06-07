@@ -507,6 +507,8 @@ class SitePagesAccessor:
             return set()
         if isinstance(required_tags, str):
             return set(required_tags.split())
+        if not isinstance(required_tags, list):
+            raise ValueError("required_tags must be a string, list, or None")
         if any(not isinstance(tag, str) for tag in required_tags):
             raise ValueError("required_tags list entries must be strings")
         return set(required_tags)
