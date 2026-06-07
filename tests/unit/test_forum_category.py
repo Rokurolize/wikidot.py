@@ -353,6 +353,21 @@ class TestForumCategoryCollectionAcquireAll:
 class TestForumCategoryBasic:
     """ForumCategoryの基本テスト"""
 
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_init_rejects_malformed_sites(self, site: object) -> None:
+        """ForumCategoryの親siteはSiteだけ受け付ける"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            ForumCategory(
+                site=bad_site,
+                id=1001,
+                title="Test Category",
+                description="Test category description",
+                threads_count=10,
+                posts_count=50,
+            )
+
     @pytest.mark.parametrize("category_id", [None, True, "1001", 1001.0])
     def test_init_rejects_non_integer_category_id(self, mock_site_no_http: Site, category_id: object) -> None:
         """整数以外のカテゴリIDを拒否する"""

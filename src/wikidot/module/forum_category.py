@@ -67,7 +67,7 @@ def _validate_forum_category_collection_categories(categories: object) -> list["
     return cast(list["ForumCategory"], categories)
 
 
-def _validate_forum_category_collection_site(site: object) -> "Site":
+def _validate_forum_category_site(site: object) -> "Site":
     from .site import Site
 
     if not isinstance(site, Site):
@@ -122,7 +122,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
         super().__init__(_validate_forum_category_collection_categories(categories))
 
         if site is not None:
-            self.site = _validate_forum_category_collection_site(site)
+            self.site = _validate_forum_category_site(site)
         else:
             self.site = self[0].site
 
@@ -307,6 +307,7 @@ class ForumCategory:
     _threads: ForumThreadCollection | None = None
 
     def __post_init__(self) -> None:
+        self.site = _validate_forum_category_site(self.site)
         self.id = _validate_forum_category_id(self.id)
         self.title = validate_text_field("title", self.title)
         self.description = validate_text_field("description", self.description)
