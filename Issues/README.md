@@ -546,6 +546,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [540-pr-preserve-empty-page-collection-parent.md](540-pr-preserve-empty-page-collection-parent.md): upstream PR draft for the committed empty page collection parent-state fix.
 - [541-pr-validate-site-member-get-site.md](541-pr-validate-site-member-get-site.md): upstream PR draft for the committed site member list site-argument validation fix.
 - [542-pr-validate-forum-category-acquire-site.md](542-pr-validate-forum-category-acquire-site.md): upstream PR draft for the committed forum category list site-argument validation fix.
+- [543-pr-validate-forum-thread-direct-site.md](543-pr-validate-forum-thread-direct-site.md): upstream PR draft for the committed direct forum thread site-argument validation fix.
 
 ## Local Evidence Index
 
@@ -1000,5 +1001,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 445: `873d826 fix(page): preserve empty collection parent`
 - Local implementation commits, continued 446: `c1085a4 fix(site_member): validate member list site`
 - Local implementation commits, continued 447: `64b928a fix(forum_category): validate category list site`
+- Local implementation commits, continued 448: `c89c2b8 fix(forum_thread): validate direct thread site`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
