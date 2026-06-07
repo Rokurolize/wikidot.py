@@ -1319,6 +1319,39 @@ class TestSitePageAccessor:
                 metas_updated=False,
             )
 
+    def test_publish_result_rejects_page_id_that_does_not_match_page(self, mock_site_no_http: Site) -> None:
+        """PagePublishResultのpage_idは取得済みページIDと一致する必要がある"""
+        page = self._page(mock_site_no_http, "test-page", 12345)
+
+        with pytest.raises(ValueError, match="page_id must match the result page"):
+            PagePublishResult(
+                page=page,
+                page_id=67890,
+                source_matches=None,
+                tags_updated=False,
+                parent_updated=False,
+                metas_updated=False,
+            )
+
+    def test_publish_result_accepts_page_id_when_page_id_is_unloaded(self, mock_site_no_http: Site) -> None:
+        """PagePublishResultのpage_idは未取得Pageに対して通信なしで保持できる"""
+        page = self._page(mock_site_no_http, "test-page", 12345)
+        page._id = None
+        mock_site_no_http.amc_request = MagicMock()
+
+        result = PagePublishResult(
+            page=page,
+            page_id=12345,
+            source_matches=None,
+            tags_updated=False,
+            parent_updated=False,
+            metas_updated=False,
+        )
+
+        assert result.page_id == 12345
+        assert page._id is None
+        mock_site_no_http.amc_request.assert_not_called()
+
     @pytest.mark.parametrize("field_name", ["tags_updated", "parent_updated", "metas_updated", "created"])
     @pytest.mark.parametrize("value", [None, "false", 0, 1])
     def test_publish_result_rejects_malformed_boolean_status_fields(
