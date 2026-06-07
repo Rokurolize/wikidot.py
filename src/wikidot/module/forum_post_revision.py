@@ -171,6 +171,13 @@ def _validate_revision_html_targets(revisions: list["ForumPostRevision"]) -> Non
         _validate_forum_thread_site(revision_thread.site)
 
 
+def _validate_single_site(sites: list["Site"]) -> "Site":
+    site = sites[0]
+    if any(candidate is not site for candidate in sites[1:]):
+        raise ValueError("posts must belong to the same Site")
+    return site
+
+
 class ForumPostRevisionCollection(list["ForumPostRevision"]):
     """
     Class representing a collection of forum post revisions
@@ -467,7 +474,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             target_sites = [
                 _validate_forum_thread_site(_validate_forum_post_thread(post.thread).site) for post in target_posts
             ]
-            site = target_sites[0]
+            site = _validate_single_site(target_sites)
             responses = site.amc_request_with_retry(
                 [
                     {
@@ -505,6 +512,11 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                 if site is None:
                     revision_post = _validate_forum_post(all_revisions[0].post)
                     site = _validate_forum_thread_site(_validate_forum_post_thread(revision_post.thread).site)
+                revision_sites = [
+                    _validate_forum_thread_site(_validate_forum_post_thread(revision.post.thread).site)
+                    for revision in all_revisions
+                ]
+                _validate_single_site([site, *revision_sites])
                 html_responses = site.amc_request_with_retry(
                     [
                         {

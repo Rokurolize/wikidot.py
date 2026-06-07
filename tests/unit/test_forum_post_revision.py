@@ -12,6 +12,8 @@ from bs4 import BeautifulSoup
 from wikidot.common import exceptions
 from wikidot.module.forum_post import ForumPost
 from wikidot.module.forum_post_revision import ForumPostRevision, ForumPostRevisionCollection
+from wikidot.module.forum_thread import ForumThread
+from wikidot.module.site import Site
 from wikidot.module.user import User
 
 if TYPE_CHECKING:
@@ -644,6 +646,55 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
 
+    def test_acquire_all_for_posts_rejects_mixed_site_posts_before_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """複数siteのpost混在は先頭siteへ誤送信せず取得前に拒否する"""
+        other_site = Site(
+            client=mock_forum_post_no_http.thread.site.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        other_thread = ForumThread(
+            site=other_site,
+            id=3002,
+            title="Other Site Thread",
+            description=mock_forum_post_no_http.thread.description,
+            created_by=mock_forum_post_no_http.thread.created_by,
+            created_at=mock_forum_post_no_http.thread.created_at,
+            post_count=mock_forum_post_no_http.thread.post_count,
+            category=mock_forum_post_no_http.thread.category,
+        )
+        other_post = ForumPost(
+            thread=other_thread,
+            id=5002,
+            title="Other Site Post",
+            text=mock_forum_post_no_http.text,
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=mock_forum_post_no_http.edited_by,
+            edited_at=mock_forum_post_no_http.edited_at,
+            _parent_id=mock_forum_post_no_http.parent_id,
+        )
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+        other_site.amc_request = MagicMock()
+        other_site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="posts must belong to the same Site"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, other_post])
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        other_site.amc_request.assert_not_called()
+        other_site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._revisions is None
+        assert other_post._revisions is None
+
     def test_acquire_all_for_posts_skips_cached_post_revisions(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
@@ -758,6 +809,71 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
         bad_thread.site.amc_request_with_retry.assert_not_called()
         assert cached_revision.is_html_acquired() is False
+
+    def test_acquire_all_for_posts_with_html_rejects_mixed_site_cached_revisions_before_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """with_html=Trueは複数siteのcached revisionを先頭siteへ誤送信しない"""
+        other_site = Site(
+            client=mock_forum_post_no_http.thread.site.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        other_thread = ForumThread(
+            site=other_site,
+            id=3002,
+            title="Other Site Thread",
+            description=mock_forum_post_no_http.thread.description,
+            created_by=mock_forum_post_no_http.thread.created_by,
+            created_at=mock_forum_post_no_http.thread.created_at,
+            post_count=mock_forum_post_no_http.thread.post_count,
+            category=mock_forum_post_no_http.thread.category,
+        )
+        other_post = ForumPost(
+            thread=other_thread,
+            id=5002,
+            title="Other Site Post",
+            text=mock_forum_post_no_http.text,
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=mock_forum_post_no_http.edited_by,
+            edited_at=mock_forum_post_no_http.edited_at,
+            _parent_id=mock_forum_post_no_http.parent_id,
+        )
+        cached_revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        other_cached_revision = ForumPostRevision(
+            post=other_post,
+            id=9002,
+            rev_no=0,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        mock_forum_post_no_http._revisions = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
+        other_post._revisions = ForumPostRevisionCollection(other_post, [other_cached_revision])
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+        other_site.amc_request = MagicMock()
+        other_site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="posts must belong to the same Site"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, other_post], with_html=True)
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        other_site.amc_request.assert_not_called()
+        other_site.amc_request_with_retry.assert_not_called()
+        assert cached_revision.is_html_acquired() is False
+        assert other_cached_revision.is_html_acquired() is False
 
     def test_acquire_all_for_posts_raises_when_retry_is_exhausted(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
