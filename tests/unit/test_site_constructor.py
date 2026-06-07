@@ -38,6 +38,7 @@ class TestSiteInit:
         assert site.unix_name == "test-site"
         assert site.domain == "test-site.wikidot.com"
         assert site.ssl_supported is True
+        assert site.url == "https://test-site.wikidot.com"
 
     @pytest.mark.parametrize(
         ("field", "value", "message"),
@@ -70,3 +71,19 @@ class TestSiteInit:
     ) -> None:
         with pytest.raises(ValueError, match=message):
             _site(mock_client_no_http, **{field: value})
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("domain", None, "domain must be a string"),
+            ("domain", True, "domain must be a string"),
+            ("ssl_supported", 1, "ssl_supported must be a boolean"),
+            ("ssl_supported", "true", "ssl_supported must be a boolean"),
+        ],
+    )
+    def test_url_rejects_mutated_metadata(self, mock_client_no_http: Any, field: str, value: Any, message: str) -> None:
+        site = _site(mock_client_no_http)
+        setattr(site, field, value)
+
+        with pytest.raises(ValueError, match=message):
+            _ = site.url

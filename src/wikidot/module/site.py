@@ -1463,7 +1463,9 @@ class Site:
         str
             Full URL of the site
         """
-        return f"http{'s' if self.ssl_supported else ''}://{self.domain}"
+        ssl_supported = _validate_site_ssl_supported(self.ssl_supported)
+        domain = _validate_site_text_field("domain", self.domain)
+        return f"http{'s' if ssl_supported else ''}://{domain}"
 
     @property
     def members(self) -> list[SiteMember]:
