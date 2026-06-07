@@ -983,14 +983,15 @@ class ForumPost:
         source = validate_text_field("source", source)
         if title is not None:
             title = validate_text_field("title", title)
-        self.thread.site.client.login_check()
+        thread = _validate_forum_thread(self.thread)
+        thread.site.client.login_check()
 
         # 現在のリビジョンIDを取得
-        form_response = self.thread.site.amc_request_with_retry(
+        form_response = thread.site.amc_request_with_retry(
             [
                 {
                     "moduleName": "forum/sub/ForumEditPostFormModule",
-                    "threadId": self.thread.id,
+                    "threadId": thread.id,
                     "postId": self.id,
                 }
             ]
@@ -1022,7 +1023,7 @@ class ForumPost:
             ) from exc
 
         # 編集を保存
-        save_response = self.thread.site.amc_request(
+        save_response = thread.site.amc_request(
             [
                 {
                     "action": "ForumAction",
@@ -1042,6 +1043,6 @@ class ForumPost:
             self.title = title
         self._source = source
         self._revisions = None
-        self.thread._posts = None
+        thread._posts = None
 
         return self

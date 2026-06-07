@@ -1688,6 +1688,22 @@ class TestForumPostEdit:
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
 
+    def test_edit_rejects_mutated_thread_before_login_or_form_fetch(self, mock_forum_post_no_http: ForumPost) -> None:
+        """投稿編集時の親スレッド不正値はログイン確認やフォーム取得前に拒否する"""
+        bad_thread = MagicMock()
+        bad_thread.site.client.login_check = MagicMock()
+        bad_thread.site.amc_request_with_retry = MagicMock()
+        bad_thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread = cast("ForumThread", bad_thread)
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        bad_thread.site.client.login_check.assert_not_called()
+        bad_thread.site.amc_request_with_retry.assert_not_called()
+        bad_thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
     def test_edit_scopes_current_revision_id_to_edit_form_direct_child(
         self,
         mock_forum_post_no_http: ForumPost,
