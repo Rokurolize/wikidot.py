@@ -3156,6 +3156,23 @@ class TestPageWriteMethods:
         assert new_rating == 10
         assert mock_page_with_id._votes is None
 
+    def test_cancel_vote_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
+        """投票取消時のsite型異常はログイン確認前に拒否する"""
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_with_id.cancel_vote()
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is not None
+
     def test_cancel_vote_malformed_points_includes_site_page_event_field_and_value_context(
         self, mock_page_with_id: Page
     ) -> None:
