@@ -13,6 +13,12 @@ if TYPE_CHECKING:
 LOGIN_RETRY_LIMIT = 3
 
 
+def _validate_login_text(field: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    return value
+
+
 class HTTPAuthentication:
     """
     Class that provides HTTP authentication for Wikidot
@@ -43,6 +49,9 @@ class HTTPAuthentication:
         SessionCreateException
             If the login attempt fails (HTTP response code error, credential mismatch, cookie issues, etc.)
         """
+        username = _validate_login_text("username", username)
+        password = _validate_login_text("password", password)
+
         # Execute login request with retry (reduced retry limit to prevent account lockout)
         config = client.amc_client.config
         response = sync_post_with_retry(

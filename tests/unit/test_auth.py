@@ -4,6 +4,7 @@
 HTTPAuthenticationクラスをテストする。
 """
 
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -37,6 +38,36 @@ class TestHTTPAuthentication:
             HTTPAuthentication.login(mock_client, "test-user", "test-password")
 
         mock_client.amc_client.header.set_cookie.assert_called_once_with("WIKIDOT_SESSION_ID", "test-session-id")
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("username", None, "username must be a string"),
+            ("username", 123, "username must be a string"),
+            ("username", True, "username must be a string"),
+            ("password", None, "password must be a string"),
+            ("password", 123, "password must be a string"),
+            ("password", True, "password must be a string"),
+        ],
+    )
+    def test_login_rejects_non_string_credentials_before_request(self, field: str, value: Any, message: str) -> None:
+        """認証情報の型不正はHTTPリクエスト前に拒否する"""
+        mock_client = self._mock_client()
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.text = "Login successful"
+        mock_response.cookies = {"WIKIDOT_SESSION_ID": "test-session-id"}
+        username: Any = value if field == "username" else "test-user"
+        password: Any = value if field == "password" else "test-password"
+
+        with (
+            patch("wikidot.module.auth.httpx.post", return_value=mock_response) as mock_post,
+            pytest.raises(ValueError, match=message),
+        ):
+            HTTPAuthentication.login(mock_client, username, password)
+
+        mock_post.assert_not_called()
+        mock_client.amc_client.header.set_cookie.assert_not_called()
 
     def test_login_invalid_credentials(self):
         """認証失敗（ユーザー名/パスワード不一致）"""
