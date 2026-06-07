@@ -183,6 +183,14 @@ class TestPrivateMessageCollection:
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
 
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_from_ids_rejects_malformed_client_before_login(self, client: object):
+        """直接メッセージ取得はClient以外の親をログイン確認前に拒否する"""
+        bad_client: Any = client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            PrivateMessageCollection.from_ids(bad_client, [1])
+
     def test_from_ids_success(self, mock_client, mock_user):
         """from_idsの成功ケース"""
         mock_response = MagicMock()

@@ -64,6 +64,14 @@ def _validate_private_message_ids(message_ids: object) -> list[int]:
     return cast(list[int], message_ids)
 
 
+def _validate_private_message_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
 def _validate_private_message_retry_batch_size(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
         raise ValueError(f"batch_size must be a positive integer, got {value}")
@@ -322,6 +330,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         message_ids = _validate_private_message_ids(message_ids)
         if len(message_ids) == 0:
             return PrivateMessageCollection([])
+        client = _validate_private_message_client(client)
 
         client.login_check()
 
