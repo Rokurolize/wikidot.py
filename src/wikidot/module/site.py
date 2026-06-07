@@ -184,6 +184,11 @@ def _validate_site_change_site(value: object) -> "Site":
     return value
 
 
+def _validate_site_change_changed_by_site(site: "Site", changed_by: AbstractUser) -> None:
+    if changed_by.client is not site.client:
+        raise ValueError("changed_by must belong to the site")
+
+
 def _validate_site_accessor_site(value: object) -> "Site":
     if not isinstance(value, Site):
         raise ValueError("site must be a Site")
@@ -1111,6 +1116,7 @@ class SiteChange:
         self.changed_by = _validate_site_change_changed_by(self.changed_by)
         self.changed_at = _validate_site_change_changed_at(self.changed_at)
         self.site = _validate_site_change_site(self.site)
+        _validate_site_change_changed_by_site(self.site, self.changed_by)
 
     def __str__(self) -> str:
         """

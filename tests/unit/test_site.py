@@ -189,6 +189,14 @@ class TestSiteChangeDataclass:
         with pytest.raises(ValueError, match="changed_by must be an AbstractUser"):
             self._site_change(mock_site_no_http, flags=["S"], changed_by=changed_by)
 
+    def test_init_rejects_changed_by_from_different_client(self, mock_site_no_http: Site) -> None:
+        """SiteChange初期化時のchanged_byはsiteと同じClientだけ受け付ける"""
+        other_client = create_mock_client()
+        changed_by = User(client=other_client, id=1, name="tester", unix_name="tester")
+
+        with pytest.raises(ValueError, match="changed_by must belong to the site"):
+            self._site_change(mock_site_no_http, flags=["S"], changed_by=changed_by)
+
     @pytest.mark.parametrize("changed_at", [None, True, 1, "2026-06-06", []])
     def test_init_rejects_malformed_changed_at(self, mock_site_no_http: Site, changed_at: Any) -> None:
         """SiteChange初期化時のchanged_atはdatetimeだけ受け付ける"""
