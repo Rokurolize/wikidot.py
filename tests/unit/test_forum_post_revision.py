@@ -262,6 +262,17 @@ class TestForumPostRevisionCollectionAcquireAll:
         with pytest.raises(ValueError, match="post must be a ForumPost"):
             ForumPostRevisionCollection.acquire_all(bad_post)
 
+    def test_acquire_all_rejects_mutated_thread_before_fetch(self, mock_forum_post_no_http: ForumPost) -> None:
+        """単一postのmutateされた非ForumThread親は取得前に拒否する"""
+        bad_thread: Any = MagicMock()
+        mock_forum_post_no_http.thread = bad_thread
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        bad_thread.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._revisions is None
+
     def test_acquire_all_retries_transient_fetch_failures(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
@@ -1400,3 +1411,14 @@ class TestForumPostRevisions:
         assert revisions1 is revisions2
         # APIは1回だけ呼ばれる
         assert mock_forum_post_no_http.thread.site.amc_request.call_count == 1
+
+    def test_revisions_property_rejects_mutated_thread_before_fetch(self, mock_forum_post_no_http: ForumPost) -> None:
+        """未取得revisionsはmutateされた非ForumThread親を取得前に拒否する"""
+        bad_thread: Any = MagicMock()
+        mock_forum_post_no_http.thread = bad_thread
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            _ = mock_forum_post_no_http.revisions
+
+        bad_thread.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._revisions is None

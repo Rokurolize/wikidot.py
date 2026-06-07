@@ -19,6 +19,8 @@ from ..util.parser import user as user_parser
 
 if TYPE_CHECKING:
     from .forum_post import ForumPost
+    from .forum_thread import ForumThread
+    from .site import Site
     from .user import AbstractUser
 
 
@@ -55,6 +57,22 @@ def _validate_forum_post(post: object) -> "ForumPost":
     if not isinstance(post, ForumPost):
         raise ValueError("post must be a ForumPost")
     return post
+
+
+def _validate_forum_post_thread(thread: object) -> "ForumThread":
+    from .forum_thread import ForumThread
+
+    if not isinstance(thread, ForumThread):
+        raise ValueError("thread must be a ForumThread")
+    return thread
+
+
+def _validate_forum_thread_site(site: object) -> "Site":
+    from .site import Site
+
+    if not isinstance(site, Site):
+        raise ValueError("site must be a Site")
+    return site
 
 
 def _validate_revision_id(value: object) -> int:
@@ -358,7 +376,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         if post._revisions is not None:
             return post._revisions
 
-        response = post.thread.site.amc_request_with_retry(
+        thread = _validate_forum_post_thread(post.thread)
+        site = _validate_forum_thread_site(thread.site)
+        response = site.amc_request_with_retry(
             [
                 {
                     "moduleName": "forum/sub/ForumPostRevisionsModule",
@@ -368,7 +388,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         )[0]
         if response is None:
             raise exceptions.UnexpectedException(
-                f"Cannot retrieve forum post revisions for site: {post.thread.site.unix_name}, post: {post.id}"
+                f"Cannot retrieve forum post revisions for site: {site.unix_name}, post: {post.id}"
             )
 
         html = BeautifulSoup(_revision_list_response_body(response, post), "lxml")
@@ -414,8 +434,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             return {}
 
         result: dict[int, ForumPostRevisionCollection] = {}
-        site = posts[0].thread.site
         target_posts: list[ForumPost] = []
+        site: Site | None = None
         cached_revisions_by_id: dict[int, ForumPostRevisionCollection] = {}
         for post in posts:
             if post._revisions is not None and post.id not in cached_revisions_by_id:
@@ -437,6 +457,10 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
 
         # Step 1: Get and parse missing revision lists
         if len(target_posts) > 0:
+            target_sites = [
+                _validate_forum_thread_site(_validate_forum_post_thread(post.thread).site) for post in target_posts
+            ]
+            site = target_sites[0]
             responses = site.amc_request_with_retry(
                 [
                     {
@@ -470,6 +494,9 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     all_revisions_by_id[revision.id].append(revision)
 
             if len(all_revisions) > 0:
+                if site is None:
+                    revision_post = _validate_forum_post(all_revisions[0].post)
+                    site = _validate_forum_thread_site(_validate_forum_post_thread(revision_post.thread).site)
                 html_responses = site.amc_request_with_retry(
                     [
                         {
