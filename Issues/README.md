@@ -509,6 +509,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [503-pr-validate-forum-thread-site-field.md](503-pr-validate-forum-thread-site-field.md): upstream PR draft for the committed forum-thread site field validation fix.
 - [504-pr-validate-forum-thread-posts-cache.md](504-pr-validate-forum-thread-posts-cache.md): upstream PR draft for the committed forum-thread posts-cache validation fix.
 - [505-pr-validate-forum-category-threads-cache.md](505-pr-validate-forum-category-threads-cache.md): upstream PR draft for the committed forum-category threads-cache validation fix.
+- [506-pr-validate-forum-post-source-cache.md](506-pr-validate-forum-post-source-cache.md): upstream PR draft for the committed forum-post source-cache validation fix.
 
 ## Local Evidence Index
 
@@ -926,5 +927,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 408: `8d44327 fix(forum_thread): validate thread site`
 - Local implementation commits, continued 409: `5da32ca fix(forum_thread): validate posts cache`
 - Local implementation commits, continued 410: `fbcf440 fix(forum_category): validate threads cache`
+- Local implementation commits, continued 411: `1d2c74c fix(forum_post): validate source cache`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
