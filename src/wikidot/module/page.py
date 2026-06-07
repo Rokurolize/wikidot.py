@@ -2702,8 +2702,9 @@ class Page:
             When saving tags fails
         """
         tags = _validate_page_tags(self.tags)
-        self.site.client.login_check()
-        response = self.site.amc_request(
+        site = _validate_page_site(self.site)
+        site.client.login_check()
+        response = site.amc_request(
             [
                 {
                     "tags": " ".join(tags),
@@ -2714,7 +2715,7 @@ class Page:
                 }
             ]
         )[0]
-        _require_page_metadata_action_status(self.site, self, "saveTags", response.json())
+        _require_page_metadata_action_status(site, self, "saveTags", response.json())
         return self
 
     def set_parent(self, parent_fullname: str | None) -> "Page":

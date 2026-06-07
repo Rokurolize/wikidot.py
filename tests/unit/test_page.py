@@ -2733,6 +2733,21 @@ class TestPageWriteMethods:
         with pytest.raises(exceptions.LoginRequiredException):
             mock_page_with_id.commit_tags()
 
+    def test_commit_tags_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
+        """タグ保存時に壊れた親サイトへログイン確認やAMC保存を進めない"""
+        mock_page_with_id.tags = ["tag-one", "tag-two"]
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_with_id.commit_tags()
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        assert mock_page_with_id.tags == ["tag-one", "tag-two"]
+
     @pytest.mark.parametrize(
         ("invalid_tags", "message"),
         [
