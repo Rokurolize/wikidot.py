@@ -2658,7 +2658,8 @@ class Page:
             comment = _validate_page_text_field("comment", comment)
         force_edit = _validate_page_bool_field("force_edit", force_edit)
 
-        self.site.client.login_check()
+        site = _validate_page_site(self.site)
+        site.client.login_check()
 
         # Noneならそのままにする
         if title is None:
@@ -2669,7 +2670,7 @@ class Page:
             comment = ""
 
         page = Page.create_or_edit(
-            self.site,
+            site,
             self.fullname,
             self.id,
             title,
