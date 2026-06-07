@@ -58,6 +58,16 @@ def _validate_optional_metas(metas: object) -> dict[str, str] | None:
     return _validate_metas(metas)
 
 
+def _validate_optional_page_discussion(discussion: object) -> "ForumThread | None":
+    if discussion is None:
+        return None
+    from .forum_thread import ForumThread
+
+    if not isinstance(discussion, ForumThread):
+        raise ValueError("page.discussion must be ForumThread or None")
+    return discussion
+
+
 def _validate_page_text_field(field: str, value: object) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{field} must be a string")
@@ -1842,6 +1852,8 @@ class Page:
         self._revisions = _validate_optional_page_revision_collection(self._revisions)
         self._votes = _validate_optional_page_vote_collection(self._votes)
         self._metas = _validate_optional_metas(self._metas)
+        self._discussion = _validate_optional_page_discussion(self._discussion)
+        self._discussion_checked = _validate_page_bool_field("page.discussion_checked", self._discussion_checked)
         self._files = _validate_optional_page_file_collection(self._files)
 
     def get_url(self) -> str:

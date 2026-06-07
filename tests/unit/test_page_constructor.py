@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+from wikidot.module.forum_thread import ForumThread
 from wikidot.module.page import Page
 from wikidot.module.page_file import PageFileCollection
 from wikidot.module.page_revision import PageRevisionCollection
@@ -40,6 +41,8 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         "_revisions": None,
         "_votes": None,
         "_metas": None,
+        "_discussion": None,
+        "_discussion_checked": False,
         "_files": None,
     }
     values.update(overrides)
@@ -70,6 +73,8 @@ def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
         _revisions=values["_revisions"],
         _votes=values["_votes"],
         _metas=values["_metas"],
+        _discussion=values["_discussion"],
+        _discussion_checked=values["_discussion_checked"],
         _files=values["_files"],
     )
 
@@ -380,3 +385,38 @@ class TestPageInit:
     def test_init_rejects_non_string_optional_meta_values(self, mock_site_no_http: Any, metas: Any) -> None:
         with pytest.raises(ValueError, match="metas values must be strings"):
             _page(mock_site_no_http, _metas=metas)
+
+    def test_init_accepts_valid_optional_discussion(self, mock_site_no_http: Any) -> None:
+        page_without_discussion = _page(mock_site_no_http)
+        creator = User(client=mock_site_no_http.client, id=12345, name="test-user", unix_name="test-user")
+        discussion = ForumThread(
+            site=mock_site_no_http,
+            id=3001,
+            title="Discussion thread",
+            description="Discussion thread description",
+            created_by=creator,
+            created_at=datetime(2023, 1, 1, 12, 0, 0),
+            post_count=0,
+        )
+
+        page_with_discussion = _page(mock_site_no_http, _discussion=discussion, _discussion_checked=True)
+        page_without_thread = _page(mock_site_no_http, _discussion=None, _discussion_checked=True)
+
+        assert page_without_discussion._discussion is None
+        assert page_without_discussion._discussion_checked is False
+        assert page_with_discussion._discussion == discussion
+        assert page_with_discussion._discussion_checked is True
+        assert page_with_discussion.discussion == discussion
+        assert page_without_thread._discussion is None
+        assert page_without_thread._discussion_checked is True
+        assert page_without_thread.discussion is None
+
+    @pytest.mark.parametrize("discussion", [True, "cached discussion", {"id": 3001}, object()])
+    def test_init_rejects_malformed_optional_discussion(self, mock_site_no_http: Any, discussion: Any) -> None:
+        with pytest.raises(ValueError, match=r"page\.discussion must be ForumThread or None"):
+            _page(mock_site_no_http, _discussion=discussion)
+
+    @pytest.mark.parametrize("discussion_checked", [None, "true", 1, 0, [], object()])
+    def test_init_rejects_malformed_discussion_checked(self, mock_site_no_http: Any, discussion_checked: Any) -> None:
+        with pytest.raises(ValueError, match=r"page\.discussion_checked must be a boolean"):
+            _page(mock_site_no_http, _discussion_checked=discussion_checked)
