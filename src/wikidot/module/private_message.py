@@ -798,6 +798,7 @@ class PrivateMessage:
         subject = validate_text_field("subject", subject)
         body = validate_text_field("body", body)
         recipient = _validate_private_message_recipient(recipient)
+        client = _validate_private_message_client(client)
         client.login_check()
 
         response = client.amc_client.request(

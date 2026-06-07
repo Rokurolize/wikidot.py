@@ -1109,6 +1109,14 @@ class TestPrivateMessage:
         assert call_args["to_user_id"] == mock_user.id
         assert call_args["event"] == "send"
 
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_send_rejects_malformed_client_before_login(self, mock_user, client: object):
+        """直接送信はClient以外の親をログイン確認前に拒否する"""
+        bad_client: Any = client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            PrivateMessage.send(bad_client, mock_user, "Test Subject", "Test Body")
+
     def test_send_rejects_non_user_recipient_before_login(self, mock_client):
         """送信先がUserでない場合はログイン確認やAMCリクエスト前に拒否する"""
         bad_recipient: Any = {"id": 12345, "name": "test-user"}
