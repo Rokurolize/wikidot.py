@@ -1146,6 +1146,35 @@ class TestForumPostRevisionBasic:
         )
         assert revision.is_html_acquired() is True
 
+    @pytest.mark.parametrize("html", [True, 9001, ["<p>Cached HTML</p>"], {"html": "<p>Cached HTML</p>"}, object()])
+    def test_init_rejects_malformed_html_cache(self, mock_forum_post_no_http: ForumPost, html: object) -> None:
+        """ForumPostRevisionの初期HTMLキャッシュは文字列またはNoneだけ受け付ける"""
+        bad_html: Any = html
+
+        with pytest.raises(ValueError, match="revision.html must be a string"):
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=0,
+                created_by=_user(),
+                created_at=datetime.now(tz=timezone.utc),
+                _html=bad_html,
+            )
+
+    def test_init_accepts_valid_html_cache(self, mock_forum_post_no_http: ForumPost) -> None:
+        """有効な文字列HTMLキャッシュを初期化時に保持できる"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
+            _html="<p>Cached HTML</p>",
+        )
+
+        assert revision.html == "<p>Cached HTML</p>"
+        assert revision.is_html_acquired() is True
+
     @pytest.mark.parametrize("post", [None, True, "5001", {"id": 5001}, object()])
     def test_init_rejects_malformed_posts(self, post: object) -> None:
         """ForumPostRevisionの初期化はForumPostだけ受け付ける"""
