@@ -577,6 +577,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [571-pr-validate-site-url-metadata-state.md](571-pr-validate-site-url-metadata-state.md): upstream PR draft for the committed site URL metadata-state validation fix.
 - [572-pr-validate-page-collection-batch-site.md](572-pr-validate-page-collection-batch-site.md): upstream PR draft for the committed page collection batch-site validation fix.
 - [573-pr-validate-forum-thread-url-site.md](573-pr-validate-forum-thread-url-site.md): upstream PR draft for the committed forum-thread URL site validation fix.
+- [574-pr-validate-forum-thread-reply-site.md](574-pr-validate-forum-thread-reply-site.md): upstream PR draft for the committed forum-thread reply action-time site validation fix.
 
 ## Local Evidence Index
 
@@ -1062,5 +1063,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 476: `c4c09d6 fix(site): validate url metadata state`
 - Local implementation commits, continued 477: `5660d78 fix(page): validate batch collection site`
 - Local implementation commits, continued 478: `6a0673d fix(forum_thread): validate thread url site`
+- Local implementation commits, continued 479: `7e0f686 fix(forum_thread): validate reply site`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
