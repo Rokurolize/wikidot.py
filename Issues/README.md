@@ -522,6 +522,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [516-pr-validate-amc-cookie-container.md](516-pr-validate-amc-cookie-container.md): upstream PR draft for the committed AMC header cookie-container validation fix.
 - [517-pr-validate-requestutil-method-urls.md](517-pr-validate-requestutil-method-urls.md): upstream PR draft for the committed RequestUtil method and URL input validation fix.
 - [518-pr-validate-logging-level-inputs.md](518-pr-validate-logging-level-inputs.md): upstream PR draft for the committed logging-level input validation fix.
+- [519-pr-validate-coroutine-runner-input.md](519-pr-validate-coroutine-runner-input.md): upstream PR draft for the committed coroutine runner input validation fix.
 
 ## Local Evidence Index
 
@@ -952,5 +953,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 421: `443097d fix(amc): validate header cookie container`
 - Local implementation commits, continued 422: `79fe87a fix(requestutil): validate method and url inputs`
 - Local implementation commits, continued 423: `8b87c6c fix(logger): validate console level inputs`
+- Local implementation commits, continued 424: `d41e38c fix(async): validate coroutine runner input`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
