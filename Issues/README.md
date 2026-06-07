@@ -605,6 +605,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [599-pr-validate-page-files-cache-ownership.md](599-pr-validate-page-files-cache-ownership.md): upstream PR draft for the committed page files cache target-page ownership validation fix.
 - [600-pr-validate-page-source-cache-ownership.md](600-pr-validate-page-source-cache-ownership.md): upstream PR draft for the committed page source cache target-page ownership validation fix.
 - [601-pr-validate-page-revision-source-cache-ownership.md](601-pr-validate-page-revision-source-cache-ownership.md): upstream PR draft for the committed page revision source cache target-page ownership validation fix.
+- [602-pr-validate-source-result-source-ownership.md](602-pr-validate-source-result-source-ownership.md): upstream PR draft for the committed source result source target-page ownership validation fix.
 
 ## Local Evidence Index
 
@@ -1118,5 +1119,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 504: `2bea7fb fix(page): validate files cache ownership`
 - Local implementation commits, continued 505: `118259f fix(page): validate source cache ownership`
 - Local implementation commits, continued 506: `689cf65 fix(page_revision): validate source cache ownership`
+- Local implementation commits, continued 507: `da9ae8c fix(site): validate source result source ownership`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
