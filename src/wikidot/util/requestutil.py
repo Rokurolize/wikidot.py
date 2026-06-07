@@ -62,6 +62,10 @@ def _validate_request_urls(urls: object) -> list[str]:
         raise ValueError("urls must be a list of strings")
     if any(not isinstance(url, str) for url in urls):
         raise ValueError("urls must be a list of strings")
+    for url in urls:
+        parsed = urlparse(url)
+        if parsed.scheme.lower() not in {"http", "https"} or parsed.hostname is None:
+            raise ValueError("urls must be absolute HTTP(S) URLs")
     return urls
 
 

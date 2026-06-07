@@ -472,3 +472,11 @@ class TestRequestUtilUrlValidation:
 
         with pytest.raises(ValueError, match="urls must be a list of strings"):
             RequestUtil.request(client_without_config, "GET", urls)
+
+    @pytest.mark.parametrize("url", ["", "not-a-url", "/relative/path", "ftp://example.com/test", "https://"])
+    def test_rejects_malformed_url_strings_before_client_validation(self, url: str) -> None:
+        """URL文字列はclient検証より前に絶対HTTP(S) URLとして検証する"""
+        client_without_config: Any = object()
+
+        with pytest.raises(ValueError, match=r"urls must be absolute HTTP\(S\) URLs"):
+            RequestUtil.request(client_without_config, "GET", [url])
