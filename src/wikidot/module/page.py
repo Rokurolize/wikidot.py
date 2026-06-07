@@ -809,9 +809,11 @@ class PageCollection(list["Page"]):
             self.site = self[0].site
 
     def _get_site_for_batch(self) -> "Site | None":
-        if self.site is None and len(self) > 0:
-            raise ValueError("site must be a Site")
-        return self.site
+        if self.site is None:
+            if len(self) > 0:
+                raise ValueError("site must be a Site")
+            return None
+        return _validate_page_collection_site(self.site)
 
     def __iter__(self) -> Iterator["Page"]:
         """

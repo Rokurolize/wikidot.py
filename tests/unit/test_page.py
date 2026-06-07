@@ -863,6 +863,23 @@ class TestPageCollectionSearchPages:
 class TestPageCollectionAcquire:
     """PageCollection._acquire_*メソッドのテスト"""
 
+    def test_acquire_rejects_mutated_site_before_fetch(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+    ) -> None:
+        """後から壊れたsiteは取得処理前に拒否する"""
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        collection.site = cast("Site", MagicMock())
+        request = MagicMock(return_value=[])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            collection.get_page_ids()
+
+        request.assert_not_called()
+
     @pytest.mark.parametrize(
         "method_name",
         [
