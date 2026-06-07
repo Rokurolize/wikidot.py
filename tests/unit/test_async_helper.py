@@ -1,6 +1,7 @@
 """async_helperモジュールのユニットテスト"""
 
 import asyncio
+from typing import Any
 
 import pytest
 
@@ -113,3 +114,19 @@ class TestRunCoroutine:
 
         result: None = run_coroutine(return_none())
         assert result is None
+
+    @pytest.mark.parametrize("coro", [None, True, 1, object(), [], {}])
+    def test_rejects_non_coroutine_inputs(self, coro: Any) -> None:
+        """コルーチン以外の入力を拒否する"""
+        with pytest.raises(ValueError, match="coro must be a coroutine"):
+            run_coroutine(coro)
+
+    @pytest.mark.parametrize("coro", [None, True, 1, object(), [], {}])
+    def test_rejects_non_coroutine_inputs_in_existing_loop(self, coro: Any) -> None:
+        """既存ループ内でもコルーチン以外の入力を拒否する"""
+
+        async def outer() -> None:
+            with pytest.raises(ValueError, match="coro must be a coroutine"):
+                run_coroutine(coro)
+
+        asyncio.run(outer())

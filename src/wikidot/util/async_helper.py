@@ -36,6 +36,9 @@ def run_coroutine(coro: Coroutine[None, None, T]) -> T:
     >>> result
     42
     """
+    if not isinstance(coro, Coroutine):
+        raise ValueError("coro must be a coroutine")
+
     # Check if an existing event loop is running
     try:
         asyncio.get_running_loop()
