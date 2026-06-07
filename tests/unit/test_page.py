@@ -3387,6 +3387,25 @@ class TestPageWriteMethods:
 
         assert mock_page_with_id._metas == {"old": "value"}
 
+    def test_metas_setter_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
+        """metas setterのsite型異常はログイン確認やAMC前に拒否する"""
+        mock_page_with_id._metas = {"old": "value"}
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        ok_response = MagicMock()
+        ok_response.json.return_value = {"status": "ok"}
+        malformed_site.amc_request = MagicMock(return_value=(ok_response,))
+        malformed_site.amc_request_with_retry = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            mock_page_with_id.metas = {"new": "value"}
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        malformed_site.amc_request_with_retry.assert_not_called()
+        assert mock_page_with_id._metas == {"old": "value"}
+
     def test_metas_setter_rejects_invalid_metas_before_request(self, mock_page_with_id: Page) -> None:
         """metas setterは文字列キーと文字列値の辞書だけ受け付ける"""
         invalid_metas: dict[Any, str] = {3: "description"}
