@@ -192,6 +192,14 @@ class TestForumThreadCollectionParseThreadPage:
 class TestForumThreadCollectionAcquireAll:
     """ForumThreadCollection.acquire_all_in_categoryのテスト"""
 
+    @pytest.mark.parametrize("category", [None, True, "1001", {"id": 1001}, object()])
+    def test_acquire_all_rejects_malformed_category_before_fetch(self, category: object) -> None:
+        """直接カテゴリ内スレッド取得のcategory引数はForumCategoryだけ受け付ける"""
+        bad_category: Any = category
+
+        with pytest.raises(ValueError, match="category must be a ForumCategory"):
+            ForumThreadCollection.acquire_all_in_category(bad_category)
+
     def test_category_threads_retries_transient_first_page_failures(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:

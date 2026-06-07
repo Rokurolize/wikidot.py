@@ -82,6 +82,14 @@ def _validate_forum_thread_site(site: object) -> "Site":
     return site
 
 
+def _validate_forum_category(category: object) -> "ForumCategory":
+    from .forum_category import ForumCategory
+
+    if not isinstance(category, ForumCategory):
+        raise ValueError("category must be a ForumCategory")
+    return category
+
+
 def _validate_optional_forum_category(category: object) -> Optional["ForumCategory"]:
     if category is None:
         return None
@@ -644,6 +652,7 @@ class ForumThreadCollection(list["ForumThread"]):
         NoElementException
             If HTML element parsing fails
         """
+        category = _validate_forum_category(category)
         if category._threads is not None:
             return category._threads
 
