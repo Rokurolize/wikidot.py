@@ -924,6 +924,21 @@ class TestForumPostCollectionGetSources:
 
         bad_thread.site.amc_request_with_retry.assert_not_called()
 
+    def test_get_post_sources_rejects_mutated_thread_site_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """親スレッドのサイト不正値はソース取得前に拒否する"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        bad_site = MagicMock()
+        bad_site.amc_request_with_retry = MagicMock()
+        mock_forum_thread_no_http.site = cast("Site", bad_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            collection.get_post_sources()
+
+        bad_site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
     def test_get_post_sources_success(
         self,
         mock_forum_thread_no_http: ForumThread,

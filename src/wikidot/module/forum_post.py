@@ -718,6 +718,7 @@ class ForumPostCollection(list["ForumPost"]):
             When source elements are not found
         """
         thread = _validate_forum_thread(thread)
+        site = _validate_forum_thread_site(thread.site)
         posts = _validate_forum_posts(posts)
         if len(posts) == 0:
             return posts
@@ -743,7 +744,7 @@ class ForumPostCollection(list["ForumPost"]):
         if len(target_posts) == 0:
             return posts
 
-        responses = thread.site.amc_request_with_retry(
+        responses = site.amc_request_with_retry(
             [
                 {
                     "moduleName": "forum/sub/ForumEditPostFormModule",
