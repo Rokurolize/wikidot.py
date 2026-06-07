@@ -564,6 +564,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [558-pr-validate-page-commit-tags-site.md](558-pr-validate-page-commit-tags-site.md): upstream PR draft for the committed page commit-tags action-time site validation fix.
 - [559-pr-validate-page-set-parent-site.md](559-pr-validate-page-set-parent-site.md): upstream PR draft for the committed page set-parent action-time site validation fix.
 - [560-pr-validate-page-rename-site.md](560-pr-validate-page-rename-site.md): upstream PR draft for the committed page rename action-time site validation fix.
+- [561-pr-validate-page-vote-site.md](561-pr-validate-page-vote-site.md): upstream PR draft for the committed page vote action-time site validation fix.
 
 ## Local Evidence Index
 
@@ -1036,5 +1037,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 463: `7e87a5a fix(page): validate commit tags site`
 - Local implementation commits, continued 464: `fa51d12 fix(page): validate set parent site`
 - Local implementation commits, continued 465: `93b7f0a fix(page): validate rename site`
+- Local implementation commits, continued 466: `587e5f8 fix(page): validate vote site`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
