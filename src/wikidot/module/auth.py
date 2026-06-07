@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from ..common.exceptions import SessionCreateException
+from ..connector.ajax import AjaxModuleConnectorConfig
 from ..util.http import sync_post_with_retry
 
 if TYPE_CHECKING:
@@ -17,6 +18,12 @@ def _validate_login_text(field: str, value: object) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{field} must be a string")
     return value
+
+
+def _validate_login_config_object(config: object) -> AjaxModuleConnectorConfig:
+    if not isinstance(config, AjaxModuleConnectorConfig):
+        raise ValueError("config must be AjaxModuleConnectorConfig")
+    return config
 
 
 class HTTPAuthentication:
@@ -53,7 +60,7 @@ class HTTPAuthentication:
         password = _validate_login_text("password", password)
 
         # Execute login request with retry (reduced retry limit to prevent account lockout)
-        config = client.amc_client.config
+        config = _validate_login_config_object(client.amc_client.config)
         response = sync_post_with_retry(
             url="https://www.wikidot.com/default--flow/login__LoginPopupScreen",
             data={

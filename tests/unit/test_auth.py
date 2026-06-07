@@ -69,6 +69,22 @@ class TestHTTPAuthentication:
         mock_post.assert_not_called()
         mock_client.amc_client.header.set_cookie.assert_not_called()
 
+    @pytest.mark.parametrize("config", [None, object(), {}, "config", True])
+    def test_login_rejects_invalid_config_object_before_request(self, config: Any) -> None:
+        """認証リクエスト前に不正な設定オブジェクトを拒否する"""
+        mock_client = self._mock_client()
+        mock_client.amc_client.config = config
+
+        with (
+            patch("wikidot.module.auth.httpx.post") as mock_post,
+            pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"),
+        ):
+            HTTPAuthentication.login(mock_client, "test-user", "test-password")
+
+        mock_post.assert_not_called()
+        mock_client.amc_client.header.get_header.assert_not_called()
+        mock_client.amc_client.header.set_cookie.assert_not_called()
+
     def test_login_invalid_credentials(self):
         """認証失敗（ユーザー名/パスワード不一致）"""
         mock_client = self._mock_client()
