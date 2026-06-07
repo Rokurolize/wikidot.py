@@ -732,6 +732,33 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             ]
         )
 
+    def test_acquire_all_for_posts_with_html_rejects_mutated_cached_revision_post_thread_before_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """with_html=Trueはcached revision.postの非ForumThread親をHTML取得前に拒否する"""
+        revision_post = self._post_with_id(mock_forum_post_no_http, 5002)
+        cached_revision = ForumPostRevision(
+            post=revision_post,
+            id=9001,
+            rev_no=0,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
+        mock_forum_post_no_http._revisions = cached_collection
+        bad_thread: Any = MagicMock()
+        revision_post.thread = bad_thread
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        bad_thread.site.amc_request_with_retry.assert_not_called()
+        assert cached_revision.is_html_acquired() is False
+
     def test_acquire_all_for_posts_raises_when_retry_is_exhausted(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
@@ -938,6 +965,43 @@ class TestForumPostRevisionCollectionGetHtmls:
         with pytest.raises(ValueError, match="thread must be a ForumThread"):
             collection.get_htmls()
 
+        bad_thread.site.amc_request_with_retry.assert_not_called()
+        assert revision.is_html_acquired() is False
+
+    def test_get_htmls_rejects_mutated_target_revision_post_thread_before_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """get_htmlsは対象revision.postの非ForumThread親を取得前に拒否する"""
+        revision_post = ForumPost(
+            thread=mock_forum_post_no_http.thread,
+            id=5002,
+            title="Post 5002",
+            text=mock_forum_post_no_http.text,
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=mock_forum_post_no_http.edited_by,
+            edited_at=mock_forum_post_no_http.edited_at,
+            _parent_id=mock_forum_post_no_http.parent_id,
+        )
+        revision = ForumPostRevision(
+            post=revision_post,
+            id=9001,
+            rev_no=0,
+            created_by=_user(),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+        bad_thread: Any = MagicMock()
+        revision_post.thread = bad_thread
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            collection.get_htmls()
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
         bad_thread.site.amc_request_with_retry.assert_not_called()
         assert revision.is_html_acquired() is False
 

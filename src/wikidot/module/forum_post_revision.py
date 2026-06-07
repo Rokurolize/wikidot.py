@@ -164,6 +164,13 @@ def _revision_html_content(revision: "ForumPostRevision", data: dict[str, object
     return str(content)
 
 
+def _validate_revision_html_targets(revisions: list["ForumPostRevision"]) -> None:
+    for revision in revisions:
+        revision_post = _validate_forum_post(revision.post)
+        revision_thread = _validate_forum_post_thread(revision_post.thread)
+        _validate_forum_thread_site(revision_thread.site)
+
+
 class ForumPostRevisionCollection(list["ForumPostRevision"]):
     """
     Class representing a collection of forum post revisions
@@ -494,6 +501,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     all_revisions_by_id[revision.id].append(revision)
 
             if len(all_revisions) > 0:
+                _validate_revision_html_targets(all_revisions)
                 if site is None:
                     revision_post = _validate_forum_post(all_revisions[0].post)
                     site = _validate_forum_thread_site(_validate_forum_post_thread(revision_post.thread).site)
@@ -552,6 +560,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         post = _validate_forum_post(self.post)
         thread = _validate_forum_post_thread(post.thread)
         site = _validate_forum_thread_site(thread.site)
+        _validate_revision_html_targets(target_revisions)
         responses = site.amc_request_with_retry(
             [{"moduleName": "forum/sub/ForumPostRevisionModule", "revisionId": r.id} for r in target_revisions]
         )
