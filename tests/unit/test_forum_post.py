@@ -20,6 +20,28 @@ from wikidot.module.site import Site
 # ============================================================
 
 
+def _post_on_other_thread(post: ForumPost) -> ForumPost:
+    other_thread = ForumThread(
+        site=post.thread.site,
+        id=3002,
+        title="Other Thread",
+        description="Other thread description",
+        created_by=post.thread.created_by,
+        created_at=post.thread.created_at,
+        post_count=1,
+        category=post.thread.category,
+    )
+    return ForumPost(
+        thread=other_thread,
+        id=6001,
+        title="Other Post",
+        text="<p>Other post content</p>",
+        element=post.element,
+        created_by=post.created_by,
+        created_at=post.created_at,
+    )
+
+
 class TestForumPostCollectionInit:
     """ForumPostCollectionの初期化テスト"""
 
@@ -49,6 +71,22 @@ class TestForumPostCollectionInit:
         collection = ForumPostCollection(posts=[mock_forum_post_no_http])
         assert collection.thread == mock_forum_post_no_http.thread
         assert len(collection) == 1
+
+    def test_init_rejects_post_from_different_thread(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """明示親と異なるスレッドの投稿は初期化時に拒否する"""
+        other_post = _post_on_other_thread(mock_forum_post_no_http)
+
+        with pytest.raises(ValueError, match="posts must belong to the collection thread"):
+            ForumPostCollection(mock_forum_thread_no_http, [other_post])
+
+    def test_init_rejects_mixed_thread_posts_when_thread_is_inferred(self, mock_forum_post_no_http: ForumPost) -> None:
+        """スレッド推測時も混在スレッドの投稿リストは拒否する"""
+        other_post = _post_on_other_thread(mock_forum_post_no_http)
+
+        with pytest.raises(ValueError, match="posts must belong to the collection thread"):
+            ForumPostCollection(posts=[mock_forum_post_no_http, other_post])
 
     @pytest.mark.parametrize("thread", [True, "3001", {"id": 3001}, object()])
     def test_init_rejects_malformed_threads(self, thread: object) -> None:
@@ -977,27 +1015,10 @@ class TestForumPostCollectionGetSources:
     def test_get_post_sources_rejects_post_from_different_thread_before_fetch(
         self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
     ) -> None:
-        """コレクション親と異なるスレッドの投稿はソース取得前に拒否する"""
-        other_thread = ForumThread(
-            site=mock_forum_thread_no_http.site,
-            id=3002,
-            title="Other Thread",
-            description="Other thread description",
-            created_by=mock_forum_thread_no_http.created_by,
-            created_at=mock_forum_thread_no_http.created_at,
-            post_count=1,
-            category=mock_forum_thread_no_http.category,
-        )
-        other_post = ForumPost(
-            thread=other_thread,
-            id=6001,
-            title="Other Post",
-            text="<p>Other post content</p>",
-            element=mock_forum_post_no_http.element,
-            created_by=mock_forum_post_no_http.created_by,
-            created_at=mock_forum_post_no_http.created_at,
-        )
-        collection = ForumPostCollection(mock_forum_thread_no_http, [other_post])
+        """後から混入した別スレッド投稿もソース取得前に拒否する"""
+        other_post = _post_on_other_thread(mock_forum_post_no_http)
+        collection = ForumPostCollection(mock_forum_thread_no_http, [])
+        collection.append(other_post)
         mock_forum_thread_no_http.site.amc_request = MagicMock()
         mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=())
 

@@ -294,14 +294,23 @@ class ForumPostCollection(list["ForumPost"]):
         posts : list[ForumPost] | None, default None
             List of posts to store
         """
-        super().__init__(_validate_forum_post_collection_posts(posts))
+        validated_posts = _validate_forum_post_collection_posts(posts)
 
         if thread is not None:
-            self.thread = _validate_forum_thread(thread)
-        elif len(self) > 0:
-            self.thread = self[0].thread
+            effective_thread = _validate_forum_thread(thread)
+            _validate_posts_belong_to_thread(
+                effective_thread, _validate_forum_thread_site(effective_thread.site), validated_posts
+            )
+        elif len(validated_posts) > 0:
+            effective_thread = _validate_forum_thread(validated_posts[0].thread)
+            _validate_posts_belong_to_thread(
+                effective_thread, _validate_forum_thread_site(effective_thread.site), validated_posts
+            )
         else:
-            self.thread = None
+            effective_thread = None
+
+        self.thread = effective_thread
+        super().__init__(validated_posts)
 
     def __iter__(self) -> Iterator["ForumPost"]:
         """
