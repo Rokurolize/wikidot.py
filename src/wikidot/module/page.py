@@ -2145,7 +2145,8 @@ class Page:
             When the discussion module cannot be retrieved after retries
         """
         if not self._discussion_checked:
-            response = self.site.amc_request_with_retry(
+            site = _validate_page_site(self.site)
+            response = site.amc_request_with_retry(
                 [
                     {
                         "moduleName": "forum/ForumCommentsListModule",
@@ -2155,17 +2156,17 @@ class Page:
             )[0]
             if response is None:
                 raise exceptions.UnexpectedException(
-                    f"Cannot retrieve page discussion for site: {self.site.unix_name}, page: {self.fullname}"
+                    f"Cannot retrieve page discussion for site: {site.unix_name}, page: {self.fullname}"
                 )
 
             body = response.json().get("body")
             if body is None:
                 raise exceptions.NoElementException(
-                    f"Page discussion response body is not found for site: {self.site.unix_name}, page: {self.fullname}"
+                    f"Page discussion response body is not found for site: {site.unix_name}, page: {self.fullname}"
                 )
             if not isinstance(body, str):
                 raise exceptions.NoElementException(
-                    f"Page discussion response body is malformed for site: {self.site.unix_name}, "
+                    f"Page discussion response body is malformed for site: {site.unix_name}, "
                     f"page: {self.fullname} "
                     f"(id={self.id}, field=body, expected=str, actual={type(body).__name__})"
                 )
@@ -2176,12 +2177,12 @@ class Page:
                 thread_id_value = match.group(1).strip()
                 if not thread_id_value.isdigit():
                     raise exceptions.NoElementException(
-                        f"Page discussion thread ID is malformed for site: {self.site.unix_name}, "
+                        f"Page discussion thread ID is malformed for site: {site.unix_name}, "
                         f"page: {self.fullname} "
                         f"(id={self.id}, field=thread_id, value={thread_id_value})"
                     )
                 thread_id = int(thread_id_value)
-                self._discussion = ForumThread.get_from_id(self.site, thread_id)
+                self._discussion = ForumThread.get_from_id(site, thread_id)
             self._discussion_checked = True
 
         return self._discussion

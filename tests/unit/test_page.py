@@ -2534,6 +2534,21 @@ class TestPageProperties:
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id._discussion_checked is False
 
+    def test_discussion_rejects_malformed_site_before_request(self, mock_page_with_id: Page) -> None:
+        """discussionのsite型異常はAMCやchecked更新前に拒否する"""
+        malformed_site = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        malformed_site.amc_request_with_retry = MagicMock()
+        mock_page_with_id.site = cast(Any, malformed_site)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            _ = mock_page_with_id.discussion
+
+        malformed_site.amc_request.assert_not_called()
+        malformed_site.amc_request_with_retry.assert_not_called()
+        assert mock_page_with_id._discussion is None
+        assert mock_page_with_id._discussion_checked is False
+
     def test_files_property_auto_acquire_empty_response(self, mock_page_with_id: Page) -> None:
         """ファイルなしの正常レスポンスは空のコレクションとして扱う"""
         mock_response = MagicMock()
