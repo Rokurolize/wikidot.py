@@ -561,6 +561,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [555-pr-validate-private-message-mailbox-client.md](555-pr-validate-private-message-mailbox-client.md): upstream PR draft for the committed private-message mailbox acquire client validation fix.
 - [556-pr-validate-site-application-acquire-site.md](556-pr-validate-site-application-acquire-site.md): upstream PR draft for the committed site-application direct acquire site validation fix.
 - [557-pr-validate-page-destroy-site.md](557-pr-validate-page-destroy-site.md): upstream PR draft for the committed page destroy action-time site validation fix.
+- [558-pr-validate-page-commit-tags-site.md](558-pr-validate-page-commit-tags-site.md): upstream PR draft for the committed page commit-tags action-time site validation fix.
 
 ## Local Evidence Index
 
@@ -1030,5 +1031,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 460: `2862682 fix(private_message): validate mailbox acquire client`
 - Local implementation commits, continued 461: `a7f4508 fix(site_application): validate acquire site`
 - Local implementation commits, continued 462: `1e5112e fix(page): validate destroy site`
+- Local implementation commits, continued 463: `7e87a5a fix(page): validate commit tags site`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
