@@ -548,6 +548,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [542-pr-validate-forum-category-acquire-site.md](542-pr-validate-forum-category-acquire-site.md): upstream PR draft for the committed forum category list site-argument validation fix.
 - [543-pr-validate-forum-thread-direct-site.md](543-pr-validate-forum-thread-direct-site.md): upstream PR draft for the committed direct forum thread site-argument validation fix.
 - [544-pr-validate-forum-thread-category-input.md](544-pr-validate-forum-thread-category-input.md): upstream PR draft for the committed category thread-list input validation fix.
+- [545-pr-validate-page-file-acquire-page.md](545-pr-validate-page-file-acquire-page.md): upstream PR draft for the committed direct page-file page-argument validation fix.
 
 ## Local Evidence Index
 
@@ -1004,5 +1005,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 447: `64b928a fix(forum_category): validate category list site`
 - Local implementation commits, continued 448: `c89c2b8 fix(forum_thread): validate direct thread site`
 - Local implementation commits, continued 449: `7f9f6fa fix(forum_thread): validate category thread input`
+- Local implementation commits, continued 450: `ca9ede8 fix(page_file): validate direct acquire page`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
