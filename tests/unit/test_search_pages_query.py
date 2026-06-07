@@ -3,6 +3,8 @@
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
 from wikidot.module.page import SearchPagesQuery
 from wikidot.module.user import User
 
@@ -286,6 +288,30 @@ class TestSearchPagesQueryValidation:
         for kwargs, message in invalid_values:
             with pytest.raises(ValueError, match=message):
                 SearchPagesQuery(**kwargs)
+
+    @pytest.mark.parametrize(
+        ("kwargs", "message"),
+        [
+            ({"pagetype": True}, "pagetype must be a string or None"),
+            ({"category": ["scp"]}, "category must be a string or None"),
+            ({"parent": 123}, "parent must be a string or None"),
+            ({"link_to": False}, "link_to must be a string or None"),
+            ({"created_at": 123}, "created_at must be a string or None"),
+            ({"updated_at": object()}, "updated_at must be a string or None"),
+            ({"rating": 5}, "rating must be a string or None"),
+            ({"votes": {"min": 10}}, "votes must be a string or None"),
+            ({"name": True}, "name must be a string or None"),
+            ({"fullname": ["scp-173"]}, "fullname must be a string or None"),
+            ({"range": 100}, "range must be a string or None"),
+            ({"order": ["rating desc"]}, "order must be a string or None"),
+            ({"separate": True}, "separate must be a string or None"),
+            ({"wrapper": object()}, "wrapper must be a string or None"),
+        ],
+    )
+    def test_string_query_fields_must_be_strings_or_none(self, kwargs: dict[str, Any], message: str):
+        """文字列系のListPages条件はstrまたはNoneだけ受け付ける"""
+        with pytest.raises(ValueError, match=message):
+            SearchPagesQuery(**kwargs)
 
     def test_all_valid_parameters_work(self):
         """すべて有効なパラメータは正常に動作すること"""

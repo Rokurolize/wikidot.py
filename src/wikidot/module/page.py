@@ -669,6 +669,14 @@ class SearchPagesQuery:
             raise ValueError(f"{field} must be an integer or None")
         return value
 
+    @staticmethod
+    def _validate_optional_string(field: str, value: object) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError(f"{field} must be a string or None")
+        return value
+
     def __init__(self, **kwargs: Unpack[SearchPagesQueryParams]) -> None:
         """
         Initialize SearchPagesQuery
@@ -693,22 +701,22 @@ class SearchPagesQuery:
 
         # デフォルト値の設定
         # selecting pages
-        self.pagetype: str | None = kwargs.get("pagetype", "*")
-        self.category: str | None = kwargs.get("category", "*")
+        self.pagetype: str | None = self._validate_optional_string("pagetype", kwargs.get("pagetype", "*"))
+        self.category: str | None = self._validate_optional_string("category", kwargs.get("category", "*"))
         self.tags: str | list[str] | None = kwargs.get("tags")
-        self.parent: str | None = kwargs.get("parent")
-        self.link_to: str | None = kwargs.get("link_to")
-        self.created_at: str | None = kwargs.get("created_at")
-        self.updated_at: str | None = kwargs.get("updated_at")
+        self.parent: str | None = self._validate_optional_string("parent", kwargs.get("parent"))
+        self.link_to: str | None = self._validate_optional_string("link_to", kwargs.get("link_to"))
+        self.created_at: str | None = self._validate_optional_string("created_at", kwargs.get("created_at"))
+        self.updated_at: str | None = self._validate_optional_string("updated_at", kwargs.get("updated_at"))
         self.created_by: User | str | None = kwargs.get("created_by")
-        self.rating: str | None = kwargs.get("rating")
-        self.votes: str | None = kwargs.get("votes")
-        self.name: str | None = kwargs.get("name")
-        self.fullname: str | None = kwargs.get("fullname")
-        self.range: str | None = kwargs.get("range")
+        self.rating: str | None = self._validate_optional_string("rating", kwargs.get("rating"))
+        self.votes: str | None = self._validate_optional_string("votes", kwargs.get("votes"))
+        self.name: str | None = self._validate_optional_string("name", kwargs.get("name"))
+        self.fullname: str | None = self._validate_optional_string("fullname", kwargs.get("fullname"))
+        self.range: str | None = self._validate_optional_string("range", kwargs.get("range"))
 
         # ordering
-        self.order: str = kwargs.get("order", "created_at desc")
+        self.order: str | None = self._validate_optional_string("order", kwargs.get("order", "created_at desc"))
 
         # pagination
         self.offset = self._validate_optional_integer("offset", kwargs.get("offset", 0))
@@ -719,8 +727,8 @@ class SearchPagesQuery:
         if self.perPage is not None and self.perPage <= 0:
             raise ValueError("perPage must be positive")
         # layout
-        self.separate: str | None = kwargs.get("separate", "no")
-        self.wrapper: str | None = kwargs.get("wrapper", "no")
+        self.separate: str | None = self._validate_optional_string("separate", kwargs.get("separate", "no"))
+        self.wrapper: str | None = self._validate_optional_string("wrapper", kwargs.get("wrapper", "no"))
 
     def as_dict(self) -> dict[str, Any]:
         """
