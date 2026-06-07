@@ -2534,6 +2534,29 @@ class TestPageProperties:
 
         assert mock_page_with_id.votes[0].value == 1
 
+    def test_votes_setter_rejects_collection_from_different_page(self, mock_page_with_id: Page) -> None:
+        """別ページのvotes collectionは既存のキャッシュを破壊しない"""
+        cached_vote = _cached_page_vote(mock_page_with_id)
+        mock_page_with_id.votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        bad_votes = PageVoteCollection(_other_page_like(mock_page_with_id), [])
+
+        with pytest.raises(ValueError, match=r"page\.votes must belong to the page"):
+            mock_page_with_id.votes = bad_votes
+
+        assert mock_page_with_id.votes[0].value == 1
+
+    def test_votes_setter_rejects_collection_entry_from_different_page(self, mock_page_with_id: Page) -> None:
+        """別ページのvotes collection要素は既存のキャッシュを破壊しない"""
+        cached_vote = _cached_page_vote(mock_page_with_id)
+        mock_page_with_id.votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        bad_votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        bad_votes[0] = _cached_page_vote(_other_page_like(mock_page_with_id), -1)
+
+        with pytest.raises(ValueError, match=r"page\.votes must belong to the page"):
+            mock_page_with_id.votes = bad_votes
+
+        assert mock_page_with_id.votes[0].value == 1
+
     def test_latest_revision(self, mock_page_with_id: Page, page_revisionlist: dict[str, Any]) -> None:
         """最新リビジョンを取得できる"""
         mock_response = MagicMock()

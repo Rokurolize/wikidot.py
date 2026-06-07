@@ -215,10 +215,18 @@ def _validate_page_vote_entries(votes: PageVoteCollection) -> None:
         raise ValueError("page.votes list entries must be PageVote")
 
 
-def _validate_page_votes(value: object) -> PageVoteCollection:
+def _validate_votes_cache_belongs_to_page(page: "Page", votes: PageVoteCollection) -> None:
+    message = "page.votes must belong to the page"
+    _validate_page_cache_owner(page, votes.page, message)
+    for vote in votes:
+        _validate_page_cache_owner(page, vote.page, message)
+
+
+def _validate_page_votes(page: "Page", value: object) -> PageVoteCollection:
     if not isinstance(value, PageVoteCollection):
         raise ValueError("page.votes must be PageVoteCollection")
     _validate_page_vote_entries(value)
+    _validate_votes_cache_belongs_to_page(page, value)
     return value
 
 
@@ -1926,6 +1934,8 @@ class Page:
         if self._revisions is not None:
             _validate_revisions_cache_belongs_to_page(self, self._revisions)
         self._votes = _validate_optional_page_vote_collection(self._votes)
+        if self._votes is not None:
+            _validate_votes_cache_belongs_to_page(self, self._votes)
         self._metas = _validate_optional_metas(self._metas)
         self._discussion = _validate_optional_page_discussion(self._discussion)
         self._discussion_checked = _validate_page_bool_field("page.discussion_checked", self._discussion_checked)
@@ -2164,7 +2174,7 @@ class Page:
         value : PageVoteCollection
             Vote information collection to set
         """
-        self._votes = _validate_page_votes(value)
+        self._votes = _validate_page_votes(self, value)
 
     @property
     def discussion(self) -> Optional["ForumThread"]:

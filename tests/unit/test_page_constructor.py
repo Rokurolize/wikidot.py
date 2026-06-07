@@ -10,7 +10,7 @@ from wikidot.module.page import Page
 from wikidot.module.page_file import PageFileCollection
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
-from wikidot.module.page_votes import PageVoteCollection
+from wikidot.module.page_votes import PageVote, PageVoteCollection
 from wikidot.module.user import User
 
 
@@ -87,6 +87,14 @@ def _page_revision(page: Page, revision_id: int = 100) -> PageRevision:
         created_by=User(client=page.site.client, id=12345, name="test-user", unix_name="test-user"),
         created_at=datetime(2023, 1, 1),
         comment="cached revision",
+    )
+
+
+def _page_vote(page: Page, value: int = 1) -> PageVote:
+    return PageVote(
+        page=page,
+        user=User(client=page.site.client, id=12345, name="test-user", unix_name="test-user"),
+        value=value,
     )
 
 
@@ -361,6 +369,20 @@ class TestPageInit:
         votes.append(object())
 
         with pytest.raises(ValueError, match=r"page\.votes list entries must be PageVote"):
+            _page(mock_site_no_http, _votes=votes)
+
+    def test_init_rejects_votes_cache_from_different_page(self, mock_site_no_http: Any) -> None:
+        votes = PageVoteCollection(_page(mock_site_no_http, fullname="other-page", name="other-page"), [])
+
+        with pytest.raises(ValueError, match=r"page\.votes must belong to the page"):
+            _page(mock_site_no_http, _votes=votes)
+
+    def test_init_rejects_votes_cache_entry_from_different_page(self, mock_site_no_http: Any) -> None:
+        votes_owner = _page(mock_site_no_http)
+        votes: Any = PageVoteCollection(votes_owner, [_page_vote(votes_owner)])
+        votes[0] = _page_vote(_page(mock_site_no_http, fullname="other-page", name="other-page"), -1)
+
+        with pytest.raises(ValueError, match=r"page\.votes must belong to the page"):
             _page(mock_site_no_http, _votes=votes)
 
     def test_init_accepts_valid_optional_files(self, mock_site_no_http: Any) -> None:
