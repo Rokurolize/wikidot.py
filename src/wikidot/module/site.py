@@ -190,6 +190,14 @@ def _validate_site_accessor_site(value: object) -> "Site":
     return value
 
 
+def _validate_site_lookup_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
 def _validate_site_config_object(config: object) -> AjaxModuleConnectorConfig:
     if not isinstance(config, AjaxModuleConnectorConfig):
         raise ValueError("config must be AjaxModuleConnectorConfig")
@@ -1191,6 +1199,7 @@ class Site:
             When an error occurs during site information parsing
         """
         StringUtil.validate_site_unix_name(unix_name)
+        client = _validate_site_lookup_client(client)
 
         # サイト情報を取得
         # リダイレクトには従う、リトライ付き

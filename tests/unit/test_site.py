@@ -1738,8 +1738,9 @@ class TestSitePageAccessor:
 class TestSiteFromUnixName:
     """Site.from_unix_name のテスト"""
 
-    def test_from_unix_name_ssl_site(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_unix_name_ssl_site(self, httpx_mock: HTTPXMock) -> None:
         """SSL対応サイトを正しく取得できる"""
+        client = create_mock_client()
         html = """
         <html>
         <head><title>Test Site Title</title></head>
@@ -1762,7 +1763,7 @@ class TestSiteFromUnixName:
             text=html,
         )
 
-        site = Site.from_unix_name(mock_client_no_http, "test-site")
+        site = Site.from_unix_name(client, "test-site")
 
         assert site.id == 123456
         assert site.title == "Test Site Title"
@@ -1770,8 +1771,9 @@ class TestSiteFromUnixName:
         assert site.domain == "test-site.wikidot.com"
         assert site.ssl_supported is True
 
-    def test_from_unix_name_non_ssl_site(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_unix_name_non_ssl_site(self, httpx_mock: HTTPXMock) -> None:
         """SSL非対応サイトを正しく取得できる"""
+        client = create_mock_client()
         html = """
         <html>
         <head><title>Old Site</title></head>
@@ -1789,55 +1791,67 @@ class TestSiteFromUnixName:
             text=html,
         )
 
-        site = Site.from_unix_name(mock_client_no_http, "old-site")
+        site = Site.from_unix_name(client, "old-site")
 
         assert site.id == 999
         assert site.ssl_supported is False
 
-    def test_from_unix_name_not_found(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_unix_name_not_found(self, httpx_mock: HTTPXMock) -> None:
         """存在しないサイトはNotFoundException"""
+        client = create_mock_client()
         httpx_mock.add_response(
             url="http://nonexistent.wikidot.com",
             status_code=404,
         )
 
         with pytest.raises(NotFoundException):
-            Site.from_unix_name(mock_client_no_http, "nonexistent")
+            Site.from_unix_name(client, "nonexistent")
 
-    def test_from_unix_name_invalid_name_rejected_before_request(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
-    ) -> None:
+    def test_from_unix_name_invalid_name_rejected_before_request(self, httpx_mock: HTTPXMock) -> None:
         """ホストを逸脱し得るunix_nameはリクエスト前に拒否する"""
+        client = create_mock_client()
+
         with pytest.raises(ValueError, match="Invalid Wikidot site UNIX name"):
-            Site.from_unix_name(mock_client_no_http, "127.0.0.1:8000#")
+            Site.from_unix_name(client, "127.0.0.1:8000#")
 
         assert httpx_mock.get_requests() == []
 
-    def test_from_unix_name_non_string_name_rejected_before_request(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
-    ) -> None:
+    def test_from_unix_name_non_string_name_rejected_before_request(self, httpx_mock: HTTPXMock) -> None:
         """文字列以外のunix_nameはリクエスト前に拒否する"""
+        client = create_mock_client()
         bad_unix_name: Any = {"site": "test-site"}
 
         with pytest.raises(ValueError, match="site_name must be a string"):
-            Site.from_unix_name(mock_client_no_http, bad_unix_name)
+            Site.from_unix_name(client, bad_unix_name)
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"site": "test-site"}, object()])
+    def test_from_unix_name_rejects_malformed_client_before_config(self, httpx_mock: HTTPXMock, client: object) -> None:
+        """直接サイト取得はClient以外の親を設定参照前に拒否する"""
+        bad_client: Any = client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            Site.from_unix_name(bad_client, "test-site")
 
         assert httpx_mock.get_requests() == []
 
     @pytest.mark.parametrize("config", [None, object(), {}, "config", True])
     def test_from_unix_name_rejects_invalid_config_object_before_request(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, config: Any
+        self, httpx_mock: HTTPXMock, config: Any
     ) -> None:
         """サイト取得リクエスト前に不正な設定オブジェクトを拒否する"""
-        mock_client_no_http.amc_client.config = config
+        client = create_mock_client()
+        client.amc_client.config = config
 
         with pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"):
-            Site.from_unix_name(mock_client_no_http, "test-site")
+            Site.from_unix_name(client, "test-site")
 
         assert httpx_mock.get_requests() == []
 
-    def test_from_unix_name_missing_site_id(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_unix_name_missing_site_id(self, httpx_mock: HTTPXMock) -> None:
         """siteIdがない場合はUnexpectedException"""
+        client = create_mock_client()
         html = """
         <html>
         <head><title>Bad Site</title></head>
@@ -1855,14 +1869,13 @@ class TestSiteFromUnixName:
         )
 
         with pytest.raises(UnexpectedException) as exc_info:
-            Site.from_unix_name(mock_client_no_http, "bad-site")
+            Site.from_unix_name(client, "bad-site")
 
         assert "site id" in str(exc_info.value).lower()
 
-    def test_from_unix_name_malformed_site_id_includes_raw_value_context(
-        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
-    ) -> None:
+    def test_from_unix_name_malformed_site_id_includes_raw_value_context(self, httpx_mock: HTTPXMock) -> None:
         """siteIdが非数値の場合は値を含むNoElementException"""
+        client = create_mock_client()
         html = """
         <html>
         <head><title>Bad Site</title></head>
@@ -1884,10 +1897,11 @@ class TestSiteFromUnixName:
             NoElementException,
             match=r"Site ID is malformed for site: bad-site\.wikidot\.com \(field=site_id, value=latest\)",
         ):
-            Site.from_unix_name(mock_client_no_http, "bad-site")
+            Site.from_unix_name(client, "bad-site")
 
-    def test_from_unix_name_missing_title(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_unix_name_missing_title(self, httpx_mock: HTTPXMock) -> None:
         """titleがない場合はUnexpectedException"""
+        client = create_mock_client()
         html = """
         <html>
         <head></head>
@@ -1906,12 +1920,13 @@ class TestSiteFromUnixName:
         )
 
         with pytest.raises(UnexpectedException) as exc_info:
-            Site.from_unix_name(mock_client_no_http, "no-title")
+            Site.from_unix_name(client, "no-title")
 
         assert "title" in str(exc_info.value).lower()
 
-    def test_from_unix_name_missing_unix_name(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_unix_name_missing_unix_name(self, httpx_mock: HTTPXMock) -> None:
         """siteUnixNameがない場合はUnexpectedException"""
+        client = create_mock_client()
         html = """
         <html>
         <head><title>Site</title></head>
@@ -1929,12 +1944,13 @@ class TestSiteFromUnixName:
         )
 
         with pytest.raises(UnexpectedException) as exc_info:
-            Site.from_unix_name(mock_client_no_http, "site")
+            Site.from_unix_name(client, "site")
 
         assert "unix_name" in str(exc_info.value).lower()
 
-    def test_from_unix_name_missing_domain(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
+    def test_from_unix_name_missing_domain(self, httpx_mock: HTTPXMock) -> None:
         """domainがない場合はUnexpectedException"""
+        client = create_mock_client()
         html = """
         <html>
         <head><title>Site</title></head>
@@ -1952,7 +1968,7 @@ class TestSiteFromUnixName:
         )
 
         with pytest.raises(UnexpectedException) as exc_info:
-            Site.from_unix_name(mock_client_no_http, "site")
+            Site.from_unix_name(client, "site")
 
         assert "domain" in str(exc_info.value).lower()
 
