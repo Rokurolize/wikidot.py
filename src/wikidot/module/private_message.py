@@ -729,6 +729,7 @@ class PrivateMessage:
 
     def __post_init__(self) -> None:
         self.id = _validate_private_message_id(self.id)
+        self.client = _validate_private_message_client(self.client)
         self.sender = _validate_private_message_user("sender", self.sender)
         self.recipient = _validate_private_message_user("recipient", self.recipient)
         self.subject = validate_text_field("subject", self.subject)

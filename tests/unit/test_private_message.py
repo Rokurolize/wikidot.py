@@ -992,6 +992,22 @@ class TestPrivateMessage:
         assert "PrivateMessage(" in result
         assert "id=1" in result
 
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_init_rejects_malformed_client(self, mock_user, client: object) -> None:
+        """PrivateMessageの初期化はClientの親だけ受け付ける"""
+        bad_client: Any = client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            PrivateMessage(
+                client=bad_client,
+                id=1,
+                sender=mock_user,
+                recipient=mock_user,
+                subject="Test Subject",
+                body="Test Body",
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+            )
+
     @pytest.mark.parametrize("message_id", [None, True, "1", 1.25])
     def test_init_rejects_non_integer_message_id(self, mock_client, mock_user, message_id):
         """PrivateMessageの初期化は整数IDだけ受け付ける"""
