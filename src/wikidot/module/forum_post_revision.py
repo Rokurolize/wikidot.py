@@ -95,6 +95,11 @@ def _validate_revision_created_by(created_by: object) -> "AbstractUser":
     return created_by
 
 
+def _validate_revision_created_by_site(site: "Site", created_by: "AbstractUser") -> None:
+    if created_by.client is not site.client:
+        raise ValueError("created_by must belong to the site")
+
+
 def _validate_revision_created_at(created_at: object) -> datetime:
     if not isinstance(created_at, datetime):
         raise ValueError("created_at must be a datetime")
@@ -641,6 +646,9 @@ class ForumPostRevision:
         self.id = _validate_revision_id(self.id)
         self.rev_no = _validate_revision_number(self.rev_no)
         self.created_by = _validate_revision_created_by(self.created_by)
+        post_thread = _validate_forum_post_thread(self.post.thread)
+        post_site = _validate_forum_thread_site(post_thread.site)
+        _validate_revision_created_by_site(post_site, self.created_by)
         self.created_at = _validate_revision_created_at(self.created_at)
         self._html = _validate_optional_revision_html(self._html)
 
