@@ -535,6 +535,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [529-pr-validate-search-query-string-fields.md](529-pr-validate-search-query-string-fields.md): upstream PR draft for the committed SearchPagesQuery string-field validation fix.
 - [530-pr-validate-tag-container-inputs.md](530-pr-validate-tag-container-inputs.md): upstream PR draft for the committed tag-container validation fix.
 - [531-pr-validate-metadata-tag-inputs.md](531-pr-validate-metadata-tag-inputs.md): upstream PR draft for the committed metadata tag input validation fix.
+- [532-pr-validate-commit-tags-state.md](532-pr-validate-commit-tags-state.md): upstream PR draft for the committed direct tag-save state validation fix.
 
 ## Local Evidence Index
 
@@ -978,5 +979,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 434: `04029a0 fix(page): validate search query string fields`
 - Local implementation commits, continued 435: `307c836 fix(page): validate tag container inputs`
 - Local implementation commits, continued 436: `31006b2 fix(page): validate metadata tag inputs`
+- Local implementation commits, continued 437: `189b0d3 fix(page): validate committed tag state`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
