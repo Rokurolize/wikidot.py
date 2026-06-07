@@ -708,6 +708,26 @@ class TestSitePagesAccessor:
         with pytest.raises(ValueError, match="source must be PageSource or None"):
             PageSourceResult(page=page, source=source, error=NotFoundException("missing"))
 
+    def test_source_result_rejects_source_from_different_page(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultのsourceは結果ページに属するPageSourceだけ受け付ける"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        other_page = self._page(mock_site_no_http, "page-two", 372)
+        source = PageSource(page=other_page, wiki_text="source 372")
+
+        with pytest.raises(ValueError, match="source must belong to the result page"):
+            PageSourceResult(page=page, source=source)
+
+    def test_source_result_accepts_source_from_same_logical_page(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultのsourceは同一論理ページの別Pageオブジェクトを受け付ける"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        source_page = self._page(mock_site_no_http, "page-one", 371)
+        source = PageSource(page=source_page, wiki_text="source 371")
+
+        result = PageSourceResult(page=page, source=source)
+
+        assert result.source is source
+        assert result.wiki_text == "source 371"
+
     @pytest.mark.parametrize("error", ["missing", True, object()])
     def test_source_result_rejects_malformed_error(self, mock_site_no_http: Site, error: Any) -> None:
         """PageSourceResultのerrorはExceptionまたはNoneだけ受け付ける"""

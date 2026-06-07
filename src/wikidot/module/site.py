@@ -256,6 +256,24 @@ def _validate_source_result_outcome(source: PageSource | None, error: Exception 
         raise ValueError("source and error must describe exactly one outcome")
 
 
+def _validate_source_result_source_belongs_to_page(page: Page, source: PageSource | None) -> None:
+    if source is None:
+        return
+
+    message = "source must belong to the result page"
+    source_page = source.page
+    if not isinstance(source_page, Page):
+        raise ValueError(message)
+    if source_page.site is not page.site:
+        raise ValueError(message)
+    if page._id is not None and source_page._id is not None:
+        if source_page._id != page._id:
+            raise ValueError(message)
+        return
+    if source_page.fullname != page.fullname:
+        raise ValueError(message)
+
+
 @dataclass(frozen=True)
 class PagePublishResult:
     """
@@ -417,6 +435,7 @@ class PageSourceResult:
         _validate_source_result_source(self.source)
         _validate_source_result_error(self.error)
         _validate_source_result_outcome(self.source, self.error)
+        _validate_source_result_source_belongs_to_page(self.page, self.source)
 
     @property
     def ok(self) -> bool:
