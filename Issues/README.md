@@ -543,6 +543,8 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [537-pr-preserve-empty-forum-post-parent.md](537-pr-preserve-empty-forum-post-parent.md): upstream PR draft for the committed empty forum post collection parent-state fix.
 - [538-pr-preserve-empty-forum-category-parent.md](538-pr-preserve-empty-forum-category-parent.md): upstream PR draft for the committed empty forum category collection parent-state fix.
 - [539-pr-preserve-empty-forum-thread-parent.md](539-pr-preserve-empty-forum-thread-parent.md): upstream PR draft for the committed empty forum thread collection parent-state fix.
+- [540-pr-preserve-empty-page-collection-parent.md](540-pr-preserve-empty-page-collection-parent.md): upstream PR draft for the committed empty page collection parent-state fix.
+- [541-pr-validate-site-member-get-site.md](541-pr-validate-site-member-get-site.md): upstream PR draft for the committed site member list site-argument validation fix.
 
 ## Local Evidence Index
 
