@@ -180,6 +180,10 @@ def _validate_page_cache_owner(page: "Page", candidate_page: object, message: st
         raise ValueError(message)
 
 
+def _validate_source_cache_belongs_to_page(page: "Page", source: PageSource) -> None:
+    _validate_page_cache_owner(page, source.page, "page.source must belong to the page")
+
+
 def _validate_revisions_cache_belongs_to_page(page: "Page", revisions: PageRevisionCollection) -> None:
     message = "page.revisions must belong to the page"
     if revisions.page is not None:
@@ -1938,6 +1942,8 @@ class Page:
         self.commented_at = _validate_optional_page_datetime_field("commented_at", self.commented_at)
         self._id = _validate_optional_page_constructor_id(self._id)
         self._source = _validate_optional_page_source_object(self._source)
+        if self._source is not None:
+            _validate_source_cache_belongs_to_page(self, self._source)
         self._revisions = _validate_optional_page_revision_collection(self._revisions)
         if self._revisions is not None:
             _validate_revisions_cache_belongs_to_page(self, self._revisions)
@@ -2056,7 +2062,9 @@ class Page:
         value : PageSource
             Source code object to set
         """
-        self._source = _validate_page_source_object(value)
+        source = _validate_page_source_object(value)
+        _validate_source_cache_belongs_to_page(self, source)
+        self._source = source
 
     def refresh_source(self) -> PageSource:
         """

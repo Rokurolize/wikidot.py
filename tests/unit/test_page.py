@@ -2329,6 +2329,17 @@ class TestPageProperties:
 
         assert mock_page_with_id.source.wiki_text == "cached source"
 
+    def test_source_setter_rejects_source_from_different_page(self, mock_page_with_id: Page) -> None:
+        """別ページのsource代入は既存のキャッシュを破壊しない"""
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id.source = cached_source
+        other_page = _other_page_like(mock_page_with_id, fullname="other-page")
+
+        with pytest.raises(ValueError, match=r"page\.source must belong to the page"):
+            mock_page_with_id.source = PageSource(other_page, "other source")
+
+        assert mock_page_with_id.source is cached_source
+
     def test_refresh_source_forces_remote_source_fetch(
         self, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:

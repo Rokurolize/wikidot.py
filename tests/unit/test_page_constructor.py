@@ -322,6 +322,13 @@ class TestPageInit:
         with pytest.raises(ValueError, match="page.source must be PageSource"):
             _page(mock_site_no_http, _source=source)
 
+    def test_init_rejects_source_cache_from_different_page(self, mock_site_no_http: Any) -> None:
+        source_owner = _page(mock_site_no_http, fullname="other-page", name="other-page")
+        source = PageSource(source_owner, "cached source")
+
+        with pytest.raises(ValueError, match=r"page\.source must belong to the page"):
+            _page(mock_site_no_http, _source=source)
+
     def test_init_accepts_valid_optional_revisions(self, mock_site_no_http: Any) -> None:
         page_without_revisions = _page(mock_site_no_http)
         revisions_owner = _page(mock_site_no_http)
