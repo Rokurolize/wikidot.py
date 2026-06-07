@@ -539,6 +539,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [533-pr-validate-page-fullname-inputs.md](533-pr-validate-page-fullname-inputs.md): upstream PR draft for the committed page fullname input validation fix.
 - [534-pr-validate-search-pages-arguments.md](534-pr-validate-search-pages-arguments.md): upstream PR draft for the committed direct ListPages search argument validation fix.
 - [535-pr-preserve-empty-forum-post-revision-parent.md](535-pr-preserve-empty-forum-post-revision-parent.md): upstream PR draft for the committed empty forum post revision collection parent-state fix.
+- [536-pr-preserve-empty-page-file-parent.md](536-pr-preserve-empty-page-file-parent.md): upstream PR draft for the committed empty page file collection parent-state fix.
 
 ## Local Evidence Index
 
@@ -986,5 +987,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 438: `79d50f0 fix(page): validate page fullname inputs`
 - Local implementation commits, continued 439: `a1794ab fix(page): validate search pages arguments`
 - Local implementation commits, continued 440: `fb64580 fix(forum_post_revision): preserve empty collection parent`
+- Local implementation commits, continued 441: `a90ce9c fix(page_file): preserve empty collection parent`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
