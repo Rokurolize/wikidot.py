@@ -65,6 +65,14 @@ def _validate_request_urls(urls: object) -> list[str]:
     return urls
 
 
+def _validate_request_client(client: object) -> "Client":
+    from wikidot.module.client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
 class RequestUtil:
     @staticmethod
     def request(
@@ -96,6 +104,7 @@ class RequestUtil:
         if len(urls) == 0:
             return []
 
+        client = _validate_request_client(client)
         config = client.amc_client.config
         (
             request_timeout,

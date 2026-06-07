@@ -10,6 +10,7 @@ import httpx
 import pytest
 
 from wikidot.connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
+from wikidot.module.client import Client
 from wikidot.util.requestutil import RequestUtil
 
 
@@ -21,8 +22,9 @@ def _assert_response(result: httpx.Response | Exception) -> httpx.Response:
 _DEFAULT_CONFIG = object()
 
 
-def _mock_client(*, config: object = _DEFAULT_CONFIG, headers: dict[str, str] | None = None) -> MagicMock:
-    mock_client = MagicMock()
+def _mock_client(*, config: object = _DEFAULT_CONFIG, headers: dict[str, str] | None = None) -> Any:
+    mock_client = object.__new__(Client)
+    mock_client.amc_client = MagicMock()
     mock_client.amc_client.config = (
         AjaxModuleConnectorConfig(attempt_limit=3, retry_interval=0.01) if config is _DEFAULT_CONFIG else config
     )
@@ -117,6 +119,16 @@ class TestRequestUtilClientReuse:
 class TestRequestUtilConfigValidation:
     """RequestUtil.requestの設定値検証テスト"""
 
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_rejects_malformed_client_before_config(self, httpx_mock, client: object) -> None:
+        """非空URLリクエストはclientをAMC設定アクセス前に型検証する"""
+        bad_client: Any = client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            RequestUtil.request(bad_client, "GET", ["https://example.com/test"])
+
+        assert httpx_mock.get_requests() == []
+
     @pytest.mark.parametrize("method", ["GET", "POST"])
     @pytest.mark.parametrize("header", [None, object(), {}, "header", True])
     def test_rejects_invalid_header_object_before_request(
@@ -126,8 +138,7 @@ class TestRequestUtilConfigValidation:
         header: Any,
     ) -> None:
         """直接URLリクエストもAMCヘッダオブジェクトをHTTP前に型検証する"""
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(retry_interval=0)
+        mock_client = _mock_client(config=AjaxModuleConnectorConfig(retry_interval=0))
         mock_client.amc_client.header = header
 
         with pytest.raises(ValueError, match="header must be AjaxRequestHeader"):
