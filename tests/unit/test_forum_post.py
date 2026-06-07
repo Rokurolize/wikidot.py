@@ -1229,6 +1229,71 @@ class TestForumPostBasic:
 
         assert post.source == "cached source"
 
+    @pytest.mark.parametrize("revisions", [True, 5001, [], {"revisions": []}, object()])
+    def test_init_rejects_malformed_revisions_cache(
+        self, mock_forum_post_no_http: ForumPost, revisions: object
+    ) -> None:
+        """ForumPostの初期リビジョンキャッシュはForumPostRevisionCollectionまたはNoneだけ受け付ける"""
+        bad_revisions: Any = revisions
+
+        with pytest.raises(ValueError, match="post.revisions must be ForumPostRevisionCollection or None"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+                _revisions=bad_revisions,
+            )
+
+    def test_init_rejects_malformed_revisions_cache_entries(self, mock_forum_post_no_http: ForumPost) -> None:
+        """ForumPostの初期リビジョンキャッシュはForumPostRevision要素だけ受け付ける"""
+        bad_revisions: Any = ForumPostRevisionCollection(mock_forum_post_no_http, [])
+        bad_revisions.append("not a revision")
+
+        with pytest.raises(ValueError, match="post.revisions list entries must be ForumPostRevision"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+                _revisions=bad_revisions,
+            )
+
+    def test_init_accepts_valid_revisions_cache(self, mock_forum_post_no_http: ForumPost) -> None:
+        """有効なリビジョンキャッシュを初期化時に保持できる"""
+        revisions = ForumPostRevisionCollection(mock_forum_post_no_http, [])
+
+        post = ForumPost(
+            thread=mock_forum_post_no_http.thread,
+            id=mock_forum_post_no_http.id,
+            title=mock_forum_post_no_http.title,
+            text=mock_forum_post_no_http.text,
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=mock_forum_post_no_http.edited_by,
+            edited_at=mock_forum_post_no_http.edited_at,
+            _parent_id=mock_forum_post_no_http._parent_id,
+            _source=mock_forum_post_no_http._source,
+            _revisions=revisions,
+        )
+
+        assert post.revisions is revisions
+
     @pytest.mark.parametrize("parent_id", [True, "4999", 4999.0, {"id": 4999}])
     def test_init_rejects_malformed_parent_id(self, mock_forum_post_no_http: ForumPost, parent_id: object) -> None:
         """ForumPostの初期化は整数またはNoneの親投稿IDだけ受け付ける"""

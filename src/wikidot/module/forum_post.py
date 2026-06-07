@@ -58,6 +58,19 @@ def _validate_optional_post_source(source: object) -> str | None:
     return source
 
 
+def _validate_optional_post_revisions(revisions: object) -> Optional["ForumPostRevisionCollection"]:
+    if revisions is None:
+        return None
+
+    from .forum_post_revision import ForumPostRevision, ForumPostRevisionCollection
+
+    if not isinstance(revisions, ForumPostRevisionCollection):
+        raise ValueError("post.revisions must be ForumPostRevisionCollection or None")
+    if any(not isinstance(revision, ForumPostRevision) for revision in revisions):
+        raise ValueError("post.revisions list entries must be ForumPostRevision")
+    return revisions
+
+
 def _validate_post_created_by(created_by: object) -> "AbstractUser":
     from .user import AbstractUser
 
@@ -812,6 +825,7 @@ class ForumPost:
         self.id = _validate_post_id(self.id)
         self._parent_id = _validate_optional_post_parent_id(self._parent_id)
         self._source = _validate_optional_post_source(self._source)
+        self._revisions = _validate_optional_post_revisions(self._revisions)
         self.title = validate_text_field("title", self.title)
         self.text = validate_text_field("text", self.text)
         self.created_by = _validate_post_created_by(self.created_by)
