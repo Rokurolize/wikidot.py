@@ -1090,8 +1090,11 @@ class PageCollection(list["Page"]):
         NoElementException
             When page information cannot be extracted from the response
         """
+        site = _validate_page_collection_site(site)
         if query is None:
             query = SearchPagesQuery()
+        elif not isinstance(query, SearchPagesQuery):
+            raise ValueError("query must be a SearchPagesQuery or None")
         if query.limit is not None and query.limit <= 0:
             return PageCollection(site, [])
 

@@ -468,6 +468,25 @@ class TestPageCollectionParse:
 class TestPageCollectionSearchPages:
     """PageCollection.search_pagesのテスト"""
 
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_search_pages_rejects_malformed_site_before_request(self, site: object) -> None:
+        """site引数の型異常はListPagesリクエスト前に拒否する"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            PageCollection.search_pages(bad_site, SearchPagesQuery())
+
+    @pytest.mark.parametrize("query", [True, {"limit": 1}, object()])
+    def test_search_pages_rejects_malformed_query_before_request(self, mock_site_no_http: Site, query: object) -> None:
+        """query引数の型異常はListPagesリクエスト前に拒否する"""
+        bad_query: Any = query
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="query must be a SearchPagesQuery or None"):
+            PageCollection.search_pages(mock_site_no_http, bad_query)
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_search_pages_basic(self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]) -> None:
         """基本的なページ検索ができる"""
         mock_response = MagicMock()
