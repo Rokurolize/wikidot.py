@@ -74,7 +74,7 @@ class PageFileCollection(list["PageFile"]):
     attached to a page in bulk.
     """
 
-    page: "Page"
+    page: "Page | None"
 
     def __init__(
         self,
@@ -97,6 +97,8 @@ class PageFileCollection(list["PageFile"]):
             self.page = _validate_file_page(page)
         elif len(self) > 0:
             self.page = self[0].page
+        else:
+            self.page = None
 
     def __iter__(self) -> Iterator["PageFile"]:
         """

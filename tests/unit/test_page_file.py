@@ -76,6 +76,13 @@ class TestPageFileCollection:
         assert collection.page == page
         assert len(collection) == 0
 
+    def test_init_empty_without_page_exposes_none_page(self) -> None:
+        """空の親なしファイルコレクションはpage=Noneを保持する"""
+        collection = PageFileCollection(page=None, files=[])
+
+        assert collection.page is None
+        assert len(collection) == 0
+
     def test_init_infers_page_from_files(self):
         """ファイルリストからページを推測"""
         page = _page()
