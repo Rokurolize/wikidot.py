@@ -9,13 +9,27 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 
-from wikidot.connector.ajax import AjaxModuleConnectorConfig
+from wikidot.connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
 from wikidot.util.requestutil import RequestUtil
 
 
 def _assert_response(result: httpx.Response | Exception) -> httpx.Response:
     assert isinstance(result, httpx.Response)
     return result
+
+
+_DEFAULT_CONFIG = object()
+
+
+def _mock_client(*, config: object = _DEFAULT_CONFIG, headers: dict[str, str] | None = None) -> MagicMock:
+    mock_client = MagicMock()
+    mock_client.amc_client.config = (
+        AjaxModuleConnectorConfig(attempt_limit=3, retry_interval=0.01) if config is _DEFAULT_CONFIG else config
+    )
+    header: Any = AjaxRequestHeader()
+    header.get_header = MagicMock(return_value={} if headers is None else headers)
+    mock_client.amc_client.header = header
+    return mock_client
 
 
 class TestRequestUtilEmpty:
@@ -83,10 +97,11 @@ class TestRequestUtilClientReuse:
 
         monkeypatch.setattr("wikidot.util.requestutil.httpx.AsyncClient", FakeAsyncClient)
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=1,
-            retry_interval=0.01,
+        mock_client = _mock_client(
+            config=AjaxModuleConnectorConfig(
+                attempt_limit=1,
+                retry_interval=0.01,
+            )
         )
 
         results = RequestUtil.request(
@@ -103,6 +118,24 @@ class TestRequestUtilConfigValidation:
     """RequestUtil.requestの設定値検証テスト"""
 
     @pytest.mark.parametrize("method", ["GET", "POST"])
+    @pytest.mark.parametrize("header", [None, object(), {}, "header", True])
+    def test_rejects_invalid_header_object_before_request(
+        self,
+        httpx_mock,
+        method: str,
+        header: Any,
+    ) -> None:
+        """直接URLリクエストもAMCヘッダオブジェクトをHTTP前に型検証する"""
+        mock_client = MagicMock()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(retry_interval=0)
+        mock_client.amc_client.header = header
+
+        with pytest.raises(ValueError, match="header must be AjaxRequestHeader"):
+            RequestUtil.request(mock_client, method, ["https://test.wikidot.com/test"])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("method", ["GET", "POST"])
     @pytest.mark.parametrize("config", [None, object(), {}, "config", True])
     def test_rejects_invalid_config_object_before_request(
         self,
@@ -111,8 +144,7 @@ class TestRequestUtilConfigValidation:
         config: Any,
     ) -> None:
         """直接URLリクエストもAMC設定オブジェクトをHTTP前に型検証する"""
-        mock_client = MagicMock()
-        mock_client.amc_client.config = config
+        mock_client = _mock_client(config=config)
 
         with pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"):
             RequestUtil.request(mock_client, method, ["https://example.com/test"])
@@ -128,10 +160,9 @@ class TestRequestUtilConfigValidation:
         request_timeout: Any,
     ) -> None:
         """request_timeoutはHTTPリクエスト前に正の数値として検証する"""
-        mock_client = MagicMock()
         config = AjaxModuleConnectorConfig(retry_interval=0)
         config.request_timeout = request_timeout
-        mock_client.amc_client.config = config
+        mock_client = _mock_client(config=config)
 
         with pytest.raises(ValueError, match="request_timeout must be a positive number"):
             RequestUtil.request(mock_client, method, ["https://example.com/test"])
@@ -149,10 +180,9 @@ class TestRequestUtilConfigValidation:
         value: Any,
     ) -> None:
         """attempt/semaphore設定はHTTPリクエスト前に正の整数として検証する"""
-        mock_client = MagicMock()
         config = AjaxModuleConnectorConfig(retry_interval=0)
         setattr(config, field, value)
-        mock_client.amc_client.config = config
+        mock_client = _mock_client(config=config)
 
         with pytest.raises(ValueError, match=rf"{field} must be a positive integer"):
             RequestUtil.request(mock_client, method, ["https://example.com/test"])
@@ -170,10 +200,9 @@ class TestRequestUtilConfigValidation:
         value: Any,
     ) -> None:
         """retry/backoff設定はHTTPリクエスト前に非負の数値として検証する"""
-        mock_client = MagicMock()
         config = AjaxModuleConnectorConfig(retry_interval=0)
         setattr(config, field, value)
-        mock_client.amc_client.config = config
+        mock_client = _mock_client(config=config)
 
         with pytest.raises(ValueError, match=rf"{field} must be a non-negative number"):
             RequestUtil.request(mock_client, method, ["https://example.com/test"])
@@ -185,11 +214,12 @@ class TestRequestUtilConfigValidation:
         """backoff関連の0設定は既存の即時リトライ用途として許可する"""
         httpx_mock.add_response(url="https://example.com/test", status_code=200, method=method)
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            retry_interval=0,
-            max_backoff=0,
-            backoff_factor=0,
+        mock_client = _mock_client(
+            config=AjaxModuleConnectorConfig(
+                retry_interval=0,
+                max_backoff=0,
+                backoff_factor=0,
+            )
         )
 
         results = RequestUtil.request(mock_client, method, ["https://example.com/test"])
@@ -206,11 +236,7 @@ class TestRequestUtilGet:
         httpx_mock.add_response(url="https://example.com/test1", status_code=200)
         httpx_mock.add_response(url="https://example.com/test2", status_code=200)
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         results = RequestUtil.request(
             mock_client,
@@ -226,12 +252,7 @@ class TestRequestUtilGet:
         """Wikidot宛てGET時にクライアントのCookieヘッダを送る"""
         httpx_mock.add_response(url="https://test.wikidot.com/test", status_code=200)
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
-        mock_client.amc_client.header.get_header.return_value = {"Cookie": "WIKIDOT_SESSION_ID=abc;"}
+        mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
 
         RequestUtil.request(mock_client, "GET", ["https://test.wikidot.com/test"])
 
@@ -241,12 +262,7 @@ class TestRequestUtilGet:
         """非Wikidot宛てGETではセッションCookieを送らない"""
         httpx_mock.add_response(url="https://example.com/test", status_code=200)
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
-        mock_client.amc_client.header.get_header.return_value = {"Cookie": "WIKIDOT_SESSION_ID=abc;"}
+        mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
 
         RequestUtil.request(mock_client, "GET", ["https://example.com/test"])
 
@@ -257,11 +273,7 @@ class TestRequestUtilGet:
         httpx_mock.add_response(url="https://example.com/test", status_code=500)
         httpx_mock.add_response(url="https://example.com/test", status_code=200)
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         results = RequestUtil.request(
             mock_client,
@@ -276,11 +288,7 @@ class TestRequestUtilGet:
         """GET 4xxエラーはリトライしない"""
         httpx_mock.add_response(url="https://example.com/test", status_code=404)
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
             RequestUtil.request(
@@ -295,11 +303,7 @@ class TestRequestUtilGet:
         """return_exceptions=Trueで例外を返す"""
         httpx_mock.add_response(url="https://example.com/test", status_code=404)
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         results = RequestUtil.request(
             mock_client,
@@ -316,11 +320,7 @@ class TestRequestUtilGet:
         httpx_mock.add_exception(httpx.TimeoutException("Timeout"))
         httpx_mock.add_response(url="https://example.com/test", status_code=200)
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         results = RequestUtil.request(
             mock_client,
@@ -339,11 +339,7 @@ class TestRequestUtilPost:
         """POST成功"""
         httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         results = RequestUtil.request(
             mock_client,
@@ -358,12 +354,7 @@ class TestRequestUtilPost:
         """Wikidot宛てPOST時にクライアントのCookieヘッダを送る"""
         httpx_mock.add_response(url="https://test.wikidot.com/test", status_code=200, method="POST")
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
-        mock_client.amc_client.header.get_header.return_value = {"Cookie": "WIKIDOT_SESSION_ID=abc;"}
+        mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
 
         RequestUtil.request(mock_client, "POST", ["https://test.wikidot.com/test"])
 
@@ -373,12 +364,7 @@ class TestRequestUtilPost:
         """非Wikidot宛てPOSTではセッションCookieを送らない"""
         httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
-        mock_client.amc_client.header.get_header.return_value = {"Cookie": "WIKIDOT_SESSION_ID=abc;"}
+        mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
 
         RequestUtil.request(mock_client, "POST", ["https://example.com/test"])
 
@@ -389,11 +375,7 @@ class TestRequestUtilPost:
         httpx_mock.add_response(url="https://example.com/test", status_code=500, method="POST")
         httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         results = RequestUtil.request(
             mock_client,
@@ -408,11 +390,7 @@ class TestRequestUtilPost:
         """POST 4xxエラーはリトライしない"""
         httpx_mock.add_response(url="https://example.com/test", status_code=400, method="POST")
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         with pytest.raises(httpx.HTTPStatusError) as exc_info:
             RequestUtil.request(
@@ -428,11 +406,7 @@ class TestRequestUtilPost:
         httpx_mock.add_exception(httpx.TimeoutException("Timeout"), method="POST")
         httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
 
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         results = RequestUtil.request(
             mock_client,
@@ -457,11 +431,7 @@ class TestRequestUtilInvalidMethod:
 
     def test_invalid_method_raises(self):
         """無効なメソッドでValueError"""
-        mock_client = MagicMock()
-        mock_client.amc_client.config = AjaxModuleConnectorConfig(
-            attempt_limit=3,
-            retry_interval=0.01,
-        )
+        mock_client = _mock_client()
 
         with pytest.raises(ValueError) as exc_info:
             RequestUtil.request(

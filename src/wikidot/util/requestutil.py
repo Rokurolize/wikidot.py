@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from ..connector.ajax import AjaxModuleConnectorConfig
+from ..connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
 from .async_helper import run_coroutine
 from .http import (
     _is_retryable_status,
@@ -29,6 +29,12 @@ def _validate_request_config_object(config: object) -> AjaxModuleConnectorConfig
     if not isinstance(config, AjaxModuleConnectorConfig):
         raise ValueError("config must be AjaxModuleConnectorConfig")
     return config
+
+
+def _validate_request_header_object(header: object) -> AjaxRequestHeader:
+    if not isinstance(header, AjaxRequestHeader):
+        raise ValueError("header must be AjaxRequestHeader")
+    return header
 
 
 def _validate_request_config(config: AjaxModuleConnectorConfig) -> tuple[float, int, float, float, float, int]:
@@ -101,24 +107,14 @@ class RequestUtil:
         ) = _validate_request_config(_validate_request_config_object(config))
         semaphore = asyncio.Semaphore(semaphore_limit)
 
-        def _get_headers() -> dict[str, str] | None:
-            header = getattr(client.amc_client, "header", None)
-            get_header = getattr(header, "get_header", None)
-            if not callable(get_header):
-                return None
-
-            headers = get_header()
-            if not isinstance(headers, dict):
-                return None
-
+        def _get_headers() -> dict[str, str]:
+            header = _validate_request_header_object(client.amc_client.header)
+            headers = header.get_header()
             return {str(k): str(v) for k, v in headers.items()}
 
         request_headers = _get_headers()
 
         def _get_headers_for_url(url: str) -> dict[str, str] | None:
-            if request_headers is None:
-                return None
-
             hostname = urlparse(url).hostname
             if hostname is None:
                 return None
