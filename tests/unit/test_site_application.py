@@ -55,7 +55,7 @@ class TestSiteApplicationDataclass:
     def test_init(self):
         """初期化"""
         site = _site()
-        user = _application_user()
+        user = _application_user(site.client)
 
         app = SiteApplication(site=site, user=user, text="Please let me join")
 
@@ -66,7 +66,7 @@ class TestSiteApplicationDataclass:
     def test_str(self):
         """文字列表現"""
         site = _site()
-        user = _application_user()
+        user = _application_user(site.client)
 
         app = SiteApplication(site=site, user=user, text="Application text")
 
@@ -94,11 +94,20 @@ class TestSiteApplicationDataclass:
         with pytest.raises(ValueError, match="application.user must be an AbstractUser"):
             SiteApplication(site=site, user=bad_user, text="")
 
+    def test_init_rejects_user_from_different_client(self):
+        """SiteApplication.userが別client由来なら初期化時に拒否する"""
+        site = _site()
+        other_client = create_mock_client()
+        user = _application_user(other_client)
+
+        with pytest.raises(ValueError, match="application.user must belong to the site"):
+            SiteApplication(site=site, user=user, text="")
+
     @pytest.mark.parametrize("text", [None, True, 123, ["Please let me join"], object()])
     def test_init_rejects_malformed_text(self, text: object):
         """SiteApplication.textが文字列でなければ初期化時に拒否する"""
         site = _site()
-        user = _application_user()
+        user = _application_user(site.client)
         bad_text: Any = text
 
         with pytest.raises(ValueError, match="application.text must be a string"):
@@ -610,6 +619,24 @@ class TestSiteApplicationProcess:
 
         mock_client.login_check.assert_not_called()
         bad_site.amc_request.assert_not_called()
+        assert site._members is cached_members
+
+    def test_accept_rejects_user_from_different_client_before_login(self) -> None:
+        """申請承認は別client由来の申請者をログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        cached_members = [object()]
+        site._members = cached_members
+        other_client = create_mock_client()
+
+        app = SiteApplication(site=site, user=_application_user(mock_client), text="")
+        app.user = _application_user(other_client)
+
+        with pytest.raises(ValueError, match="application.user must belong to the site"):
+            app.accept()
+
+        mock_client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
         assert site._members is cached_members
 
     @pytest.mark.parametrize(

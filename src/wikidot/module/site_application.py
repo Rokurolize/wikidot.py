@@ -80,6 +80,11 @@ def _validate_site_application_user(user: object) -> AbstractUser:
     return user
 
 
+def _validate_site_application_user_site(site: "Site", user: AbstractUser) -> None:
+    if user.client is not site.client:
+        raise ValueError("application.user must belong to the site")
+
+
 def _validate_site_application_text(text: object) -> str:
     if not isinstance(text, str):
         raise ValueError("application.text must be a string")
@@ -145,6 +150,7 @@ class SiteApplication:
         self.site = _validate_site_application_site(self.site)
         self.user = _validate_site_application_user_object(self.user)
         self.text = _validate_site_application_text(self.text)
+        _validate_site_application_user_site(self.site, self.user)
 
     def __str__(self) -> str:
         """
@@ -282,6 +288,7 @@ class SiteApplication:
 
         site = _validate_site_application_site(self.site)
         user = _validate_site_application_user(self.user)
+        _validate_site_application_user_site(site, user)
         site.client.login_check()
 
         status_text = {"accept": "accepted", "decline": "declined"}[action]
