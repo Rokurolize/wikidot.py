@@ -90,6 +90,12 @@ def _validate_revision_html(value: object) -> str:
     return value
 
 
+def _validate_optional_revision_html(value: object) -> str | None:
+    if value is None:
+        return None
+    return _validate_revision_html(value)
+
+
 class PageRevisionCollection(list["PageRevision"]):
     """
     Class representing a collection of page revisions
@@ -429,6 +435,7 @@ class PageRevision:
         self.created_at = _validate_revision_created_at(self.created_at)
         self.comment = _validate_revision_comment(self.comment)
         self._source = _validate_optional_revision_source(self._source)
+        self._html = _validate_optional_revision_html(self._html)
 
     def is_source_acquired(self) -> bool:
         """
