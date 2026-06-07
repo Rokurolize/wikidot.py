@@ -92,6 +92,19 @@ def _validate_optional_forum_category(category: object) -> Optional["ForumCatego
     return category
 
 
+def _validate_optional_forum_thread_posts(posts: object) -> Optional["ForumPostCollection"]:
+    if posts is None:
+        return None
+
+    from .forum_post import ForumPost, ForumPostCollection
+
+    if not isinstance(posts, ForumPostCollection):
+        raise ValueError("thread.posts must be ForumPostCollection or None")
+    if any(not isinstance(post, ForumPost) for post in posts):
+        raise ValueError("thread.posts list entries must be ForumPost")
+    return posts
+
+
 def _validate_optional_post_id(field: str, post_id: object) -> int | None:
     if post_id is None:
         return None
@@ -835,6 +848,7 @@ class ForumThread:
         self.created_at = _validate_thread_created_at(self.created_at)
         self.post_count = _validate_thread_post_count(self.post_count)
         self.category = _validate_optional_forum_category(self.category)
+        self._posts = _validate_optional_forum_thread_posts(self._posts)
 
     def __str__(self) -> str:
         """

@@ -1077,6 +1077,72 @@ class TestForumThreadBasic:
                 category=bad_category,
             )
 
+    @pytest.mark.parametrize("posts", [True, "5001", [], {"posts": []}, object()])
+    def test_init_rejects_malformed_posts_cache(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        posts: object,
+    ) -> None:
+        """スレッド投稿キャッシュはForumPostCollectionまたはNoneだけ受け付ける"""
+        bad_posts: Any = posts
+
+        with pytest.raises(ValueError, match="thread.posts must be ForumPostCollection or None"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+                _posts=bad_posts,
+            )
+
+    def test_init_accepts_valid_posts_cache(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """有効なスレッド投稿キャッシュは初期化時に保持する"""
+        from wikidot.module.forum_post import ForumPostCollection
+
+        posts = ForumPostCollection(mock_forum_thread_no_http, [])
+
+        thread = ForumThread(
+            site=mock_forum_thread_no_http.site,
+            id=mock_forum_thread_no_http.id,
+            title=mock_forum_thread_no_http.title,
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=mock_forum_thread_no_http.post_count,
+            category=mock_forum_thread_no_http.category,
+            _posts=posts,
+        )
+
+        assert thread.posts is posts
+
+    def test_init_rejects_malformed_posts_cache_entries(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """スレッド投稿キャッシュ内の要素はForumPostだけ受け付ける"""
+        from wikidot.module.forum_post import ForumPostCollection
+
+        posts = ForumPostCollection(mock_forum_thread_no_http, [])
+        bad_post: Any = object()
+        posts.append(bad_post)
+
+        with pytest.raises(ValueError, match="thread.posts list entries must be ForumPost"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+                _posts=posts,
+            )
+
     @pytest.mark.parametrize("thread_id", [None, True, "3001"])
     def test_get_from_id_rejects_non_integer_thread_id_before_fetch(
         self, mock_site_no_http: Site, thread_id: Any
