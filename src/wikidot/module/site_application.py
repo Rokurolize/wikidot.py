@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING, Any
 from bs4 import BeautifulSoup, Tag
 
 from ..common import exceptions
-from ..common.decorators import login_required
 from ..module.user import AbstractUser
 from ..util.parser import user as user_parser
 
@@ -159,7 +158,6 @@ class SiteApplication:
         return f"SiteApplication(user={self.user}, site={self.site}, text={self.text})"
 
     @staticmethod
-    @login_required
     def acquire_all(site: "Site") -> list["SiteApplication"]:
         """
         Retrieve all pending site join applications
@@ -183,6 +181,9 @@ class SiteApplication:
         UnexpectedException
             If response parsing fails
         """
+        site = _validate_site_application_site(site)
+        site.client.login_check()
+
         response = site.amc_request_with_retry([{"moduleName": "managesite/ManageSiteMembersApplicationsModule"}])[0]
         if response is None:
             raise exceptions.UnexpectedException(f"Cannot retrieve site applications for site: {_site_name(site)}")

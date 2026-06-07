@@ -108,6 +108,14 @@ class TestSiteApplicationDataclass:
 class TestSiteApplicationAcquireAll:
     """SiteApplication.acquire_allのテスト"""
 
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_acquire_all_rejects_malformed_site_before_login(self, site: object) -> None:
+        """SiteApplication.acquire_allは不正なsiteをログイン確認前に拒否する"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            SiteApplication.acquire_all(bad_site)
+
     def test_site_applications_retries_transient_fetch_failures(self):
         """site.applicationsは一時的なAMC失敗を再試行して申請を返す"""
         mock_client = create_mock_client(is_logged_in=True)
