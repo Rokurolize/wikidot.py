@@ -205,9 +205,19 @@ class AjaxModuleConnectorConfig:
 def _validate_amc_config(config: object) -> AjaxModuleConnectorConfig:
     if config is None:
         return AjaxModuleConnectorConfig()
+    return _require_amc_config(config)
+
+
+def _require_amc_config(config: object) -> AjaxModuleConnectorConfig:
     if not isinstance(config, AjaxModuleConnectorConfig):
         raise ValueError("config must be AjaxModuleConnectorConfig")
     return config
+
+
+def _validate_amc_header(header: object) -> AjaxRequestHeader:
+    if not isinstance(header, AjaxRequestHeader):
+        raise ValueError("header must be AjaxRequestHeader")
+    return header
 
 
 def _validate_positive_int_option(field_name: str, value: object) -> int:
@@ -487,17 +497,27 @@ class AjaxModuleConnectorClient:
             backoff_factor,
             max_backoff,
             semaphore_limit,
-        ) = _validate_amc_request_config(self.config)
+        ) = _validate_amc_request_config(_require_amc_config(self.config))
         semaphore_instance = asyncio.Semaphore(semaphore_limit)
 
         site_name = site_name if site_name is not None else self.site_name
         site_ssl_supported = site_ssl_supported if site_ssl_supported is not None else self.ssl_supported
         StringUtil.validate_site_unix_name(site_name)
 
+        request_headers: dict[str, Any] = {}
+        wikidot_token: Any = 123456
+        if len(bodies) > 0:
+            header = _validate_amc_header(self.header)
+            request_headers = header.get_header()
+            cookie = header.cookie
+            if not isinstance(cookie, dict):
+                raise ValueError("cookie must be a dictionary")
+            wikidot_token = cookie.get("wikidot_token7", 123456)
+
         async def _request(_body: dict[str, Any], client: httpx.AsyncClient) -> httpx.Response:
             retry_count = 0
             response: httpx.Response | None = None
-            request_body = {"wikidot_token7": self.header.cookie.get("wikidot_token7", 123456), **_body}
+            request_body = {"wikidot_token7": wikidot_token, **_body}
 
             while True:
                 # Execute request
@@ -511,7 +531,7 @@ class AjaxModuleConnectorClient:
                         wd_logger.debug(f"Ajax Request: {url} -> {_mask_sensitive_data(request_body)}")
                         response = await client.post(
                             url,
-                            headers=self.header.get_header(),
+                            headers=request_headers,
                             data=request_body,
                             timeout=request_timeout,
                         )

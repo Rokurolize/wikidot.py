@@ -479,6 +479,60 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert httpx_mock.get_requests() == []
 
+    @pytest.mark.parametrize("config", [None, object(), {}, "config", True])
+    def test_request_rejects_mutated_config_object_before_request(
+        self,
+        httpx_mock: HTTPXMock,
+        config: Any,
+    ) -> None:
+        """直接置換されたAMC設定オブジェクトもリクエスト前に型検証する"""
+        client = AjaxModuleConnectorClient(site_name="www")
+        client.config = config
+
+        with pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"):
+            client.request([{"moduleName": "TestModule"}])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("header", [None, object(), {}, "header", True])
+    def test_request_rejects_mutated_header_object_before_request(
+        self,
+        httpx_mock: HTTPXMock,
+        header: Any,
+    ) -> None:
+        """直接置換されたAMCヘッダオブジェクトもリクエスト前に型検証する"""
+        client = AjaxModuleConnectorClient(site_name="www")
+        client.header = header
+
+        with pytest.raises(ValueError, match="header must be AjaxRequestHeader"):
+            client.request([{"moduleName": "TestModule"}])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize(
+        ("mutation", "expected"),
+        [
+            (("content_type", "bad\nvalue"), "content_type must not contain line breaks"),
+            (("cookie", None), "cookie must be a dictionary"),
+            (("cookie", {"bad name": "value"}), "cookie name must be a non-empty string"),
+        ],
+    )
+    def test_request_rejects_mutated_header_state_before_returning_exceptions(
+        self,
+        httpx_mock: HTTPXMock,
+        mutation: tuple[str, Any],
+        expected: str,
+    ) -> None:
+        """return_exceptions=Trueでも壊れたヘッダ状態はローカル入力エラーとして扱う"""
+        field, value = mutation
+        client = AjaxModuleConnectorClient(site_name="www")
+        setattr(client.header, field, value)
+
+        with pytest.raises(ValueError, match=expected):
+            client.request([{"moduleName": "TestModule"}], return_exceptions=True)
+
+        assert httpx_mock.get_requests() == []
+
     def test_request_accepts_zero_backoff_controls(self, httpx_mock: HTTPXMock) -> None:
         """backoff関連の0設定は既存の即時リトライ用途として許可する"""
         httpx_mock.add_response(
