@@ -428,6 +428,14 @@ class TestRequestUtilPost:
 class TestRequestUtilInvalidMethod:
     """無効なメソッドのテスト"""
 
+    @pytest.mark.parametrize("method", [None, True, 1, object()])
+    def test_rejects_non_string_method_before_url_handling(self, method: Any) -> None:
+        """methodは大文字化する前に文字列として検証する"""
+        client_without_config: Any = object()
+
+        with pytest.raises(ValueError, match="method must be a string"):
+            RequestUtil.request(client_without_config, method, [])
+
     def test_invalid_method_raises(self):
         """無効なメソッドでValueError"""
         mock_client = MagicMock()
@@ -444,3 +452,23 @@ class TestRequestUtilInvalidMethod:
             )
 
         assert "Invalid method" in str(exc_info.value)
+
+
+class TestRequestUtilUrlValidation:
+    """RequestUtil.requestのURL入力検証テスト"""
+
+    @pytest.mark.parametrize("urls", [(), "https://example.com/test", {"url": "https://example.com/test"}, object()])
+    def test_rejects_non_list_urls_before_client_config(self, urls: Any) -> None:
+        """urlsは空判定やclient設定アクセスより前にlistとして検証する"""
+        client_without_config: Any = object()
+
+        with pytest.raises(ValueError, match="urls must be a list of strings"):
+            RequestUtil.request(client_without_config, "GET", urls)
+
+    @pytest.mark.parametrize("urls", [[123], [None], [True], [object()]])
+    def test_rejects_non_string_url_entries_before_client_config(self, urls: Any) -> None:
+        """urlsの各要素はclient設定アクセスより前に文字列として検証する"""
+        client_without_config: Any = object()
+
+        with pytest.raises(ValueError, match="urls must be a list of strings"):
+            RequestUtil.request(client_without_config, "GET", urls)

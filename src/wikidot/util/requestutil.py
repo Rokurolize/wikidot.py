@@ -35,6 +35,23 @@ def _validate_request_config(config: object) -> tuple[float, int, float, float, 
     )
 
 
+def _validate_request_method(method: object) -> str:
+    if not isinstance(method, str):
+        raise ValueError("method must be a string")
+    method = method.upper()
+    if method not in {"GET", "POST"}:
+        raise ValueError("Invalid method")
+    return method
+
+
+def _validate_request_urls(urls: object) -> list[str]:
+    if not isinstance(urls, list):
+        raise ValueError("urls must be a list of strings")
+    if any(not isinstance(url, str) for url in urls):
+        raise ValueError("urls must be a list of strings")
+    return urls
+
+
 class RequestUtil:
     @staticmethod
     def request(
@@ -59,11 +76,10 @@ class RequestUtil:
         list[httpx.Response | Exception]
             List of responses
         """
-        method = method.upper()
-        if method not in {"GET", "POST"}:
-            raise ValueError("Invalid method")
+        method = _validate_request_method(method)
         if not isinstance(return_exceptions, bool):
             raise ValueError("return_exceptions must be a boolean")
+        urls = _validate_request_urls(urls)
         if len(urls) == 0:
             return []
 
