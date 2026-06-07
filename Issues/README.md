@@ -533,6 +533,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [527-pr-validate-auth-header-object.md](527-pr-validate-auth-header-object.md): upstream PR draft for the committed auth header-object state validation fix.
 - [528-pr-validate-requestutil-header-object.md](528-pr-validate-requestutil-header-object.md): upstream PR draft for the committed RequestUtil header-object state validation fix.
 - [529-pr-validate-search-query-string-fields.md](529-pr-validate-search-query-string-fields.md): upstream PR draft for the committed SearchPagesQuery string-field validation fix.
+- [530-pr-validate-tag-container-inputs.md](530-pr-validate-tag-container-inputs.md): upstream PR draft for the committed tag-container validation fix.
 
 ## Local Evidence Index
 
@@ -974,5 +975,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 432: `5d42f59 fix(auth): validate header object state`
 - Local implementation commits, continued 433: `68546b4 fix(requestutil): validate header object state`
 - Local implementation commits, continued 434: `04029a0 fix(page): validate search query string fields`
+- Local implementation commits, continued 435: `307c836 fix(page): validate tag container inputs`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
