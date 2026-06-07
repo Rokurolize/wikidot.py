@@ -542,6 +542,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [536-pr-preserve-empty-page-file-parent.md](536-pr-preserve-empty-page-file-parent.md): upstream PR draft for the committed empty page file collection parent-state fix.
 - [537-pr-preserve-empty-forum-post-parent.md](537-pr-preserve-empty-forum-post-parent.md): upstream PR draft for the committed empty forum post collection parent-state fix.
 - [538-pr-preserve-empty-forum-category-parent.md](538-pr-preserve-empty-forum-category-parent.md): upstream PR draft for the committed empty forum category collection parent-state fix.
+- [539-pr-preserve-empty-forum-thread-parent.md](539-pr-preserve-empty-forum-thread-parent.md): upstream PR draft for the committed empty forum thread collection parent-state fix.
 
 ## Local Evidence Index
 
@@ -992,5 +993,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 441: `a90ce9c fix(page_file): preserve empty collection parent`
 - Local implementation commits, continued 442: `7deab5c fix(forum_post): preserve empty collection parent`
 - Local implementation commits, continued 443: `6c102a5 fix(forum_category): preserve empty collection parent`
+- Local implementation commits, continued 444: `7ce2be9 fix(forum_thread): preserve empty collection parent`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
