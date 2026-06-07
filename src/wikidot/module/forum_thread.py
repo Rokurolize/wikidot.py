@@ -74,6 +74,12 @@ def _validate_forum_thread_collection_threads(threads: object) -> list["ForumThr
     return cast(list["ForumThread"], threads)
 
 
+def _validate_forum_thread(thread: object) -> "ForumThread":
+    if not isinstance(thread, ForumThread):
+        raise ValueError("thread must be a ForumThread")
+    return thread
+
+
 def _validate_forum_thread_site(site: object) -> "Site":
     from .site import Site
 
@@ -116,6 +122,25 @@ def _validate_optional_forum_thread_posts(posts: object) -> Optional["ForumPostC
     if any(not isinstance(post, ForumPost) for post in posts):
         raise ValueError("thread.posts list entries must be ForumPost")
     return posts
+
+
+def _validate_posts_cache_thread_matches(
+    thread: "ForumThread",
+    thread_site: "Site",
+    candidate_thread: object,
+) -> None:
+    posts_thread = _validate_forum_thread(candidate_thread)
+    posts_site = _validate_forum_thread_site(posts_thread.site)
+    if posts_thread.id != thread.id or posts_site is not thread_site:
+        raise ValueError("thread.posts must belong to the thread")
+
+
+def _validate_posts_cache_belongs_to_thread(thread: "ForumThread", posts: "ForumPostCollection") -> None:
+    thread_site = _validate_forum_thread_site(thread.site)
+    if posts.thread is not None:
+        _validate_posts_cache_thread_matches(thread, thread_site, posts.thread)
+    for post in posts:
+        _validate_posts_cache_thread_matches(thread, thread_site, post.thread)
 
 
 def _validate_optional_post_id(field: str, post_id: object) -> int | None:
@@ -870,6 +895,8 @@ class ForumThread:
         self.post_count = _validate_thread_post_count(self.post_count)
         self.category = _validate_optional_forum_category(self.category)
         self._posts = _validate_optional_forum_thread_posts(self._posts)
+        if self._posts is not None:
+            _validate_posts_cache_belongs_to_thread(self, self._posts)
 
     def __str__(self) -> str:
         """

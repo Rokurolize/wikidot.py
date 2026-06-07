@@ -39,6 +39,19 @@ def _thread_on_other_site(thread: ForumThread) -> ForumThread:
     )
 
 
+def _thread_with_id(source_thread: ForumThread, thread_id: int) -> ForumThread:
+    return ForumThread(
+        site=source_thread.site,
+        id=thread_id,
+        title=f"Thread {thread_id}",
+        description=source_thread.description,
+        created_by=source_thread.created_by,
+        created_at=source_thread.created_at,
+        post_count=source_thread.post_count,
+        category=source_thread.category,
+    )
+
+
 # ============================================================
 # ForumThreadCollectionテスト
 # ============================================================
@@ -1189,6 +1202,60 @@ class TestForumThreadBasic:
         )
 
         assert thread.posts is posts
+
+    def test_init_rejects_posts_cache_from_different_thread(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """別スレッド用の投稿キャッシュは初期化時に拒否する"""
+        from wikidot.module.forum_post import ForumPostCollection
+
+        posts = ForumPostCollection(_thread_with_id(mock_forum_thread_no_http, 3002), [])
+
+        with pytest.raises(ValueError, match="thread.posts must belong to the thread"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+                _posts=posts,
+            )
+
+    def test_init_rejects_posts_cache_entry_from_different_thread(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """投稿キャッシュ内の別スレッド投稿は初期化時に拒否する"""
+        from wikidot.module.forum_post import ForumPost, ForumPostCollection
+
+        element = BeautifulSoup('<div class="post" id="post-5002"></div>', "lxml").select_one("div.post")
+        assert element is not None
+        posts = ForumPostCollection(mock_forum_thread_no_http, [])
+        posts.append(
+            ForumPost(
+                thread=_thread_with_id(mock_forum_thread_no_http, 3002),
+                id=5002,
+                title="Other Thread Post",
+                text="<p>Other thread post content</p>",
+                element=element,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+            )
+        )
+
+        with pytest.raises(ValueError, match="thread.posts must belong to the thread"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+                _posts=posts,
+            )
 
     def test_init_rejects_malformed_posts_cache_entries(
         self,
