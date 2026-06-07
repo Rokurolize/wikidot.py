@@ -16,6 +16,27 @@ if TYPE_CHECKING:
     from wikidot.module.site import Site
 
 
+def _category_on_other_site(category: ForumCategory) -> ForumCategory:
+    from wikidot.module.site import Site
+
+    other_site = Site(
+        client=category.site.client,
+        id=654321,
+        title="Other Site",
+        unix_name="other-site",
+        domain="other-site.wikidot.com",
+        ssl_supported=True,
+    )
+    return ForumCategory(
+        site=other_site,
+        id=1002,
+        title=category.title,
+        description=category.description,
+        threads_count=category.threads_count,
+        posts_count=category.posts_count,
+    )
+
+
 # ============================================================
 # ForumCategoryCollectionテスト
 # ============================================================
@@ -44,6 +65,24 @@ class TestForumCategoryCollectionInit:
         collection = ForumCategoryCollection(mock_site_no_http, [mock_forum_category_no_http])
         assert collection.site == mock_site_no_http
         assert len(collection) == 1
+
+    def test_init_rejects_category_from_different_site(
+        self, mock_site_no_http: Site, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        """明示siteと異なるsiteのカテゴリは保持しない"""
+        other_category = _category_on_other_site(mock_forum_category_no_http)
+
+        with pytest.raises(ValueError, match="categories must belong to the collection site"):
+            ForumCategoryCollection(mock_site_no_http, [other_category])
+
+    def test_init_rejects_mixed_site_categories_when_site_is_inferred(
+        self, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        """site未指定時も推測siteと異なるカテゴリは保持しない"""
+        other_category = _category_on_other_site(mock_forum_category_no_http)
+
+        with pytest.raises(ValueError, match="categories must belong to the collection site"):
+            ForumCategoryCollection(categories=[mock_forum_category_no_http, other_category])
 
     @pytest.mark.parametrize("categories", [True, False, "1001", ("1001",), 1001])
     def test_init_rejects_non_list_categories(self, mock_site_no_http: Site, categories: object) -> None:

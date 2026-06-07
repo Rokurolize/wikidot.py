@@ -67,6 +67,11 @@ def _validate_forum_category_collection_categories(categories: object) -> list["
     return cast(list["ForumCategory"], categories)
 
 
+def _validate_categories_belong_to_site(site: "Site", categories: list["ForumCategory"]) -> None:
+    if any(category.site is not site for category in categories):
+        raise ValueError("categories must belong to the collection site")
+
+
 def _validate_forum_category_site(site: object) -> "Site":
     from .site import Site
 
@@ -129,14 +134,20 @@ class ForumCategoryCollection(list["ForumCategory"]):
         categories : list[ForumCategory] | None, default None
             List of categories to store
         """
-        super().__init__(_validate_forum_category_collection_categories(categories))
+        categories = _validate_forum_category_collection_categories(categories)
 
         if site is not None:
-            self.site = _validate_forum_category_site(site)
-        elif len(self) > 0:
-            self.site = self[0].site
+            site = _validate_forum_category_site(site)
+            _validate_categories_belong_to_site(site, categories)
+            self.site = site
+        elif len(categories) > 0:
+            site = categories[0].site
+            _validate_categories_belong_to_site(site, categories)
+            self.site = site
         else:
             self.site = None
+
+        super().__init__(categories)
 
     def __iter__(self) -> Iterator["ForumCategory"]:
         """
