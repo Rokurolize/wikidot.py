@@ -1710,6 +1710,18 @@ class TestSiteFromUnixName:
 
         assert httpx_mock.get_requests() == []
 
+    @pytest.mark.parametrize("config", [None, object(), {}, "config", True])
+    def test_from_unix_name_rejects_invalid_config_object_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, config: Any
+    ) -> None:
+        """サイト取得リクエスト前に不正な設定オブジェクトを拒否する"""
+        mock_client_no_http.amc_client.config = config
+
+        with pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"):
+            Site.from_unix_name(mock_client_no_http, "test-site")
+
+        assert httpx_mock.get_requests() == []
+
     def test_from_unix_name_missing_site_id(self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock) -> None:
         """siteIdがない場合はUnexpectedException"""
         html = """

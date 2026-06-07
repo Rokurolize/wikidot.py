@@ -16,6 +16,7 @@ else:
 
 from ..common import exceptions
 from ..common.logger import logger
+from ..connector.ajax import AjaxModuleConnectorConfig
 from ..util.http import sync_get_with_retry
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
@@ -186,6 +187,12 @@ def _validate_site_accessor_site(value: object) -> "Site":
     if not isinstance(value, Site):
         raise ValueError("site must be a Site")
     return value
+
+
+def _validate_site_config_object(config: object) -> AjaxModuleConnectorConfig:
+    if not isinstance(config, AjaxModuleConnectorConfig):
+        raise ValueError("config must be AjaxModuleConnectorConfig")
+    return config
 
 
 def _validate_amc_retry_batch_size(value: object) -> int:
@@ -1179,7 +1186,7 @@ class Site:
 
         # サイト情報を取得
         # リダイレクトには従う、リトライ付き
-        config = client.amc_client.config
+        config = _validate_site_config_object(client.amc_client.config)
         response = sync_get_with_retry(
             f"http://{unix_name}.wikidot.com",
             timeout=config.request_timeout,
