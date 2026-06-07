@@ -748,6 +748,40 @@ class TestPageRevision:
         assert revision.is_source_acquired() is True
         mock_page.site.amc_request_with_retry.assert_not_called()
 
+    def test_init_accepts_source_cache_from_same_logical_page(self, mock_page, mock_user) -> None:
+        """PageRevisionの初期sourceキャッシュは同一サイト同一fullnameのページを受け付ける"""
+        source_owner = _page_on_same_site(mock_page, fullname=mock_page.fullname)
+        source = PageSource(page=source_owner, wiki_text="cached revision source")
+
+        revision = PageRevision(
+            page=mock_page,
+            id=100,
+            rev_no=1,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 1, 12, 0, 0),
+            comment="Initial revision",
+            _source=source,
+        )
+
+        assert revision.source == source
+        assert revision.is_source_acquired() is True
+        mock_page.site.amc_request_with_retry.assert_not_called()
+
+    def test_init_rejects_source_cache_from_different_page(self, mock_page, mock_user) -> None:
+        """PageRevisionの初期sourceキャッシュはリビジョンのページだけ受け付ける"""
+        source = PageSource(page=_page_on_same_site(mock_page), wiki_text="cached revision source")
+
+        with pytest.raises(ValueError, match=r"revision\.source must belong to the revision page"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+                _source=source,
+            )
+
     @pytest.mark.parametrize(
         "html",
         [True, 100, ["<p>Cached HTML</p>"], {"html": "<p>Cached HTML</p>"}, object()],
@@ -844,6 +878,20 @@ class TestPageRevision:
 
         with pytest.raises(ValueError, match="revision.source must be PageSource"):
             sample_revision.source = source
+
+        assert sample_revision.source == cached_source
+
+    def test_source_setter_rejects_source_from_different_page(self, sample_revision):
+        """sourceセッターはリビジョンのページと違うPageSourceを保持しない"""
+        cached_source = PageSource(page=sample_revision.page, wiki_text="cached revision source")
+        sample_revision.source = cached_source
+        other_source = PageSource(
+            page=_page_on_same_site(sample_revision.page),
+            wiki_text="other revision source",
+        )
+
+        with pytest.raises(ValueError, match=r"revision\.source must belong to the revision page"):
+            sample_revision.source = other_source
 
         assert sample_revision.source == cached_source
 

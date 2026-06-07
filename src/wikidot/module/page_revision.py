@@ -83,6 +83,23 @@ def _validate_revision_source(value: object) -> PageSource:
     return value
 
 
+def _validate_revision_source_belongs_to_page(page: "Page", source: PageSource) -> None:
+    from .page import Page
+
+    message = "revision.source must belong to the revision page"
+    source_page = source.page
+    if not isinstance(source_page, Page):
+        raise ValueError(message)
+    if source_page.site is not page.site:
+        raise ValueError(message)
+    if page._id is not None and source_page._id is not None:
+        if source_page._id != page._id:
+            raise ValueError(message)
+        return
+    if source_page.fullname != page.fullname:
+        raise ValueError(message)
+
+
 def _validate_optional_revision_source(value: object) -> PageSource | None:
     if value is None:
         return None
@@ -441,6 +458,8 @@ class PageRevision:
         self.created_at = _validate_revision_created_at(self.created_at)
         self.comment = _validate_revision_comment(self.comment)
         self._source = _validate_optional_revision_source(self._source)
+        if self._source is not None:
+            _validate_revision_source_belongs_to_page(self.page, self._source)
         self._html = _validate_optional_revision_html(self._html)
 
     def is_source_acquired(self) -> bool:
@@ -496,7 +515,9 @@ class PageRevision:
         value : PageSource
             The source code to set
         """
-        self._source = _validate_revision_source(value)
+        source = _validate_revision_source(value)
+        _validate_revision_source_belongs_to_page(self.page, source)
+        self._source = source
 
     @property
     def html(self) -> str:
