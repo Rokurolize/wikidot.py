@@ -624,6 +624,14 @@ class TestForumThreadCollectionAcquireFromIds:
         mock_site_no_http.amc_request.assert_not_called()
         mock_site_no_http.amc_request_with_retry.assert_not_called()
 
+    @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
+    def test_acquire_from_ids_rejects_malformed_site_before_fetch(self, site: object) -> None:
+        """直接スレッド詳細取得のsite引数はSiteだけ受け付ける"""
+        bad_site: Any = site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            ForumThreadCollection.acquire_from_thread_ids(bad_site, [3001])
+
     def test_acquire_from_ids_success(self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]) -> None:
         """スレッドIDからスレッド情報を取得できる"""
         mock_response = MagicMock()

@@ -750,6 +750,7 @@ class ForumThreadCollection(list["ForumThread"]):
             Collection of retrieved thread information
         """
         thread_ids = _validate_thread_ids(thread_ids)
+        site = _validate_forum_thread_site(site)
         if len(thread_ids) == 0:
             return ForumThreadCollection(site=site, threads=[])
 
