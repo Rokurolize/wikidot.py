@@ -524,6 +524,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [518-pr-validate-logging-level-inputs.md](518-pr-validate-logging-level-inputs.md): upstream PR draft for the committed logging-level input validation fix.
 - [519-pr-validate-coroutine-runner-input.md](519-pr-validate-coroutine-runner-input.md): upstream PR draft for the committed coroutine runner input validation fix.
 - [520-pr-validate-amc-config-fields.md](520-pr-validate-amc-config-fields.md): upstream PR draft for the committed Ajax module connector config-field construction validation fix.
+- [521-pr-validate-amc-header-serialization-state.md](521-pr-validate-amc-header-serialization-state.md): upstream PR draft for the committed AMC header serialization-state validation fix.
 
 ## Local Evidence Index
 
@@ -956,5 +957,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 423: `8b87c6c fix(logger): validate console level inputs`
 - Local implementation commits, continued 424: `d41e38c fix(async): validate coroutine runner input`
 - Local implementation commits, continued 425: `b030374 fix(amc): validate config field construction`
+- Local implementation commits, continued 426: `bfee861 fix(amc): validate header serialization state`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
