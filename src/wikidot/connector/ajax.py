@@ -42,6 +42,14 @@ def _validate_cookie_value(value: object) -> object:
     return value
 
 
+def _validate_cookie_dict(cookie: object) -> dict[Any, Any]:
+    if cookie is None:
+        return {}
+    if not isinstance(cookie, dict):
+        raise ValueError("cookie must be a dictionary")
+    return cookie
+
+
 def _validate_header_value(field_name: str, value: object) -> str:
     if not isinstance(value, str):
         raise TypeError(f"{field_name} must be str")
@@ -89,10 +97,12 @@ class AjaxRequestHeader:
             "https://www.wikidot.com/" if referer is None else _validate_header_value("referer", referer)
         )
         self.cookie: dict[str, Any] = {"wikidot_token7": 123456}
-        if cookie is not None:
-            self.cookie.update(
-                {_validate_cookie_name(name): _validate_cookie_value(value) for name, value in cookie.items()}
-            )
+        self.cookie.update(
+            {
+                _validate_cookie_name(name): _validate_cookie_value(value)
+                for name, value in _validate_cookie_dict(cookie).items()
+            }
+        )
         return
 
     def set_cookie(self, name: str, value: Any) -> None:

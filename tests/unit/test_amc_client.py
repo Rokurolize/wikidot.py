@@ -77,6 +77,12 @@ class TestAjaxRequestHeader:
         with pytest.raises(ValueError, match="cookie value must serialize without whitespace or ';'"):
             AjaxRequestHeader(cookie={"session": value})
 
+    @pytest.mark.parametrize("cookie", [[], "cookie", True, object()])
+    def test_custom_cookie_rejects_non_dict_cookie_container(self, cookie: Any) -> None:
+        """初期Cookieコンテナは辞書だけを受け付ける"""
+        with pytest.raises(ValueError, match="cookie must be a dictionary"):
+            AjaxRequestHeader(cookie=cookie)
+
     def test_set_cookie(self) -> None:
         """Cookieを追加できる"""
         header = AjaxRequestHeader()
