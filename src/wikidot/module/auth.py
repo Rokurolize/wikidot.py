@@ -20,6 +20,14 @@ def _validate_login_text(field: str, value: object) -> str:
     return value
 
 
+def _validate_auth_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
 def _validate_login_config_object(config: object) -> AjaxModuleConnectorConfig:
     if not isinstance(config, AjaxModuleConnectorConfig):
         raise ValueError("config must be AjaxModuleConnectorConfig")
@@ -64,6 +72,7 @@ class HTTPAuthentication:
         """
         username = _validate_login_text("username", username)
         password = _validate_login_text("password", password)
+        client = _validate_auth_client(client)
 
         # Execute login request with retry (reduced retry limit to prevent account lockout)
         config = _validate_login_config_object(client.amc_client.config)
@@ -120,6 +129,7 @@ class HTTPAuthentication:
         -----
         Errors during the logout process are ignored, and cookie deletion is always performed.
         """
+        client = _validate_auth_client(client)
         header = _validate_auth_header_object(client.amc_client.header)
         with contextlib.suppress(Exception):
             client.amc_client.request([{"action": "Login2Action", "event": "logout", "moduleName": "Empty"}])

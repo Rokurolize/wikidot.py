@@ -13,14 +13,16 @@ import pytest
 from wikidot.common.exceptions import SessionCreateException
 from wikidot.connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
 from wikidot.module.auth import HTTPAuthentication
+from wikidot.module.client import Client
 
 
 class TestHTTPAuthentication:
     """HTTPAuthenticationクラスのテスト"""
 
     @staticmethod
-    def _mock_client() -> MagicMock:
-        mock_client = MagicMock()
+    def _mock_client() -> Any:
+        mock_client = object.__new__(Client)
+        mock_client.amc_client = MagicMock()
         header: Any = AjaxRequestHeader()
         header.get_header = MagicMock(return_value={})
         header.set_cookie = MagicMock()
@@ -72,6 +74,19 @@ class TestHTTPAuthentication:
 
         mock_post.assert_not_called()
         mock_client.amc_client.header.set_cookie.assert_not_called()
+
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_login_rejects_malformed_client_before_config(self, client: object) -> None:
+        """直接ログインはClient以外の親を設定参照前に拒否する"""
+        bad_client: Any = client
+
+        with (
+            patch("wikidot.module.auth.httpx.post") as mock_post,
+            pytest.raises(ValueError, match="client must be a Client"),
+        ):
+            HTTPAuthentication.login(bad_client, "test-user", "test-password")
+
+        mock_post.assert_not_called()
 
     @pytest.mark.parametrize("config", [None, object(), {}, "config", True])
     def test_login_rejects_invalid_config_object_before_request(self, config: Any) -> None:
@@ -170,6 +185,14 @@ class TestHTTPAuthentication:
 
         mock_client.amc_client.request.assert_called_once()
         mock_client.amc_client.header.delete_cookie.assert_called_once_with("WIKIDOT_SESSION_ID")
+
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_logout_rejects_malformed_client_before_header(self, client: object) -> None:
+        """直接ログアウトはClient以外の親をheader参照前に拒否する"""
+        bad_client: Any = client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            HTTPAuthentication.logout(bad_client)
 
     @pytest.mark.parametrize("header", [None, object(), {}, "header", True])
     def test_logout_rejects_invalid_header_object_before_mutation(self, header: Any) -> None:
