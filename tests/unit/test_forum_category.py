@@ -372,6 +372,38 @@ class TestForumCategoryCollectionAcquireAll:
         with pytest.raises(exceptions.NoElementException, match=expected_match):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
 
+    @pytest.mark.parametrize(
+        ("valid_cell", "negative_cell", "expected_match"),
+        [
+            (
+                '<td class="threads">10</td>',
+                '<td class="threads">-1</td>',
+                r"Thread count must be non-negative for site: test-site \(row=1, field=threads, value=-1\)",
+            ),
+            (
+                '<td class="posts">50</td>',
+                '<td class="posts">-1</td>',
+                r"Post count must be non-negative for site: test-site \(row=1, field=posts, value=-1\)",
+            ),
+        ],
+    )
+    def test_acquire_all_negative_count_includes_site_context(
+        self,
+        mock_site_no_http: Site,
+        forum_start: dict[str, Any],
+        valid_cell: str,
+        negative_cell: str,
+        expected_match: str,
+    ) -> None:
+        """カテゴリ件数が負数の場合はサイト名、行位置、値を含めて失敗する"""
+        body = forum_start["body"].replace(valid_cell, negative_cell, 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(exceptions.NoElementException, match=expected_match):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
     def test_acquire_all_empty(self, mock_site_no_http: Site, forum_start_empty: dict[str, Any]) -> None:
         """空のカテゴリ一覧を取得できる"""
         mock_response = MagicMock()
@@ -490,6 +522,44 @@ class TestForumCategoryBasic:
                 threads_count=10,
                 posts_count=bad_posts_count,
             )
+
+    @pytest.mark.parametrize(
+        ("field_name", "overrides"),
+        [
+            ("threads_count", {"threads_count": -1}),
+            ("posts_count", {"posts_count": -1}),
+        ],
+    )
+    def test_init_rejects_negative_counts(
+        self, mock_site_no_http: Site, field_name: str, overrides: dict[str, int]
+    ) -> None:
+        """負数のカテゴリ件数を拒否する"""
+        category_data = {
+            "site": mock_site_no_http,
+            "id": 1001,
+            "title": "Test Category",
+            "description": "Test category description",
+            "threads_count": 10,
+            "posts_count": 50,
+        }
+        category_data.update(overrides)
+
+        with pytest.raises(ValueError, match=f"{field_name} must be non-negative"):
+            ForumCategory(**category_data)
+
+    def test_init_allows_zero_counts(self, mock_site_no_http: Site) -> None:
+        """0件のカテゴリ件数は有効な値として保持する"""
+        category = ForumCategory(
+            site=mock_site_no_http,
+            id=1001,
+            title="Test Category",
+            description="Test category description",
+            threads_count=0,
+            posts_count=0,
+        )
+
+        assert category.threads_count == 0
+        assert category.posts_count == 0
 
     @pytest.mark.parametrize("title", [None, True, 1001, ["Test Category"]])
     def test_init_rejects_non_string_title(self, mock_site_no_http: Site, title: object) -> None:

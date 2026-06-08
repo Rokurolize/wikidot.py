@@ -33,10 +33,14 @@ def _category_parse_context(site: "Site", row_index: int, **details: object) -> 
 
 def _parse_category_count(site: "Site", row_index: int, field: str, label: str, value: str) -> int:
     try:
-        return int(value)
+        count = int(value)
     except ValueError as exc:
         parse_context = _category_parse_context(site, row_index, field=field, value=value)
         raise NoElementException(f"{label} is malformed {parse_context}") from exc
+    if count < 0:
+        parse_context = _category_parse_context(site, row_index, field=field, value=value)
+        raise NoElementException(f"{label} must be non-negative {parse_context}")
+    return count
 
 
 def _require_forum_category_action_status(category: "ForumCategory", event: str, data: dict[str, Any]) -> Any:
@@ -143,6 +147,8 @@ def _validate_forum_category_id(category_id: object) -> int:
 def _validate_forum_category_count(field_name: str, count: object) -> int:
     if not isinstance(count, int) or isinstance(count, bool):
         raise ValueError(f"{field_name} must be an integer")
+    if count < 0:
+        raise ValueError(f"{field_name} must be non-negative")
     return count
 
 
