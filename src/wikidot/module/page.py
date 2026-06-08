@@ -2093,7 +2093,7 @@ class Page:
                 f"Cannot find page id for site: {self.site.unix_name}, page: {self.fullname}"
             )
 
-        return self._id
+        return _validate_page_id(self._id)
 
     @id.setter
     def id(self, value: int) -> None:

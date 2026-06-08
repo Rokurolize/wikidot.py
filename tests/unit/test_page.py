@@ -2352,6 +2352,31 @@ class TestPageProperties:
         """取得済みIDが返される"""
         assert mock_page_with_id.id == 12345
 
+    @pytest.mark.parametrize("page_id", [True, False, "12345", 12345.0, []])
+    def test_id_property_rejects_malformed_cached_ids(self, mock_page_with_id: Page, page_id: object) -> None:
+        """保持しているIDキャッシュが壊れている場合はgetterでも検証する"""
+        mock_page_with_id._id = cast(Any, page_id)
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match=r"page\.id must be an integer"),
+        ):
+            _ = mock_page_with_id.id
+
+        get_page_ids.assert_not_called()
+
+    def test_id_property_rejects_negative_cached_id(self, mock_page_with_id: Page) -> None:
+        """保持している負のIDキャッシュはgetterでも検証する"""
+        mock_page_with_id._id = -1
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match=r"page\.id must be non-negative"),
+        ):
+            _ = mock_page_with_id.id
+
+        get_page_ids.assert_not_called()
+
     @pytest.mark.parametrize("page_id", [None, True, False, "12345", 12345.0])
     def test_id_setter_rejects_invalid_ids(self, mock_page_with_id: Page, page_id: object) -> None:
         """不正なID代入は既存のIDを破壊しない"""
