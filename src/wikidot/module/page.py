@@ -1,4 +1,5 @@
 import html as html_lib
+import math
 import re
 import sys
 from collections.abc import Iterator
@@ -104,6 +105,8 @@ def _validate_page_rating_percent_field(value: object) -> int | float | None:
         return None
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("rating_percent must be an integer, float, or None")
+    if not math.isfinite(value) or not 0 <= value <= 1:
+        raise ValueError("rating_percent must be between 0.0 and 1.0, or None")
     return value
 
 
@@ -460,6 +463,17 @@ def _parse_listpages_float_field(site: "Site", page_name: str, key: str, value: 
             f"ListPages float field is malformed for site: {site.unix_name}, page: {page_name} "
             f"(field={key}, value={value_text})"
         ) from exc
+
+
+def _parse_listpages_percentage_field(site: "Site", page_name: str, key: str, value: object) -> float:
+    parsed = _parse_listpages_float_field(site, page_name, key, value)
+    if not math.isfinite(parsed) or not 0 <= parsed <= 100:
+        value_text = str(value).strip()
+        raise exceptions.NoElementException(
+            f"ListPages percentage field must be between 0.0 and 100.0 "
+            f"for site: {site.unix_name}, page: {page_name} (field={key}, value={value_text})"
+        )
+    return parsed
 
 
 def _parse_listpages_odate_field(site: "Site", page_name: str, key: str, odate_elem: Tag) -> datetime:
@@ -1077,7 +1091,7 @@ class PageCollection(list["Page"]):
                     if is_5star_rating:
                         page_name = str(page_params.get("fullname", "unknown"))
                         percent_text = value_element.text.strip().removesuffix("%")
-                        value = _parse_listpages_float_field(site, page_name, key, percent_text) / 100
+                        value = _parse_listpages_percentage_field(site, page_name, key, percent_text) / 100
                     else:
                         value = None
 
