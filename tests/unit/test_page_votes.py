@@ -212,6 +212,16 @@ class TestPageVoteCollection:
         with pytest.raises(ValueError, match="user.id must be an integer"):
             collection.find(user)
 
+    def test_find_rejects_user_from_different_client(self) -> None:
+        """findの検索対象ユーザーはcollection pageのsite clientに属するユーザーだけ受け付ける"""
+        page = _page()
+        vote_user = self._user(page, 12345, "vote-user")
+        collection = PageVoteCollection(page, [PageVote(page=page, user=vote_user, value=1)])
+        search_user = User(client=_client(), id=12345, name="search-user", unix_name="search-user")
+
+        with pytest.raises(ValueError, match="user must belong to the site"):
+            collection.find(search_user)
+
 
 class TestPageVote:
     """PageVoteのテスト"""

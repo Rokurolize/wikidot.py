@@ -113,6 +113,7 @@ class PageVoteCollection(list["PageVote"]):
             The user's vote information
         """
         user = _validate_vote_search_user(user)
+        _validate_vote_user_site(self.page, user)
         for vote in self:
             if vote.user.id == user.id:
                 return vote
