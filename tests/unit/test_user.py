@@ -116,6 +116,26 @@ class TestUserDataclasses:
         with pytest.raises(ValueError, match="id must be an integer or None"):
             User(client=mock_client_no_http, id=bad_user_id)
 
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    def test_user_rejects_negative_id(self, mock_client_no_http: MagicMock, user_id: int) -> None:
+        with pytest.raises(ValueError, match="id must be non-negative or None"):
+            User(client=mock_client_no_http, id=user_id)
+
+    def test_user_accepts_zero_id(self, mock_client_no_http: MagicMock) -> None:
+        user = User(client=mock_client_no_http, id=0, name="zero-user", unix_name="zero-user")
+
+        assert user.id == 0
+
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    def test_deleted_user_rejects_negative_id(self, mock_client_no_http: MagicMock, user_id: int) -> None:
+        with pytest.raises(ValueError, match="id must be non-negative or None"):
+            DeletedUser(client=mock_client_no_http, id=user_id)
+
+    def test_deleted_user_accepts_zero_id(self, mock_client_no_http: MagicMock) -> None:
+        user = DeletedUser(client=mock_client_no_http, id=0)
+
+        assert user.id == 0
+
     @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
     @pytest.mark.parametrize(
         "factory",

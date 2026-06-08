@@ -59,6 +59,8 @@ def _validate_user_id_field(field: str, value: object) -> int | None:
         return None
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError(f"{field} must be an integer or None")
+    if value < 0:
+        raise ValueError(f"{field} must be non-negative or None")
     return value
 
 
