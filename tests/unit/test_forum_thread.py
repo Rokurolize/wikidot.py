@@ -740,6 +740,20 @@ class TestForumThreadCollectionAcquireFromIds:
         mock_site_no_http.amc_request.assert_not_called()
         mock_site_no_http.amc_request_with_retry.assert_not_called()
 
+    @pytest.mark.parametrize("thread_ids", [[-1], [-100]])
+    def test_acquire_from_ids_rejects_negative_thread_id_entries_before_fetch(
+        self, mock_site_no_http: Site, thread_ids: list[int]
+    ) -> None:
+        """スレッドIDリスト内の負数はAMC取得前に拒否する"""
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_ids list entries must be non-negative"):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, thread_ids)
+
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
     @pytest.mark.parametrize("site", [None, True, "test-site", {"unix_name": "test-site"}, object()])
     def test_acquire_from_ids_rejects_malformed_site_before_fetch(self, site: object) -> None:
         """直接スレッド詳細取得のsite引数はSiteだけ受け付ける"""
@@ -759,6 +773,25 @@ class TestForumThreadCollectionAcquireFromIds:
         assert len(collection) == 1
         assert collection[0].id == 3001
         mock_site_no_http.amc_request.assert_not_called()
+
+    def test_acquire_from_ids_accepts_zero_thread_id(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """ゼロのスレッドIDは直接取得入力として保持できる"""
+        body = forum_thread_detail["body"].replace("WIKIDOT.forumThreadId = 3001;", "WIKIDOT.forumThreadId = 0;", 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [0])
+
+        assert len(collection) == 1
+        assert collection[0].id == 0
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_called_once_with(
+            [{"t": 0, "moduleName": "forum/ForumViewThreadModule"}]
+        )
 
     def test_acquire_from_ids_ignores_description_statistics_markup(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
@@ -1089,6 +1122,40 @@ class TestForumThreadBasic:
                 post_count=mock_forum_thread_no_http.post_count,
                 category=mock_forum_thread_no_http.category,
             )
+
+    @pytest.mark.parametrize("thread_id", [-1, -100])
+    def test_init_rejects_negative_thread_id(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        thread_id: int,
+    ) -> None:
+        """スレッド初期化は負のIDを拒否する"""
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=thread_id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
+    def test_init_accepts_zero_thread_id(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """スレッド初期化はゼロのIDを保持できる"""
+        thread = ForumThread(
+            site=mock_forum_thread_no_http.site,
+            id=0,
+            title=mock_forum_thread_no_http.title,
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=mock_forum_thread_no_http.post_count,
+            category=mock_forum_thread_no_http.category,
+        )
+
+        assert thread.id == 0
 
     @pytest.mark.parametrize("title", [None, True, 3001, ["Test Thread"]])
     def test_init_rejects_non_string_title(
@@ -1440,6 +1507,18 @@ class TestForumThreadBasic:
         mock_site_no_http.amc_request.assert_not_called()
         mock_site_no_http.amc_request_with_retry.assert_not_called()
 
+    @pytest.mark.parametrize("thread_id", [-1, -100])
+    def test_get_from_id_rejects_negative_thread_id_before_fetch(self, mock_site_no_http: Site, thread_id: int) -> None:
+        """単一スレッドIDの負数はAMC取得前に拒否する"""
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            ForumThread.get_from_id(mock_site_no_http, thread_id)
+
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
     def test_site_get_thread_rejects_non_integer_thread_id_before_fetch(self, mock_site_no_http: Site) -> None:
         """サイトの単一スレッド取得でも非整数IDはAMC取得前に拒否する"""
         thread_id: Any = "3001"
@@ -1448,6 +1527,17 @@ class TestForumThreadBasic:
 
         with pytest.raises(ValueError, match="thread_id must be an integer"):
             mock_site_no_http.get_thread(thread_id)
+
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
+    def test_site_get_thread_rejects_negative_thread_id_before_fetch(self, mock_site_no_http: Site) -> None:
+        """サイトの単一スレッド取得でも負のIDはAMC取得前に拒否する"""
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            mock_site_no_http.get_thread(-1)
 
         mock_site_no_http.amc_request.assert_not_called()
         mock_site_no_http.amc_request_with_retry.assert_not_called()

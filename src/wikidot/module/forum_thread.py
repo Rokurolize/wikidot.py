@@ -33,6 +33,8 @@ def _site_name(site: "Site") -> str:
 def _validate_thread_id(thread_id: object) -> int:
     if not isinstance(thread_id, int) or isinstance(thread_id, bool):
         raise ValueError("thread_id must be an integer")
+    if thread_id < 0:
+        raise ValueError("thread_id must be non-negative")
     return thread_id
 
 
@@ -68,6 +70,8 @@ def _validate_thread_ids(thread_ids: object) -> list[int]:
         raise ValueError("thread_ids must be a list")
     if any(not isinstance(thread_id, int) or isinstance(thread_id, bool) for thread_id in thread_ids):
         raise ValueError("thread_ids list entries must be integers")
+    if any(thread_id < 0 for thread_id in thread_ids):
+        raise ValueError("thread_ids list entries must be non-negative")
     return cast(list[int], thread_ids)
 
 
