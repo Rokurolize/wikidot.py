@@ -627,6 +627,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [621-pr-validate-special-user-identity-fields.md](621-pr-validate-special-user-identity-fields.md): upstream PR draft for the committed special user identity-field validation fix.
 - [622-pr-validate-regular-user-ip-field.md](622-pr-validate-regular-user-ip-field.md): upstream PR draft for the committed regular user IP-field validation fix.
 - [623-pr-validate-blank-user-profile-lookup-names.md](623-pr-validate-blank-user-profile-lookup-names.md): upstream PR draft for the committed blank user profile lookup name validation fix.
+- [624-pr-validate-blank-site-member-lookup-names.md](624-pr-validate-blank-site-member-lookup-names.md): upstream PR draft for the committed blank site member lookup name validation fix.
 
 ## Local Evidence Index
 
@@ -1162,5 +1163,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 526: `ef69159 fix(user): validate special user identity fields`
 - Local implementation commits, continued 527: `3513dad fix(user): validate regular user ip field`
 - Local implementation commits, continued 528: `5bc07e9 fix(user): validate blank profile lookup names`
+- Local implementation commits, continued 529: `c963d11 fix(site): validate blank member lookup names`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
