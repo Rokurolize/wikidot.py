@@ -897,6 +897,22 @@ class TestPageFile:
         with pytest.raises(ValueError, match="id must be an integer"):
             _page_file(page, file_id=bad_file_id)
 
+    @pytest.mark.parametrize("file_id", [-1, -100])
+    def test_init_rejects_negative_ids(self, file_id: int) -> None:
+        """PageFile.idは負のIDを受け付けない"""
+        page = _page()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            _page_file(page, file_id=file_id)
+
+    def test_init_accepts_zero_id(self) -> None:
+        """PageFile.idは0を非負IDとして保持できる"""
+        page = _page()
+
+        file = _page_file(page, file_id=0)
+
+        assert file.id == 0
+
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [

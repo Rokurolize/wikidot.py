@@ -56,6 +56,8 @@ def _validate_files_belong_to_page(page: "Page", files: list["PageFile"]) -> Non
 def _validate_file_id(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("id must be an integer")
+    if value < 0:
+        raise ValueError("id must be non-negative")
     return value
 
 
