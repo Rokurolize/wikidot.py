@@ -39,6 +39,8 @@ def _validate_private_message_recipient(recipient: object) -> User:
 def _validate_private_message_id(message_id: object) -> int:
     if not isinstance(message_id, int) or isinstance(message_id, bool):
         raise ValueError("message_id must be an integer")
+    if message_id < 0:
+        raise ValueError("message_id must be non-negative")
     return message_id
 
 
@@ -66,6 +68,8 @@ def _validate_private_message_ids(message_ids: object) -> list[int]:
         raise ValueError("message_ids must be a list")
     if any(not isinstance(message_id, int) or isinstance(message_id, bool) for message_id in message_ids):
         raise ValueError("message_ids list entries must be integers")
+    if any(message_id < 0 for message_id in message_ids):
+        raise ValueError("message_ids list entries must be non-negative")
     return cast(list[int], message_ids)
 
 

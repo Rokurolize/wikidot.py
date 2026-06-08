@@ -374,6 +374,19 @@ class TestClientPrivateMessageAccessor:
             client.login_check.assert_not_called()
             client.amc_client.request.assert_not_called()
 
+    def test_get_messages_rejects_negative_message_id(self):
+        """負のメッセージID入力はクライアントアクセサでもログイン前に拒否する"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+            client.amc_client.request = MagicMock()
+
+            with pytest.raises(ValueError, match="message_ids list entries must be non-negative"):
+                client.private_message.get_messages([-1])
+
+            client.login_check.assert_not_called()
+            client.amc_client.request.assert_not_called()
+
     def test_get_message(self):
         """単一メッセージ取得"""
         with patch("wikidot.module.client.AjaxModuleConnectorClient"):
@@ -398,6 +411,19 @@ class TestClientPrivateMessageAccessor:
 
             with pytest.raises(ValueError, match="message_id must be an integer"):
                 client.private_message.get_message(message_id)
+
+            client.login_check.assert_not_called()
+            client.amc_client.request.assert_not_called()
+
+    def test_get_message_rejects_negative_message_id(self):
+        """負の単一メッセージIDはクライアントアクセサでもログイン前に拒否する"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+            client.amc_client.request = MagicMock()
+
+            with pytest.raises(ValueError, match="message_id must be non-negative"):
+                client.private_message.get_message(-1)
 
             client.login_check.assert_not_called()
             client.amc_client.request.assert_not_called()

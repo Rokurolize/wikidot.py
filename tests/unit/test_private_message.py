@@ -183,6 +183,17 @@ class TestPrivateMessageCollection:
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
 
+    def test_from_ids_rejects_negative_message_id_entries_before_login(self, mock_client):
+        """負のメッセージIDはログイン確認やAMCリクエスト前に拒否する"""
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="message_ids list entries must be non-negative"):
+            PrivateMessageCollection.from_ids(mock_client, [-1])
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
     @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
     def test_from_ids_rejects_malformed_client_before_login(self, client: object):
         """直接メッセージ取得はClient以外の親をログイン確認前に拒否する"""
@@ -219,6 +230,36 @@ class TestPrivateMessageCollection:
 
                 assert len(result) == 1
                 assert result[0].id == 1
+
+    def test_from_ids_accepts_zero_message_id(self, mock_client, mock_user):
+        """ゼロのメッセージIDは整数IDとして扱う"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                    <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                    <span class="subject">Test Subject</span>
+                    <span class="odate time_1234567890">01 Jan 2023 12:00</span>
+                </div>
+                <div class="body">Test Body</div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with (
+            patch("wikidot.module.private_message.user_parser", side_effect=[mock_user, mock_user]),
+            patch("wikidot.module.private_message.odate_parser") as mock_odate_parser,
+        ):
+            mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
+
+            result = PrivateMessageCollection.from_ids(mock_client, [0])
+
+        assert len(result) == 1
+        assert result[0].id == 0
+        assert mock_client.amc_client.request.call_args.args[0][0]["item"] == 0
 
     def test_from_ids_ignores_body_header_markup(self, mock_client, sender_user, recipient_user):
         """本文内のheader風マークアップを送受信者メタデータとして扱わない"""
@@ -1024,6 +1065,33 @@ class TestPrivateMessage:
                 created_at=datetime(2023, 1, 1, 12, 0, 0),
             )
 
+    def test_init_rejects_negative_message_id(self, mock_client, mock_user):
+        """PrivateMessageの初期化は負のIDを拒否する"""
+        with pytest.raises(ValueError, match="message_id must be non-negative"):
+            PrivateMessage(
+                client=mock_client,
+                id=-1,
+                sender=mock_user,
+                recipient=mock_user,
+                subject="Test Subject",
+                body="Test Body",
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+            )
+
+    def test_init_accepts_zero_message_id(self, mock_client, mock_user):
+        """PrivateMessageの初期化はゼロIDを保持する"""
+        message = PrivateMessage(
+            client=mock_client,
+            id=0,
+            sender=mock_user,
+            recipient=mock_user,
+            subject="Test Subject",
+            body="Test Body",
+            created_at=datetime(2023, 1, 1, 12, 0, 0),
+        )
+
+        assert message.id == 0
+
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [
@@ -1142,6 +1210,17 @@ class TestPrivateMessage:
 
         with pytest.raises(ValueError, match="message_id must be an integer"):
             PrivateMessage.from_id(mock_client, bad_message_id)
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
+    def test_from_id_rejects_negative_message_id_before_login(self, mock_client):
+        """単一メッセージIDの負値はログイン確認やAMCリクエスト前に拒否する"""
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="message_id must be non-negative"):
+            PrivateMessage.from_id(mock_client, -1)
 
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
