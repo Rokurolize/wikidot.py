@@ -666,6 +666,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [660-pr-validate-publish-result-retained-page-id-state.md](660-pr-validate-publish-result-retained-page-id-state.md): upstream PR draft for the committed publish-result retained page-ID validation fix.
 - [661-pr-validate-source-result-retained-owner-page-id-state.md](661-pr-validate-source-result-retained-owner-page-id-state.md): upstream PR draft for the committed source-result retained owner page-ID validation fix.
 - [662-pr-validate-page-cache-owner-retained-page-id-state.md](662-pr-validate-page-cache-owner-retained-page-id-state.md): upstream PR draft for the committed page cache-owner retained page-ID validation fix.
+- [663-pr-validate-page-revision-source-cache-retained-page-id-state.md](663-pr-validate-page-revision-source-cache-retained-page-id-state.md): upstream PR draft for the committed page revision source-cache retained page-ID validation fix.
 
 ## Local Evidence Index
 
@@ -1240,5 +1241,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 565: `d6e12bd fix(site): validate publish result retained page ids`
 - Local implementation commits, continued 566: `7217dc7 fix(site): validate source result retained owner ids`
 - Local implementation commits, continued 567: `24ace2a fix(page): validate cache owner retained page ids`
+- Local implementation commits, continued 568: `e61765d fix(page_revision): validate source cache retained page ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
