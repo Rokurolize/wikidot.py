@@ -2465,6 +2465,105 @@ class TestPageProperties:
 
         assert mock_page_with_id.source is cached_source
 
+    @pytest.mark.parametrize(
+        ("target_cached_id", "source_cached_id"),
+        [
+            (True, 1),
+            (False, 0),
+            ("12345", 12345),
+            (12345.0, 12345),
+            ([], 12345),
+        ],
+    )
+    def test_source_setter_rejects_malformed_retained_target_page_ids(
+        self, mock_page_with_id: Page, target_cached_id: Any, source_cached_id: int
+    ) -> None:
+        """壊れた代入先page IDはsource所有判定に使わない"""
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id.source = cached_source
+        mock_page_with_id._id = target_cached_id
+        source_page = _other_page_like(mock_page_with_id, fullname=mock_page_with_id.fullname, page_id=source_cached_id)
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match=r"page\.id must be an integer or None"):
+            mock_page_with_id.source = PageSource(source_page, "other source")
+
+        assert mock_page_with_id._source is cached_source
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    def test_source_setter_rejects_negative_retained_target_page_id(self, mock_page_with_id: Page) -> None:
+        """負の代入先page IDはsource所有判定に使わない"""
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id.source = cached_source
+        mock_page_with_id._id = -1
+        source_page = _other_page_like(mock_page_with_id, fullname=mock_page_with_id.fullname, page_id=12345)
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match=r"page\.id must be non-negative or None"):
+            mock_page_with_id.source = PageSource(source_page, "other source")
+
+        assert mock_page_with_id._source is cached_source
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("target_cached_id", "source_cached_id"),
+        [
+            (1, True),
+            (0, False),
+            (12345, "12345"),
+            (12345, 12345.0),
+            (12345, []),
+        ],
+    )
+    def test_source_setter_rejects_malformed_retained_source_page_ids(
+        self, mock_page_with_id: Page, target_cached_id: int, source_cached_id: Any
+    ) -> None:
+        """壊れたsource page IDはsource所有判定に使わない"""
+        mock_page_with_id._id = target_cached_id
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id.source = cached_source
+        source_page = _other_page_like(mock_page_with_id, fullname=mock_page_with_id.fullname, page_id=12345)
+        source_page._id = source_cached_id
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match=r"page\.id must be an integer or None"):
+            mock_page_with_id.source = PageSource(source_page, "other source")
+
+        assert mock_page_with_id._source is cached_source
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    def test_source_setter_rejects_negative_retained_source_page_id(self, mock_page_with_id: Page) -> None:
+        """負のsource page IDはsource所有判定に使わない"""
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id.source = cached_source
+        source_page = _other_page_like(mock_page_with_id, fullname=mock_page_with_id.fullname, page_id=12345)
+        source_page._id = -1
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match=r"page\.id must be non-negative or None"):
+            mock_page_with_id.source = PageSource(source_page, "other source")
+
+        assert mock_page_with_id._source is cached_source
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    def test_source_setter_accepts_zero_retained_page_ids(self, mock_page_with_id: Page) -> None:
+        """source所有判定はゼロID互換性を維持する"""
+        mock_page_with_id._id = 0
+        source_page = _other_page_like(mock_page_with_id, fullname=mock_page_with_id.fullname, page_id=0)
+        source = PageSource(source_page, "zero source")
+
+        mock_page_with_id.source = source
+
+        assert mock_page_with_id.source is source
+
     def test_refresh_source_forces_remote_source_fetch(
         self, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:

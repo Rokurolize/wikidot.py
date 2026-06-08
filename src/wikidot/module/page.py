@@ -199,8 +199,10 @@ def _validate_page_cache_owner(page: "Page", candidate_page: object, message: st
     candidate_site = _validate_page_site(candidate_page.site)
     if candidate_site is not page.site:
         raise ValueError(message)
-    if page._id is not None and candidate_page._id is not None:
-        if candidate_page._id != page._id:
+    page_id = _validate_optional_page_constructor_id(page._id)
+    candidate_page_id = _validate_optional_page_constructor_id(candidate_page._id)
+    if page_id is not None and candidate_page_id is not None:
+        if candidate_page_id != page_id:
             raise ValueError(message)
         return
     if candidate_page.fullname != page.fullname:

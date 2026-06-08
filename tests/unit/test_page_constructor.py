@@ -394,6 +394,43 @@ class TestPageInit:
         with pytest.raises(ValueError, match=r"page\.source must belong to the page"):
             _page(mock_site_no_http, _source=source)
 
+    @pytest.mark.parametrize(
+        ("source_cached_id", "target_cached_id"),
+        [
+            (True, 1),
+            (False, 0),
+            ("371", 371),
+            (371.0, 371),
+            ([], 371),
+        ],
+    )
+    def test_init_rejects_source_cache_with_malformed_retained_source_page_ids(
+        self, mock_site_no_http: Any, source_cached_id: Any, target_cached_id: int
+    ) -> None:
+        source_owner = _page(mock_site_no_http, _id=target_cached_id)
+        source_owner._id = source_cached_id
+        source = PageSource(source_owner, "cached source")
+
+        with pytest.raises(ValueError, match=r"page\.id must be an integer or None"):
+            _page(mock_site_no_http, _id=target_cached_id, _source=source)
+
+    def test_init_rejects_source_cache_with_negative_retained_source_page_id(self, mock_site_no_http: Any) -> None:
+        source_owner = _page(mock_site_no_http, _id=371)
+        source_owner._id = -1
+        source = PageSource(source_owner, "cached source")
+
+        with pytest.raises(ValueError, match=r"page\.id must be non-negative or None"):
+            _page(mock_site_no_http, _id=371, _source=source)
+
+    def test_init_accepts_source_cache_with_zero_retained_page_ids(self, mock_site_no_http: Any) -> None:
+        source_owner = _page(mock_site_no_http, _id=0)
+        source = PageSource(source_owner, "cached source")
+
+        page = _page(mock_site_no_http, _id=0, _source=source)
+
+        assert page.source is source
+        assert page.id == 0
+
     def test_init_accepts_valid_optional_revisions(self, mock_site_no_http: Any) -> None:
         page_without_revisions = _page(mock_site_no_http)
         revisions_owner = _page(mock_site_no_http)
