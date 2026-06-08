@@ -241,6 +241,16 @@ class TestUserFromName:
 
         assert httpx_mock.get_requests() == []
 
+    @pytest.mark.parametrize("name", ["", "   "])
+    def test_from_name_rejects_blank_name_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, name: str
+    ) -> None:
+        """ユーザー名が空の場合はリクエスト前に拒否"""
+        with pytest.raises(ValueError, match="name must not be empty"):
+            User.from_name(mock_client_no_http, name)
+
+        assert httpx_mock.get_requests() == []
+
     @pytest.mark.parametrize("raise_when_not_found", [None, "false", 0, 1])
     def test_from_name_rejects_non_bool_raise_when_not_found_before_request(
         self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, raise_when_not_found: Any
@@ -306,6 +316,16 @@ class TestUserCollection:
 
         with pytest.raises(ValueError, match="names list entries must be strings"):
             UserCollection.from_names(mock_client_no_http, ["ok-user", bad_name])
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize("name", ["", "   "])
+    def test_from_names_rejects_blank_name_before_request(
+        self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock, name: str
+    ) -> None:
+        """一括取得のユーザー名が空の場合はリクエスト前に拒否"""
+        with pytest.raises(ValueError, match="names list entries must not be empty"):
+            UserCollection.from_names(mock_client_no_http, ["ok-user", name])
 
         assert httpx_mock.get_requests() == []
 

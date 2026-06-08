@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 def _validate_user_name(field: str, value: object) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{field} must be a string")
+    if value.strip() == "":
+        raise ValueError(f"{field} must not be empty")
     return value
 
 
@@ -24,7 +26,10 @@ def _validate_user_names(names: object) -> list[str]:
         raise ValueError("names must be a list")
     if any(not isinstance(name, str) for name in names):
         raise ValueError("names list entries must be strings")
-    return cast(list[str], names)
+    validated_names = cast(list[str], names)
+    if any(name.strip() == "" for name in validated_names):
+        raise ValueError("names list entries must not be empty")
+    return validated_names
 
 
 def _validate_raise_when_not_found(value: object) -> bool:
