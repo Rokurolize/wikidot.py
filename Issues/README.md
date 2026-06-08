@@ -623,6 +623,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [617-pr-validate-page-discussion-cache-site.md](617-pr-validate-page-discussion-cache-site.md): upstream PR draft for the committed page discussion cache site validation fix.
 - [618-pr-validate-forum-thread-category-site.md](618-pr-validate-forum-thread-category-site.md): upstream PR draft for the committed forum thread category site validation fix.
 - [619-pr-validate-site-invite-user-client.md](619-pr-validate-site-invite-user-client.md): upstream PR draft for the committed site invitation user client validation fix.
+- [620-pr-validate-page-vote-search-user-client.md](620-pr-validate-page-vote-search-user-client.md): upstream PR draft for the committed page vote search user client validation fix.
 
 ## Local Evidence Index
 
@@ -1154,5 +1155,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 522: `3920654 fix(page): validate discussion cache site`
 - Local implementation commits, continued 523: `96f66ae fix(forum_thread): validate category site`
 - Local implementation commits, continued 524: `8cf16fa fix(site): validate invite user client`
+- Local implementation commits, continued 525: `423fa15 fix(page_votes): validate search user client`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
