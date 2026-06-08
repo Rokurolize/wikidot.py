@@ -68,6 +68,12 @@ def _validate_optional_page_discussion(discussion: object) -> "ForumThread | Non
     return discussion
 
 
+def _validate_discussion_cache_belongs_to_page_site(page: "Page", discussion: "ForumThread") -> None:
+    discussion_site = _validate_page_site(discussion.site)
+    if discussion_site is not page.site:
+        raise ValueError("page.discussion must belong to the page site")
+
+
 def _validate_page_text_field(field: str, value: object) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{field} must be a string")
@@ -1960,6 +1966,8 @@ class Page:
             _validate_votes_cache_belongs_to_page(self, self._votes)
         self._metas = _validate_optional_metas(self._metas)
         self._discussion = _validate_optional_page_discussion(self._discussion)
+        if self._discussion is not None:
+            _validate_discussion_cache_belongs_to_page_site(self, self._discussion)
         self._discussion_checked = _validate_page_bool_field("page.discussion_checked", self._discussion_checked)
         self._files = _validate_optional_page_file_collection(self._files)
         if self._files is not None:

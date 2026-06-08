@@ -13,6 +13,7 @@ from wikidot.module.page_file import PageFile, PageFileCollection
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.page_votes import PageVote, PageVoteCollection
+from wikidot.module.site import Site
 from wikidot.module.user import User
 
 
@@ -507,6 +508,29 @@ class TestPageInit:
         assert page_without_thread._discussion is None
         assert page_without_thread._discussion_checked is True
         assert page_without_thread.discussion is None
+
+    def test_init_rejects_discussion_cache_from_different_site(self, mock_site_no_http: Any) -> None:
+        other_site = Site(
+            client=mock_site_no_http.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        creator = User(client=other_site.client, id=12345, name="test-user", unix_name="test-user")
+        discussion = ForumThread(
+            site=other_site,
+            id=3001,
+            title="Discussion thread",
+            description="Discussion thread description",
+            created_by=creator,
+            created_at=datetime(2023, 1, 1, 12, 0, 0),
+            post_count=0,
+        )
+
+        with pytest.raises(ValueError, match=r"page\.discussion must belong to the page site"):
+            _page(mock_site_no_http, _discussion=discussion, _discussion_checked=True)
 
     @pytest.mark.parametrize("discussion", [True, "cached discussion", {"id": 3001}, object()])
     def test_init_rejects_malformed_optional_discussion(self, mock_site_no_http: Any, discussion: Any) -> None:
