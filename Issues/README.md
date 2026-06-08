@@ -656,6 +656,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [650-pr-validate-non-negative-forum-thread-reply-parent-ids.md](650-pr-validate-non-negative-forum-thread-reply-parent-ids.md): upstream PR draft for the committed non-negative ForumThread reply parent-post ID validation fix.
 - [651-pr-validate-non-negative-publish-result-page-ids.md](651-pr-validate-non-negative-publish-result-page-ids.md): upstream PR draft for the committed non-negative PagePublishResult page-ID validation fix.
 - [652-pr-validate-non-negative-create-thread-result-ids.md](652-pr-validate-non-negative-create-thread-result-ids.md): upstream PR draft for the committed non-negative ForumCategory create-thread returned-ID validation fix.
+- [653-pr-validate-page-edit-lock-revision-ids.md](653-pr-validate-page-edit-lock-revision-ids.md): upstream PR draft for the committed Page.create_or_edit edit-lock page_revision_id validation fix.
 
 ## Local Evidence Index
 
@@ -1220,5 +1221,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 555: `3ca61ac fix(forum_thread): validate reply parent post id range`
 - Local implementation commits, continued 556: `033d451 fix(site): validate publish result page id range`
 - Local implementation commits, continued 557: `09e4eaa fix(forum_category): validate create thread ids`
+- Local implementation commits, continued 558: `5bcf2f2 fix(page): validate edit lock revision ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
