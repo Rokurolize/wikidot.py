@@ -111,6 +111,13 @@ def _validate_site_invitation_user_site(site: "Site", user: User) -> None:
         raise ValueError("user must belong to the site")
 
 
+def _validate_member_lookup_user_name(user_name: object) -> str:
+    user_name = _validate_page_text_field("user_name", user_name)
+    if user_name.strip() == "":
+        raise ValueError("user_name must not be empty")
+    return user_name
+
+
 def _validate_optional_user_id(user_id: object) -> int | None:
     if user_id is None:
         return None
@@ -1562,7 +1569,7 @@ class Site:
         bool
             True if the user is a site member, False otherwise
         """
-        user_name = _validate_page_text_field("user_name", user_name)
+        user_name = _validate_member_lookup_user_name(user_name)
         user_id = _validate_optional_user_id(user_id)
         users: list[QMCUser] = QuickModule.member_lookup(self.id, user_name)
 
