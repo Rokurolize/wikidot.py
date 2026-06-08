@@ -660,6 +660,31 @@ class TestPageRevision:
                 comment="Initial revision",
             )
 
+    def test_init_rejects_negative_revision_numbers(self, mock_page, mock_user) -> None:
+        """PageRevisionは負のリビジョン番号を受け付けない"""
+        with pytest.raises(ValueError, match="rev_no must be non-negative"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=-1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+            )
+
+    def test_init_accepts_zero_revision_number(self, mock_page, mock_user) -> None:
+        """PageRevisionは0番リビジョンを非負の値として受け付ける"""
+        revision = PageRevision(
+            page=mock_page,
+            id=100,
+            rev_no=0,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 1, 12, 0, 0),
+            comment="Initial revision",
+        )
+
+        assert revision.rev_no == 0
+
     @pytest.mark.parametrize("comment", [None, True, 1, []])
     def test_init_rejects_malformed_comments(self, mock_page, mock_user, comment: object) -> None:
         """PageRevisionは文字列のコメントだけ受け付ける"""

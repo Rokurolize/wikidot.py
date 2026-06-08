@@ -1720,6 +1720,44 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request.assert_not_called()
         assert mock_page_with_id._revisions is None
 
+    def test_acquire_revisions_negative_revision_number_includes_site_page_and_value_context(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+    ) -> None:
+        """履歴番号セルが負の場合はsite/page/revision/id/field/value文脈付きNoElementException"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+
+        body = """
+            <table class="page-history">
+              <tr id="revision-row-123">
+                <td>-1.</td><td></td><td></td><td></td>
+                <td>
+                  <span class="printuser">
+                    <a href="http://www.wikidot.com/user:info/test-user"
+                       onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test-user</a>
+                  </span>
+                </td>
+                <td><span class="odate time_1700000000">14 Nov 2023</span></td><td>comment</td>
+              </tr>
+            </table>
+        """
+        mock_response = self._json_response({"body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Revision number must be non-negative for site: test-site, page: test-page, revision: 123 "
+                r"\(id=12345, field=revision_number, value=-1\.\)"
+            ),
+        ):
+            collection.get_page_revisions()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._revisions is None
+
     def test_acquire_revisions_missing_created_by_includes_site_context(
         self,
         mock_site_no_http: Site,

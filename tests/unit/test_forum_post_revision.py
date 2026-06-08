@@ -1495,6 +1495,29 @@ class TestForumPostRevisionBasic:
                 created_at=datetime.now(tz=timezone.utc),
             )
 
+    def test_init_rejects_negative_revision_numbers(self, mock_forum_post_no_http: ForumPost) -> None:
+        """ForumPostRevisionの初期化は負のリビジョン番号を受け付けない"""
+        with pytest.raises(ValueError, match="rev_no must be non-negative"):
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=-1,
+                created_by=_user(mock_forum_post_no_http.thread.site.client),
+                created_at=datetime.now(tz=timezone.utc),
+            )
+
+    def test_init_accepts_zero_revision_number(self, mock_forum_post_no_http: ForumPost) -> None:
+        """ForumPostRevisionの初期化は初版の0番リビジョンを受け付ける"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=_user(mock_forum_post_no_http.thread.site.client),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+
+        assert revision.rev_no == 0
+
     @pytest.mark.parametrize("created_by", [None, True, 9001, "test-user", {"id": 12345}])
     def test_init_rejects_malformed_creators(self, mock_forum_post_no_http: ForumPost, created_by: object) -> None:
         """ForumPostRevisionの初期化はAbstractUserの作成者だけ受け付ける"""

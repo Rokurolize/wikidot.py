@@ -84,6 +84,8 @@ def _validate_revision_id(value: object) -> int:
 def _validate_revision_number(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("rev_no must be an integer")
+    if value < 0:
+        raise ValueError("rev_no must be non-negative")
     return value
 
 

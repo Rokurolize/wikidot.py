@@ -385,12 +385,18 @@ def _parse_revision_row_id(site: "Site", page: "Page", value: object) -> int:
 def _parse_revision_number(site: "Site", page: "Page", rev_id: int, value: object) -> int:
     value_text = str(value).strip()
     try:
-        return int(value_text.removesuffix("."))
+        rev_no = int(value_text.removesuffix("."))
     except ValueError as exc:
         raise exceptions.NoElementException(
             f"Revision number is malformed for site: {site.unix_name}, page: {page.fullname}, "
             f"revision: {rev_id} (id={page.id}, field=revision_number, value={value_text})"
         ) from exc
+    if rev_no < 0:
+        raise exceptions.NoElementException(
+            f"Revision number must be non-negative for site: {site.unix_name}, page: {page.fullname}, "
+            f"revision: {rev_id} (id={page.id}, field=revision_number, value={value_text})"
+        )
+    return rev_no
 
 
 def _user_onclick_value(user_elem: Tag) -> str:
