@@ -1446,6 +1446,62 @@ class TestSitePageAccessor:
                 metas_updated=False,
             )
 
+    @pytest.mark.parametrize(
+        ("cached_id", "page_id"),
+        [
+            (True, 1),
+            (False, 0),
+            ("12345", 12345),
+            (12345.0, 12345),
+            ([], 12345),
+        ],
+    )
+    def test_publish_result_rejects_malformed_retained_page_ids(
+        self, mock_site_no_http: Site, cached_id: Any, page_id: int
+    ) -> None:
+        """PagePublishResultは壊れた保持済みページIDを整合性判定に使わない"""
+        page = self._page(mock_site_no_http, "test-page", page_id)
+        page._id = cached_id
+        mock_site_no_http.amc_request = MagicMock()
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match="page.id must be an integer or None"),
+        ):
+            PagePublishResult(
+                page=page,
+                page_id=page_id,
+                source_matches=None,
+                tags_updated=False,
+                parent_updated=False,
+                metas_updated=False,
+            )
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_publish_result_rejects_negative_retained_page_id(self, mock_site_no_http: Site) -> None:
+        """PagePublishResultは負の保持済みページIDを整合性判定に使わない"""
+        page = self._page(mock_site_no_http, "test-page", 12345)
+        page._id = -1
+        mock_site_no_http.amc_request = MagicMock()
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match="page.id must be non-negative or None"),
+        ):
+            PagePublishResult(
+                page=page,
+                page_id=12345,
+                source_matches=None,
+                tags_updated=False,
+                parent_updated=False,
+                metas_updated=False,
+            )
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_publish_result_accepts_page_id_when_page_id_is_unloaded(self, mock_site_no_http: Site) -> None:
         """PagePublishResultのpage_idは未取得Pageに対して通信なしで保持できる"""
         page = self._page(mock_site_no_http, "test-page", 12345)

@@ -32,6 +32,7 @@ from .page import (
     SearchPagesQueryParams,
     _normalize_parent_fullname,
     _validate_metas,
+    _validate_optional_page_constructor_id,
     _validate_optional_page_id,
     _validate_page_bool_field,
     _validate_page_source,
@@ -277,7 +278,8 @@ def _validate_publish_result_page(value: object) -> None:
 
 
 def _validate_publish_result_page_id_matches_page(page: Page, page_id: int) -> None:
-    if page._id is not None and page._id != page_id:
+    retained_page_id = _validate_optional_page_constructor_id(page._id)
+    if retained_page_id is not None and retained_page_id != page_id:
         raise ValueError("page_id must match the result page")
 
 
