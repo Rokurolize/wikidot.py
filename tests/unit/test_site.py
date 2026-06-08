@@ -805,6 +805,109 @@ class TestSitePagesAccessor:
         assert result.source is source
         assert result.wiki_text == "source 371"
 
+    @pytest.mark.parametrize(
+        ("result_cached_id", "source_cached_id"),
+        [
+            (True, 1),
+            (False, 0),
+            ("371", 371),
+            (371.0, 371),
+            ([], 371),
+        ],
+    )
+    def test_source_result_rejects_malformed_retained_result_page_ids(
+        self, mock_site_no_http: Site, result_cached_id: Any, source_cached_id: int
+    ) -> None:
+        """PageSourceResultは壊れた結果ページIDをsource所有判定に使わない"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page._id = result_cached_id
+        source_page = self._page(mock_site_no_http, "page-two", source_cached_id)
+        source = PageSource(page=source_page, wiki_text="source 371")
+        mock_site_no_http.amc_request = MagicMock()
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match="page.id must be an integer or None"),
+        ):
+            PageSourceResult(page=page, source=source)
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_source_result_rejects_negative_retained_result_page_id(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultは負の結果ページIDをsource所有判定に使わない"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page._id = -1
+        source_page = self._page(mock_site_no_http, "page-two", 371)
+        source = PageSource(page=source_page, wiki_text="source 371")
+        mock_site_no_http.amc_request = MagicMock()
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match="page.id must be non-negative or None"),
+        ):
+            PageSourceResult(page=page, source=source)
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("result_cached_id", "source_cached_id"),
+        [
+            (1, True),
+            (0, False),
+            (371, "371"),
+            (371, 371.0),
+            (371, []),
+        ],
+    )
+    def test_source_result_rejects_malformed_retained_source_page_ids(
+        self, mock_site_no_http: Site, result_cached_id: int, source_cached_id: Any
+    ) -> None:
+        """PageSourceResultは壊れたsourceページIDをsource所有判定に使わない"""
+        page = self._page(mock_site_no_http, "page-one", result_cached_id)
+        source_page = self._page(mock_site_no_http, "page-two", 371)
+        source_page._id = source_cached_id
+        source = PageSource(page=source_page, wiki_text="source 371")
+        mock_site_no_http.amc_request = MagicMock()
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match="page.id must be an integer or None"),
+        ):
+            PageSourceResult(page=page, source=source)
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_source_result_rejects_negative_retained_source_page_id(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultは負のsourceページIDをsource所有判定に使わない"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        source_page = self._page(mock_site_no_http, "page-two", 371)
+        source_page._id = -1
+        source = PageSource(page=source_page, wiki_text="source 371")
+        mock_site_no_http.amc_request = MagicMock()
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match="page.id must be non-negative or None"),
+        ):
+            PageSourceResult(page=page, source=source)
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_source_result_accepts_zero_retained_source_page_ids(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultのsource所有判定はゼロID互換性を維持する"""
+        page = self._page(mock_site_no_http, "page-one", 0)
+        source_page = self._page(mock_site_no_http, "page-one", 0)
+        source = PageSource(page=source_page, wiki_text="source zero")
+
+        result = PageSourceResult(page=page, source=source)
+
+        assert result.source is source
+        assert result.wiki_text == "source zero"
+
     @pytest.mark.parametrize("error", ["missing", True, object()])
     def test_source_result_rejects_malformed_error(self, mock_site_no_http: Site, error: Any) -> None:
         """PageSourceResultのerrorはExceptionまたはNoneだけ受け付ける"""

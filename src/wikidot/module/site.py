@@ -313,8 +313,10 @@ def _validate_source_result_source_belongs_to_page(page: Page, source: PageSourc
         raise ValueError(message)
     if source_page.site is not page.site:
         raise ValueError(message)
-    if page._id is not None and source_page._id is not None:
-        if source_page._id != page._id:
+    result_page_id = _validate_optional_page_constructor_id(page._id)
+    source_page_id = _validate_optional_page_constructor_id(source_page._id)
+    if result_page_id is not None and source_page_id is not None:
+        if source_page_id != result_page_id:
             raise ValueError(message)
         return
     if source_page.fullname != page.fullname:
