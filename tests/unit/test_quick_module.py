@@ -68,6 +68,19 @@ class TestQMCPage:
         with pytest.raises(ValueError, match="unix_name must be a string"):
             QMCPage(title="Test Page", unix_name=bad_unix_name)
 
+    @pytest.mark.parametrize("unix_name", ["", "   "])
+    def test_init_rejects_blank_unix_names(self, unix_name: str) -> None:
+        """unix_nameのblank値は受け付けない"""
+        with pytest.raises(ValueError, match="unix_name must not be empty"):
+            QMCPage(title="Test Page", unix_name=unix_name)
+
+    def test_init_allows_blank_titles(self) -> None:
+        """titleのblank値は既存どおり受け付ける"""
+        page = QMCPage(title="", unix_name="test-page")
+
+        assert page.title == ""
+        assert page.unix_name == "test-page"
+
 
 class TestQuickModuleRequest:
     """QuickModule._requestのテスト"""
@@ -654,6 +667,19 @@ class TestQuickModulePageLookup:
         ):
             QuickModule.page_lookup(123456, "test")
 
+    def test_page_lookup_allows_blank_title(self):
+        """ページ検索のblank titleは既存どおり受け付ける"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"pages": [{"title": "", "unix_name": "untitled"}]}
+
+        with patch("httpx.get", return_value=mock_response):
+            pages = QuickModule.page_lookup(123456, "test")
+
+        assert len(pages) == 1
+        assert pages[0].title == ""
+        assert pages[0].unix_name == "untitled"
+
     def test_page_lookup_missing_unix_name_includes_module_site_row_and_field_context(self):
         """ページ検索のunix_name欠落はQuickModule文脈付きで失敗する"""
         mock_response = MagicMock()
@@ -666,6 +692,25 @@ class TestQuickModulePageLookup:
                 ValueError,
                 match=(
                     r"QuickModule row field is missing for module: PageLookupQModule, site_id=123456 "
+                    r"\(row=1, field=unix_name\)"
+                ),
+            ),
+        ):
+            QuickModule.page_lookup(123456, "test")
+
+    @pytest.mark.parametrize("unix_name", ["", "   "])
+    def test_page_lookup_blank_unix_name_includes_module_site_row_and_field_context(self, unix_name: str):
+        """ページ検索のblank unix_nameはQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"pages": [{"title": "Bad Page", "unix_name": unix_name}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is empty for module: PageLookupQModule, site_id=123456 "
                     r"\(row=1, field=unix_name\)"
                 ),
             ),

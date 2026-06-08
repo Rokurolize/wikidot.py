@@ -27,6 +27,13 @@ def _validate_qmc_user_name(name: object) -> str:
     return name
 
 
+def _validate_qmc_page_unix_name(unix_name: object) -> str:
+    unix_name = _validate_qmc_text_field("unix_name", unix_name)
+    if unix_name.strip() == "":
+        raise ValueError("unix_name must not be empty")
+    return unix_name
+
+
 def _validate_quickmodule_site_id(site_id: object) -> int:
     if not isinstance(site_id, int) or isinstance(site_id, bool):
         raise ValueError("site_id must be an integer")
@@ -83,7 +90,7 @@ class QMCPage:
 
     def __post_init__(self) -> None:
         self.title = _validate_qmc_text_field("title", self.title)
-        self.unix_name = _validate_qmc_text_field("unix_name", self.unix_name)
+        self.unix_name = _validate_qmc_page_unix_name(self.unix_name)
 
 
 T = TypeVar("T", QMCUser, QMCPage)
@@ -240,7 +247,7 @@ class QuickModule:
     def _map_page_item(module_name: str, site_id: int, row_index: int, item: dict[str, Any]) -> QMCPage:
         return QMCPage(
             title=QuickModule._row_text_field(module_name, site_id, row_index, item, "title"),
-            unix_name=QuickModule._row_text_field(module_name, site_id, row_index, item, "unix_name"),
+            unix_name=QuickModule._row_non_empty_text_field(module_name, site_id, row_index, item, "unix_name"),
         )
 
     @staticmethod
