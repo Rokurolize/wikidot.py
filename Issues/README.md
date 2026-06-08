@@ -638,6 +638,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [632-pr-validate-non-negative-page-file-sizes.md](632-pr-validate-non-negative-page-file-sizes.md): upstream PR draft for the committed non-negative PageFile size validation fix.
 - [633-pr-validate-non-negative-page-metrics.md](633-pr-validate-non-negative-page-metrics.md): upstream PR draft for the committed non-negative Page metrics validation fix.
 - [634-pr-validate-non-negative-forum-category-counts.md](634-pr-validate-non-negative-forum-category-counts.md): upstream PR draft for the committed non-negative ForumCategory count validation fix.
+- [635-pr-validate-non-negative-forum-thread-post-counts.md](635-pr-validate-non-negative-forum-thread-post-counts.md): upstream PR draft for the committed non-negative ForumThread post-count validation fix.
 
 ## Local Evidence Index
 
@@ -1184,5 +1185,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 537: `10f0f73 fix(page_file): validate non-negative file sizes`
 - Local implementation commits, continued 538: `ef9a925 fix(page): validate non-negative page metrics`
 - Local implementation commits, continued 539: `f778ae6 fix(forum_category): validate non-negative category counts`
+- Local implementation commits, continued 540: `c685f2f fix(forum_thread): validate non-negative post counts`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
