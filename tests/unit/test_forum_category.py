@@ -493,6 +493,31 @@ class TestForumCategoryBasic:
                 posts_count=50,
             )
 
+    def test_init_rejects_negative_category_id(self, mock_site_no_http: Site) -> None:
+        """負のカテゴリIDを拒否する"""
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumCategory(
+                site=mock_site_no_http,
+                id=-1,
+                title="Test Category",
+                description="Test category description",
+                threads_count=10,
+                posts_count=50,
+            )
+
+    def test_init_accepts_zero_category_id(self, mock_site_no_http: Site) -> None:
+        """0のカテゴリIDは有効なIDとして保持する"""
+        category = ForumCategory(
+            site=mock_site_no_http,
+            id=0,
+            title="Test Category",
+            description="Test category description",
+            threads_count=10,
+            posts_count=50,
+        )
+
+        assert category.id == 0
+
     @pytest.mark.parametrize("threads_count", [None, True, "10", 10.0])
     def test_init_rejects_non_integer_threads_count(self, mock_site_no_http: Site, threads_count: object) -> None:
         """整数以外のスレッド数を拒否する"""

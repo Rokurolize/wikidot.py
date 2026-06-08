@@ -141,6 +141,8 @@ def _validate_threads_cache_belongs_to_category(
 def _validate_forum_category_id(category_id: object) -> int:
     if not isinstance(category_id, int) or isinstance(category_id, bool):
         raise ValueError("id must be an integer")
+    if category_id < 0:
+        raise ValueError("id must be non-negative")
     return category_id
 
 
