@@ -661,6 +661,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [655-pr-validate-page-edit-lock-revision-before-page-id.md](655-pr-validate-page-edit-lock-revision-before-page-id.md): upstream PR draft for the committed Page.create_or_edit edit-lock revision validation precedence fix.
 - [656-pr-validate-page-edit-lock-locked-field.md](656-pr-validate-page-edit-lock-locked-field.md): upstream PR draft for the committed Page.create_or_edit edit-lock locked field validation fix.
 - [657-pr-validate-non-negative-site-change-revision-numbers.md](657-pr-validate-non-negative-site-change-revision-numbers.md): upstream PR draft for the committed non-negative SiteChange revision-number validation fix.
+- [658-pr-validate-retained-page-id-getter-state.md](658-pr-validate-retained-page-id-getter-state.md): upstream PR draft for the committed retained Page.id getter validation fix.
 
 ## Local Evidence Index
 
@@ -1230,5 +1231,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 560: `1b60730 fix(page): validate edit lock revision before page id`
 - Local implementation commits, continued 561: `16a7a54 fix(page): validate edit lock locked field`
 - Local implementation commits, continued 562: `d05c7ce fix(site): validate site change revision ranges`
+- Local implementation commits, continued 563: `d4701c2 fix(page): validate retained page ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
