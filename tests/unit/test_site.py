@@ -153,6 +153,18 @@ class TestSiteChangeDataclass:
         with pytest.raises(ValueError, match="revision_no must be an integer"):
             self._site_change(mock_site_no_http, flags=["S"], revision_no=revision_no)
 
+    @pytest.mark.parametrize("revision_no", [-1, -100])
+    def test_init_rejects_negative_revision_numbers(self, mock_site_no_http: Site, revision_no: int) -> None:
+        """SiteChange初期化時のrevision_noは負数を受け付けない"""
+        with pytest.raises(ValueError, match="revision_no must be non-negative"):
+            self._site_change(mock_site_no_http, flags=["S"], revision_no=revision_no)
+
+    def test_init_accepts_zero_revision_number(self, mock_site_no_http: Site) -> None:
+        """SiteChange初期化時のrevision_no=0は非負値として保持する"""
+        change = self._site_change(mock_site_no_http, flags=["S"], revision_no=0)
+
+        assert change.revision_no == 0
+
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [

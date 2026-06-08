@@ -174,6 +174,8 @@ def _validate_site_change_flags(flags: object) -> list[str]:
 def _validate_site_change_revision_no(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("revision_no must be an integer")
+    if value < 0:
+        raise ValueError("revision_no must be non-negative")
     return value
 
 
