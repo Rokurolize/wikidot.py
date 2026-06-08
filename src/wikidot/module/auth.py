@@ -17,6 +17,8 @@ LOGIN_RETRY_LIMIT = 3
 def _validate_login_text(field: str, value: object) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{field} must be a string")
+    if not value.strip():
+        raise ValueError(f"{field} must not be empty")
     return value
 
 

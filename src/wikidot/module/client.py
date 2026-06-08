@@ -26,8 +26,12 @@ def _validate_client_credentials_pair(username: object, password: object) -> Non
         raise ValueError("username and password must be provided together")
     if username is not None and not isinstance(username, str):
         raise ValueError("username must be a string")
+    if isinstance(username, str) and not username.strip():
+        raise ValueError("username must not be empty")
     if password is not None and not isinstance(password, str):
         raise ValueError("password must be a string")
+    if isinstance(password, str) and not password.strip():
+        raise ValueError("password must not be empty")
 
 
 def _validate_client_amc_config(value: object) -> AjaxModuleConnectorConfig | None:

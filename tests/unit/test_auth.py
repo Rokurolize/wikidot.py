@@ -75,6 +75,34 @@ class TestHTTPAuthentication:
         mock_post.assert_not_called()
         mock_client.amc_client.header.set_cookie.assert_not_called()
 
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("username", "", "username must not be empty"),
+            ("username", "   ", "username must not be empty"),
+            ("password", "", "password must not be empty"),
+            ("password", "   ", "password must not be empty"),
+        ],
+    )
+    def test_login_rejects_blank_credentials_before_request(self, field: str, value: str, message: str) -> None:
+        """空の認証情報はHTTPリクエスト前に拒否する"""
+        mock_client = self._mock_client()
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.text = "Login successful"
+        mock_response.cookies = {"WIKIDOT_SESSION_ID": "test-session-id"}
+        username = value if field == "username" else "test-user"
+        password = value if field == "password" else "test-password"
+
+        with (
+            patch("wikidot.module.auth.httpx.post", return_value=mock_response) as mock_post,
+            pytest.raises(ValueError, match=message),
+        ):
+            HTTPAuthentication.login(mock_client, username, password)
+
+        mock_post.assert_not_called()
+        mock_client.amc_client.header.set_cookie.assert_not_called()
+
     @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
     def test_login_rejects_malformed_client_before_config(self, client: object) -> None:
         """直接ログインはClient以外の親を設定参照前に拒否する"""
