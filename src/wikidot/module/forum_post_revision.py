@@ -78,6 +78,8 @@ def _validate_forum_thread_site(site: object) -> "Site":
 def _validate_revision_id(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("id must be an integer")
+    if value < 0:
+        raise ValueError("id must be non-negative")
     return value
 
 

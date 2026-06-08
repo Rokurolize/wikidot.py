@@ -645,6 +645,31 @@ class TestPageRevision:
                 comment="Initial revision",
             )
 
+    def test_init_rejects_negative_ids(self, mock_page, mock_user) -> None:
+        """PageRevisionは負のリビジョンIDを受け付けない"""
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            PageRevision(
+                page=mock_page,
+                id=-1,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+            )
+
+    def test_init_accepts_zero_id(self, mock_page, mock_user) -> None:
+        """PageRevisionは0のリビジョンIDを非負の値として受け付ける"""
+        revision = PageRevision(
+            page=mock_page,
+            id=0,
+            rev_no=1,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 1, 12, 0, 0),
+            comment="Initial revision",
+        )
+
+        assert revision.id == 0
+
     @pytest.mark.parametrize("rev_no", [None, True, "1", 1.0])
     def test_init_rejects_malformed_revision_numbers(self, mock_page, mock_user, rev_no: object) -> None:
         """PageRevisionは整数のリビジョン番号だけ受け付ける"""

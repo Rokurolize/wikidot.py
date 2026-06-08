@@ -1481,6 +1481,29 @@ class TestForumPostRevisionBasic:
                 created_at=datetime.now(tz=timezone.utc),
             )
 
+    def test_init_rejects_negative_ids(self, mock_forum_post_no_http: ForumPost) -> None:
+        """ForumPostRevisionの初期化は負のリビジョンIDを受け付けない"""
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=-1,
+                rev_no=0,
+                created_by=_user(mock_forum_post_no_http.thread.site.client),
+                created_at=datetime.now(tz=timezone.utc),
+            )
+
+    def test_init_accepts_zero_id(self, mock_forum_post_no_http: ForumPost) -> None:
+        """ForumPostRevisionの初期化は0のリビジョンIDを非負の値として受け付ける"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=0,
+            rev_no=0,
+            created_by=_user(mock_forum_post_no_http.thread.site.client),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+
+        assert revision.id == 0
+
     @pytest.mark.parametrize("rev_no", [None, True, "0", 0.0])
     def test_init_rejects_malformed_revision_numbers(self, mock_forum_post_no_http: ForumPost, rev_no: object) -> None:
         """ForumPostRevisionの初期化は整数のリビジョン番号だけ受け付ける"""

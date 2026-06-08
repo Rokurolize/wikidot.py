@@ -48,6 +48,8 @@ def _validate_revisions_belong_to_page(page: "Page", revisions: list["PageRevisi
 def _validate_revision_id(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("id must be an integer")
+    if value < 0:
+        raise ValueError("id must be non-negative")
     return value
 
 
