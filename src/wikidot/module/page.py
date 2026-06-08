@@ -533,13 +533,19 @@ def _parse_who_rated_user(site: "Site", page: "Page", user_elem: Tag) -> Any:
         ) from exc
 
 
-def _require_page_edit_lock_field(site: "Site", fullname: str, data: dict[str, Any], field: str) -> Any:
+def _require_page_edit_lock_field(site: "Site", fullname: str, data: dict[str, Any], field: str) -> str:
     try:
-        return data[field]
+        value = data[field]
     except KeyError as exc:
         raise exceptions.NoElementException(
             f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} (field={field})"
         ) from exc
+
+    if not isinstance(value, str) or value.strip() == "":
+        raise exceptions.NoElementException(
+            f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} (field={field})"
+        )
+    return value
 
 
 def _validate_page_edit_revision_id(site: "Site", fullname: str, data: dict[str, Any]) -> int | None:
