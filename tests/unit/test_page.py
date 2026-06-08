@@ -393,6 +393,25 @@ class TestPageCollectionParse:
         ):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    def test_parse_negative_count_field_includes_site_page_and_value_context(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """負の件数フィールドはsite/page/field/value文脈付きNoElementException"""
+        body = page_listpages_single["body"].replace(
+            '<span class="set comments"><span class="name">comments</span> <span class="value">0</span></span>',
+            '<span class="set comments"><span class="name">comments</span> <span class="value">-1</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"ListPages integer field must be non-negative for site: test-site, page: scp-001 "
+                r"\(field=comments, value=-1\)"
+            ),
+        ):
+            PageCollection._parse(mock_site_no_http, html_body)
+
     def test_parse_malformed_odate_field_includes_site_page_and_value_context(
         self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
     ) -> None:

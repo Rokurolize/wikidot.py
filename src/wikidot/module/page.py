@@ -86,6 +86,13 @@ def _validate_page_integer_field(field: str, value: object) -> int:
     return value
 
 
+def _validate_page_non_negative_integer_field(field: str, value: object) -> int:
+    value = _validate_page_integer_field(field, value)
+    if value < 0:
+        raise ValueError(f"{field} must be non-negative")
+    return value
+
+
 def _validate_page_rating_field(value: object) -> int | float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("rating must be an integer or float")
@@ -431,6 +438,17 @@ def _parse_listpages_integer_field(site: "Site", page_name: str, key: str, value
             f"ListPages integer field is malformed for site: {site.unix_name}, page: {page_name} "
             f"(field={key}, value={value_text})"
         ) from exc
+
+
+def _parse_listpages_non_negative_integer_field(site: "Site", page_name: str, key: str, value: object) -> int:
+    parsed = _parse_listpages_integer_field(site, page_name, key, value)
+    if parsed < 0:
+        value_text = str(value).strip()
+        raise exceptions.NoElementException(
+            f"ListPages integer field must be non-negative for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={value_text})"
+        )
+    return parsed
 
 
 def _parse_listpages_float_field(site: "Site", page_name: str, key: str, value: object) -> float:
@@ -1046,7 +1064,7 @@ class PageCollection(list["Page"]):
 
                 elif key in ["rating_votes", "comments", "size", "children", "revisions"]:
                     page_name = str(page_params.get("fullname", "unknown"))
-                    value = _parse_listpages_integer_field(site, page_name, key, value_element.text)
+                    value = _parse_listpages_non_negative_integer_field(site, page_name, key, value_element.text)
 
                 elif key in ["rating"]:
                     page_name = str(page_params.get("fullname", "unknown"))
@@ -1936,13 +1954,13 @@ class Page:
         self.name = _validate_page_text_field("name", self.name)
         self.category = _validate_page_text_field("category", self.category)
         self.title = _validate_page_text_field("title", self.title)
-        self.children_count = _validate_page_integer_field("children_count", self.children_count)
-        self.comments_count = _validate_page_integer_field("comments_count", self.comments_count)
-        self.size = _validate_page_integer_field("size", self.size)
+        self.children_count = _validate_page_non_negative_integer_field("children_count", self.children_count)
+        self.comments_count = _validate_page_non_negative_integer_field("comments_count", self.comments_count)
+        self.size = _validate_page_non_negative_integer_field("size", self.size)
         self.rating = _validate_page_rating_field(self.rating)
-        self.votes_count = _validate_page_integer_field("votes_count", self.votes_count)
+        self.votes_count = _validate_page_non_negative_integer_field("votes_count", self.votes_count)
         self.rating_percent = _validate_page_rating_percent_field(self.rating_percent)
-        self.revisions_count = _validate_page_integer_field("revisions_count", self.revisions_count)
+        self.revisions_count = _validate_page_non_negative_integer_field("revisions_count", self.revisions_count)
         self.parent_fullname = _normalize_parent_fullname(self.parent_fullname)
         self.tags = _validate_page_tags(self.tags)
         self.created_by = _validate_optional_page_user_field("created_by", self.created_by)

@@ -146,6 +146,11 @@ class TestPageInit:
 
         assert page.rating == rating
 
+    def test_init_accepts_negative_rating(self, mock_site_no_http: Any) -> None:
+        page = _page(mock_site_no_http, rating=-3)
+
+        assert page.rating == -3
+
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [
@@ -201,6 +206,36 @@ class TestPageInit:
     def test_init_rejects_malformed_counts(self, mock_site_no_http: Any, field: str, value: Any, message: str) -> None:
         with pytest.raises(ValueError, match=message):
             _page(mock_site_no_http, **{field: value})
+
+    @pytest.mark.parametrize(
+        ("field", "message"),
+        [
+            ("children_count", "children_count must be non-negative"),
+            ("comments_count", "comments_count must be non-negative"),
+            ("size", "size must be non-negative"),
+            ("votes_count", "votes_count must be non-negative"),
+            ("revisions_count", "revisions_count must be non-negative"),
+        ],
+    )
+    def test_init_rejects_negative_counts(self, mock_site_no_http: Any, field: str, message: str) -> None:
+        with pytest.raises(ValueError, match=message):
+            _page(mock_site_no_http, **{field: -1})
+
+    def test_init_allows_zero_counts(self, mock_site_no_http: Any) -> None:
+        page = _page(
+            mock_site_no_http,
+            children_count=0,
+            comments_count=0,
+            size=0,
+            votes_count=0,
+            revisions_count=0,
+        )
+
+        assert page.children_count == 0
+        assert page.comments_count == 0
+        assert page.size == 0
+        assert page.votes_count == 0
+        assert page.revisions_count == 0
 
     @pytest.mark.parametrize("rating", [None, True, "10", []])
     def test_init_rejects_malformed_rating(self, mock_site_no_http: Any, rating: Any) -> None:
