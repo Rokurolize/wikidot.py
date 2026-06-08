@@ -658,6 +658,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [652-pr-validate-non-negative-create-thread-result-ids.md](652-pr-validate-non-negative-create-thread-result-ids.md): upstream PR draft for the committed non-negative ForumCategory create-thread returned-ID validation fix.
 - [653-pr-validate-page-edit-lock-revision-ids.md](653-pr-validate-page-edit-lock-revision-ids.md): upstream PR draft for the committed Page.create_or_edit edit-lock page_revision_id validation fix.
 - [654-pr-validate-page-edit-lock-token-fields.md](654-pr-validate-page-edit-lock-token-fields.md): upstream PR draft for the committed Page.create_or_edit edit-lock token field validation fix.
+- [655-pr-validate-page-edit-lock-revision-before-page-id.md](655-pr-validate-page-edit-lock-revision-before-page-id.md): upstream PR draft for the committed Page.create_or_edit edit-lock revision validation precedence fix.
 
 ## Local Evidence Index
 
@@ -1224,5 +1225,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 557: `09e4eaa fix(forum_category): validate create thread ids`
 - Local implementation commits, continued 558: `5bcf2f2 fix(page): validate edit lock revision ids`
 - Local implementation commits, continued 559: `efa5a83 fix(page): validate edit lock token fields`
+- Local implementation commits, continued 560: `1b60730 fix(page): validate edit lock revision before page id`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
