@@ -1217,6 +1217,25 @@ class TestPrivateMessage:
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
 
+    def test_send_rejects_recipient_from_different_client_before_login(self, mock_client):
+        """送信先Userの親Client不一致はログイン確認やAMCリクエスト前に拒否する"""
+        other_client = create_autospec(Client, instance=True)
+        recipient = User(
+            client=other_client,
+            id=12345,
+            name="test-user",
+            unix_name="test-user",
+            avatar_url="https://www.wikidot.com/avatar.php?userid=12345",
+        )
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="recipient must belong to the client"):
+            PrivateMessage.send(mock_client, recipient, "Test Subject", "Test Body")
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
     @pytest.mark.parametrize(
         ("kwargs", "message"),
         [
