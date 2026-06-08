@@ -2331,6 +2331,32 @@ class TestSiteInviteUser:
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
 
+    def test_invite_user_rejects_user_from_different_client_before_login(self) -> None:
+        """招待先UserはSiteと同じClientに属する必要がある"""
+        mock_client = create_mock_client(is_logged_in=True)
+        mock_client.login_check = MagicMock()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        other_client = create_mock_client(is_logged_in=True)
+        other_user = User(client=other_client, id=12345, name="test-user")
+
+        with pytest.raises(ValueError, match="user must belong to the site"):
+            site.invite_user(other_user, "Welcome message")
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
     def test_invite_user_success(self, site_invite_member_success: dict[str, Any]) -> None:
         """ユーザー招待成功"""
         mock_client = create_mock_client(is_logged_in=True)

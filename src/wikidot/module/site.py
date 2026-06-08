@@ -106,6 +106,11 @@ def _validate_site_invitation_user(user: object) -> User:
     return user
 
 
+def _validate_site_invitation_user_site(site: "Site", user: User) -> None:
+    if user.client is not site.client:
+        raise ValueError("user must belong to the site")
+
+
 def _validate_optional_user_id(user_id: object) -> int | None:
     if user_id is None:
         return None
@@ -1458,6 +1463,7 @@ class Site:
         """
         text = _validate_page_text_field("text", text)
         user = _validate_site_invitation_user(user)
+        _validate_site_invitation_user_site(self, user)
         self.client.login_check()
         try:
             response = self.amc_request(
