@@ -167,6 +167,8 @@ def _validate_optional_post_id(field: str, post_id: object) -> int | None:
         return None
     if not isinstance(post_id, int) or isinstance(post_id, bool):
         raise ValueError(f"{field} must be an integer or None")
+    if post_id < 0:
+        raise ValueError(f"{field} must be non-negative or None")
     return post_id
 
 
