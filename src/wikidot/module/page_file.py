@@ -75,6 +75,8 @@ def _validate_file_name(value: object) -> str:
 def _validate_file_size(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("size must be an integer")
+    if value < 0:
+        raise ValueError("size must be non-negative")
     return value
 
 

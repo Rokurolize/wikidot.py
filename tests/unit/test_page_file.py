@@ -953,6 +953,22 @@ class TestPageFile:
         with pytest.raises(ValueError, match="size must be an integer"):
             _page_file(page, size=bad_size)
 
+    @pytest.mark.parametrize("size", [-1, -1024])
+    def test_init_rejects_negative_sizes(self, size: int) -> None:
+        """PageFile.sizeは負のバイト数を受け付けない"""
+        page = _page()
+
+        with pytest.raises(ValueError, match="size must be non-negative"):
+            _page_file(page, size=size)
+
+    def test_init_allows_zero_size(self) -> None:
+        """PageFile.sizeは0バイト添付ファイルを保持できる"""
+        page = _page()
+
+        file = _page_file(page, size=0)
+
+        assert file.size == 0
+
     def test_str(self):
         """文字列表現"""
         page = _page()
