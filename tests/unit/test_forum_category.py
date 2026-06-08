@@ -942,6 +942,36 @@ class TestForumCategoryCreateThread:
         assert mock_forum_category_no_http.site.amc_request.call_count == 1
         assert mock_forum_category_no_http._threads is cached_threads
 
+    @pytest.mark.parametrize("thread_id", [-1, -100])
+    def test_create_thread_negative_thread_id_is_malformed_and_preserves_cache(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        thread_id: int,
+    ) -> None:
+        """負数threadIdは生成結果不正として扱い古いthreadsキャッシュを保持する"""
+        mock_forum_category_no_http.site.client.is_logged_in = True
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+
+        create_response = MagicMock()
+        create_response.json.return_value = {"threadId": thread_id, "status": "ok"}
+        mock_forum_category_no_http.site.amc_request = MagicMock(return_value=[create_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Thread ID must be non-negative for site: test-site, category: 1001",
+        ):
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )
+
+        assert mock_forum_category_no_http.site.amc_request.call_count == 1
+        assert mock_forum_category_no_http._threads is cached_threads
+
     def test_create_thread_missing_action_status_does_not_fetch_created_thread(
         self,
         mock_forum_category_no_http: ForumCategory,
