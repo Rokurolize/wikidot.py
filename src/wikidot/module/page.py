@@ -153,6 +153,8 @@ def _validate_optional_page_id(value: object) -> int | None:
         return None
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("page_id must be an integer or None")
+    if value < 0:
+        raise ValueError("page_id must be non-negative or None")
     return value
 
 
@@ -161,12 +163,16 @@ def _validate_optional_page_constructor_id(value: object) -> int | None:
         return None
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("page.id must be an integer or None")
+    if value < 0:
+        raise ValueError("page.id must be non-negative or None")
     return value
 
 
 def _validate_page_id(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("page.id must be an integer")
+    if value < 0:
+        raise ValueError("page.id must be non-negative")
     return value
 
 

@@ -2362,6 +2362,19 @@ class TestPageProperties:
 
         assert mock_page_with_id.id == 12345
 
+    def test_id_setter_rejects_negative_ids(self, mock_page_with_id: Page) -> None:
+        """負のID代入は既存のIDを破壊しない"""
+        with pytest.raises(ValueError, match="page.id must be non-negative"):
+            mock_page_with_id.id = -1
+
+        assert mock_page_with_id.id == 12345
+
+    def test_id_setter_accepts_zero_id(self, mock_page_with_id: Page) -> None:
+        """0のID代入は非負の値として受け付ける"""
+        mock_page_with_id.id = 0
+
+        assert mock_page_with_id.id == 0
+
     def test_id_property_includes_page_context_when_acquire_leaves_id_missing(self, mock_page_no_http: Page) -> None:
         """id取得後もIDが未設定なら対象サイト名とページ名を含めて失敗する"""
         with (
@@ -4073,6 +4086,23 @@ class TestPageCreateOrEdit:
                 mock_site_no_http,
                 "existing-page",
                 page_id=page_id_value,
+                title="Updated Title",
+                source="Updated content",
+            )
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_create_or_edit_rejects_negative_page_id_before_login(self, mock_site_no_http: Site) -> None:
+        """負のpage_idはlogin前に拒否する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page_id must be non-negative or None"):
+            Page.create_or_edit(
+                mock_site_no_http,
+                "existing-page",
+                page_id=-1,
                 title="Updated Title",
                 source="Updated content",
             )
