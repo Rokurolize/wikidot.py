@@ -649,6 +649,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [643-pr-validate-non-negative-private-message-ids.md](643-pr-validate-non-negative-private-message-ids.md): upstream PR draft for the committed non-negative PrivateMessage ID validation fix.
 - [644-pr-validate-non-negative-forum-category-ids.md](644-pr-validate-non-negative-forum-category-ids.md): upstream PR draft for the committed non-negative ForumCategory ID validation fix.
 - [645-pr-validate-non-negative-site-ids.md](645-pr-validate-non-negative-site-ids.md): upstream PR draft for the committed non-negative Site and QuickModule site ID validation fix.
+- [646-pr-validate-non-negative-quickmodule-user-ids.md](646-pr-validate-non-negative-quickmodule-user-ids.md): upstream PR draft for the committed non-negative QuickModule user ID validation fix.
 
 ## Local Evidence Index
 
@@ -1206,5 +1207,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 548: `9ea0eb8 fix(private_message): validate non-negative message ids`
 - Local implementation commits, continued 549: `d00468c fix(forum_category): validate non-negative category ids`
 - Local implementation commits, continued 550: `d32f1b2 fix(site): validate non-negative site ids`
+- Local implementation commits, continued 551: `8b3c972 fix(quickmodule): validate non-negative user ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
