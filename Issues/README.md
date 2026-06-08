@@ -659,6 +659,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [653-pr-validate-page-edit-lock-revision-ids.md](653-pr-validate-page-edit-lock-revision-ids.md): upstream PR draft for the committed Page.create_or_edit edit-lock page_revision_id validation fix.
 - [654-pr-validate-page-edit-lock-token-fields.md](654-pr-validate-page-edit-lock-token-fields.md): upstream PR draft for the committed Page.create_or_edit edit-lock token field validation fix.
 - [655-pr-validate-page-edit-lock-revision-before-page-id.md](655-pr-validate-page-edit-lock-revision-before-page-id.md): upstream PR draft for the committed Page.create_or_edit edit-lock revision validation precedence fix.
+- [656-pr-validate-page-edit-lock-locked-field.md](656-pr-validate-page-edit-lock-locked-field.md): upstream PR draft for the committed Page.create_or_edit edit-lock locked field validation fix.
 
 ## Local Evidence Index
 
@@ -1226,5 +1227,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 558: `5bcf2f2 fix(page): validate edit lock revision ids`
 - Local implementation commits, continued 559: `efa5a83 fix(page): validate edit lock token fields`
 - Local implementation commits, continued 560: `1b60730 fix(page): validate edit lock revision before page id`
+- Local implementation commits, continued 561: `16a7a54 fix(page): validate edit lock locked field`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
