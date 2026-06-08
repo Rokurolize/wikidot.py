@@ -77,6 +77,16 @@ class TestSiteInit:
         with pytest.raises(ValueError, match=message):
             _site(mock_client_no_http, **{field: value})
 
+    @pytest.mark.parametrize("site_id", [-1, -100])
+    def test_init_rejects_negative_ids(self, mock_client_no_http: Any, site_id: int) -> None:
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            _site(mock_client_no_http, id=site_id)
+
+    def test_init_accepts_zero_id(self, mock_client_no_http: Any) -> None:
+        site = _site(mock_client_no_http, id=0)
+
+        assert site.id == 0
+
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [

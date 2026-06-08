@@ -113,6 +113,18 @@ class TestQuickModuleRequest:
             call_url = mock_get.call_args[0][0]
             assert "q=a+b%26role%3Dadmin" in call_url
 
+    def test_request_allows_zero_site_id(self, quickmodule_member_lookup: dict[str, Any]) -> None:
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = quickmodule_member_lookup
+
+        with patch("httpx.get", return_value=mock_response) as mock_get:
+            result = QuickModule._request("MemberLookupQModule", 0, "test")
+
+        call_url = mock_get.call_args[0][0]
+        assert "s=0" in call_url
+        assert result == quickmodule_member_lookup
+
     def test_request_retries_transient_5xx(self, quickmodule_member_lookup: dict[str, Any]):
         """QuickModuleの一時的な5xxは再試行する"""
         transient_response = MagicMock()
@@ -170,6 +182,20 @@ class TestQuickModuleRequest:
             pytest.raises(ValueError, match="site_id must be an integer"),
         ):
             lookup_func(bad_site_id, "test")
+
+        mock_get.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "lookup_func", [QuickModule.member_lookup, QuickModule.user_lookup, QuickModule.page_lookup]
+    )
+    @pytest.mark.parametrize("site_id", [-1, -100])
+    def test_lookup_rejects_negative_site_ids_before_request(self, lookup_func: Any, site_id: int) -> None:
+        """site_idの負数はリクエスト前に拒否する"""
+        with (
+            patch("httpx.get", side_effect=AssertionError("request reached")) as mock_get,
+            pytest.raises(ValueError, match="site_id must be non-negative"),
+        ):
+            lookup_func(site_id, "test")
 
         mock_get.assert_not_called()
 

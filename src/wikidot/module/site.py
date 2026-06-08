@@ -137,6 +137,8 @@ def _validate_recent_changes_limit(limit: object) -> int | None:
 def _validate_site_id(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("id must be an integer")
+    if value < 0:
+        raise ValueError("id must be non-negative")
     return value
 
 

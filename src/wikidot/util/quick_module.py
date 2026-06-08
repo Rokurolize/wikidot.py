@@ -37,6 +37,8 @@ def _validate_qmc_page_unix_name(unix_name: object) -> str:
 def _validate_quickmodule_site_id(site_id: object) -> int:
     if not isinstance(site_id, int) or isinstance(site_id, bool):
         raise ValueError("site_id must be an integer")
+    if site_id < 0:
+        raise ValueError("site_id must be non-negative")
     return site_id
 
 
