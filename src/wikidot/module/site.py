@@ -123,6 +123,8 @@ def _validate_optional_user_id(user_id: object) -> int | None:
         return None
     if not isinstance(user_id, int) or isinstance(user_id, bool):
         raise ValueError("user_id must be an integer")
+    if user_id < 0:
+        raise ValueError("user_id must be non-negative")
     return user_id
 
 

@@ -2648,6 +2648,27 @@ class TestSiteMemberLookup:
 
             assert result is False
 
+    def test_member_lookup_with_zero_user_id_match(self) -> None:
+        """user_id=0は非負数として照合できる"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with patch("wikidot.module.site.QuickModule.member_lookup") as mock_lookup:
+            from wikidot.util.quick_module import QMCUser
+
+            mock_lookup.return_value = [QMCUser(id=0, name="test-user")]
+
+            result = site.member_lookup("test-user", user_id=0)
+
+            assert result is True
+
     def test_member_lookup_rejects_non_string_user_name_before_quickmodule(self) -> None:
         """ユーザー名が文字列でない場合は QuickModule 呼び出し前に拒否"""
         mock_client = create_mock_client()
@@ -2705,6 +2726,25 @@ class TestSiteMemberLookup:
         with patch("wikidot.module.site.QuickModule.member_lookup") as mock_lookup:
             with pytest.raises(ValueError, match="user_id must be an integer"):
                 site.member_lookup("test-user", user_id=invalid_user_id)
+
+            mock_lookup.assert_not_called()
+
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    def test_member_lookup_rejects_negative_user_id_before_quickmodule(self, user_id: int) -> None:
+        """負数ユーザーIDは QuickModule 呼び出し前に拒否"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with patch("wikidot.module.site.QuickModule.member_lookup") as mock_lookup:
+            with pytest.raises(ValueError, match="user_id must be non-negative"):
+                site.member_lookup("test-user", user_id=user_id)
 
             mock_lookup.assert_not_called()
 
