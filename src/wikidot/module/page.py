@@ -113,6 +113,11 @@ def _validate_optional_page_user_field(field: str, value: object) -> "AbstractUs
     return value
 
 
+def _validate_optional_page_user_belongs_to_site(site: "Site", field: str, user: "AbstractUser | None") -> None:
+    if user is not None and user.client is not site.client:
+        raise ValueError(f"{field} must belong to the site")
+
+
 def _validate_optional_page_datetime_field(field: str, value: object) -> datetime | None:
     if value is None:
         return None
@@ -1940,6 +1945,9 @@ class Page:
         self.updated_at = _validate_optional_page_datetime_field("updated_at", self.updated_at)
         self.commented_by = _validate_optional_page_user_field("commented_by", self.commented_by)
         self.commented_at = _validate_optional_page_datetime_field("commented_at", self.commented_at)
+        _validate_optional_page_user_belongs_to_site(self.site, "created_by", self.created_by)
+        _validate_optional_page_user_belongs_to_site(self.site, "updated_by", self.updated_by)
+        _validate_optional_page_user_belongs_to_site(self.site, "commented_by", self.commented_by)
         self._id = _validate_optional_page_constructor_id(self._id)
         self._source = _validate_optional_page_source_object(self._source)
         if self._source is not None:

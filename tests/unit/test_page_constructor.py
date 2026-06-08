@@ -2,9 +2,11 @@
 
 from datetime import datetime
 from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 
+from wikidot.module.client import Client
 from wikidot.module.forum_thread import ForumThread
 from wikidot.module.page import Page
 from wikidot.module.page_file import PageFile, PageFileCollection
@@ -12,6 +14,15 @@ from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.page_votes import PageVote, PageVoteCollection
 from wikidot.module.user import User
+
+
+def _client() -> Client:
+    client: Any = object.__new__(Client)
+    client.is_logged_in = False
+    client.username = None
+    client.me = None
+    client.login_check = MagicMock()
+    return client
 
 
 def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
@@ -285,6 +296,13 @@ class TestPageInit:
     def test_init_rejects_malformed_user_metadata(self, mock_site_no_http: Any, field: str, value: Any) -> None:
         with pytest.raises(ValueError, match=f"{field} must be an AbstractUser or None"):
             _page(mock_site_no_http, **{field: value})
+
+    @pytest.mark.parametrize("field", ["created_by", "updated_by", "commented_by"])
+    def test_init_rejects_user_metadata_from_different_client(self, mock_site_no_http: Any, field: str) -> None:
+        user = User(client=_client(), id=12345, name="test-user", unix_name="test-user")
+
+        with pytest.raises(ValueError, match=f"{field} must belong to the site"):
+            _page(mock_site_no_http, **{field: user})
 
     @pytest.mark.parametrize("field", ["created_at", "updated_at", "commented_at"])
     @pytest.mark.parametrize("value", [True, 1700000000, "2023-01-01", [], object()])
