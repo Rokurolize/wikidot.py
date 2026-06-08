@@ -11,6 +11,8 @@ from .http import sync_get_with_retry
 def _validate_qmc_integer_field(field: str, value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError(f"{field} must be an integer")
+    if value < 0:
+        raise ValueError(f"{field} must be non-negative")
     return value
 
 
@@ -239,6 +241,11 @@ class QuickModule:
                 f"QuickModule user ID is malformed for module: {module_name}, site_id={site_id} "
                 f"(row={row_index}, field=user_id, value={user_id_value})"
             ) from exc
+        if user_id < 0:
+            raise ValueError(
+                f"QuickModule user ID is malformed for module: {module_name}, site_id={site_id} "
+                f"(row={row_index}, field=user_id, value={user_id_value})"
+            )
 
         return QMCUser(
             id=user_id,

@@ -27,6 +27,18 @@ class TestQMCUser:
         with pytest.raises(ValueError, match="id must be an integer"):
             QMCUser(id=bad_user_id, name="test-user")
 
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    def test_init_rejects_negative_ids(self, user_id: int) -> None:
+        """idの負数は受け付けない"""
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            QMCUser(id=user_id, name="test-user")
+
+    def test_init_accepts_zero_id(self) -> None:
+        """id=0は非負数として扱う"""
+        user = QMCUser(id=0, name="test-user")
+
+        assert user.id == 0
+
     @pytest.mark.parametrize("name", [None, True, 12345, [], object()])
     def test_init_rejects_malformed_names(self, name: object) -> None:
         """nameは文字列だけ受け付ける"""
@@ -392,6 +404,24 @@ class TestQuickModuleMemberLookup:
         ):
             QuickModule.member_lookup(123456, "test")
 
+    def test_member_lookup_negative_user_id_includes_module_site_row_and_value_context(self):
+        """メンバー検索の負数user_idはQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "-1", "name": "bad-user"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule user ID is malformed for module: MemberLookupQModule, site_id=123456 "
+                    r"\(row=1, field=user_id, value=-1\)"
+                ),
+            ),
+        ):
+            QuickModule.member_lookup(123456, "test")
+
     def test_member_lookup_malformed_name_includes_module_site_row_field_and_type_context(self):
         """メンバー検索のname異常値はQuickModule文脈付きで失敗する"""
         mock_response = MagicMock()
@@ -517,6 +547,37 @@ class TestQuickModuleUserLookup:
             ),
         ):
             QuickModule.user_lookup(123456, "test")
+
+    def test_user_lookup_negative_user_id_includes_module_site_row_and_value_context(self):
+        """ユーザー検索の負数user_idはQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "-1", "name": "bad-user"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule user ID is malformed for module: UserLookupQModule, site_id=123456 "
+                    r"\(row=1, field=user_id, value=-1\)"
+                ),
+            ),
+        ):
+            QuickModule.user_lookup(123456, "test")
+
+    def test_user_lookup_accepts_zero_user_id(self):
+        """user_id=0は非負数として扱う"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "0", "name": "zero-user"}]}
+
+        with patch("httpx.get", return_value=mock_response):
+            users = QuickModule.user_lookup(123456, "test")
+
+        assert len(users) == 1
+        assert users[0].id == 0
+        assert users[0].name == "zero-user"
 
     def test_user_lookup_malformed_name_includes_module_site_row_field_and_type_context(self):
         """ユーザー検索のname異常値はQuickModule文脈付きで失敗する"""
