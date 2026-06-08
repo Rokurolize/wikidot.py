@@ -1339,6 +1339,42 @@ class TestSitePageAccessor:
                 metas_updated=False,
             )
 
+    @pytest.mark.parametrize("page_id", [-1, -100])
+    def test_publish_result_rejects_negative_page_ids(self, mock_site_no_http: Site, page_id: int) -> None:
+        """PagePublishResultのpage_idは負数を受け付けない"""
+        page = self._page(mock_site_no_http, "test-page", 12345)
+        page._id = None
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page_id must be non-negative"):
+            PagePublishResult(
+                page=page,
+                page_id=page_id,
+                source_matches=None,
+                tags_updated=False,
+                parent_updated=False,
+                metas_updated=False,
+            )
+
+        assert page._id is None
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_publish_result_accepts_zero_page_id(self, mock_site_no_http: Site) -> None:
+        """PagePublishResultのpage_idはゼロ互換性を維持する"""
+        page = self._page(mock_site_no_http, "test-page", 0)
+
+        result = PagePublishResult(
+            page=page,
+            page_id=0,
+            source_matches=None,
+            tags_updated=False,
+            parent_updated=False,
+            metas_updated=False,
+        )
+
+        assert result.page_id == 0
+        assert result.as_dict()["page_id"] == 0
+
     def test_publish_result_rejects_page_id_that_does_not_match_page(self, mock_site_no_http: Site) -> None:
         """PagePublishResultのpage_idは取得済みページIDと一致する必要がある"""
         page = self._page(mock_site_no_http, "test-page", 12345)

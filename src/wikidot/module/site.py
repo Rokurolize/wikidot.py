@@ -259,6 +259,8 @@ def _validate_publish_result_source_matches(value: object) -> None:
 def _validate_publish_result_page_id(value: object) -> None:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("page_id must be an integer")
+    if value < 0:
+        raise ValueError("page_id must be non-negative")
 
 
 def _validate_publish_result_boolean(value: object, field_name: str) -> None:
