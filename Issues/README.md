@@ -634,6 +634,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [628-pr-validate-blank-login-credentials.md](628-pr-validate-blank-login-credentials.md): upstream PR draft for the committed blank login credential validation fix.
 - [629-pr-validate-blank-site-routing-metadata.md](629-pr-validate-blank-site-routing-metadata.md): upstream PR draft for the committed blank Site routing metadata validation fix.
 - [630-pr-validate-blank-page-file-names.md](630-pr-validate-blank-page-file-names.md): upstream PR draft for the committed blank PageFile name validation fix.
+- [631-pr-validate-blank-site-change-page-fullnames.md](631-pr-validate-blank-site-change-page-fullnames.md): upstream PR draft for the committed blank SiteChange page fullname validation fix.
 
 ## Local Evidence Index
 
@@ -1176,5 +1177,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 533: `d540c5b fix(auth): validate blank login credentials`
 - Local implementation commits, continued 534: `5656e3c fix(site): validate blank routing metadata`
 - Local implementation commits, continued 535: `b5bef18 fix(page_file): validate blank file names`
+- Local implementation commits, continued 536: `bb605a0 fix(site): validate blank site change pages`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
