@@ -84,6 +84,11 @@ class TestUserDataclasses:
         assert user.id is None
         assert user.avatar_url is None
 
+    def test_anonymous_user_allows_missing_ip(self, mock_client_no_http: MagicMock) -> None:
+        user = AnonymousUser(client=mock_client_no_http)
+
+        assert user.ip is None
+
     def test_user_accepts_valid_optional_scalar_fields(self, mock_client_no_http: MagicMock) -> None:
         user = User(
             client=mock_client_no_http,
@@ -142,6 +147,42 @@ class TestUserDataclasses:
 
         with pytest.raises(ValueError, match=message):
             User(client=mock_client_no_http, **user_kwargs)
+
+    @pytest.mark.parametrize(
+        ("factory", "message"),
+        [
+            (lambda client: DeletedUser(client=client, name="deleted"), "name must be account deleted"),
+            (lambda client: DeletedUser(client=client, unix_name="deleted"), "unix_name must be account_deleted"),
+            (
+                lambda client: DeletedUser(client=client, avatar_url="http://example.com/avatar.png"),
+                "avatar_url must be None",
+            ),
+            (lambda client: DeletedUser(client=client, ip="192.168.1.1"), "ip must be None"),
+            (lambda client: AnonymousUser(client=client, id=12345), "id must be None"),
+            (lambda client: AnonymousUser(client=client, name="Anon"), "name must be Anonymous"),
+            (lambda client: AnonymousUser(client=client, unix_name="anon"), "unix_name must be anonymous"),
+            (
+                lambda client: AnonymousUser(client=client, avatar_url="http://example.com/avatar.png"),
+                "avatar_url must be None",
+            ),
+            (lambda client: GuestUser(client=client, id=12345), "id must be None"),
+            (lambda client: GuestUser(client=client, unix_name="guest"), "unix_name must be None"),
+            (lambda client: GuestUser(client=client, ip="192.168.1.1"), "ip must be None"),
+            (lambda client: WikidotUser(client=client, id=12345), "id must be None"),
+            (lambda client: WikidotUser(client=client, name="System"), "name must be Wikidot"),
+            (lambda client: WikidotUser(client=client, unix_name="system"), "unix_name must be wikidot"),
+            (
+                lambda client: WikidotUser(client=client, avatar_url="http://example.com/avatar.png"),
+                "avatar_url must be None",
+            ),
+            (lambda client: WikidotUser(client=client, ip="192.168.1.1"), "ip must be None"),
+        ],
+    )
+    def test_special_user_subclasses_reject_identity_overrides(
+        self, mock_client_no_http: MagicMock, factory: Any, message: str
+    ) -> None:
+        with pytest.raises(ValueError, match=message):
+            factory(mock_client_no_http)
 
 
 class TestUserFromName:

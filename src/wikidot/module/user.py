@@ -65,6 +65,11 @@ def _validate_user_optional_text_field(field: str, value: object) -> str | None:
     return value
 
 
+def _validate_user_expected_field(field: str, value: object, expected: object) -> None:
+    if value != expected:
+        raise ValueError(f"{field} must be {expected}")
+
+
 def _validate_user_collection_users(users: object) -> list["AbstractUser"]:
     if users is None:
         return []
@@ -351,6 +356,13 @@ class DeletedUser(AbstractUser):
     avatar_url: str | None = None
     ip: str | None = None
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("name", self.name, "account deleted")
+        _validate_user_expected_field("unix_name", self.unix_name, "account_deleted")
+        _validate_user_expected_field("avatar_url", self.avatar_url, None)
+        _validate_user_expected_field("ip", self.ip, None)
+
 
 @dataclass
 class AnonymousUser(AbstractUser):
@@ -381,6 +393,13 @@ class AnonymousUser(AbstractUser):
     unix_name: str | None = "anonymous"
     avatar_url: str | None = None
     ip: str | None = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("id", self.id, None)
+        _validate_user_expected_field("name", self.name, "Anonymous")
+        _validate_user_expected_field("unix_name", self.unix_name, "anonymous")
+        _validate_user_expected_field("avatar_url", self.avatar_url, None)
 
 
 @dataclass
@@ -413,6 +432,12 @@ class GuestUser(AbstractUser):
     avatar_url: str | None = None
     ip: str | None = None
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("id", self.id, None)
+        _validate_user_expected_field("unix_name", self.unix_name, None)
+        _validate_user_expected_field("ip", self.ip, None)
+
 
 @dataclass
 class WikidotUser(AbstractUser):
@@ -443,3 +468,11 @@ class WikidotUser(AbstractUser):
     unix_name: str | None = "wikidot"
     avatar_url: str | None = None
     ip: str | None = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("id", self.id, None)
+        _validate_user_expected_field("name", self.name, "Wikidot")
+        _validate_user_expected_field("unix_name", self.unix_name, "wikidot")
+        _validate_user_expected_field("avatar_url", self.avatar_url, None)
+        _validate_user_expected_field("ip", self.ip, None)
