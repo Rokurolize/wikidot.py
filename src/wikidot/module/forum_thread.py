@@ -58,6 +58,8 @@ def _validate_thread_created_at(created_at: object) -> datetime:
 def _validate_thread_post_count(post_count: object) -> int:
     if not isinstance(post_count, int) or isinstance(post_count, bool):
         raise ValueError("post_count must be an integer")
+    if post_count < 0:
+        raise ValueError("post_count must be non-negative")
     return post_count
 
 
@@ -203,10 +205,14 @@ def _parse_thread_list_count(
     site: "Site", category: Optional["ForumCategory"], row_index: int, page: int | None, value: str
 ) -> int:
     try:
-        return int(value)
+        count = int(value)
     except ValueError as exc:
         parse_context = _thread_list_parse_context(site, category, row_index, page, field="posts", value=value)
         raise NoElementException(f"Posts count is malformed {parse_context}") from exc
+    if count < 0:
+        parse_context = _thread_list_parse_context(site, category, row_index, page, field="posts", value=value)
+        raise NoElementException(f"Posts count must be non-negative {parse_context}")
+    return count
 
 
 def _parse_thread_list_user(
@@ -269,11 +275,15 @@ def _parse_thread_detail_post_count(
     site: "Site", thread_id: int | None, category: Optional["ForumCategory"], value: object
 ) -> int:
     value_text = str(value).strip()
-    post_count_match = re.search(r"(\d+)", value_text)
+    post_count_match = re.search(r"-?\d+", value_text)
     if post_count_match is None:
         parse_context = _thread_detail_parse_context(site, thread_id, category, field="posts", value=value_text)
         raise NoElementException(f"Post count is malformed {parse_context}")
-    return int(post_count_match.group(1))
+    count = int(post_count_match.group(0))
+    if count < 0:
+        parse_context = _thread_detail_parse_context(site, thread_id, category, field="posts", value=value_text)
+        raise NoElementException(f"Post count must be non-negative {parse_context}")
+    return count
 
 
 def _parse_thread_detail_thread_id(

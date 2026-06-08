@@ -546,6 +546,28 @@ class TestForumThreadCollectionAcquireAll:
         ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
 
+    def test_acquire_all_negative_post_count_includes_category_context(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド一覧の負の投稿数はサイト・カテゴリ・行・値を含めて失敗する"""
+        body_with_negative_count = forum_threads_in_category["body"].replace(
+            '<td class="posts">5</td>',
+            '<td class="posts">-1</td>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body_with_negative_count}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Posts count must be non-negative for site: test-site "
+                r"\(category=1001, page=1, row=1, field=posts, value=-1\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
     def test_acquire_all_malformed_user_includes_category_page_row_and_value_context(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
@@ -842,6 +864,27 @@ class TestForumThreadCollectionAcquireFromIds:
 
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_from_ids_negative_post_count_includes_thread_and_value_context(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """スレッド詳細の負の投稿数はsite/thread/field/value文脈付きで失敗する"""
+        body = forum_thread_detail["body"].replace("Number of posts: 5", "Number of posts: -1", 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Post count must be non-negative for site: test-site "
+                r"\(thread=3001, field=posts, value=Number of posts: -1\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_acquire_from_ids_malformed_script_thread_id_includes_thread_and_value_context(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
     ) -> None:
@@ -1109,6 +1152,35 @@ class TestForumThreadBasic:
                 post_count=bad_post_count,
                 category=mock_forum_thread_no_http.category,
             )
+
+    def test_init_rejects_negative_post_count(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """負のスレッド投稿数を拒否する"""
+        with pytest.raises(ValueError, match="post_count must be non-negative"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=-1,
+                category=mock_forum_thread_no_http.category,
+            )
+
+    def test_init_accepts_zero_post_count(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """投稿数0は有効なスレッド投稿数として扱う"""
+        thread = ForumThread(
+            site=mock_forum_thread_no_http.site,
+            id=mock_forum_thread_no_http.id,
+            title=mock_forum_thread_no_http.title,
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=0,
+            category=mock_forum_thread_no_http.category,
+        )
+
+        assert thread.post_count == 0
 
     @pytest.mark.parametrize("created_by", [None, True, 3001, "test_user", {"id": 12345}])
     def test_init_rejects_malformed_created_by(
