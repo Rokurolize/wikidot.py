@@ -32,6 +32,13 @@ def _validate_quickmodule_query(query: object) -> str:
     return query
 
 
+def _validate_quickmodule_user_query(query: object) -> str:
+    query = _validate_quickmodule_query(query)
+    if query.strip() == "":
+        raise ValueError("query must not be empty")
+    return query
+
+
 @dataclass
 class QMCUser:
     """Class to store user information returned from QuickModule
@@ -218,6 +225,7 @@ class QuickModule:
 
     @staticmethod
     def _user_lookup(module_name: str, site_id: int, query: str) -> list[QMCUser]:
+        query = _validate_quickmodule_user_query(query)
         items = QuickModule._response_items(module_name, site_id, query, "users")
         return [
             QuickModule._map_user_item(module_name, site_id, row_index, item)

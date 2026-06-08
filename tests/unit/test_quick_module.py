@@ -170,6 +170,33 @@ class TestQuickModuleRequest:
 
         mock_get.assert_not_called()
 
+    @pytest.mark.parametrize("lookup_func", [QuickModule.member_lookup, QuickModule.user_lookup])
+    @pytest.mark.parametrize("query", ["", "   "])
+    def test_user_lookups_reject_blank_queries_before_request(self, lookup_func: Any, query: str) -> None:
+        """ユーザー系lookupのblank queryはリクエスト前に拒否する"""
+        with (
+            patch("httpx.get", side_effect=AssertionError("request reached")) as mock_get,
+            pytest.raises(ValueError, match="query must not be empty"),
+        ):
+            lookup_func(123456, query)
+
+        mock_get.assert_not_called()
+
+    def test_page_lookup_allows_blank_query(self, quickmodule_page_lookup_empty: dict[str, Any]) -> None:
+        """PageLookupQModuleのblank queryは既存のリクエスト挙動を維持する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = quickmodule_page_lookup_empty
+
+        with patch("httpx.get", return_value=mock_response) as mock_get:
+            pages = QuickModule.page_lookup(123456, "")
+
+        assert pages == []
+        call_url = mock_get.call_args[0][0]
+        assert "PageLookupQModule" in call_url
+        assert "s=123456" in call_url
+        assert "q=" in call_url
+
     def test_request_site_not_found(self):
         """サイトが見つからない場合ValueError"""
         mock_response = MagicMock()
