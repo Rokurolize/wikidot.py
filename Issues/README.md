@@ -640,6 +640,11 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [634-pr-validate-non-negative-forum-category-counts.md](634-pr-validate-non-negative-forum-category-counts.md): upstream PR draft for the committed non-negative ForumCategory count validation fix.
 - [635-pr-validate-non-negative-forum-thread-post-counts.md](635-pr-validate-non-negative-forum-thread-post-counts.md): upstream PR draft for the committed non-negative ForumThread post-count validation fix.
 - [636-pr-validate-page-rating-percent-range.md](636-pr-validate-page-rating-percent-range.md): upstream PR draft for the committed Page rating-percent range validation fix.
+- [637-pr-validate-non-negative-revision-numbers.md](637-pr-validate-non-negative-revision-numbers.md): upstream PR draft for the committed non-negative revision-number validation fix.
+- [638-pr-validate-non-negative-revision-ids.md](638-pr-validate-non-negative-revision-ids.md): upstream PR draft for the committed non-negative revision-ID validation fix.
+- [639-pr-validate-non-negative-page-ids.md](639-pr-validate-non-negative-page-ids.md): upstream PR draft for the committed non-negative Page ID validation fix.
+- [640-pr-validate-non-negative-page-file-ids.md](640-pr-validate-non-negative-page-file-ids.md): upstream PR draft for the committed non-negative PageFile ID validation fix.
+- [641-pr-validate-non-negative-forum-post-ids.md](641-pr-validate-non-negative-forum-post-ids.md): upstream PR draft for the committed non-negative ForumPost ID validation fix.
 
 ## Local Evidence Index
 
@@ -1192,5 +1197,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 543: `db53b40 fix(revision): validate non-negative revision ids`
 - Local implementation commits, continued 544: `476e4cf fix(page): validate non-negative page ids`
 - Local implementation commits, continued 545: `38dcf8b fix(page_file): validate non-negative file ids`
+- Local implementation commits, continued 546: `10c5caa fix(forum_post): validate non-negative post ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
