@@ -636,6 +636,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [630-pr-validate-blank-page-file-names.md](630-pr-validate-blank-page-file-names.md): upstream PR draft for the committed blank PageFile name validation fix.
 - [631-pr-validate-blank-site-change-page-fullnames.md](631-pr-validate-blank-site-change-page-fullnames.md): upstream PR draft for the committed blank SiteChange page fullname validation fix.
 - [632-pr-validate-non-negative-page-file-sizes.md](632-pr-validate-non-negative-page-file-sizes.md): upstream PR draft for the committed non-negative PageFile size validation fix.
+- [633-pr-validate-non-negative-page-metrics.md](633-pr-validate-non-negative-page-metrics.md): upstream PR draft for the committed non-negative Page metrics validation fix.
 
 ## Local Evidence Index
 
@@ -1180,5 +1181,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 535: `b5bef18 fix(page_file): validate blank file names`
 - Local implementation commits, continued 536: `bb605a0 fix(site): validate blank site change pages`
 - Local implementation commits, continued 537: `10f0f73 fix(page_file): validate non-negative file sizes`
+- Local implementation commits, continued 538: `ef9a925 fix(page): validate non-negative page metrics`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
