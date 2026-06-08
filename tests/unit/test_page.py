@@ -4142,6 +4142,43 @@ class TestPageCreateOrEdit:
         with pytest.raises(exceptions.TargetErrorException):
             Page.create_or_edit(mock_site_no_http, "locked-page")
 
+    @pytest.mark.parametrize("locked", [None, 0, 1, "false", "true", [], {}])
+    def test_create_or_edit_malformed_locked_field_value_fails_before_save(
+        self,
+        mock_site_no_http: Site,
+        page_pageedit_success: dict[str, Any],
+        page_savepage_success: dict[str, Any],
+        page_listpages_empty: dict[str, Any],
+        locked: object,
+    ) -> None:
+        """編集ロックレスポンスのlocked型不正は保存前に失敗する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        malformed_lock_data = {**page_pageedit_success, "locked": locked}
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = malformed_lock_data
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = page_savepage_success
+        mock_search_response = MagicMock()
+        mock_search_response.json.return_value = page_listpages_empty
+        mock_site_no_http.amc_request = MagicMock(
+            side_effect=[
+                [mock_lock_response],
+                [mock_save_response],
+                [mock_search_response],
+                [mock_search_response],
+            ]
+        )
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Page edit lock response is malformed for site: test-site, page: new-page \\(field=locked\\)",
+        ):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        mock_site_no_http.amc_request.assert_called_once()
+
     def test_edit_without_page_id(self, mock_site_no_http: Site) -> None:
         """既存ページ編集時にpage_idがないと例外"""
         mock_site_no_http.client.is_logged_in = True

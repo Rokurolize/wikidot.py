@@ -548,6 +548,18 @@ def _require_page_edit_lock_field(site: "Site", fullname: str, data: dict[str, A
     return value
 
 
+def _validate_page_edit_locked_field(site: "Site", fullname: str, data: dict[str, Any]) -> bool:
+    if "locked" not in data:
+        return False
+
+    value = data["locked"]
+    if not isinstance(value, bool):
+        raise exceptions.NoElementException(
+            f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} (field=locked)"
+        )
+    return value
+
+
 def _validate_page_edit_revision_id(site: "Site", fullname: str, data: dict[str, Any]) -> int | None:
     if "page_revision_id" not in data:
         return None
@@ -2700,7 +2712,8 @@ class Page:
         page_lock_response = site.amc_request([page_lock_request_body])[0]
         page_lock_response_data = page_lock_response.json()
 
-        if page_lock_response_data.get("locked") or page_lock_response_data.get("other_locks"):
+        is_locked = _validate_page_edit_locked_field(site, fullname, page_lock_response_data)
+        if is_locked or page_lock_response_data.get("other_locks"):
             raise exceptions.TargetErrorException(
                 f"Page {fullname} is locked or other locks exist",
             )
