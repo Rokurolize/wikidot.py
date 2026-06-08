@@ -857,6 +857,78 @@ class TestPageRevision:
             )
 
     @pytest.mark.parametrize(
+        ("retained_id", "revision_page_id"),
+        [
+            (True, 1),
+            (False, 0),
+            ("12345", 12345),
+            (12345.0, 12345),
+            ([], 12345),
+        ],
+    )
+    def test_init_rejects_source_cache_with_malformed_retained_source_page_ids(
+        self, mock_page, mock_user, retained_id: object, revision_page_id: int
+    ) -> None:
+        """PageRevision初期sourceキャッシュは保持済みsource page IDの型異常を拒否する"""
+        mock_page._id = revision_page_id
+        source_owner = _page_on_same_site(mock_page, fullname=mock_page.fullname)
+        source_owner._id = retained_id  # type: ignore[assignment]
+        source = PageSource(page=source_owner, wiki_text="cached revision source")
+
+        with pytest.raises(ValueError, match=r"page\.id must be an integer or None"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+                _source=source,
+            )
+
+        assert mock_page._id == revision_page_id
+        mock_page.site.amc_request_with_retry.assert_not_called()
+
+    def test_init_rejects_source_cache_with_negative_retained_source_page_id(self, mock_page, mock_user) -> None:
+        """PageRevision初期sourceキャッシュは負の保持済みsource page IDを拒否する"""
+        source_owner = _page_on_same_site(mock_page, fullname=mock_page.fullname)
+        source_owner._id = -1
+        source = PageSource(page=source_owner, wiki_text="cached revision source")
+
+        with pytest.raises(ValueError, match=r"page\.id must be non-negative or None"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+                _source=source,
+            )
+
+        mock_page.site.amc_request_with_retry.assert_not_called()
+
+    def test_init_accepts_source_cache_with_zero_retained_page_ids(self, mock_page, mock_user) -> None:
+        """PageRevision初期sourceキャッシュは同一論理ページの0 IDを受け付ける"""
+        mock_page._id = 0
+        source_owner = _page_on_same_site(mock_page, fullname=mock_page.fullname)
+        source_owner._id = 0
+        source = PageSource(page=source_owner, wiki_text="cached revision source")
+
+        revision = PageRevision(
+            page=mock_page,
+            id=100,
+            rev_no=1,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 1, 12, 0, 0),
+            comment="Initial revision",
+            _source=source,
+        )
+
+        assert revision.source is source
+        mock_page.site.amc_request_with_retry.assert_not_called()
+
+    @pytest.mark.parametrize(
         "html",
         [True, 100, ["<p>Cached HTML</p>"], {"html": "<p>Cached HTML</p>"}, object()],
     )
@@ -968,6 +1040,98 @@ class TestPageRevision:
             sample_revision.source = other_source
 
         assert sample_revision.source == cached_source
+
+    @pytest.mark.parametrize(
+        ("retained_id", "source_page_id"),
+        [
+            (True, 1),
+            (False, 0),
+            ("12345", 12345),
+            (12345.0, 12345),
+            ([], 12345),
+        ],
+    )
+    def test_source_setter_rejects_malformed_retained_target_page_ids(
+        self, sample_revision, retained_id: object, source_page_id: int
+    ) -> None:
+        """sourceセッターは保持済みtarget page IDの型異常を拒否する"""
+        cached_source = PageSource(page=sample_revision.page, wiki_text="cached revision source")
+        sample_revision.source = cached_source
+        source_page = _page_on_same_site(sample_revision.page, fullname=sample_revision.page.fullname)
+        source_page._id = source_page_id
+        sample_revision.page._id = retained_id
+
+        with pytest.raises(ValueError, match=r"page\.id must be an integer or None"):
+            sample_revision.source = PageSource(source_page, "other revision source")
+
+        assert sample_revision._source is cached_source
+        sample_revision.page.site.amc_request_with_retry.assert_not_called()
+
+    def test_source_setter_rejects_negative_retained_target_page_id(self, sample_revision) -> None:
+        """sourceセッターは負の保持済みtarget page IDを拒否する"""
+        cached_source = PageSource(page=sample_revision.page, wiki_text="cached revision source")
+        sample_revision.source = cached_source
+        source_page = _page_on_same_site(sample_revision.page, fullname=sample_revision.page.fullname)
+        source_page._id = 12345
+        sample_revision.page._id = -1
+
+        with pytest.raises(ValueError, match=r"page\.id must be non-negative or None"):
+            sample_revision.source = PageSource(source_page, "other revision source")
+
+        assert sample_revision._source is cached_source
+        sample_revision.page.site.amc_request_with_retry.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("target_page_id", "retained_id"),
+        [
+            (1, True),
+            (0, False),
+            (12345, "12345"),
+            (12345, 12345.0),
+            (12345, []),
+        ],
+    )
+    def test_source_setter_rejects_malformed_retained_source_page_ids(
+        self, sample_revision, target_page_id: int, retained_id: object
+    ) -> None:
+        """sourceセッターは保持済みsource page IDの型異常を拒否する"""
+        cached_source = PageSource(page=sample_revision.page, wiki_text="cached revision source")
+        sample_revision.source = cached_source
+        sample_revision.page._id = target_page_id
+        source_page = _page_on_same_site(sample_revision.page, fullname=sample_revision.page.fullname)
+        source_page._id = retained_id  # type: ignore[assignment]
+
+        with pytest.raises(ValueError, match=r"page\.id must be an integer or None"):
+            sample_revision.source = PageSource(source_page, "other revision source")
+
+        assert sample_revision._source is cached_source
+        sample_revision.page.site.amc_request_with_retry.assert_not_called()
+
+    def test_source_setter_rejects_negative_retained_source_page_id(self, sample_revision) -> None:
+        """sourceセッターは負の保持済みsource page IDを拒否する"""
+        cached_source = PageSource(page=sample_revision.page, wiki_text="cached revision source")
+        sample_revision.source = cached_source
+        sample_revision.page._id = 12345
+        source_page = _page_on_same_site(sample_revision.page, fullname=sample_revision.page.fullname)
+        source_page._id = -1
+
+        with pytest.raises(ValueError, match=r"page\.id must be non-negative or None"):
+            sample_revision.source = PageSource(source_page, "other revision source")
+
+        assert sample_revision._source is cached_source
+        sample_revision.page.site.amc_request_with_retry.assert_not_called()
+
+    def test_source_setter_accepts_zero_retained_page_ids(self, sample_revision) -> None:
+        """sourceセッターは同一論理ページの0 IDを受け付ける"""
+        sample_revision.page._id = 0
+        source_page = _page_on_same_site(sample_revision.page, fullname=sample_revision.page.fullname)
+        source_page._id = 0
+        source = PageSource(source_page, "zero revision source")
+
+        sample_revision.source = source
+
+        assert sample_revision.source is source
+        sample_revision.page.site.amc_request_with_retry.assert_not_called()
 
     def test_html_property_lazy_load(self, mock_page, sample_revision):
         """htmlプロパティの遅延読み込み"""
