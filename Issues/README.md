@@ -619,6 +619,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [613-pr-validate-private-message-participant-clients.md](613-pr-validate-private-message-participant-clients.md): upstream PR draft for the committed private message participant client validation fix.
 - [614-pr-validate-private-message-send-recipient-client.md](614-pr-validate-private-message-send-recipient-client.md): upstream PR draft for the committed private message send recipient client validation fix.
 - [615-pr-validate-user-record-client.md](615-pr-validate-user-record-client.md): upstream PR draft for the committed user record client validation fix.
+- [616-pr-validate-page-metadata-user-clients.md](616-pr-validate-page-metadata-user-clients.md): upstream PR draft for the committed page metadata user client validation fix.
 
 ## Local Evidence Index
 
@@ -1146,5 +1147,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 518: `ed80a82 fix(private_message): validate participant clients`
 - Local implementation commits, continued 519: `89e855d fix(private_message): validate send recipient client`
 - Local implementation commits, continued 520: `51cbe20 fix(user): validate record client`
+- Local implementation commits, continued 521: `aeb4de4 fix(page): validate metadata user clients`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
