@@ -652,6 +652,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [646-pr-validate-non-negative-quickmodule-user-ids.md](646-pr-validate-non-negative-quickmodule-user-ids.md): upstream PR draft for the committed non-negative QuickModule user ID validation fix.
 - [647-pr-validate-non-negative-user-ids.md](647-pr-validate-non-negative-user-ids.md): upstream PR draft for the committed non-negative User and DeletedUser ID validation fix.
 - [648-pr-validate-non-negative-site-member-lookup-user-ids.md](648-pr-validate-non-negative-site-member-lookup-user-ids.md): upstream PR draft for the committed non-negative Site member lookup user-ID filter validation fix.
+- [649-pr-validate-non-negative-forum-post-edit-revision-ids.md](649-pr-validate-non-negative-forum-post-edit-revision-ids.md): upstream PR draft for the committed non-negative ForumPost edit-form revision-ID validation fix.
 
 ## Local Evidence Index
 
@@ -1212,5 +1213,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 551: `8b3c972 fix(quickmodule): validate non-negative user ids`
 - Local implementation commits, continued 552: `34ecd05 fix(user): validate non-negative user ids`
 - Local implementation commits, continued 553: `bafba51 fix(site): validate non-negative member lookup user ids`
+- Local implementation commits, continued 554: `b18db27 fix(forum): validate edit revision ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
