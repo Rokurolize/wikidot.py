@@ -2009,6 +2009,29 @@ class TestSiteFromUnixName:
 
         assert "unix_name" in str(exc_info.value).lower()
 
+    def test_from_unix_name_blank_parsed_unix_name(self, httpx_mock: HTTPXMock) -> None:
+        """siteUnixNameがblankの場合はSiteを返さない"""
+        client = create_mock_client()
+        html = """
+        <html>
+        <head><title>Site</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = 123;
+            WIKIREQUEST.info.siteUnixName = "";
+            WIKIREQUEST.info.domain = "site.wikidot.com";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="http://site.wikidot.com",
+            text=html,
+        )
+
+        with pytest.raises(ValueError, match="unix_name must not be empty"):
+            Site.from_unix_name(client, "site")
+
     def test_from_unix_name_missing_domain(self, httpx_mock: HTTPXMock) -> None:
         """domainがない場合はUnexpectedException"""
         client = create_mock_client()
@@ -2032,6 +2055,29 @@ class TestSiteFromUnixName:
             Site.from_unix_name(client, "site")
 
         assert "domain" in str(exc_info.value).lower()
+
+    def test_from_unix_name_blank_parsed_domain(self, httpx_mock: HTTPXMock) -> None:
+        """domainがblankの場合はSiteを返さない"""
+        client = create_mock_client()
+        html = """
+        <html>
+        <head><title>Site</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = 123;
+            WIKIREQUEST.info.siteUnixName = "site";
+            WIKIREQUEST.info.domain = "";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="http://site.wikidot.com",
+            text=html,
+        )
+
+        with pytest.raises(ValueError, match="domain must not be empty"):
+            Site.from_unix_name(client, "site")
 
 
 class TestSiteAmcRequest:

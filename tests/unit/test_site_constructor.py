@@ -40,6 +40,11 @@ class TestSiteInit:
         assert site.ssl_supported is True
         assert site.url == "https://test-site.wikidot.com"
 
+    def test_init_allows_blank_title(self, mock_client_no_http: Any) -> None:
+        site = _site(mock_client_no_http, title="")
+
+        assert site.title == ""
+
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [
@@ -75,8 +80,25 @@ class TestSiteInit:
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [
+            ("unix_name", "", "unix_name must not be empty"),
+            ("unix_name", "   ", "unix_name must not be empty"),
+            ("domain", "", "domain must not be empty"),
+            ("domain", "   ", "domain must not be empty"),
+        ],
+    )
+    def test_init_rejects_blank_routing_metadata(
+        self, mock_client_no_http: Any, field: str, value: str, message: str
+    ) -> None:
+        with pytest.raises(ValueError, match=message):
+            _site(mock_client_no_http, **{field: value})
+
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
             ("domain", None, "domain must be a string"),
             ("domain", True, "domain must be a string"),
+            ("domain", "", "domain must not be empty"),
+            ("domain", "   ", "domain must not be empty"),
             ("ssl_supported", 1, "ssl_supported must be a boolean"),
             ("ssl_supported", "true", "ssl_supported must be a boolean"),
         ],

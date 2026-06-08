@@ -146,6 +146,13 @@ def _validate_site_text_field(field_name: str, value: object) -> str:
     return value
 
 
+def _validate_site_routing_text_field(field_name: str, value: object) -> str:
+    value = _validate_site_text_field(field_name, value)
+    if value.strip() == "":
+        raise ValueError(f"{field_name} must not be empty")
+    return value
+
+
 def _validate_site_ssl_supported(value: object) -> bool:
     if not isinstance(value, bool):
         raise ValueError("ssl_supported must be a boolean")
@@ -1196,8 +1203,8 @@ class Site:
         """
         self.id = _validate_site_id(self.id)
         self.title = _validate_site_text_field("title", self.title)
-        self.unix_name = _validate_site_text_field("unix_name", self.unix_name)
-        self.domain = _validate_site_text_field("domain", self.domain)
+        self.unix_name = _validate_site_routing_text_field("unix_name", self.unix_name)
+        self.domain = _validate_site_routing_text_field("domain", self.domain)
         self.ssl_supported = _validate_site_ssl_supported(self.ssl_supported)
 
         self.pages = SitePagesAccessor(self)
@@ -1508,7 +1515,7 @@ class Site:
             Full URL of the site
         """
         ssl_supported = _validate_site_ssl_supported(self.ssl_supported)
-        domain = _validate_site_text_field("domain", self.domain)
+        domain = _validate_site_routing_text_field("domain", self.domain)
         return f"http{'s' if ssl_supported else ''}://{domain}"
 
     @property
