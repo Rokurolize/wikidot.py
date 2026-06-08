@@ -1156,5 +1156,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 523: `96f66ae fix(forum_thread): validate category site`
 - Local implementation commits, continued 524: `8cf16fa fix(site): validate invite user client`
 - Local implementation commits, continued 525: `423fa15 fix(page_votes): validate search user client`
+- Local implementation commits, continued 526: `ef69159 fix(user): validate special user identity fields`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
