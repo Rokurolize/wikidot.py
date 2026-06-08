@@ -35,6 +35,12 @@ class TestQMCUser:
         with pytest.raises(ValueError, match="name must be a string"):
             QMCUser(id=12345, name=bad_name)
 
+    @pytest.mark.parametrize("name", ["", "   "])
+    def test_init_rejects_blank_names(self, name: str) -> None:
+        """nameのblank値は受け付けない"""
+        with pytest.raises(ValueError, match="name must not be empty"):
+            QMCUser(id=12345, name=name)
+
 
 class TestQMCPage:
     """QMCPageデータクラスのテスト"""
@@ -365,6 +371,25 @@ class TestQuickModuleMemberLookup:
         ):
             QuickModule.member_lookup(123456, "test")
 
+    @pytest.mark.parametrize("name", ["", "   "])
+    def test_member_lookup_blank_name_includes_module_site_row_and_field_context(self, name: str) -> None:
+        """メンバー検索のblank nameはQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "12345", "name": name}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is empty for module: MemberLookupQModule, site_id=123456 "
+                    r"\(row=1, field=name\)"
+                ),
+            ),
+        ):
+            QuickModule.member_lookup(123456, "test")
+
     def test_member_lookup_malformed_row_includes_module_site_row_and_type_context(self):
         """メンバー検索の行形状異常はQuickModule文脈付きで失敗する"""
         mock_response = MagicMock()
@@ -467,6 +492,25 @@ class TestQuickModuleUserLookup:
                 match=(
                     r"QuickModule row field is malformed for module: UserLookupQModule, site_id=123456 "
                     r"\(row=1, field=name, expected=str, actual=int\)"
+                ),
+            ),
+        ):
+            QuickModule.user_lookup(123456, "test")
+
+    @pytest.mark.parametrize("name", ["", "   "])
+    def test_user_lookup_blank_name_includes_module_site_row_and_field_context(self, name: str) -> None:
+        """ユーザー検索のblank nameはQuickModule文脈付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": "12345", "name": name}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    r"QuickModule row field is empty for module: UserLookupQModule, site_id=123456 "
+                    r"\(row=1, field=name\)"
                 ),
             ),
         ):
