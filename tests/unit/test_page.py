@@ -1124,6 +1124,43 @@ class TestPageCollectionAcquire:
         assert mock_page_no_http.id == 333
         assert duplicate_page._id == 333
 
+    @pytest.mark.parametrize("page_id", [True, False, "333", 333.0, []])
+    def test_acquire_page_ids_rejects_malformed_retained_page_ids_before_fetch(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+        page_id: object,
+    ) -> None:
+        """保持済みpage_idの壊れた状態はcollection ID取得境界でもfetch前に拒否する"""
+        bad_page_id: Any = page_id
+        mock_page_no_http._id = bad_page_id
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        request = MagicMock(return_value=[])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        with pytest.raises(ValueError, match="page.id must be an integer"):
+            collection.get_page_ids()
+
+        request.assert_not_called()
+
+    def test_acquire_page_ids_rejects_negative_retained_page_id_before_fetch(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+    ) -> None:
+        """保持済み負数page_idはcollection ID取得境界でもfetch前に拒否する"""
+        mock_page_no_http._id = -1
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        request = MagicMock(return_value=[])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        with pytest.raises(ValueError, match="page.id must be non-negative"):
+            collection.get_page_ids()
+
+        request.assert_not_called()
+
     def test_acquire_page_ids_unexpected_response_type_includes_page_context(
         self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
     ) -> None:

@@ -176,6 +176,12 @@ def _validate_page_id(value: object) -> int:
     return value
 
 
+def _validate_retained_page_id(page: "Page") -> int | None:
+    if page._id is None:
+        return None
+    return _validate_page_id(page._id)
+
+
 def _validate_page_source_object(value: object) -> PageSource:
     if not isinstance(value, PageSource):
         raise ValueError("page.source must be PageSource")
@@ -1355,9 +1361,10 @@ class PageCollection(list["Page"]):
         pages = _validate_pages(pages)
         acquired_ids_by_url: dict[str, int] = {}
         for page in pages:
-            if page._id is not None:
+            retained_page_id = _validate_retained_page_id(page)
+            if retained_page_id is not None:
                 request_url = f"{page.get_url()}/norender/true/noredirect/true"
-                acquired_ids_by_url.setdefault(request_url, page._id)
+                acquired_ids_by_url.setdefault(request_url, retained_page_id)
 
         target_pages: list[Page] = []
         for page in pages:
