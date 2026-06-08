@@ -4202,6 +4202,104 @@ class TestPageCreateOrEdit:
 
         mock_site_no_http.amc_request.assert_called_once()
 
+    @pytest.mark.parametrize("revision_id", [None, True, False, "100", 100.0])
+    def test_create_or_edit_malformed_page_revision_id_fails_before_save(
+        self, mock_site_no_http: Site, page_pageedit_existing: dict[str, Any], revision_id: object
+    ) -> None:
+        """編集ロックレスポンスのpage_revision_id型不正は保存前に失敗する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        malformed_lock_data = {**page_pageedit_existing, "page_revision_id": revision_id}
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = malformed_lock_data
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_lock_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page edit lock response page_revision_id is malformed for site: test-site, page: existing-page "
+                r"\(field=page_revision_id"
+            ),
+        ):
+            Page.create_or_edit(
+                mock_site_no_http,
+                "existing-page",
+                page_id=12345,
+                title="Updated Title",
+                source="Updated content",
+            )
+
+        mock_site_no_http.amc_request.assert_called_once()
+
+    @pytest.mark.parametrize("revision_id", [-1, -100])
+    def test_create_or_edit_negative_page_revision_id_fails_before_save(
+        self, mock_site_no_http: Site, page_pageedit_existing: dict[str, Any], revision_id: int
+    ) -> None:
+        """編集ロックレスポンスの負数page_revision_idは保存前に失敗する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        malformed_lock_data = {**page_pageedit_existing, "page_revision_id": revision_id}
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = malformed_lock_data
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_lock_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page edit lock response page_revision_id must be non-negative for site: test-site, "
+                r"page: existing-page \(field=page_revision_id"
+            ),
+        ):
+            Page.create_or_edit(
+                mock_site_no_http,
+                "existing-page",
+                page_id=12345,
+                title="Updated Title",
+                source="Updated content",
+            )
+
+        mock_site_no_http.amc_request.assert_called_once()
+
+    def test_create_or_edit_accepts_zero_page_revision_id(
+        self,
+        mock_site_no_http: Site,
+        page_pageedit_existing: dict[str, Any],
+        page_savepage_success: dict[str, Any],
+        page_listpages_empty: dict[str, Any],
+    ) -> None:
+        """編集ロックレスポンスのpage_revision_idはゼロ互換性を維持する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        lock_data = {**page_pageedit_existing, "page_revision_id": 0}
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = lock_data
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = page_savepage_success
+        mock_search_response = MagicMock()
+        mock_search_response.json.return_value = page_listpages_empty
+        mock_site_no_http.amc_request = MagicMock(
+            side_effect=[
+                [mock_lock_response],
+                [mock_save_response],
+                [mock_search_response],
+                [mock_search_response],
+            ]
+        )
+
+        Page.create_or_edit(
+            mock_site_no_http,
+            "existing-page",
+            page_id=12345,
+            title="Updated Title",
+            source="Updated content",
+        )
+
+        save_body = mock_site_no_http.amc_request.call_args_list[1][0][0][0]
+        assert save_body["revision_id"] == 0
+
     def test_create_or_edit_save_failure_decodes_response_once(
         self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
     ) -> None:

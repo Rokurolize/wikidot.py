@@ -542,6 +542,24 @@ def _require_page_edit_lock_field(site: "Site", fullname: str, data: dict[str, A
         ) from exc
 
 
+def _validate_page_edit_revision_id(site: "Site", fullname: str, data: dict[str, Any]) -> int | None:
+    if "page_revision_id" not in data:
+        return None
+
+    value = data["page_revision_id"]
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise exceptions.NoElementException(
+            f"Page edit lock response page_revision_id is malformed for site: {site.unix_name}, page: {fullname} "
+            f"(field=page_revision_id, value={value})"
+        )
+    if value < 0:
+        raise exceptions.NoElementException(
+            f"Page edit lock response page_revision_id must be non-negative for site: {site.unix_name}, "
+            f"page: {fullname} (field=page_revision_id, value={value})"
+        )
+    return value
+
+
 def _require_page_save_status(site: "Site", fullname: str, data: dict[str, Any]) -> Any:
     try:
         return data["status"]
@@ -2693,7 +2711,7 @@ class Page:
         # lock_idとlock_secret、page_revision_id（あれば）を取得
         lock_id = _require_page_edit_lock_field(site, fullname, page_lock_response_data, "lock_id")
         lock_secret = _require_page_edit_lock_field(site, fullname, page_lock_response_data, "lock_secret")
-        page_revision_id = page_lock_response_data.get("page_revision_id")
+        page_revision_id = _validate_page_edit_revision_id(site, fullname, page_lock_response_data)
 
         # ページの作成または編集
         edit_request_body = {
