@@ -32,6 +32,7 @@ from .page import (
     SearchPagesQueryParams,
     _normalize_parent_fullname,
     _validate_metas,
+    _validate_optional_page_id,
     _validate_page_bool_field,
     _validate_page_source,
     _validate_page_tags,
@@ -500,7 +501,7 @@ class PageSourceResult:
     @property
     def page_id(self) -> int | None:
         """Page ID associated with this source result when already loaded."""
-        return self.page._id
+        return _validate_optional_page_id(self.page._id)
 
     @property
     def wiki_text(self) -> str | None:

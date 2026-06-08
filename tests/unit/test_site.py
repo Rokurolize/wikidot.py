@@ -726,6 +726,51 @@ class TestSitePagesAccessor:
         assert result.page_id is None
         mock_site_no_http.amc_request.assert_not_called()
 
+    @pytest.mark.parametrize("page_id", [True, False, "371", 371.0, []])
+    def test_source_result_page_id_rejects_malformed_retained_page_ids(
+        self, mock_site_no_http: Site, page_id: Any
+    ) -> None:
+        """PageSourceResult.page_idは壊れた保持済みIDをそのまま返さない"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page._id = page_id
+        mock_site_no_http.amc_request = MagicMock()
+
+        result = PageSourceResult(page=page, source=None, error=NotFoundException("missing"))
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match="page_id must be an integer or None"),
+        ):
+            _ = result.as_dict()
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_source_result_page_id_rejects_negative_retained_page_id(self, mock_site_no_http: Site) -> None:
+        """PageSourceResult.page_idは負の保持済みIDをそのまま返さない"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page._id = -1
+        mock_site_no_http.amc_request = MagicMock()
+
+        result = PageSourceResult(page=page, source=None, error=NotFoundException("missing"))
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match="page_id must be non-negative or None"),
+        ):
+            _ = result.as_dict()
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_source_result_page_id_accepts_zero_retained_page_id(self, mock_site_no_http: Site) -> None:
+        """PageSourceResult.page_idはゼロID互換性を維持する"""
+        page = self._page(mock_site_no_http, "page-one", 0)
+        result = PageSourceResult(page=page, source=None, error=NotFoundException("missing"))
+
+        assert result.page_id == 0
+        assert result.as_dict()["page_id"] == 0
+
     @pytest.mark.parametrize("page", [None, True, "test-page", {"fullname": "test-page"}, object()])
     def test_source_result_rejects_malformed_pages(self, page: Any) -> None:
         """PageSourceResultのpageはPageだけ受け付ける"""
