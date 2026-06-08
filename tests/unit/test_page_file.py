@@ -7,16 +7,26 @@ from unittest.mock import MagicMock
 import pytest
 
 from wikidot.common import exceptions
+from wikidot.module.client import Client
 from wikidot.module.page import Page
 from wikidot.module.page_file import PageFile, PageFileCollection
 from wikidot.module.site import Site
 from wikidot.module.user import User
 
 
+def _client() -> Client:
+    client: Any = object.__new__(Client)
+    client.is_logged_in = False
+    client.username = None
+    client.me = None
+    client.login_check = MagicMock()
+    return client
+
+
 def _page() -> Page:
     """HTTPなしで使う実Page"""
     site = Site(
-        client=MagicMock(),
+        client=_client(),
         id=123456,
         title="Test Site",
         unix_name="test-site",
@@ -25,7 +35,7 @@ def _page() -> Page:
     )
     site.amc_request = MagicMock()
     site.amc_request_with_retry = MagicMock()
-    user = User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
+    user = User(client=site.client, id=12345, name="test-user", unix_name="test-user")
     timestamp = datetime(2023, 1, 1, 12, 0, 0)
     return Page(
         site=site,

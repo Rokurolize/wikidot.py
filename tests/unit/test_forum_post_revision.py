@@ -10,6 +10,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
+from wikidot.module.client import Client
 from wikidot.module.forum_post import ForumPost
 from wikidot.module.forum_post_revision import ForumPostRevision, ForumPostRevisionCollection
 from wikidot.module.forum_thread import ForumThread
@@ -18,6 +19,15 @@ from wikidot.module.user import User
 
 if TYPE_CHECKING:
     from wikidot.module.forum_post import ForumPost
+
+
+def _client() -> Client:
+    client: Any = object.__new__(Client)
+    client.is_logged_in = False
+    client.username = None
+    client.me = None
+    client.login_check = MagicMock()
+    return client
 
 
 def _user(client: Any) -> User:
@@ -1501,7 +1511,7 @@ class TestForumPostRevisionBasic:
 
     def test_init_rejects_created_by_from_different_client(self, mock_forum_post_no_http: ForumPost) -> None:
         """ForumPostRevisionは親postのsiteと異なるclientの作成者を拒否する"""
-        other_client_user = _user(MagicMock())
+        other_client_user = _user(_client())
 
         with pytest.raises(ValueError, match="created_by must belong to the site"):
             ForumPostRevision(

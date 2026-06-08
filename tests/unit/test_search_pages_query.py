@@ -5,8 +5,18 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from wikidot.module.client import Client
 from wikidot.module.page import SearchPagesQuery
 from wikidot.module.user import User
+
+
+def _client() -> Client:
+    client: Any = object.__new__(Client)
+    client.is_logged_in = False
+    client.username = None
+    client.me = None
+    client.login_check = MagicMock()
+    return client
 
 
 class TestSearchPagesQueryInit:
@@ -130,7 +140,7 @@ class TestSearchPagesQueryAsDict:
     def test_as_dict_created_by_user_conversion(self):
         """created_byのUserオブジェクトがユーザーUNIX名に変換されるテスト"""
         user = User(
-            client=MagicMock(),
+            client=_client(),
             id=12345,
             name="Test User",
             unix_name="test-user",

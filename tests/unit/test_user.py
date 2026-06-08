@@ -107,6 +107,21 @@ class TestUserDataclasses:
         with pytest.raises(ValueError, match="id must be an integer or None"):
             User(client=mock_client_no_http, id=bad_user_id)
 
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    @pytest.mark.parametrize(
+        "factory",
+        [
+            lambda client: User(client=client, id=12345, name="test-user", unix_name="test-user"),
+            lambda client: DeletedUser(client=client, id=99999),
+            lambda client: AnonymousUser(client=client, ip="192.168.1.1"),
+            lambda client: GuestUser(client=client, name="Guest Name", avatar_url="http://gravatar.com/avatar/abc"),
+            lambda client: WikidotUser(client=client),
+        ],
+    )
+    def test_user_subclasses_reject_malformed_client(self, client: object, factory: Any) -> None:
+        with pytest.raises(ValueError, match="client must be a Client"):
+            factory(client)
+
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [

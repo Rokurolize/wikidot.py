@@ -10,11 +10,22 @@ import pytest
 from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
+from wikidot.module.client import Client
 from wikidot.module.forum_post import ForumPost, ForumPostCollection
 from wikidot.module.forum_post_revision import ForumPostRevision, ForumPostRevisionCollection
 from wikidot.module.forum_thread import ForumThread
 from wikidot.module.site import Site
 from wikidot.module.user import User
+
+
+def _client() -> Client:
+    client: Any = object.__new__(Client)
+    client.is_logged_in = False
+    client.username = None
+    client.me = None
+    client.login_check = MagicMock()
+    return client
+
 
 # ============================================================
 # ForumPostCollectionテスト
@@ -1624,7 +1635,7 @@ class TestForumPostBasic:
     def test_init_rejects_created_by_from_different_client(self, mock_forum_post_no_http: ForumPost) -> None:
         """投稿者が別client由来なら初期化時に拒否する"""
         created_by = User(
-            client=MagicMock(),
+            client=_client(),
             id=12345,
             name="test_user",
             unix_name="test-user",
@@ -1688,7 +1699,7 @@ class TestForumPostBasic:
     def test_init_rejects_edited_by_from_different_client(self, mock_forum_post_no_http: ForumPost) -> None:
         """編集者が別client由来なら初期化時に拒否する"""
         edited_by = User(
-            client=MagicMock(),
+            client=_client(),
             id=54322,
             name="edit_user",
             unix_name="edit-user",

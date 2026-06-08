@@ -11,10 +11,20 @@ from unittest.mock import MagicMock
 import pytest
 
 from wikidot.common.exceptions import NoElementException, UnexpectedException
+from wikidot.module.client import Client
 from wikidot.module.page import Page
 from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.user import User
+
+
+def _client() -> Client:
+    client: Any = object.__new__(Client)
+    client.is_logged_in = False
+    client.username = None
+    client.me = None
+    client.login_check = MagicMock()
+    return client
 
 
 @pytest.fixture
@@ -682,7 +692,7 @@ class TestPageRevision:
 
     def test_init_rejects_created_by_from_different_client(self, mock_page) -> None:
         """PageRevisionは親pageのsiteと異なるclientの作成者を拒否する"""
-        other_client_user = User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
+        other_client_user = User(client=_client(), id=12345, name="test-user", unix_name="test-user")
 
         with pytest.raises(ValueError, match="created_by must belong to the site"):
             PageRevision(

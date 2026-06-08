@@ -41,6 +41,14 @@ def _validate_user_lookup_client(client: object) -> "Client":
     return client
 
 
+def _validate_user_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
 def _validate_user_id_field(field: str, value: object) -> int | None:
     if value is None:
         return None
@@ -228,6 +236,7 @@ class AbstractUser:
         self.unix_name = _validate_user_optional_text_field("unix_name", self.unix_name)
         self.avatar_url = _validate_user_optional_text_field("avatar_url", self.avatar_url)
         self.ip = _validate_user_optional_text_field("ip", self.ip)
+        self.client = _validate_user_client(self.client)
 
     def __str__(self) -> str:
         """

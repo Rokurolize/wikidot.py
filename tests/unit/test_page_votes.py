@@ -6,16 +6,26 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from wikidot.module.client import Client
 from wikidot.module.page import Page
 from wikidot.module.page_votes import PageVote, PageVoteCollection
 from wikidot.module.site import Site
 from wikidot.module.user import User
 
 
+def _client() -> Client:
+    client: Any = object.__new__(Client)
+    client.is_logged_in = False
+    client.username = None
+    client.me = None
+    client.login_check = MagicMock()
+    return client
+
+
 def _page() -> Page:
     """HTTPなしで使う実Page"""
     site = Site(
-        client=MagicMock(),
+        client=_client(),
         id=123456,
         title="Test Site",
         unix_name="test-site",
@@ -256,7 +266,7 @@ class TestPageVote:
     def test_init_rejects_user_from_different_client(self) -> None:
         """投票ユーザーはページのsite clientに属するユーザーだけ受け付ける"""
         page = _page()
-        user = User(client=MagicMock(), id=12345, name="test-user", unix_name="test-user")
+        user = User(client=_client(), id=12345, name="test-user", unix_name="test-user")
 
         with pytest.raises(ValueError, match="user must belong to the site"):
             PageVote(page=page, user=user, value=1)

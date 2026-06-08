@@ -53,11 +53,12 @@ def mock_amc_config() -> AjaxModuleConnectorConfig:
 
 
 @pytest.fixture
-def mock_client_no_http() -> MagicMock:
+def mock_client_no_http() -> Any:
     """HTTPリクエストなしでClientをモック"""
     from wikidot.connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
+    from wikidot.module.client import Client
 
-    mock = MagicMock()
+    mock: Any = object.__new__(Client)
     mock.amc_client = MagicMock()
     mock.amc_client.header = AjaxRequestHeader()
     mock.amc_client.config = AjaxModuleConnectorConfig(
@@ -66,6 +67,9 @@ def mock_client_no_http() -> MagicMock:
         retry_interval=0,
     )
     mock.is_logged_in = False
+    mock.username = None
+    mock.me = None
+    mock.login_check = MagicMock()
     return mock
 
 

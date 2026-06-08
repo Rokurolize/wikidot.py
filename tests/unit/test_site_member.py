@@ -15,18 +15,28 @@ from wikidot.common.exceptions import (
     WikidotStatusCodeException,
 )
 from wikidot.connector.ajax import AjaxModuleConnectorConfig
+from wikidot.module.client import Client
 from wikidot.module.site import Site
 from wikidot.module.site_member import SiteMember
 from wikidot.module.user import User
 
 
+def _client() -> Client:
+    client: Any = object.__new__(Client)
+    client.is_logged_in = False
+    client.username = None
+    client.me = None
+    client.login_check = MagicMock()
+    return client
+
+
 def _member_user(user_id: int = 12345, name: str = "TestUser", client: Any | None = None) -> User:
-    return User(client=client or MagicMock(), id=user_id, name=name, unix_name="test-user")
+    return User(client=client if client is not None else _client(), id=user_id, name=name, unix_name="test-user")
 
 
 def _site(client: Any | None = None) -> Any:
     site: Any = Site(
-        client=client or MagicMock(),
+        client=client if client is not None else _client(),
         id=123456,
         title="Test Site",
         unix_name="test-site",
@@ -83,7 +93,7 @@ class TestSiteMemberDataclass:
     def test_init_rejects_user_from_different_client(self) -> None:
         """SiteMember.userはsiteと同じClientだけ受け付ける"""
         site = _site()
-        user = _member_user(client=MagicMock())
+        user = _member_user(client=_client())
 
         with pytest.raises(ValueError, match="member.user must belong to the site"):
             SiteMember(site=site, user=user, joined_at=None)
@@ -294,7 +304,7 @@ class TestSiteMemberGet:
 
     def test_get_members_retries_transient_first_page_failures(self):
         """メンバー一覧の初回取得は一時的なAMC失敗を再試行する"""
-        mock_client = MagicMock()
+        mock_client = _client()
         mock_client.amc_client = MagicMock()
         mock_client.amc_client.config = AjaxModuleConnectorConfig(retry_batch_size=50, retry_max_retries=3)
         site = Site(
@@ -939,7 +949,7 @@ class TestSiteMemberChangeGroup:
         site.client.login_check = MagicMock()
         site.amc_request = MagicMock()
         member = SiteMember(site=site, user=self._user(client=site.client), joined_at=None)
-        member.user = self._user(client=MagicMock())
+        member.user = self._user(client=_client())
 
         with pytest.raises(ValueError, match="member.user must belong to the site"):
             member.to_moderator()

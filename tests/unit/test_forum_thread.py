@@ -9,11 +9,21 @@ import pytest
 from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
+from wikidot.module.client import Client
 from wikidot.module.forum_thread import ForumThread, ForumThreadCollection
 
 if TYPE_CHECKING:
     from wikidot.module.forum_category import ForumCategory
     from wikidot.module.site import Site
+
+
+def _client() -> Client:
+    client: Any = object.__new__(Client)
+    client.is_logged_in = False
+    client.username = None
+    client.me = None
+    client.login_check = MagicMock()
+    return client
 
 
 def _thread_on_other_site(thread: ForumThread) -> ForumThread:
@@ -1104,7 +1114,7 @@ class TestForumThreadBasic:
         from wikidot.module.user import User
 
         created_by = User(
-            client=MagicMock(),
+            client=_client(),
             id=12345,
             name="test_user",
             unix_name="test-user",
