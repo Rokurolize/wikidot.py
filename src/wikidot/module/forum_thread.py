@@ -116,6 +116,14 @@ def _validate_optional_forum_category(category: object) -> Optional["ForumCatego
     return category
 
 
+def _validate_thread_category_belongs_to_site(site: "Site", category: Optional["ForumCategory"]) -> None:
+    if category is None:
+        return
+    category_site = _validate_forum_thread_site(category.site)
+    if category_site is not site:
+        raise ValueError("category must belong to the thread site")
+
+
 def _validate_optional_forum_thread_posts(posts: object) -> Optional["ForumPostCollection"]:
     if posts is None:
         return None
@@ -899,6 +907,7 @@ class ForumThread:
         self.created_at = _validate_thread_created_at(self.created_at)
         self.post_count = _validate_thread_post_count(self.post_count)
         self.category = _validate_optional_forum_category(self.category)
+        _validate_thread_category_belongs_to_site(self.site, self.category)
         self._posts = _validate_optional_forum_thread_posts(self._posts)
         if self._posts is not None:
             _validate_posts_cache_belongs_to_thread(self, self._posts)

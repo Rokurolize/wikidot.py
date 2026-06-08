@@ -415,7 +415,7 @@ class TestForumPostCollectionAcquireAll:
             created_by=mock_forum_thread_no_http.created_by,
             created_at=mock_forum_thread_no_http.created_at,
             post_count=mock_forum_thread_no_http.post_count,
-            category=mock_forum_thread_no_http.category,
+            category=None,
         )
         mock_forum_thread_no_http.site.amc_request = MagicMock()
         mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()

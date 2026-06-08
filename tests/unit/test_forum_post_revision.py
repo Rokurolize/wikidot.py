@@ -726,7 +726,7 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             created_by=mock_forum_post_no_http.thread.created_by,
             created_at=mock_forum_post_no_http.thread.created_at,
             post_count=mock_forum_post_no_http.thread.post_count,
-            category=mock_forum_post_no_http.thread.category,
+            category=None,
         )
         other_post = ForumPost(
             thread=other_thread,
@@ -891,7 +891,7 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             created_by=mock_forum_post_no_http.thread.created_by,
             created_at=mock_forum_post_no_http.thread.created_at,
             post_count=mock_forum_post_no_http.thread.post_count,
-            category=mock_forum_post_no_http.thread.category,
+            category=None,
         )
         other_post = ForumPost(
             thread=other_thread,

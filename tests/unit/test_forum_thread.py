@@ -49,6 +49,28 @@ def _thread_on_other_site(thread: ForumThread) -> ForumThread:
     )
 
 
+def _category_on_other_site(category: ForumCategory) -> ForumCategory:
+    from wikidot.module.forum_category import ForumCategory
+    from wikidot.module.site import Site
+
+    other_site = Site(
+        client=category.site.client,
+        id=654321,
+        title="Other Site",
+        unix_name="other-site",
+        domain="other-site.wikidot.com",
+        ssl_supported=True,
+    )
+    return ForumCategory(
+        site=other_site,
+        id=category.id,
+        title=category.title,
+        description=category.description,
+        threads_count=category.threads_count,
+        posts_count=category.posts_count,
+    )
+
+
 def _thread_with_id(source_thread: ForumThread, thread_id: int) -> ForumThread:
     return ForumThread(
         site=source_thread.site,
@@ -1192,6 +1214,24 @@ class TestForumThreadBasic:
                 created_at=mock_forum_thread_no_http.created_at,
                 post_count=mock_forum_thread_no_http.post_count,
                 category=bad_category,
+            )
+
+    def test_init_rejects_category_from_different_site(self, mock_forum_thread_no_http: ForumThread) -> None:
+        """スレッドの親カテゴリはスレッドと同じSiteに属する必要がある"""
+        category = mock_forum_thread_no_http.category
+        assert category is not None
+        other_category = _category_on_other_site(category)
+
+        with pytest.raises(ValueError, match="category must belong to the thread site"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=other_category,
             )
 
     @pytest.mark.parametrize("posts", [True, "5001", [], {"posts": []}, object()])
