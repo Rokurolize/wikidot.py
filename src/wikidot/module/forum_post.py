@@ -69,6 +69,8 @@ def _validate_posts_belong_to_thread(thread: "ForumThread", site: "Site", posts:
 def _validate_post_id(post_id: object) -> int:
     if not isinstance(post_id, int) or isinstance(post_id, bool):
         raise ValueError("id must be an integer")
+    if post_id < 0:
+        raise ValueError("id must be non-negative")
     return post_id
 
 
@@ -77,6 +79,8 @@ def _validate_optional_post_parent_id(parent_id: object) -> int | None:
         return None
     if not isinstance(parent_id, int) or isinstance(parent_id, bool):
         raise ValueError("parent_id must be an integer or None")
+    if parent_id < 0:
+        raise ValueError("parent_id must be non-negative or None")
     return parent_id
 
 

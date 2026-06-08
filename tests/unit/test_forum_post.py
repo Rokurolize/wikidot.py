@@ -1532,6 +1532,42 @@ class TestForumPostBasic:
                 _source=mock_forum_post_no_http._source,
             )
 
+    @pytest.mark.parametrize("parent_id", [-1, -100])
+    def test_init_rejects_negative_parent_id(self, mock_forum_post_no_http: ForumPost, parent_id: int) -> None:
+        """ForumPostの初期化は負の親投稿IDを拒否する"""
+        with pytest.raises(ValueError, match="parent_id must be non-negative or None"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    def test_init_accepts_zero_parent_id(self, mock_forum_post_no_http: ForumPost) -> None:
+        """ForumPostの初期化はゼロの親投稿IDを保持できる"""
+        post = ForumPost(
+            thread=mock_forum_post_no_http.thread,
+            id=mock_forum_post_no_http.id,
+            title=mock_forum_post_no_http.title,
+            text=mock_forum_post_no_http.text,
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=mock_forum_post_no_http.edited_by,
+            edited_at=mock_forum_post_no_http.edited_at,
+            _parent_id=0,
+            _source=mock_forum_post_no_http._source,
+        )
+
+        assert post.parent_id == 0
+
     @pytest.mark.parametrize("thread", [None, True, "3001", {"id": 3001}, object()])
     def test_init_rejects_malformed_threads(self, mock_forum_post_no_http: ForumPost, thread: object) -> None:
         """ForumPostの初期化はForumThreadだけ受け付ける"""
@@ -1571,6 +1607,42 @@ class TestForumPostBasic:
                 _parent_id=mock_forum_post_no_http._parent_id,
                 _source=mock_forum_post_no_http._source,
             )
+
+    @pytest.mark.parametrize("post_id", [-1, -100])
+    def test_init_rejects_negative_id(self, mock_forum_post_no_http: ForumPost, post_id: int) -> None:
+        """ForumPostの初期化は負の投稿IDを拒否する"""
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=post_id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    def test_init_accepts_zero_id(self, mock_forum_post_no_http: ForumPost) -> None:
+        """ForumPostの初期化はゼロの投稿IDを保持できる"""
+        post = ForumPost(
+            thread=mock_forum_post_no_http.thread,
+            id=0,
+            title=mock_forum_post_no_http.title,
+            text=mock_forum_post_no_http.text,
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=mock_forum_post_no_http.edited_by,
+            edited_at=mock_forum_post_no_http.edited_at,
+            _parent_id=mock_forum_post_no_http._parent_id,
+            _source=mock_forum_post_no_http._source,
+        )
+
+        assert post.id == 0
 
     @pytest.mark.parametrize("title", [None, True, 5001, ["Test Post Title"]])
     def test_init_rejects_malformed_title(self, mock_forum_post_no_http: ForumPost, title: object) -> None:
