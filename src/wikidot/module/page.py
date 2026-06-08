@@ -2705,8 +2705,10 @@ class Page:
                 f"Page {fullname} is locked or other locks exist",
             )
 
+        page_revision_id = _validate_page_edit_revision_id(site, fullname, page_lock_response_data)
+
         # ページが存在するか（page_revision_idがあるか）確認
-        is_exist = "page_revision_id" in page_lock_response_data
+        is_exist = page_revision_id is not None
 
         if raise_on_exists and is_exist:
             raise exceptions.TargetExistsException(f"Page {fullname} already exists")
@@ -2714,10 +2716,9 @@ class Page:
         if is_exist and page_id is None:
             raise ValueError("page_id must be specified when editing existing page")
 
-        # lock_idとlock_secret、page_revision_id（あれば）を取得
+        # lock_idとlock_secretを取得
         lock_id = _require_page_edit_lock_field(site, fullname, page_lock_response_data, "lock_id")
         lock_secret = _require_page_edit_lock_field(site, fullname, page_lock_response_data, "lock_secret")
-        page_revision_id = _validate_page_edit_revision_id(site, fullname, page_lock_response_data)
 
         # ページの作成または編集
         edit_request_body = {

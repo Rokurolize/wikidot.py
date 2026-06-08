@@ -4316,6 +4316,35 @@ class TestPageCreateOrEdit:
 
         mock_site_no_http.amc_request.assert_called_once()
 
+    @pytest.mark.parametrize("revision_id", [None, True, False, "100", 100.0])
+    def test_create_or_edit_malformed_page_revision_id_fails_before_missing_page_id(
+        self, mock_site_no_http: Site, page_pageedit_existing: dict[str, Any], revision_id: object
+    ) -> None:
+        """不正なpage_revision_idはpage_id不足エラーより先に編集ロック応答エラーにする"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        malformed_lock_data = {**page_pageedit_existing, "page_revision_id": revision_id}
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = malformed_lock_data
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_lock_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page edit lock response page_revision_id is malformed for site: test-site, page: existing-page "
+                r"\(field=page_revision_id"
+            ),
+        ):
+            Page.create_or_edit(
+                mock_site_no_http,
+                "existing-page",
+                title="Updated Title",
+                source="Updated content",
+            )
+
+        mock_site_no_http.amc_request.assert_called_once()
+
     @pytest.mark.parametrize("revision_id", [-1, -100])
     def test_create_or_edit_negative_page_revision_id_fails_before_save(
         self, mock_site_no_http: Site, page_pageedit_existing: dict[str, Any], revision_id: int
@@ -4340,6 +4369,35 @@ class TestPageCreateOrEdit:
                 mock_site_no_http,
                 "existing-page",
                 page_id=12345,
+                title="Updated Title",
+                source="Updated content",
+            )
+
+        mock_site_no_http.amc_request.assert_called_once()
+
+    @pytest.mark.parametrize("revision_id", [-1, -100])
+    def test_create_or_edit_negative_page_revision_id_fails_before_missing_page_id(
+        self, mock_site_no_http: Site, page_pageedit_existing: dict[str, Any], revision_id: int
+    ) -> None:
+        """負のpage_revision_idはpage_id不足エラーより先に編集ロック応答エラーにする"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        malformed_lock_data = {**page_pageedit_existing, "page_revision_id": revision_id}
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = malformed_lock_data
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_lock_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page edit lock response page_revision_id must be non-negative for site: test-site, "
+                r"page: existing-page \(field=page_revision_id"
+            ),
+        ):
+            Page.create_or_edit(
+                mock_site_no_http,
+                "existing-page",
                 title="Updated Title",
                 source="Updated content",
             )
