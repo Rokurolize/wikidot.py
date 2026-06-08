@@ -285,6 +285,10 @@ class User(AbstractUser):
     # avatar_url: str | None
     ip: str | None = None
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("ip", self.ip, None)
+
     @staticmethod
     def from_name(client: "Client", name: str, raise_when_not_found: bool = False) -> Optional["AbstractUser"]:
         """

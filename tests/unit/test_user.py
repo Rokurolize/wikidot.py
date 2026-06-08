@@ -105,6 +105,10 @@ class TestUserDataclasses:
         assert user.avatar_url is None
         assert user.ip is None
 
+    def test_regular_user_rejects_ip(self, mock_client_no_http: MagicMock) -> None:
+        with pytest.raises(ValueError, match="ip must be None"):
+            User(client=mock_client_no_http, ip="192.168.1.1")
+
     @pytest.mark.parametrize("user_id", [True, "12345", 12345.0, object()])
     def test_user_rejects_malformed_id(self, mock_client_no_http: MagicMock, user_id: object) -> None:
         bad_user_id: Any = user_id
