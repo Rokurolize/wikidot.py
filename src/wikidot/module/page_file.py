@@ -65,6 +65,13 @@ def _validate_file_text(field: str, value: object) -> str:
     return value
 
 
+def _validate_file_name(value: object) -> str:
+    name = _validate_file_text("name", value)
+    if name.strip() == "":
+        raise ValueError("name must not be empty")
+    return name
+
+
 def _validate_file_size(value: object) -> int:
     if not isinstance(value, int) or isinstance(value, bool):
         raise ValueError("size must be an integer")
@@ -155,8 +162,7 @@ class PageFileCollection(list["PageFile"]):
         PageFile | None
             The file with the specified name, or None if not found
         """
-        if not isinstance(name, str):
-            raise ValueError("name must be a string")
+        name = _validate_file_name(name)
         for file in self:
             if file.name == name:
                 return file
@@ -386,7 +392,7 @@ class PageFile:
     def __post_init__(self) -> None:
         self.page = _validate_file_page(self.page)
         self.id = _validate_file_id(self.id)
-        self.name = _validate_file_text("name", self.name)
+        self.name = _validate_file_name(self.name)
         self.url = _validate_file_text("url", self.url)
         self.mime_type = _validate_file_text("mime_type", self.mime_type)
         self.size = _validate_file_size(self.size)

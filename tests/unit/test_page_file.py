@@ -245,6 +245,16 @@ class TestPageFileCollection:
         with pytest.raises(ValueError, match="name must be a string"):
             collection.find_by_name(file_name)
 
+    @pytest.mark.parametrize("file_name", ["", "   "])
+    def test_find_by_name_rejects_blank_names(self, file_name: str) -> None:
+        """find_by_nameの検索名はblank文字列を受け付けない"""
+        page = _page()
+        file1 = PageFile(page=page, id=1, name="test.txt", url="", mime_type="", size=0)
+        collection = PageFileCollection(page=page, files=[file1])
+
+        with pytest.raises(ValueError, match="name must not be empty"):
+            collection.find_by_name(file_name)
+
 
 class TestPageFileCollectionParseSize:
     """PageFileCollection._parse_sizeのテスト"""
@@ -916,6 +926,23 @@ class TestPageFile:
                 _page_file(page, url=bad_value)
             else:
                 _page_file(page, mime_type=bad_value)
+
+    @pytest.mark.parametrize("name", ["", "   "])
+    def test_init_rejects_blank_names(self, name: str) -> None:
+        """PageFile.nameはblank文字列を受け付けない"""
+        page = _page()
+
+        with pytest.raises(ValueError, match="name must not be empty"):
+            _page_file(page, name=name)
+
+    def test_init_allows_blank_url_and_mime_type(self) -> None:
+        """url/mime_typeのblank許容は既存フィクスチャ互換のため維持する"""
+        page = _page()
+
+        file = _page_file(page, url="", mime_type="")
+
+        assert file.url == ""
+        assert file.mime_type == ""
 
     @pytest.mark.parametrize("size", [None, True, "1024", 1024.0])
     def test_init_rejects_malformed_sizes(self, size: object) -> None:
