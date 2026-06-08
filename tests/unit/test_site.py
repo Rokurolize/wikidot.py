@@ -176,6 +176,18 @@ class TestSiteChangeDataclass:
         with pytest.raises(ValueError, match=message):
             self._site_change(mock_site_no_http, flags=["S"], **{field: value})
 
+    @pytest.mark.parametrize("page_fullname", ["", "   "])
+    def test_init_rejects_blank_page_fullnames(self, mock_site_no_http: Site, page_fullname: str) -> None:
+        """SiteChange初期化時のpage_fullnameは空白だけの文字列を受け付けない"""
+        with pytest.raises(ValueError, match="page_fullname must not be empty"):
+            self._site_change(mock_site_no_http, flags=["S"], page_fullname=page_fullname)
+
+    def test_init_allows_blank_page_title(self, mock_site_no_http: Site) -> None:
+        """SiteChange初期化時のpage_titleは空文字を表示値として保持する"""
+        change = self._site_change(mock_site_no_http, flags=["S"], page_title="")
+
+        assert change.page_title == ""
+
     @pytest.mark.parametrize("comment", [None, "", "Updated source"])
     def test_init_accepts_optional_string_comment(self, mock_site_no_http: Site, comment: str | None) -> None:
         """SiteChange初期化時のcommentはNoneまたは文字列を保持する"""

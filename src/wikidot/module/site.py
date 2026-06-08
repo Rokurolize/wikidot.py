@@ -179,6 +179,13 @@ def _validate_site_change_text_field(field_name: str, value: object) -> str:
     return value
 
 
+def _validate_site_change_page_fullname(value: object) -> str:
+    page_fullname = _validate_site_change_text_field("page_fullname", value)
+    if page_fullname.strip() == "":
+        raise ValueError("page_fullname must not be empty")
+    return page_fullname
+
+
 def _validate_site_change_comment(value: object) -> str | None:
     if value is not None and not isinstance(value, str):
         raise ValueError("comment must be a string or None")
@@ -1129,7 +1136,7 @@ class SiteChange:
     def __post_init__(self) -> None:
         self.flags = _validate_site_change_flags(self.flags)
         self.revision_no = _validate_site_change_revision_no(self.revision_no)
-        self.page_fullname = _validate_site_change_text_field("page_fullname", self.page_fullname)
+        self.page_fullname = _validate_site_change_page_fullname(self.page_fullname)
         self.page_title = _validate_site_change_text_field("page_title", self.page_title)
         self.comment = _validate_site_change_comment(self.comment)
         self.changed_by = _validate_site_change_changed_by(self.changed_by)
