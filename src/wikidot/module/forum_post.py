@@ -1094,6 +1094,10 @@ class ForumPost:
             raise NoElementException(
                 f"Current revision ID value is malformed for site: {self.thread.site.unix_name}, post: {self.id}"
             ) from exc
+        if current_revision_id < 0:
+            raise NoElementException(
+                f"Current revision ID value must be non-negative for site: {self.thread.site.unix_name}, post: {self.id}"
+            )
 
         # 編集を保存
         save_response = site.amc_request(
