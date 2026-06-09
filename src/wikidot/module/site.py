@@ -90,6 +90,12 @@ def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", e
             f"(id={user.id}, event={event}, field=status)"
         ) from exc
 
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Site invitation action response is malformed for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
+
     if status != "ok":
         raise exceptions.WikidotStatusCodeException(
             f"Failed to complete site invitation action for site: {site.unix_name}, user: {user.name}, event: {event}",
