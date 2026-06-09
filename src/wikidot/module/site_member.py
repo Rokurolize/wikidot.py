@@ -123,9 +123,18 @@ def _require_site_member_action_status(member: "SiteMember", event: str, data: d
 def _validate_site_member_user(user: object) -> AbstractUser:
     if not isinstance(user, AbstractUser):
         raise ValueError("member.user must be an AbstractUser")
-    if isinstance(user.id, int) and not isinstance(user.id, bool) and user.id < 0:
-        raise ValueError("member.user.id must be non-negative")
+    _validate_site_member_user_id(user.id)
     return user
+
+
+def _validate_site_member_user_id(user_id: object) -> int | None:
+    if user_id is None:
+        return None
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        raise ValueError("member.user.id must be an integer or None")
+    if user_id < 0:
+        raise ValueError("member.user.id must be non-negative")
+    return user_id
 
 
 def _validate_site_member_site(site: object) -> "Site":

@@ -108,6 +108,28 @@ class TestSiteMemberDataclass:
         with pytest.raises(ValueError, match="member.user.id must be non-negative"):
             SiteMember(site=site, user=user, joined_at=None)
 
+    @pytest.mark.parametrize("retained_user_id", [True, False, "12345", 12345.0, []])
+    def test_init_rejects_malformed_retained_user_id(self, retained_user_id: object) -> None:
+        """SiteMember.userの保持IDが不正型なら初期化時に拒否する"""
+        site = _site()
+        user = _member_user(client=site.client)
+        bad_user_id: Any = retained_user_id
+        user.id = bad_user_id
+
+        with pytest.raises(ValueError, match="member.user.id must be an integer or None"):
+            SiteMember(site=site, user=user, joined_at=None)
+
+    @pytest.mark.parametrize("retained_user_id", [None, 0])
+    def test_init_accepts_optional_retained_user_id(self, retained_user_id: int | None) -> None:
+        """SiteMember.userの保持IDはNoneと0を有効な値として扱う"""
+        site = _site()
+        user = _member_user(client=site.client)
+        user.id = retained_user_id
+
+        member = SiteMember(site=site, user=user, joined_at=None)
+
+        assert member.user.id == retained_user_id
+
     def test_init_accepts_zero_user_id(self) -> None:
         """SiteMember.userのIDは0を有効な値として扱う"""
         site = _site()
@@ -970,9 +992,9 @@ class TestSiteMemberChangeGroup:
         site.client.login_check = MagicMock()
         site.amc_request = MagicMock()
         bad_user = User(client=site.client, id=12345, name="TestUser", unix_name="test-user", avatar_url=None)
+        member = SiteMember(site=site, user=bad_user, joined_at=None)
         for field, value in user_kwargs.items():
             setattr(bad_user, field, value)
-        member = SiteMember(site=site, user=bad_user, joined_at=None)
 
         with pytest.raises(ValueError, match=message):
             member.to_moderator()
