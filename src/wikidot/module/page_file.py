@@ -148,7 +148,7 @@ class PageFileCollection(list["PageFile"]):
         if not isinstance(id, int) or isinstance(id, bool):
             raise ValueError("id must be an integer")
         for file in self:
-            if file.id == id:
+            if _validate_file_id(file.id) == id:
                 return file
         return None
 

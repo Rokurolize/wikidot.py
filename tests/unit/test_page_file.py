@@ -1,7 +1,7 @@
 """PageFileモジュールのユニットテスト"""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -81,6 +81,10 @@ def _page_file(
     size: Any = 1024,
 ) -> PageFile:
     return PageFile(page=page, id=file_id, name=name, url=url, mime_type=mime_type, size=size)
+
+
+def _mutate_retained_file_id(file: PageFile, file_id: object) -> None:
+    file.id = cast(Any, file_id)
 
 
 class TestPageFileCollection:
@@ -201,6 +205,13 @@ class TestPageFileCollection:
 
         assert result is None
 
+    def test_find_accepts_file_with_zero_retained_id(self) -> None:
+        page = _page()
+        file = _page_file(page, file_id=0)
+        collection = PageFileCollection(page=page, files=[file])
+
+        assert collection.find(0) is file
+
     @pytest.mark.parametrize("file_id", [None, True, "123", 123.0])
     def test_find_rejects_non_integer_ids(self, file_id):
         """findの検索IDはbool以外の整数だけ受け付ける"""
@@ -210,6 +221,35 @@ class TestPageFileCollection:
 
         with pytest.raises(ValueError, match="id must be an integer"):
             collection.find(file_id)
+
+    @pytest.mark.parametrize(
+        ("retained_file_id", "lookup_id"),
+        [
+            (None, 1001),
+            (True, 1),
+            (False, 0),
+            ("1001", 1001),
+            (1001.0, 1001),
+            ([], 1001),
+        ],
+    )
+    def test_find_rejects_file_with_malformed_retained_ids(self, retained_file_id: object, lookup_id: int) -> None:
+        page = _page()
+        file = _page_file(page, file_id=1001)
+        _mutate_retained_file_id(file, retained_file_id)
+        collection = PageFileCollection(page=page, files=[file])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.find(lookup_id)
+
+    def test_find_rejects_file_with_negative_retained_id(self) -> None:
+        page = _page()
+        file = _page_file(page, file_id=1001)
+        _mutate_retained_file_id(file, -1)
+        collection = PageFileCollection(page=page, files=[file])
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            collection.find(1001)
 
     def test_find_by_name_existing(self):
         """名前で存在するファイルを検索"""
