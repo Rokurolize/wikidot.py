@@ -4724,6 +4724,32 @@ class TestPageCreateOrEdit:
         assert mock_save_response.json.call_count == 1
         assert mock_site_no_http.amc_request.call_count == 2
 
+    def test_create_or_edit_malformed_save_status_type_includes_site_page_and_type_context(
+        self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
+    ) -> None:
+        """保存レスポンスのstatus型異常はWikidotStatusCodeExceptionではなく生成レスポンス異常として扱う"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_success
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = {"status": ["not-ok"]}
+
+        mock_site_no_http.amc_request = MagicMock(side_effect=[[mock_lock_response], [mock_save_response]])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page save response status is malformed for site: test-site, page: new-page "
+                r"\(field=status, expected=str, actual=list\)"
+            ),
+        ):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        assert mock_save_response.json.call_count == 1
+        assert mock_site_no_http.amc_request.call_count == 2
+
     def test_create_or_edit_rejects_non_string_source_before_request(self, mock_site_no_http: Site) -> None:
         """create_or_editのsourceは保存前に文字列として検証する"""
         invalid_source: Any = 3

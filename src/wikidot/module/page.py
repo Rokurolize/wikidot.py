@@ -602,13 +602,19 @@ def _validate_page_edit_revision_id(site: "Site", fullname: str, data: dict[str,
     return value
 
 
-def _require_page_save_status(site: "Site", fullname: str, data: dict[str, Any]) -> Any:
+def _require_page_save_status(site: "Site", fullname: str, data: dict[str, Any]) -> str:
     try:
-        return data["status"]
+        status = data["status"]
     except KeyError as exc:
         raise exceptions.NoElementException(
             f"Page save response is malformed for site: {site.unix_name}, page: {fullname} (field=status)"
         ) from exc
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Page save response status is malformed for site: {site.unix_name}, page: {fullname} "
+            f"(field=status, expected=str, actual={type(status).__name__})"
+        )
+    return status
 
 
 def _require_page_action_status(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> Any:
