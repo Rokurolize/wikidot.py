@@ -13,6 +13,12 @@ if TYPE_CHECKING:
     from .client import Client
 
 
+_PROFILE_ID_HREF_PATTERNS = (
+    re.compile(r"(?:https?://www\.wikidot\.com)?/userkarma\.php/(\d+)(?:[?#].*)?"),
+    re.compile(r"(?:https?://www\.wikidot\.com)?/account/messages#/new/(\d+)(?:[?#].*)?"),
+)
+
+
 def _validate_user_name(field: str, value: object) -> str:
     if not isinstance(value, str):
         raise ValueError(f"{field} must be a string")
@@ -44,6 +50,14 @@ def _validate_user_lookup_client(client: object) -> "Client":
     if not isinstance(client, Client):
         raise ValueError("client must be a Client")
     return client
+
+
+def _parse_profile_user_id_href(href: str) -> int | None:
+    for pattern in _PROFILE_ID_HREF_PATTERNS:
+        match = pattern.fullmatch(href)
+        if match is not None:
+            return int(match.group(1))
+    return None
 
 
 def _validate_user_client(client: object) -> "Client":
@@ -186,11 +200,10 @@ class UserCollection(list["AbstractUser"]):
             user_id_href_text = "" if user_id_href is None else str(user_id_href).strip()
             if not user_id_href_text:
                 raise NoElementException(f"User ID is not found {parse_context}")
-            user_id_match = re.search(r"(?:/new/|userkarma\.php/)(\d+)(?:[/?#].*)?$", user_id_href_text)
-            if user_id_match is None:
+            user_id = _parse_profile_user_id_href(user_id_href_text)
+            if user_id is None:
                 parse_context = _profile_parse_context(name, index, field="user_id", value=user_id_href_text)
                 raise NoElementException(f"User ID is malformed {parse_context}")
-            user_id = int(user_id_match.group(1))
 
             # name取得
             name_elem = html.select_one("h1.profile-title")

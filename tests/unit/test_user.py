@@ -557,6 +557,44 @@ class TestUserCollection:
         ):
             UserCollection.from_names(client, ["bad"])
 
+    @pytest.mark.parametrize(
+        "href",
+        [
+            "http://example.com/userkarma.php/777",
+            "http://www.wikidot.com/profile/userkarma.php/777",
+            "http://www.wikidot.com/userkarma.php/777/extra",
+            "http://example.com/account/messages#/new/777",
+        ],
+    )
+    def test_from_names_rejects_malformed_id_href_routes(self, httpx_mock: HTTPXMock, href: str) -> None:
+        """プロフィールID hrefが想定経路でない場合は埋め込みIDを採用しない"""
+        client = create_lookup_client()
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <body>
+        <div id="user-info">
+            <h1 class="profile-title">bad</h1>
+            <a class="btn btn-default btn-xs" href="{href}">
+                Karma
+            </a>
+        </div>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/user:info/bad",
+            text=html,
+        )
+
+        with pytest.raises(NoElementException) as exc_info:
+            UserCollection.from_names(client, ["bad"])
+
+        assert (
+            str(exc_info.value)
+            == f"User ID is malformed for requested user: bad (index=1, field=user_id, value={href})"
+        )
+
     def test_from_names_missing_name_element(self, httpx_mock: HTTPXMock) -> None:
         """名前要素がない場合NoElementException"""
         client = create_lookup_client()
