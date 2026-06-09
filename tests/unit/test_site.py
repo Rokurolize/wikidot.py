@@ -2258,6 +2258,36 @@ class TestSiteFromUnixName:
         ):
             Site.from_unix_name(client, "bad-site")
 
+    @pytest.mark.parametrize("site_id_text", ["-1", "+123"])
+    def test_from_unix_name_signed_site_id_includes_raw_value_context(
+        self, httpx_mock: HTTPXMock, site_id_text: str
+    ) -> None:
+        """siteIdが符号付きの場合は値を含むNoElementException"""
+        client = create_mock_client()
+        html = f"""
+        <html>
+        <head><title>Bad Site</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = {site_id_text};
+            WIKIREQUEST.info.siteUnixName = "bad-site";
+            WIKIREQUEST.info.domain = "bad-site.wikidot.com";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="http://bad-site.wikidot.com",
+            text=html,
+        )
+
+        with pytest.raises(NoElementException) as exc_info:
+            Site.from_unix_name(client, "bad-site")
+
+        assert str(exc_info.value) == (
+            f"Site ID is malformed for site: bad-site.wikidot.com (field=site_id, value={site_id_text})"
+        )
+
     def test_from_unix_name_missing_title(self, httpx_mock: HTTPXMock) -> None:
         """titleがない場合はUnexpectedException"""
         client = create_mock_client()

@@ -1342,12 +1342,11 @@ class Site:
         if id_match is None:
             raise exceptions.UnexpectedException(f"Cannot find site id: {unix_name}.wikidot.com")
         site_id_text = id_match.group(1).strip()
-        try:
-            site_id = int(site_id_text)
-        except ValueError as exc:
+        if re.fullmatch(r"[0-9]+", site_id_text) is None:
             raise exceptions.NoElementException(
                 f"Site ID is malformed for site: {unix_name}.wikidot.com (field=site_id, value={site_id_text})"
-            ) from exc
+            )
+        site_id = int(site_id_text)
 
         # title : titleタグ
         title_match = re.search(r"<title>(.*?)</title>", source)
