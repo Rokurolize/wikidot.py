@@ -785,6 +785,32 @@ class TestSiteApplicationProcess:
         assert mock_response.json.call_count == 1
         assert site._members is cached_members
 
+    def test_accept_malformed_action_status_type_includes_site_user_event_type_and_type_context(self):
+        """申請承認応答のstatus型不正は文脈付きNoElementException"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        site.unix_name = "test-site"
+        cached_members = [object()]
+        site._members = cached_members
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": ["not-ok"]}
+        site.amc_request.return_value = (mock_response,)
+        user = User(client=mock_client, id=12345, name="TestUser")
+
+        app = SiteApplication(site=site, user=user, text="")
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site application action response is malformed for site: test-site, user: TestUser "
+                r"\(id=12345, event=acceptApplication, type=accept, field=status, expected=str, actual=list\)"
+            ),
+        ):
+            app.accept()
+
+        assert mock_response.json.call_count == 1
+        assert site._members is cached_members
+
     def test_accept_explicit_non_ok_action_status_raises_status_exception(self):
         """申請承認応答の非ok statusは成功扱いしない"""
         mock_client = create_mock_client(is_logged_in=True)

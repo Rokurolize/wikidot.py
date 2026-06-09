@@ -117,7 +117,7 @@ def _require_site_application_action_status(
     event: str,
     action: str,
     data: dict[str, Any],
-) -> Any:
+) -> str:
     try:
         status = data["status"]
     except KeyError as exc:
@@ -126,6 +126,14 @@ def _require_site_application_action_status(
             f"user: {application.user.name} "
             f"(id={application.user.id}, event={event}, type={action}, field=status)"
         ) from exc
+
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Site application action response is malformed for site: {_site_name(application.site)}, "
+            f"user: {application.user.name} "
+            f"(id={application.user.id}, event={event}, type={action}, "
+            f"field=status, expected=str, actual={type(status).__name__})"
+        )
 
     if status != "ok":
         raise exceptions.WikidotStatusCodeException(
