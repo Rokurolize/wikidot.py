@@ -1095,6 +1095,27 @@ class TestForumThreadCollectionAcquireFromIds:
 
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_from_ids_rejects_malformed_post_count_with_embedded_digits(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """スレッド詳細の投稿数に余分な数字入りテキストがあればNoElementException"""
+        body = forum_thread_detail["body"].replace("Number of posts: 5", "Number of posts: 5 latest", 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Post count is malformed for site: test-site "
+                r"\(thread=3001, field=posts, value=Number of posts: 5 latest\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_acquire_from_ids_negative_post_count_includes_thread_and_value_context(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
     ) -> None:
