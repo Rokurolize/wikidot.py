@@ -120,8 +120,10 @@ def _validate_threads_cache_category_matches(
     candidate_category: object,
 ) -> None:
     thread_category = _validate_forum_category(candidate_category)
+    category_id = _validate_forum_category_id(category.id)
     thread_category_site = _validate_forum_category_site(thread_category.site)
-    if thread_category.id != category.id or thread_category_site is not category_site:
+    thread_category_id = _validate_forum_category_id(thread_category.id)
+    if thread_category_id != category_id or thread_category_site is not category_site:
         raise ValueError("category.threads must belong to the category")
 
 

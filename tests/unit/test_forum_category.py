@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -59,6 +59,10 @@ def _thread_in_category(source_thread: ForumThread, category: ForumCategory, thr
         post_count=source_thread.post_count,
         category=category,
     )
+
+
+def _mutate_retained_category_id(category: ForumCategory, category_id: object) -> None:
+    category.id = cast(Any, category_id)
 
 
 # ============================================================
@@ -650,6 +654,26 @@ class TestForumCategoryBasic:
 
         assert category.threads is threads
 
+    def test_init_accepts_threads_cache_with_zero_retained_category_ids(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """ゼロカテゴリIDを持つ同カテゴリthreads cacheは保持できる"""
+        zero_category = _category_with_id(mock_forum_category_no_http, 0)
+        thread = _thread_in_category(mock_forum_thread_no_http, zero_category)
+        threads = ForumThreadCollection(zero_category.site, [thread])
+
+        category = ForumCategory(
+            site=zero_category.site,
+            id=0,
+            title=zero_category.title,
+            description=zero_category.description,
+            threads_count=zero_category.threads_count,
+            posts_count=zero_category.posts_count,
+            _threads=threads,
+        )
+
+        assert category.threads is threads
+
     def test_init_rejects_threads_cache_from_different_site(
         self,
         mock_forum_category_no_http: ForumCategory,
@@ -686,6 +710,55 @@ class TestForumCategoryBasic:
                 description=mock_forum_category_no_http.description,
                 threads_count=mock_forum_category_no_http.threads_count,
                 posts_count=mock_forum_category_no_http.posts_count,
+                _threads=threads,
+            )
+
+    @pytest.mark.parametrize(
+        ("retained_id", "valid_id"), [(True, 1), (False, 0), ("1001", 1001), (1001.0, 1001), ([], 1001)]
+    )
+    def test_init_rejects_threads_cache_entry_with_malformed_retained_category_ids(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        retained_id: object,
+        valid_id: int,
+    ) -> None:
+        """キャッシュ内スレッドの保持カテゴリIDが不正なら初期化時に拒否する"""
+        category = _category_with_id(mock_forum_category_no_http, valid_id)
+        thread_category = _category_with_id(mock_forum_category_no_http, valid_id)
+        thread = _thread_in_category(mock_forum_thread_no_http, thread_category)
+        _mutate_retained_category_id(thread_category, retained_id)
+        threads = ForumThreadCollection(category.site, [thread])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumCategory(
+                site=category.site,
+                id=category.id,
+                title=category.title,
+                description=category.description,
+                threads_count=category.threads_count,
+                posts_count=category.posts_count,
+                _threads=threads,
+            )
+
+    def test_init_rejects_threads_cache_entry_with_negative_retained_category_id(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """キャッシュ内スレッドの保持カテゴリIDが負数なら初期化時に拒否する"""
+        category = _category_with_id(mock_forum_category_no_http, 1001)
+        thread_category = _category_with_id(mock_forum_category_no_http, 1001)
+        thread = _thread_in_category(mock_forum_thread_no_http, thread_category)
+        _mutate_retained_category_id(thread_category, -1)
+        threads = ForumThreadCollection(category.site, [thread])
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumCategory(
+                site=category.site,
+                id=category.id,
+                title=category.title,
+                description=category.description,
+                threads_count=category.threads_count,
+                posts_count=category.posts_count,
                 _threads=threads,
             )
 
@@ -786,6 +859,100 @@ class TestForumCategoryBasic:
             mock_forum_category_no_http.threads = bad_threads
 
         assert mock_forum_category_no_http.threads is cached_threads
+
+    @pytest.mark.parametrize(
+        ("retained_id", "valid_id"), [(True, 1), (False, 0), ("1001", 1001), (1001.0, 1001), ([], 1001)]
+    )
+    def test_threads_setter_rejects_malformed_retained_parent_category_ids(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        retained_id: object,
+        valid_id: int,
+    ) -> None:
+        """保持済み親カテゴリIDが不正ならthreads代入は既存キャッシュを破壊しない"""
+        category = _category_with_id(mock_forum_category_no_http, valid_id)
+        cached_threads = ForumThreadCollection(
+            category.site, [_thread_in_category(mock_forum_thread_no_http, category)]
+        )
+        category.threads = cached_threads
+        replacement_category = _category_with_id(mock_forum_category_no_http, valid_id)
+        replacement_threads = ForumThreadCollection(
+            category.site, [_thread_in_category(mock_forum_thread_no_http, replacement_category)]
+        )
+        _mutate_retained_category_id(category, retained_id)
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            category.threads = replacement_threads
+
+        assert category._threads is cached_threads
+
+    def test_threads_setter_rejects_negative_retained_parent_category_id(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """保持済み親カテゴリIDが負数ならthreads代入は既存キャッシュを破壊しない"""
+        category = _category_with_id(mock_forum_category_no_http, 1001)
+        cached_threads = ForumThreadCollection(
+            category.site, [_thread_in_category(mock_forum_thread_no_http, category)]
+        )
+        category.threads = cached_threads
+        replacement_category = _category_with_id(mock_forum_category_no_http, 1001)
+        replacement_threads = ForumThreadCollection(
+            category.site, [_thread_in_category(mock_forum_thread_no_http, replacement_category)]
+        )
+        _mutate_retained_category_id(category, -1)
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            category.threads = replacement_threads
+
+        assert category._threads is cached_threads
+
+    @pytest.mark.parametrize(
+        ("retained_id", "valid_id"), [(True, 1), (False, 0), ("1001", 1001), (1001.0, 1001), ([], 1001)]
+    )
+    def test_threads_setter_rejects_entry_with_malformed_retained_category_ids(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        retained_id: object,
+        valid_id: int,
+    ) -> None:
+        """代入threads内の保持カテゴリIDが不正なら既存キャッシュを破壊しない"""
+        category = _category_with_id(mock_forum_category_no_http, valid_id)
+        cached_threads = ForumThreadCollection(
+            category.site, [_thread_in_category(mock_forum_thread_no_http, category)]
+        )
+        category.threads = cached_threads
+        bad_category = _category_with_id(mock_forum_category_no_http, valid_id)
+        _mutate_retained_category_id(bad_category, retained_id)
+        bad_threads = ForumThreadCollection(
+            category.site, [_thread_in_category(mock_forum_thread_no_http, bad_category)]
+        )
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            category.threads = bad_threads
+
+        assert category._threads is cached_threads
+
+    def test_threads_setter_rejects_entry_with_negative_retained_category_id(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """代入threads内の保持カテゴリIDが負数なら既存キャッシュを破壊しない"""
+        category = _category_with_id(mock_forum_category_no_http, 1001)
+        cached_threads = ForumThreadCollection(
+            category.site, [_thread_in_category(mock_forum_thread_no_http, category)]
+        )
+        category.threads = cached_threads
+        bad_category = _category_with_id(mock_forum_category_no_http, 1001)
+        _mutate_retained_category_id(bad_category, -1)
+        bad_threads = ForumThreadCollection(
+            category.site, [_thread_in_category(mock_forum_thread_no_http, bad_category)]
+        )
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            category.threads = bad_threads
+
+        assert category._threads is cached_threads
 
 
 class TestForumCategoryCreateThread:
