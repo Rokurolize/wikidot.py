@@ -669,6 +669,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [663-pr-validate-page-revision-source-cache-retained-page-id-state.md](663-pr-validate-page-revision-source-cache-retained-page-id-state.md): upstream PR draft for the committed page revision source-cache retained page-ID validation fix.
 - [664-pr-validate-page-collection-retained-page-id-state.md](664-pr-validate-page-collection-retained-page-id-state.md): upstream PR draft for the committed page collection retained page-ID validation fix.
 - [665-pr-validate-forum-thread-posts-cache-retained-thread-id-state.md](665-pr-validate-forum-thread-posts-cache-retained-thread-id-state.md): upstream PR draft for the committed forum thread posts-cache retained thread-ID validation fix.
+- [666-pr-validate-forum-post-revisions-cache-retained-id-state.md](666-pr-validate-forum-post-revisions-cache-retained-id-state.md): upstream PR draft for the committed forum post revisions-cache retained post/thread-ID validation fix.
 
 ## Local Evidence Index
 
@@ -1246,5 +1247,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 568: `e61765d fix(page_revision): validate source cache retained page ids`
 - Local implementation commits, continued 569: `bb5226b fix(page): validate collection retained page ids`
 - Local implementation commits, continued 570: `c9a0d38 fix(forum_thread): validate posts cache retained thread ids`
+- Local implementation commits, continued 571: `4d1bc7d fix(forum_post): validate revisions cache retained ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
