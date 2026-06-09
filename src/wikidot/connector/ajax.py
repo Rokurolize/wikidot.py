@@ -274,6 +274,12 @@ def _validate_amc_request_bodies(bodies: object) -> list[dict[str, Any]]:
     return bodies
 
 
+def _validate_site_ssl_supported(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError("site_ssl_supported must be a boolean")
+    return value
+
+
 def _mask_sensitive_data(body: dict[str, Any]) -> dict[str, Any]:
     """
     Mask sensitive information for log output
@@ -503,6 +509,7 @@ class AjaxModuleConnectorClient:
         site_name = site_name if site_name is not None else self.site_name
         site_ssl_supported = site_ssl_supported if site_ssl_supported is not None else self.ssl_supported
         StringUtil.validate_site_unix_name(site_name)
+        site_ssl_supported = _validate_site_ssl_supported(site_ssl_supported)
 
         request_headers: dict[str, Any] = {}
         wikidot_token: Any = 123456

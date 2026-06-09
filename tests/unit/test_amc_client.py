@@ -379,6 +379,94 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert httpx_mock.get_requests() == []
 
+    @pytest.mark.parametrize(
+        ("site_ssl_supported", "request_url"),
+        [
+            ("true", "https://www.wikidot.com/ajax-module-connector.php"),
+            ("false", "https://www.wikidot.com/ajax-module-connector.php"),
+            (1, "https://www.wikidot.com/ajax-module-connector.php"),
+            (0, "http://www.wikidot.com/ajax-module-connector.php"),
+            (object(), "https://www.wikidot.com/ajax-module-connector.php"),
+        ],
+    )
+    def test_request_rejects_non_bool_site_ssl_supported_before_request(
+        self,
+        httpx_mock: HTTPXMock,
+        site_ssl_supported: Any,
+        request_url: str,
+    ) -> None:
+        """site_ssl_supported上書きは真偽値だけを受け付ける"""
+        httpx_mock.add_response(
+            url=request_url,
+            json={"status": "ok", "body": ""},
+            is_optional=True,
+        )
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        with pytest.raises(ValueError, match="site_ssl_supported must be a boolean"):
+            client.request(
+                [{"moduleName": "TestModule"}],
+                site_ssl_supported=site_ssl_supported,
+            )
+
+        assert httpx_mock.get_requests() == []
+
+    @pytest.mark.parametrize(
+        ("site_ssl_supported", "request_url"),
+        [
+            (True, "https://www.wikidot.com/ajax-module-connector.php"),
+            (False, "http://www.wikidot.com/ajax-module-connector.php"),
+        ],
+    )
+    def test_request_accepts_bool_site_ssl_supported_override(
+        self,
+        httpx_mock: HTTPXMock,
+        site_ssl_supported: bool,
+        request_url: str,
+    ) -> None:
+        """真偽値のsite_ssl_supported上書きはURLスキームとして使われる"""
+        httpx_mock.add_response(
+            url=request_url,
+            json={"status": "ok", "body": ""},
+        )
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        responses = client.request(
+            [{"moduleName": "TestModule"}],
+            site_ssl_supported=site_ssl_supported,
+        )
+
+        assert len(responses) == 1
+        assert str(httpx_mock.get_requests()[0].url) == request_url
+
+    @pytest.mark.parametrize(
+        ("ssl_supported", "request_url"),
+        [
+            ("true", "https://www.wikidot.com/ajax-module-connector.php"),
+            (1, "https://www.wikidot.com/ajax-module-connector.php"),
+            (0, "http://www.wikidot.com/ajax-module-connector.php"),
+        ],
+    )
+    def test_request_rejects_mutated_ssl_supported_before_request(
+        self,
+        httpx_mock: HTTPXMock,
+        ssl_supported: Any,
+        request_url: str,
+    ) -> None:
+        """直接置換されたSSL対応状態もリクエスト前に検証する"""
+        httpx_mock.add_response(
+            url=request_url,
+            json={"status": "ok", "body": ""},
+            is_optional=True,
+        )
+        client = AjaxModuleConnectorClient(site_name="www")
+        client.ssl_supported = ssl_supported
+
+        with pytest.raises(ValueError, match="site_ssl_supported must be a boolean"):
+            client.request([{"moduleName": "TestModule"}])
+
+        assert httpx_mock.get_requests() == []
+
     @pytest.mark.parametrize("return_exceptions", [None, "false", 0, 1])
     def test_request_rejects_non_bool_return_exceptions_before_request(
         self,
