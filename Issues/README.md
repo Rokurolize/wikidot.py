@@ -727,6 +727,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [721-pr-validate-forum-post-edit-status-type.md](721-pr-validate-forum-post-edit-status-type.md): upstream PR draft for the committed forum-post edit action status type validation fix.
 - [722-pr-validate-page-action-status-type.md](722-pr-validate-page-action-status-type.md): upstream PR draft for the committed non-metadata page action status type validation fix.
 - [723-pr-validate-page-rating-status-type.md](723-pr-validate-page-rating-status-type.md): upstream PR draft for the committed page rating action status type validation fix.
+- [724-pr-validate-page-metadata-status-type.md](724-pr-validate-page-metadata-status-type.md): upstream PR draft for the committed page metadata action status type validation fix.
 
 ## Local Evidence Index
 
@@ -1362,5 +1363,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 626: `c8ed69f fix(forum_post): validate edit status type`
 - Local implementation commits, continued 627: `0c01961 fix(page): validate action status type`
 - Local implementation commits, continued 628: `34d87c2 fix(page): validate rating status type`
+- Local implementation commits, continued 629: `0e744d0 fix(page): validate metadata status type`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
