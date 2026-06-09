@@ -1303,6 +1303,24 @@ class TestPrivateMessage:
         assert call_args["to_user_id"] == mock_user.id
         assert call_args["event"] == "send"
 
+    def test_send_accepts_zero_recipient_id(self, mock_client):
+        """ゼロの送信先ユーザーIDは送信payloadにそのまま使える"""
+        recipient = User(
+            client=mock_client,
+            id=0,
+            name="zero-user",
+            unix_name="zero-user",
+            avatar_url="https://www.wikidot.com/avatar.php?userid=0",
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        PrivateMessage.send(mock_client, recipient, "Test Subject", "Test Body")
+
+        call_args = mock_client.amc_client.request.call_args[0][0][0]
+        assert call_args["to_user_id"] == 0
+
     @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
     def test_send_rejects_malformed_client_before_login(self, mock_user, client: object):
         """直接送信はClient以外の親をログイン確認前に拒否する"""
@@ -1346,6 +1364,26 @@ class TestPrivateMessage:
         mock_client.amc_client.request = MagicMock()
 
         with pytest.raises(ValueError, match=message):
+            PrivateMessage.send(mock_client, bad_recipient, "Test Subject", "Test Body")
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
+    @pytest.mark.parametrize("recipient_id", [-1, -100])
+    def test_send_rejects_negative_user_recipient_id_before_login(self, mock_client, recipient_id: int):
+        """送信先Userの保持済みIDが負数の場合はログイン確認やAMCリクエスト前に拒否する"""
+        bad_recipient = User(
+            client=mock_client,
+            id=12345,
+            name="test-user",
+            unix_name="test-user",
+            avatar_url="https://www.wikidot.com/avatar.php?userid=12345",
+        )
+        bad_recipient.id = recipient_id
+        mock_client.login_check = MagicMock()
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="recipient.id must be non-negative"):
             PrivateMessage.send(mock_client, bad_recipient, "Test Subject", "Test Body")
 
         mock_client.login_check.assert_not_called()

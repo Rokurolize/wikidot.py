@@ -31,6 +31,8 @@ def _validate_private_message_recipient(recipient: object) -> User:
         raise ValueError("recipient must be a User")
     if not isinstance(recipient.id, int) or isinstance(recipient.id, bool):
         raise ValueError("recipient.id must be an integer")
+    if recipient.id < 0:
+        raise ValueError("recipient.id must be non-negative")
     if not isinstance(recipient.name, str):
         raise ValueError("recipient.name must be a string")
     return recipient
