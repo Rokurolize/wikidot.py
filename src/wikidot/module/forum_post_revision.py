@@ -539,15 +539,18 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         # Step 2: Optionally get HTML content for all revisions
         if with_html:
             all_revisions: list[ForumPostRevision] = []
+            all_revision_ids: list[int] = []
             all_revisions_by_id: dict[int, list[ForumPostRevision]] = {}
             for collection in result.values():
                 for revision in collection:
+                    revision_id = _validate_revision_id(revision.id)
                     if revision.is_html_acquired():
                         continue
-                    if revision.id not in all_revisions_by_id:
+                    if revision_id not in all_revisions_by_id:
                         all_revisions.append(revision)
-                        all_revisions_by_id[revision.id] = []
-                    all_revisions_by_id[revision.id].append(revision)
+                        all_revision_ids.append(revision_id)
+                        all_revisions_by_id[revision_id] = []
+                    all_revisions_by_id[revision_id].append(revision)
 
             if len(all_revisions) > 0:
                 _validate_revision_html_targets(all_revisions)
@@ -563,18 +566,20 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     [
                         {
                             "moduleName": "forum/sub/ForumPostRevisionModule",
-                            "revisionId": revision.id,
+                            "revisionId": revision_id,
                         }
-                        for revision in all_revisions
+                        for revision_id in all_revision_ids
                     ]
                 )
 
-                for revision, response in zip(all_revisions, html_responses, strict=True):
+                for revision, revision_id, response in zip(
+                    all_revisions, all_revision_ids, html_responses, strict=True
+                ):
                     if response is None:
                         continue
                     data = response.json()
                     revision_html = _revision_html_content(revision, data)
-                    for target_revision in all_revisions_by_id[revision.id]:
+                    for target_revision in all_revisions_by_id[revision_id]:
                         target_revision._html = revision_html
 
         for post in target_posts:
@@ -593,20 +598,27 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         """
         _validate_forum_post_revisions(self)
 
-        acquired_html_by_id = {revision.id: revision._html for revision in self if revision._html is not None}
+        revision_ids = [_validate_revision_id(revision.id) for revision in self]
+        acquired_html_by_id = {
+            revision_id: revision._html
+            for revision, revision_id in zip(self, revision_ids, strict=True)
+            if revision._html is not None
+        }
         target_revisions: list[ForumPostRevision] = []
+        target_revision_ids: list[int] = []
         target_revisions_by_id: dict[int, list[ForumPostRevision]] = {}
-        for revision in self:
+        for revision, revision_id in zip(self, revision_ids, strict=True):
             if revision.is_html_acquired():
                 continue
-            acquired_html = acquired_html_by_id.get(revision.id)
+            acquired_html = acquired_html_by_id.get(revision_id)
             if acquired_html is not None:
                 revision._html = acquired_html
                 continue
-            if revision.id not in target_revisions_by_id:
+            if revision_id not in target_revisions_by_id:
                 target_revisions.append(revision)
-                target_revisions_by_id[revision.id] = []
-            target_revisions_by_id[revision.id].append(revision)
+                target_revision_ids.append(revision_id)
+                target_revisions_by_id[revision_id] = []
+            target_revisions_by_id[revision_id].append(revision)
 
         if len(target_revisions) == 0:
             return self
@@ -616,15 +628,21 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         site = _validate_forum_thread_site(thread.site)
         _validate_revision_html_targets(target_revisions)
         responses = site.amc_request_with_retry(
-            [{"moduleName": "forum/sub/ForumPostRevisionModule", "revisionId": r.id} for r in target_revisions]
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionModule",
+                    "revisionId": revision_id,
+                }
+                for revision_id in target_revision_ids
+            ]
         )
 
-        for revision, response in zip(target_revisions, responses, strict=True):
+        for revision, revision_id, response in zip(target_revisions, target_revision_ids, responses, strict=True):
             if response is None:
                 continue
             data = response.json()
             html = _revision_html_content(revision, data)
-            for target_revision in target_revisions_by_id[revision.id]:
+            for target_revision in target_revisions_by_id[revision_id]:
                 target_revision._html = html
 
         return self

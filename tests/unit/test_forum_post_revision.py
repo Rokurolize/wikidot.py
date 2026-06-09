@@ -1152,6 +1152,69 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
             ]
         )
 
+    def test_acquire_all_for_posts_with_html_accepts_zero_retained_revision_id(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revision_content: dict[str, Any]
+    ) -> None:
+        """with_html=Trueはcached revisionの0 retained IDを有効なIDとして送信する"""
+        cached_revision = _revision_for_post(mock_forum_post_no_http, revision_id=0)
+        cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
+        mock_forum_post_no_http._revisions = cached_collection
+        html_response = MagicMock()
+        html_response.json.return_value = forum_post_revision_content
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(html_response,))
+
+        result = ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
+
+        assert result == {mock_forum_post_no_http.id: cached_collection}
+        assert cached_revision.html == str(forum_post_revision_content["content"])
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionModule",
+                    "revisionId": 0,
+                }
+            ]
+        )
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "9001", 9001.0, []])
+    def test_acquire_all_for_posts_with_html_rejects_malformed_cached_revision_ids_before_fetch(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """with_html=Trueはcached revisionの壊れたretained IDをHTML取得前に拒否する"""
+        cached_revision = _revision_for_post(mock_forum_post_no_http)
+        cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
+        _mutate_retained_revision_id(cached_revision, retained_id)
+        mock_forum_post_no_http._revisions = cached_collection
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        assert cached_revision.is_html_acquired() is False
+
+    def test_acquire_all_for_posts_with_html_rejects_negative_cached_revision_id_before_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """with_html=Trueはcached revisionの負のretained IDをHTML取得前に拒否する"""
+        cached_revision = _revision_for_post(mock_forum_post_no_http)
+        cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
+        _mutate_retained_revision_id(cached_revision, -1)
+        mock_forum_post_no_http._revisions = cached_collection
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        assert cached_revision.is_html_acquired() is False
+
     def test_acquire_all_for_posts_with_html_rejects_mutated_cached_revision_post_thread_before_fetch(
         self, mock_forum_post_no_http: ForumPost
     ) -> None:
@@ -1490,6 +1553,66 @@ class TestForumPostRevisionCollectionGetHtmls:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
         bad_thread.site.amc_request_with_retry.assert_not_called()
+        assert revision.is_html_acquired() is False
+
+    def test_get_htmls_accepts_zero_retained_revision_id(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revision_content: dict[str, Any]
+    ) -> None:
+        """get_htmlsは0のretained revision IDを有効なIDとして送信する"""
+        revision = _revision_for_post(mock_forum_post_no_http, revision_id=0)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+        response = MagicMock()
+        response.json.return_value = forum_post_revision_content
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        result = collection.get_htmls()
+
+        assert result == collection
+        assert revision.html == str(forum_post_revision_content["content"])
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionModule",
+                    "revisionId": 0,
+                }
+            ]
+        )
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "9001", 9001.0, []])
+    def test_get_htmls_rejects_malformed_retained_revision_ids_before_fetch(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """get_htmlsは壊れたretained revision IDをHTML取得前に拒否する"""
+        revision = _revision_for_post(mock_forum_post_no_http)
+        _mutate_retained_revision_id(revision, retained_id)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.get_htmls()
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        assert revision.is_html_acquired() is False
+
+    def test_get_htmls_rejects_negative_retained_revision_id_before_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """get_htmlsは負のretained revision IDをHTML取得前に拒否する"""
+        revision = _revision_for_post(mock_forum_post_no_http)
+        _mutate_retained_revision_id(revision, -1)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            collection.get_htmls()
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
         assert revision.is_html_acquired() is False
 
     def test_get_htmls_retries_transient_fetch_failures(
