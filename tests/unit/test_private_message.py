@@ -5,7 +5,7 @@ PrivateMessage, PrivateMessageCollection, PrivateMessageInbox, PrivateMessageSen
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
@@ -88,6 +88,22 @@ def sample_message(mock_client, mock_user):
     )
 
 
+def _message_with_id(source_message: PrivateMessage, message_id: int) -> PrivateMessage:
+    return PrivateMessage(
+        client=source_message.client,
+        id=message_id,
+        sender=source_message.sender,
+        recipient=source_message.recipient,
+        subject=source_message.subject,
+        body=source_message.body,
+        created_at=source_message.created_at,
+    )
+
+
+def _mutate_retained_message_id(message: PrivateMessage, message_id: object) -> None:
+    message.id = cast(Any, message_id)
+
+
 class TestPrivateMessageCollection:
     """PrivateMessageCollectionクラスのテスト"""
 
@@ -129,6 +145,13 @@ class TestPrivateMessageCollection:
         result = collection.find(999)
         assert result is None
 
+    def test_find_accepts_message_with_zero_retained_id(self, sample_message):
+        """ゼロの保持済みメッセージIDは検索できる"""
+        message = _message_with_id(sample_message, 0)
+        collection = PrivateMessageCollection([message])
+
+        assert collection.find(0) is message
+
     @pytest.mark.parametrize("bad_id", [None, True, "1", 1.0])
     def test_find_rejects_non_integer_ids(self, sample_message, bad_id: object):
         """整数以外のメッセージID検索キーを拒否する"""
@@ -137,6 +160,38 @@ class TestPrivateMessageCollection:
 
         with pytest.raises(ValueError, match="id must be an integer"):
             collection.find(bad_id_value)
+
+    @pytest.mark.parametrize(
+        ("retained_message_id", "lookup_id"),
+        [
+            (None, 1),
+            (True, 1),
+            (False, 0),
+            ("1", 1),
+            (1.0, 1),
+            ([], 1),
+        ],
+    )
+    def test_find_rejects_message_with_malformed_retained_ids(
+        self,
+        sample_message,
+        retained_message_id: object,
+        lookup_id: int,
+    ):
+        """保持済みメッセージIDが壊れている場合は検索比較前に拒否する"""
+        _mutate_retained_message_id(sample_message, retained_message_id)
+        collection = PrivateMessageCollection([sample_message])
+
+        with pytest.raises(ValueError, match="message_id must be an integer"):
+            collection.find(lookup_id)
+
+    def test_find_rejects_message_with_negative_retained_id(self, sample_message):
+        """保持済みメッセージIDが負数の場合は検索比較前に拒否する"""
+        _mutate_retained_message_id(sample_message, -1)
+        collection = PrivateMessageCollection([sample_message])
+
+        with pytest.raises(ValueError, match="message_id must be non-negative"):
+            collection.find(1)
 
     def test_from_ids_requires_login(self, mock_client):
         """from_idsはログインが必要"""

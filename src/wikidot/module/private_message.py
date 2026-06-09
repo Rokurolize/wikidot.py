@@ -206,7 +206,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             raise ValueError("id must be an integer")
 
         for message in self:
-            if message.id == id:
+            if _validate_private_message_id(message.id) == id:
                 return message
 
         return None
