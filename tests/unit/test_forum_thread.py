@@ -2021,6 +2021,81 @@ class TestForumThreadReply:
         bad_site.client.login_check.assert_not_called()
         bad_site.amc_request.assert_not_called()
 
+    def test_reply_accepts_zero_retained_thread_id(
+        self, mock_forum_thread_no_http: ForumThread, amc_ok_response: dict[str, Any]
+    ) -> None:
+        """ゼロの保持済みスレッドIDは返信ペイロードで有効なIDとして扱う"""
+        _mutate_retained_thread_id(mock_forum_thread_no_http, 0)
+        mock_forum_thread_no_http.site.client.is_logged_in = True
+        mock_forum_thread_no_http.site.client.login_check = MagicMock()
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = amc_ok_response
+        mock_forum_thread_no_http.site.amc_request = MagicMock(return_value=[mock_response])
+
+        mock_forum_thread_no_http.reply(source="Test reply")
+
+        call_args = mock_forum_thread_no_http.site.amc_request.call_args[0][0][0]
+        assert call_args["threadId"] == "0"
+
+    @pytest.mark.parametrize("thread_id", [None, True, False, "3001", 3001.0, []])
+    def test_reply_rejects_malformed_retained_thread_ids_before_login(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_category_no_http: ForumCategory,
+        thread_id: object,
+    ) -> None:
+        """返信実行時の保持済みスレッドID不正値は副作用前に拒否する"""
+        mock_forum_thread_no_http.category = mock_forum_category_no_http
+        cached_posts = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_thread_no_http._posts = cached_posts
+        mock_forum_category_no_http.threads = cached_threads
+        initial_post_count = mock_forum_thread_no_http.post_count
+        initial_category_post_count = mock_forum_category_no_http.posts_count
+        mock_forum_thread_no_http.site.client.login_check = MagicMock()
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        _mutate_retained_thread_id(mock_forum_thread_no_http, thread_id)
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            mock_forum_thread_no_http.reply(source="Test reply")
+
+        mock_forum_thread_no_http.site.client.login_check.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        assert mock_forum_thread_no_http.post_count == initial_post_count
+        assert mock_forum_thread_no_http._posts is cached_posts
+        assert mock_forum_category_no_http.posts_count == initial_category_post_count
+        assert mock_forum_category_no_http._threads is cached_threads
+
+    @pytest.mark.parametrize("thread_id", [-1, -100])
+    def test_reply_rejects_negative_retained_thread_id_before_login(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_category_no_http: ForumCategory,
+        thread_id: int,
+    ) -> None:
+        """返信実行時の負の保持済みスレッドIDは副作用前に拒否する"""
+        mock_forum_thread_no_http.category = mock_forum_category_no_http
+        cached_posts = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_thread_no_http._posts = cached_posts
+        mock_forum_category_no_http.threads = cached_threads
+        initial_post_count = mock_forum_thread_no_http.post_count
+        initial_category_post_count = mock_forum_category_no_http.posts_count
+        mock_forum_thread_no_http.site.client.login_check = MagicMock()
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        _mutate_retained_thread_id(mock_forum_thread_no_http, thread_id)
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            mock_forum_thread_no_http.reply(source="Test reply")
+
+        mock_forum_thread_no_http.site.client.login_check.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        assert mock_forum_thread_no_http.post_count == initial_post_count
+        assert mock_forum_thread_no_http._posts is cached_posts
+        assert mock_forum_category_no_http.posts_count == initial_category_post_count
+        assert mock_forum_category_no_http._threads is cached_threads
+
     def test_reply_to_parent_post(
         self, mock_forum_thread_no_http: ForumThread, amc_ok_response: dict[str, Any]
     ) -> None:

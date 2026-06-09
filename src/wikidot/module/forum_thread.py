@@ -1019,11 +1019,12 @@ class ForumThread:
         title = validate_text_field("title", title)
         parent_post_id = _validate_optional_post_id("parent_post_id", parent_post_id)
         site = _validate_forum_thread_site(self.site)
+        thread_id = _validate_thread_id(self.id)
         site.client.login_check()
         response = site.amc_request(
             [
                 {
-                    "threadId": str(self.id),
+                    "threadId": str(thread_id),
                     "parentId": str(parent_post_id) if parent_post_id is not None else "",
                     "title": title,
                     "source": source,
