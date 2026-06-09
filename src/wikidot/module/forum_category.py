@@ -225,7 +225,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
         id = _validate_forum_category_id(id)
 
         for category in self:
-            if category.id == id:
+            if _validate_forum_category_id(category.id) == id:
                 return category
         return None
 

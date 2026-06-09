@@ -158,6 +158,52 @@ class TestForumCategoryCollectionInit:
         with pytest.raises(ValueError, match="id must be an integer"):
             collection.find(bad_id_value)
 
+    def test_find_accepts_category_with_zero_retained_id(
+        self, mock_site_no_http: Site, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        """保持済みカテゴリID=0の検索は有効なIDとして扱う"""
+        category = _category_with_id(mock_forum_category_no_http, 0)
+        collection = ForumCategoryCollection(mock_site_no_http, [category])
+
+        assert collection.find(0) is category
+
+    @pytest.mark.parametrize(
+        ("retained_id", "search_id"),
+        [
+            (None, 1001),
+            (True, 1),
+            (False, 0),
+            ("1001", 1001),
+            (1001.0, 1001),
+            ([], 1001),
+        ],
+    )
+    def test_find_rejects_category_with_malformed_retained_ids(
+        self,
+        mock_site_no_http: Site,
+        mock_forum_category_no_http: ForumCategory,
+        retained_id: object,
+        search_id: int,
+    ) -> None:
+        """保持済みカテゴリIDは検索比較前に整数として検証する"""
+        category = _category_with_id(mock_forum_category_no_http, search_id)
+        _mutate_retained_category_id(category, retained_id)
+        collection = ForumCategoryCollection(mock_site_no_http, [category])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.find(search_id)
+
+    def test_find_rejects_category_with_negative_retained_id(
+        self, mock_site_no_http: Site, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        """保持済みカテゴリIDは負数を検索比較対象にしない"""
+        category = _category_with_id(mock_forum_category_no_http, 1001)
+        _mutate_retained_category_id(category, -1)
+        collection = ForumCategoryCollection(mock_site_no_http, [category])
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            collection.find(1001)
+
 
 class TestForumCategoryCollectionAcquireAll:
     """ForumCategoryCollection.acquire_allのテスト"""
