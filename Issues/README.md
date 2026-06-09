@@ -732,6 +732,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [726-pr-validate-forum-category-href-id-shape.md](726-pr-validate-forum-category-href-id-shape.md): upstream PR draft for the committed forum category href ID shape validation fix.
 - [727-pr-validate-forum-thread-href-id-shape.md](727-pr-validate-forum-thread-href-id-shape.md): upstream PR draft for the committed forum thread href ID shape validation fix.
 - [728-pr-validate-private-message-data-href-id-shape.md](728-pr-validate-private-message-data-href-id-shape.md): upstream PR draft for the committed private-message list data-href ID shape validation fix.
+- [729-pr-validate-forum-thread-detail-post-count-shape.md](729-pr-validate-forum-thread-detail-post-count-shape.md): upstream PR draft for the committed forum thread detail post-count shape validation fix.
 
 ## Local Evidence Index
 
@@ -1372,5 +1373,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 631: `1934631 fix(forum_category): validate category href ids`
 - Local implementation commits, continued 632: `e1b8394 fix(forum_thread): validate thread href ids`
 - Local implementation commits, continued 633: `e775d06 fix(private_message): validate list data href ids`
+- Local implementation commits, continued 634: `38e8f7a fix(forum_thread): validate detail post count shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
