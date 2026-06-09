@@ -1,7 +1,7 @@
 """Page constructor validation tests."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -14,7 +14,7 @@ from wikidot.module.page_revision import PageRevision, PageRevisionCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.page_votes import PageVote, PageVoteCollection
 from wikidot.module.site import Site
-from wikidot.module.user import User
+from wikidot.module.user import AbstractUser, User
 
 
 def _client() -> Client:
@@ -24,6 +24,10 @@ def _client() -> Client:
     client.me = None
     client.login_check = MagicMock()
     return client
+
+
+def _mutate_retained_user_id(user: AbstractUser, retained_id: object) -> None:
+    user.id = cast(Any, retained_id)
 
 
 def _page(mock_site_no_http: Any, **overrides: Any) -> Page:
@@ -346,6 +350,42 @@ class TestPageInit:
 
         with pytest.raises(ValueError, match=f"{field} must belong to the site"):
             _page(mock_site_no_http, **{field: user})
+
+    @pytest.mark.parametrize("field", ["created_by", "updated_by", "commented_by"])
+    @pytest.mark.parametrize("retained_id", [True, False, "12345", 12345.0, []])
+    def test_init_rejects_malformed_retained_user_metadata_ids(
+        self, mock_site_no_http: Any, field: str, retained_id: object
+    ) -> None:
+        user = User(client=mock_site_no_http.client, id=12345, name="test-user", unix_name="test-user")
+        _mutate_retained_user_id(user, retained_id)
+
+        with pytest.raises(ValueError, match=rf"{field}\.id must be an integer or None"):
+            _page(mock_site_no_http, **{field: user})
+
+    @pytest.mark.parametrize("field", ["created_by", "updated_by", "commented_by"])
+    @pytest.mark.parametrize("retained_id", [-1, -100])
+    def test_init_rejects_negative_retained_user_metadata_ids(
+        self, mock_site_no_http: Any, field: str, retained_id: int
+    ) -> None:
+        user = User(client=mock_site_no_http.client, id=12345, name="test-user", unix_name="test-user")
+        _mutate_retained_user_id(user, retained_id)
+
+        with pytest.raises(ValueError, match=rf"{field}\.id must be non-negative or None"):
+            _page(mock_site_no_http, **{field: user})
+
+    @pytest.mark.parametrize("field", ["created_by", "updated_by", "commented_by"])
+    @pytest.mark.parametrize("retained_id", [None, 0])
+    def test_init_accepts_optional_retained_user_metadata_ids(
+        self, mock_site_no_http: Any, field: str, retained_id: int | None
+    ) -> None:
+        user = User(client=mock_site_no_http.client, id=12345, name="test-user", unix_name="test-user")
+        _mutate_retained_user_id(user, retained_id)
+
+        page = _page(mock_site_no_http, **{field: user})
+        retained_user = getattr(page, field)
+
+        assert retained_user is not None
+        assert retained_user.id == retained_id
 
     @pytest.mark.parametrize("field", ["created_at", "updated_at", "commented_at"])
     @pytest.mark.parametrize("value", [True, 1700000000, "2023-01-01", [], object()])

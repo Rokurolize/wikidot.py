@@ -94,6 +94,16 @@ def _validate_page_non_negative_integer_field(field: str, value: object) -> int:
     return value
 
 
+def _validate_page_metadata_user_id(field: str, value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field}.id must be an integer or None")
+    if value < 0:
+        raise ValueError(f"{field}.id must be non-negative or None")
+    return value
+
+
 def _validate_page_rating_field(value: object) -> int | float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("rating must be an integer or float")
@@ -126,6 +136,7 @@ def _validate_optional_page_user_field(field: str, value: object) -> "AbstractUs
 
     if not isinstance(value, AbstractUser):
         raise ValueError(f"{field} must be an AbstractUser or None")
+    _validate_page_metadata_user_id(field, value.id)
     return value
 
 
