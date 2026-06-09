@@ -43,6 +43,20 @@ def _parse_category_count(site: "Site", row_index: int, field: str, label: str, 
     return count
 
 
+def _parse_category_id(site: "Site", row_index: int, href: object) -> int:
+    href_text = str(href)
+    category_id_match = re.search(r"(?:^|/)c-(\d+)(?=[/?#]|$)", href_text)
+    if category_id_match is not None:
+        return int(category_id_match.group(1))
+
+    if re.search(r"(?:^|/)c-\d+", href_text) is not None:
+        parse_context = _category_parse_context(site, row_index, field="id", value=href_text)
+        raise NoElementException(f"Category ID is malformed {parse_context}")
+
+    parse_context = _category_parse_context(site, row_index)
+    raise NoElementException(f"Category ID is not found {parse_context}")
+
+
 def _require_forum_category_action_status(category: "ForumCategory", event: str, data: dict[str, Any]) -> Any:
     try:
         status = data["status"]
@@ -313,10 +327,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
                 name_link_href = name_link_elem.get("href")
                 if name_link_href is None:
                     raise NoElementException(f"Name link href is not found {parse_context}")
-                category_id_match = re.search(r"c-(\d+)", str(name_link_href))
-                if category_id_match is None:
-                    raise NoElementException(f"Category ID is not found {parse_context}")
-                category_id_str = category_id_match.group(1)
+                category_id = _parse_category_id(site, row_index, name_link_href)
                 description_elem = name_elem.find("div", class_="description", recursive=False)
                 if description_elem is None:
                     raise NoElementException(f"Description element is not found {parse_context}")
@@ -337,7 +348,7 @@ class ForumCategoryCollection(list["ForumCategory"]):
 
                 category = ForumCategory(
                     site=site,
-                    id=int(category_id_str),
+                    id=category_id,
                     title=name_link_elem.get_text(" ", strip=True),
                     description=description_elem.get_text(" ", strip=True),
                     threads_count=threads_count,

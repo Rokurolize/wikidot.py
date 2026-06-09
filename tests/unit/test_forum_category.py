@@ -300,6 +300,28 @@ class TestForumCategoryCollectionAcquireAll:
 
         assert collection[0].title == "First part Second part"
 
+    def test_acquire_all_malformed_category_id_includes_site_context(
+        self, mock_site_no_http: Site, forum_start: dict[str, Any]
+    ) -> None:
+        """カテゴリIDを含むhrefが壊れている場合はサイト名、行位置、値を含めて失敗する"""
+        body = forum_start["body"].replace(
+            '<a href="/forum/c-1001/test-category">Test Category</a>',
+            '<a href="/forum/c-1001-latest/test-category">Test Category</a>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Category ID is malformed for site: test-site "
+                r"\(row=1, field=id, value=/forum/c-1001-latest/test-category\)"
+            ),
+        ):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
     def test_acquire_all_ignores_nested_category_tables(self, mock_site_no_http: Site) -> None:
         """カテゴリ説明内のネストテーブルをカテゴリ行として扱わない"""
         response_body = {
