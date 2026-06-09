@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
@@ -321,6 +322,55 @@ class TestForumCategoryCollectionAcquireAll:
             ),
         ):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    @pytest.mark.parametrize(
+        "href",
+        [
+            "http://example.com/forum/c-1001/test-category",
+            "https://other-site.wikidot.com/forum/c-1001/test-category",
+            "http:forum/c-1001/test-category",
+            "javascript:/forum/c-1001/test-category",
+            "mailto:forum/c-1001/test-category",
+        ],
+    )
+    def test_acquire_all_rejects_malformed_category_href_routes(
+        self, mock_site_no_http: Site, forum_start: dict[str, Any], href: str
+    ) -> None:
+        """カテゴリhrefが対象サイトのフォーラム経路でない場合は埋め込みIDを採用しない"""
+        body = forum_start["body"].replace(
+            '<a href="/forum/c-1001/test-category">Test Category</a>',
+            f'<a href="{href}">Test Category</a>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Category ID is malformed for site: test-site "
+                rf"\(row=1, field=id, value={re.escape(href)}\)"
+            ),
+        ):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    def test_acquire_all_preserves_same_site_absolute_category_href(
+        self, mock_site_no_http: Site, forum_start: dict[str, Any]
+    ) -> None:
+        """同一サイトの絶対URLカテゴリhrefは既存どおりカテゴリIDとして扱う"""
+        body = forum_start["body"].replace(
+            '<a href="/forum/c-1001/test-category">Test Category</a>',
+            '<a href="http://test-site.wikidot.com/forum/c-1001/test-category?from=start#top">Test Category</a>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+        assert collection[0].id == 1001
 
     def test_acquire_all_ignores_nested_category_tables(self, mock_site_no_http: Site) -> None:
         """カテゴリ説明内のネストテーブルをカテゴリ行として扱わない"""
