@@ -113,6 +113,28 @@ class TestSiteApplicationDataclass:
         with pytest.raises(ValueError, match="application.user.id must be non-negative"):
             SiteApplication(site=site, user=user, text="")
 
+    @pytest.mark.parametrize("retained_user_id", [True, False, "12345", 12345.0, []])
+    def test_init_rejects_malformed_retained_user_id(self, retained_user_id: object) -> None:
+        """SiteApplication.userの保持IDが不正型なら初期化時に拒否する"""
+        site = _site()
+        user = _application_user(site.client)
+        bad_user_id: Any = retained_user_id
+        user.id = bad_user_id
+
+        with pytest.raises(ValueError, match="application.user.id must be an integer or None"):
+            SiteApplication(site=site, user=user, text="")
+
+    @pytest.mark.parametrize("retained_user_id", [None, 0])
+    def test_init_accepts_optional_retained_user_id(self, retained_user_id: int | None) -> None:
+        """SiteApplication.userの保持IDはNoneと0を有効な値として扱う"""
+        site = _site()
+        user = _application_user(site.client)
+        user.id = retained_user_id
+
+        app = SiteApplication(site=site, user=user, text="")
+
+        assert app.user.id == retained_user_id
+
     def test_init_accepts_zero_user_id(self) -> None:
         """SiteApplication.userのIDは0を有効な値として扱う"""
         site = _site()
@@ -707,10 +729,9 @@ class TestSiteApplicationProcess:
         cached_members = [object()]
         site._members = cached_members
         bad_user = User(client=mock_client, id=12345, name="TestUser")
+        app = SiteApplication(site=site, user=bad_user, text="")
         for field, value in user_kwargs.items():
             setattr(bad_user, field, value)
-
-        app = SiteApplication(site=site, user=bad_user, text="")
 
         with pytest.raises(ValueError, match=message):
             app.accept()
