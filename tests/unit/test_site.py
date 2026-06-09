@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock, create_autospec, patch
 
 import httpx
@@ -23,6 +23,10 @@ from wikidot.module.page import Page, PageCollection
 from wikidot.module.page_source import PageSource
 from wikidot.module.site import PagePublishResult, PageSourceResult, Site, SiteChange
 from wikidot.module.user import User
+
+
+def _mutate_retained_user_id(user: User, user_id: object) -> None:
+    user.id = cast(Any, user_id)
 
 
 def create_mock_client(is_logged_in: bool = True) -> MagicMock:
@@ -212,6 +216,36 @@ class TestSiteChangeDataclass:
         """SiteChange初期化時のchanged_byはAbstractUserだけ受け付ける"""
         with pytest.raises(ValueError, match="changed_by must be an AbstractUser"):
             self._site_change(mock_site_no_http, flags=["S"], changed_by=changed_by)
+
+    @pytest.mark.parametrize("retained_id", [True, False, "1", 1.0, []])
+    def test_init_rejects_malformed_retained_changed_by_ids(self, mock_site_no_http: Site, retained_id: object) -> None:
+        """SiteChange初期化時のchanged_by.idはNoneまたは非bool整数だけ受け付ける"""
+        changed_by = User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester")
+        _mutate_retained_user_id(changed_by, retained_id)
+
+        with pytest.raises(ValueError, match="changed_by.id must be an integer or None"):
+            self._site_change(mock_site_no_http, flags=["S"], changed_by=changed_by)
+
+    @pytest.mark.parametrize("retained_id", [-1, -100])
+    def test_init_rejects_negative_retained_changed_by_ids(self, mock_site_no_http: Site, retained_id: int) -> None:
+        """SiteChange初期化時のchanged_by.idは負数を受け付けない"""
+        changed_by = User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester")
+        _mutate_retained_user_id(changed_by, retained_id)
+
+        with pytest.raises(ValueError, match="changed_by.id must be non-negative or None"):
+            self._site_change(mock_site_no_http, flags=["S"], changed_by=changed_by)
+
+    @pytest.mark.parametrize("retained_id", [None, 0])
+    def test_init_accepts_optional_retained_changed_by_ids(
+        self, mock_site_no_http: Site, retained_id: int | None
+    ) -> None:
+        """SiteChange初期化時のchanged_by.idはNoneと0を互換値として保持する"""
+        changed_by = User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester")
+        _mutate_retained_user_id(changed_by, retained_id)
+
+        change = self._site_change(mock_site_no_http, flags=["S"], changed_by=changed_by)
+
+        assert change.changed_by.id == retained_id
 
     def test_init_rejects_changed_by_from_different_client(self, mock_site_no_http: Site) -> None:
         """SiteChange初期化時のchanged_byはsiteと同じClientだけ受け付ける"""
