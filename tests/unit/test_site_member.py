@@ -749,6 +749,24 @@ class TestSiteMemberChangeGroup:
         assert call_args["event"] == "removeAdmin"
 
     @pytest.mark.parametrize(
+        "method_name",
+        ["to_moderator", "remove_moderator", "to_admin", "remove_admin"],
+    )
+    def test_change_group_accepts_zero_user_id(self, method_name: str) -> None:
+        """ゼロのメンバーユーザーIDは権限変更payloadにそのまま使える"""
+        site = _site()
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
+        user = self._user(user_id=0, client=site.client)
+        member = SiteMember(site=site, user=user, joined_at=None)
+
+        getattr(member, method_name)()
+
+        call_args = site.amc_request.call_args[0][0][0]
+        assert call_args["user_id"] == 0
+
+    @pytest.mark.parametrize(
         ("method_name", "cleared_cache", "preserved_cache"),
         [
             ("to_moderator", "_moderators", "_admins"),
@@ -942,6 +960,32 @@ class TestSiteMemberChangeGroup:
 
         site.client.login_check.assert_not_called()
         site.amc_request.assert_not_called()
+
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    @pytest.mark.parametrize(
+        "method_name",
+        ["to_moderator", "remove_moderator", "to_admin", "remove_admin"],
+    )
+    def test_change_group_rejects_negative_user_id_before_login(self, method_name: str, user_id: int) -> None:
+        """権限変更は保持済みメンバーIDが負数の場合にログイン確認前に拒否する"""
+        site = _site()
+        site.client.login_check = MagicMock()
+        site.amc_request = MagicMock()
+        cached_moderators = [object()]
+        cached_admins = [object()]
+        site._moderators = cached_moderators
+        site._admins = cached_admins
+        bad_user = self._user(client=site.client)
+        bad_user.id = user_id
+        member = SiteMember(site=site, user=bad_user, joined_at=None)
+
+        with pytest.raises(ValueError, match="member.user.id must be non-negative"):
+            getattr(member, method_name)()
+
+        site.client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
+        assert site._moderators is cached_moderators
+        assert site._admins is cached_admins
 
     def test_change_group_rejects_user_from_different_client_before_login(self) -> None:
         """権限変更時のSiteMember.userはsiteと同じClientだけ受け付ける"""
