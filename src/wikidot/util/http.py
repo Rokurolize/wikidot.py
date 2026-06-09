@@ -1,6 +1,7 @@
 """HTTP utilities with retry mechanism."""
 
 import asyncio
+import math
 import random
 import time
 
@@ -29,17 +30,19 @@ def _validate_positive_int_option(field: str, value: object) -> int:
 def _validate_non_negative_number_option(field: str, value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{field} must be a non-negative number")
-    if value < 0:
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value) or numeric_value < 0:
         raise ValueError(f"{field} must be a non-negative number")
-    return float(value)
+    return numeric_value
 
 
 def _validate_positive_number_option(field: str, value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{field} must be a positive number")
-    if value <= 0:
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value) or numeric_value <= 0:
         raise ValueError(f"{field} must be a positive number")
-    return float(value)
+    return numeric_value
 
 
 def _validate_retry_options(

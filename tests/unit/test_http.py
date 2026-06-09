@@ -57,7 +57,7 @@ class TestCalculateBackoff:
             calculate_backoff(retry_count, 1.0, 2.0, 60.0)
 
     @pytest.mark.parametrize("field", ["base_interval", "backoff_factor", "max_backoff"])
-    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1, float("nan"), float("inf"), -float("inf")])
     def test_rejects_invalid_numeric_backoff_options(self, field: str, value: Any):
         """backoffの数値オプションは非負数として検証する"""
         options = {
@@ -94,7 +94,7 @@ class TestCalculateBackoff:
 class TestSyncGetWithRetry:
     """sync_get_with_retry関数のテスト"""
 
-    @pytest.mark.parametrize("timeout", [None, True, "1", 0, -0.1])
+    @pytest.mark.parametrize("timeout", [None, True, "1", 0, -0.1, float("nan"), float("inf"), -float("inf")])
     def test_rejects_invalid_timeout_before_request(self, httpx_mock, timeout: Any):
         """timeoutはHTTPリクエスト前に正の数値として検証する"""
         with pytest.raises(ValueError, match="timeout must be a positive number"):
@@ -111,7 +111,7 @@ class TestSyncGetWithRetry:
         assert httpx_mock.get_requests() == []
 
     @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
-    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1, float("nan"), float("inf"), -float("inf")])
     def test_rejects_invalid_numeric_retry_options_before_request(self, httpx_mock, field: str, value: Any):
         """retry系の数値オプションはHTTPリクエスト前に非負数として検証する"""
         kwargs: dict[str, Any] = {field: value}
@@ -261,7 +261,7 @@ class TestSyncGetWithRetry:
 class TestSyncPostWithRetry:
     """sync_post_with_retry関数のテスト"""
 
-    @pytest.mark.parametrize("timeout", [None, True, "1", 0, -0.1])
+    @pytest.mark.parametrize("timeout", [None, True, "1", 0, -0.1, float("nan"), float("inf"), -float("inf")])
     def test_rejects_invalid_timeout_before_request(self, httpx_mock, timeout: Any):
         """timeoutはHTTPリクエスト前に正の数値として検証する"""
         with pytest.raises(ValueError, match="timeout must be a positive number"):
@@ -278,7 +278,7 @@ class TestSyncPostWithRetry:
         assert httpx_mock.get_requests() == []
 
     @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
-    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1, float("nan"), float("inf"), -float("inf")])
     def test_rejects_invalid_numeric_retry_options_before_request(self, httpx_mock, field: str, value: Any):
         """retry系の数値オプションはHTTPリクエスト前に非負数として検証する"""
         kwargs: dict[str, Any] = {field: value}
@@ -386,7 +386,7 @@ class TestAsyncGetWithRetry:
     """async_get_with_retry関数のテスト"""
 
     @pytest.mark.asyncio
-    @pytest.mark.parametrize("timeout", [None, True, "1", 0, -0.1])
+    @pytest.mark.parametrize("timeout", [None, True, "1", 0, -0.1, float("nan"), float("inf"), -float("inf")])
     async def test_rejects_invalid_timeout_before_request(self, httpx_mock, timeout: Any):
         """timeoutはHTTPリクエスト前に正の数値として検証する"""
         from wikidot.util.http import async_get_with_retry
@@ -409,7 +409,7 @@ class TestAsyncGetWithRetry:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
-    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1, float("nan"), float("inf"), -float("inf")])
     async def test_rejects_invalid_numeric_retry_options_before_request(self, httpx_mock, field: str, value: Any):
         """retry系の数値オプションはHTTPリクエスト前に非負数として検証する"""
         from wikidot.util.http import async_get_with_retry
