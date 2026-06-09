@@ -92,6 +92,29 @@ class TestUserParserRegularUser:
         with pytest.raises(ValueError, match="user href is not found"):
             user_parse(mock_client_no_http, elem)
 
+    @pytest.mark.parametrize(
+        "href",
+        [
+            "/user:info/test-user/extra",
+            "http://example.com/user:info/test-user",
+            "javascript:;",
+        ],
+    )
+    def test_parse_regular_user_with_malformed_href_raises(self, mock_client_no_http: MagicMock, href: str) -> None:
+        """通常ユーザーのhrefがuser:info経路でない場合はraw値付きで失敗する"""
+        html = (
+            f'<span class="printuser"><a href="{href}" '
+            'onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test-user</a></span>'
+        )
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        with pytest.raises(ValueError) as exc_info:
+            user_parse(mock_client_no_http, elem)
+
+        assert str(exc_info.value) == f"user href is malformed: {href}"
+
 
 class TestUserParserDeletedUser:
     """削除済みユーザーのパーステスト"""

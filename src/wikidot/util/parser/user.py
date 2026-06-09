@@ -79,8 +79,10 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
     if not isinstance(href_attr, str) or href_attr == "":
         raise ValueError("user href is not found")
     href = href_attr
-    user_unix_match = re.search(r"(?:https?://www\.wikidot\.com)?/user:info/([^?#]+)", href)
-    user_unix = user_unix_match.group(1) if user_unix_match is not None else href
+    user_unix_match = re.fullmatch(r"(?:https?://www\.wikidot\.com)?/user:info/([^/?#]+)(?:[?#].*)?", href)
+    if user_unix_match is None:
+        raise ValueError(f"user href is malformed: {href}")
+    user_unix = user_unix_match.group(1)
     onclick = str(_user.get("onclick", ""))
     user_id_match = re.search(r"userInfo\((\d+)\)", onclick)
     if user_id_match is None:

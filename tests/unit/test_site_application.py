@@ -498,10 +498,10 @@ class TestSiteApplicationAcquireAll:
             "body": """
                 <div>
                     <h3><span class="printuser">
-                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="/user:info/user1">User1</a>
                     </span></h3>
                     <h3><span class="printuser">
-                        <a onclick="WIKIDOT.page.listeners.userInfo(67890)" href="#">User2</a>
+                        <a onclick="WIKIDOT.page.listeners.userInfo(67890)" href="/user:info/user2">User2</a>
                     </span></h3>
                     <table>
                         <tr>
