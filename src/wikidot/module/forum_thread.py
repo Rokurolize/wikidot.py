@@ -43,7 +43,18 @@ def _validate_thread_created_by(created_by: object) -> "AbstractUser":
 
     if not isinstance(created_by, AbstractUser):
         raise ValueError("created_by must be an AbstractUser")
+    _validate_thread_created_by_id(created_by.id)
     return created_by
+
+
+def _validate_thread_created_by_id(value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("created_by.id must be an integer or None")
+    if value < 0:
+        raise ValueError("created_by.id must be non-negative or None")
+    return value
 
 
 def _validate_thread_created_by_site(site: "Site", created_by: "AbstractUser") -> None:

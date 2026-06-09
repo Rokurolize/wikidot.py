@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from wikidot.common import exceptions
 from wikidot.module.client import Client
 from wikidot.module.forum_thread import ForumThread, ForumThreadCollection
+from wikidot.module.user import AbstractUser, User
 
 if TYPE_CHECKING:
     from wikidot.module.forum_category import ForumCategory
@@ -103,6 +104,10 @@ def _thread_with_id(source_thread: ForumThread, thread_id: int) -> ForumThread:
 
 def _mutate_retained_thread_id(thread: ForumThread, thread_id: object) -> None:
     thread.id = cast(Any, thread_id)
+
+
+def _mutate_retained_user_id(user: AbstractUser, user_id: object) -> None:
+    user.id = cast(Any, user_id)
 
 
 # ============================================================
@@ -1441,10 +1446,72 @@ class TestForumThreadBasic:
                 category=mock_forum_thread_no_http.category,
             )
 
+    @pytest.mark.parametrize("retained_id", [True, False, "12345", 12345.0, []])
+    def test_init_rejects_malformed_retained_created_by_ids(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        retained_id: object,
+    ) -> None:
+        """スレッド初期化時のcreated_by.idはNoneまたは非bool整数だけ受け付ける"""
+        _mutate_retained_user_id(mock_forum_thread_no_http.created_by, retained_id)
+
+        with pytest.raises(ValueError, match="created_by.id must be an integer or None"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
+    @pytest.mark.parametrize("retained_id", [-1, -100])
+    def test_init_rejects_negative_retained_created_by_ids(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        retained_id: int,
+    ) -> None:
+        """スレッド初期化時のcreated_by.idは負数を受け付けない"""
+        _mutate_retained_user_id(mock_forum_thread_no_http.created_by, retained_id)
+
+        with pytest.raises(ValueError, match="created_by.id must be non-negative or None"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+            )
+
+    @pytest.mark.parametrize("retained_id", [None, 0])
+    def test_init_accepts_optional_retained_created_by_ids(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        retained_id: int | None,
+    ) -> None:
+        """スレッド初期化時のcreated_by.idはNoneと0を互換値として保持する"""
+        _mutate_retained_user_id(mock_forum_thread_no_http.created_by, retained_id)
+
+        thread = ForumThread(
+            site=mock_forum_thread_no_http.site,
+            id=mock_forum_thread_no_http.id,
+            title=mock_forum_thread_no_http.title,
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=mock_forum_thread_no_http.post_count,
+            category=mock_forum_thread_no_http.category,
+        )
+
+        assert thread.created_by.id == retained_id
+
     def test_init_rejects_created_by_from_different_client(self, mock_forum_thread_no_http: ForumThread) -> None:
         """スレッド作成者が別client由来なら初期化時に拒否する"""
-        from wikidot.module.user import User
-
         created_by = User(
             client=_client(),
             id=12345,
