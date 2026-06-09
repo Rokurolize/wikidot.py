@@ -242,12 +242,16 @@ def _validate_site_accessor_site(value: object) -> "Site":
     return value
 
 
-def _validate_site_lookup_client(client: object) -> "Client":
+def _validate_site_client(client: object) -> "Client":
     from .client import Client
 
     if not isinstance(client, Client):
         raise ValueError("client must be a Client")
     return client
+
+
+def _validate_site_lookup_client(client: object) -> "Client":
+    return _validate_site_client(client)
 
 
 def _validate_site_config_object(config: object) -> AjaxModuleConnectorConfig:
@@ -1234,6 +1238,7 @@ class Site:
 
         Initializes instances of each subclass that provides site-related functionality.
         """
+        self.client = _validate_site_client(self.client)
         self.id = _validate_site_id(self.id)
         self.title = _validate_site_text_field("title", self.title)
         self.unix_name = _validate_site_routing_text_field("unix_name", self.unix_name)

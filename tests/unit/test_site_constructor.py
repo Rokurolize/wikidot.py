@@ -45,6 +45,11 @@ class TestSiteInit:
 
         assert site.title == ""
 
+    @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
+    def test_init_rejects_malformed_client(self, client: Any) -> None:
+        with pytest.raises(ValueError, match="client must be a Client"):
+            _site(client)
+
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [
