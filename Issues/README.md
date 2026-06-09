@@ -721,6 +721,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [715-pr-validate-private-message-send-status-type.md](715-pr-validate-private-message-send-status-type.md): upstream PR draft for the committed private-message send status type validation fix.
 - [716-pr-validate-site-application-action-status-type.md](716-pr-validate-site-application-action-status-type.md): upstream PR draft for the committed site-application action status type validation fix.
 - [717-pr-validate-site-member-action-status-type.md](717-pr-validate-site-member-action-status-type.md): upstream PR draft for the committed site-member action status type validation fix.
+- [718-pr-validate-site-invite-action-status-type.md](718-pr-validate-site-invite-action-status-type.md): upstream PR draft for the committed site-invitation action status type validation fix.
 
 ## Local Evidence Index
 
@@ -1350,5 +1351,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 620: `c3f6c35 fix(private_message): validate send status type`
 - Local implementation commits, continued 621: `d846bdd fix(site_application): validate action status type`
 - Local implementation commits, continued 622: `01e7609 fix(site_member): validate action status type`
+- Local implementation commits, continued 623: `e247364 fix(site): validate invite status type`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
