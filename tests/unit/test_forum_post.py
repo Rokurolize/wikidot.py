@@ -523,6 +523,45 @@ class TestForumPostCollectionAcquireAll:
         assert mock_forum_thread_no_http._posts is None
         assert other_thread._posts is None
 
+    def test_acquire_all_in_threads_rejects_duplicate_thread_ids_from_different_sites_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """同じthread IDでもsiteが違うthreadはIDだけで重複扱いしない"""
+        other_site = Site(
+            client=mock_forum_thread_no_http.site.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        other_thread = ForumThread(
+            site=other_site,
+            id=mock_forum_thread_no_http.id,
+            title="Other Site Thread",
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=mock_forum_thread_no_http.post_count,
+            category=None,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_posts_in_thread
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+        other_site.amc_request = MagicMock()
+        other_site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="threads must belong to the same Site"):
+            ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, other_thread])
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        other_site.amc_request.assert_not_called()
+        other_site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_thread_no_http._posts is None
+        assert other_thread._posts is None
+
     def test_acquire_all_in_thread_accepts_zero_retained_thread_id(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:

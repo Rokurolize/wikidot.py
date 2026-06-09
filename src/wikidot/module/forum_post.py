@@ -64,6 +64,18 @@ def _validate_single_thread_site(sites: list["Site"]) -> "Site":
     return site
 
 
+def _validate_duplicate_thread_ids_share_site(threads: list["ForumThread"], thread_ids: list[int]) -> None:
+    sites_by_thread_id: dict[int, Site] = {}
+    for thread, thread_id in zip(threads, thread_ids, strict=True):
+        site = _validate_forum_thread_site(thread.site)
+        existing_site = sites_by_thread_id.get(thread_id)
+        if existing_site is None:
+            sites_by_thread_id[thread_id] = site
+            continue
+        if site is not existing_site:
+            raise ValueError("threads must belong to the same Site")
+
+
 def _validate_posts_belong_to_thread(thread: "ForumThread", site: "Site", posts: list["ForumPost"]) -> int:
     thread_id = _validate_forum_thread_id(thread.id)
     for post in posts:
@@ -691,6 +703,7 @@ class ForumPostCollection(list["ForumPost"]):
         if len(threads) == 0:
             return {}
         thread_ids = [_validate_forum_thread_id(thread.id) for thread in threads]
+        _validate_duplicate_thread_ids_share_site(threads, thread_ids)
 
         result: dict[int, ForumPostCollection] = {}
         cached_posts_by_id: dict[int, ForumPostCollection] = {}
