@@ -685,6 +685,8 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [679-pr-validate-forum-post-revision-list-acquisition-retained-post-id-state.md](679-pr-validate-forum-post-revision-list-acquisition-retained-post-id-state.md): upstream PR draft for the committed forum post revision-list acquisition retained post ID validation fix.
 - [680-pr-validate-forum-post-list-acquisition-retained-thread-id-state.md](680-pr-validate-forum-post-list-acquisition-retained-thread-id-state.md): upstream PR draft for the committed forum post-list acquisition retained thread ID validation fix.
 - [681-pr-validate-category-thread-list-acquisition-retained-category-id-state.md](681-pr-validate-category-thread-list-acquisition-retained-category-id-state.md): upstream PR draft for the committed category thread-list acquisition retained category ID validation fix.
+- [682-pr-validate-forum-post-source-acquisition-retained-id-state.md](682-pr-validate-forum-post-source-acquisition-retained-id-state.md): upstream PR draft for the committed forum post source-acquisition retained ID validation fix.
+- [683-pr-validate-forum-post-edit-retained-id-state.md](683-pr-validate-forum-post-edit-retained-id-state.md): upstream PR draft for the committed forum post edit retained ID validation fix.
 
 ## Local Evidence Index
 
@@ -1279,5 +1281,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 585: `dd24cbe fix(forum_post): validate post-list acquisition thread ids`
 - Local implementation commits, continued 586: `4c0c8cf fix(forum_thread): validate category thread-list acquisition ids`
 - Local implementation commits, continued 587: `c1847af fix(forum_post): validate source acquisition ids`
+- Local implementation commits, continued 588: `8a23374 fix(forum_post): validate edit retained ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
