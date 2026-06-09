@@ -708,6 +708,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [702-pr-validate-page-source-constructor-page.md](702-pr-validate-page-source-constructor-page.md): upstream PR draft for the committed PageSource constructor page validation fix.
 - [703-pr-validate-search-query-created-by.md](703-pr-validate-search-query-created-by.md): upstream PR draft for the committed SearchPagesQuery created_by validation fix.
 - [704-pr-validate-page-revision-collection-page-ownership.md](704-pr-validate-page-revision-collection-page-ownership.md): upstream PR draft for the committed page-revision collection constructor ownership validation fix.
+- [705-pr-validate-page-collection-site-ownership.md](705-pr-validate-page-collection-site-ownership.md): upstream PR draft for the committed page collection constructor site ownership validation fix.
 
 ## Local Evidence Index
 
@@ -1324,5 +1325,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 607: `f38bcb5 fix(page_source): validate constructor page`
 - Local implementation commits, continued 608: `ef5fa95 fix(page): validate search query creator`
 - Local implementation commits, continued 609: `501ff7d fix(page_revision): validate collection page ownership`
+- Local implementation commits, continued 610: `f135260 fix(page): validate collection site ownership`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
