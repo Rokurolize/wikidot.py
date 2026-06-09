@@ -1454,12 +1454,18 @@ class PageCollection(list["Page"]):
                 )
             source = response.text
 
-            id_match = re.search(r"WIKIREQUEST\.info\.pageId = (\d+);", source)
+            id_match = re.search(r"WIKIREQUEST\.info\.pageId\s*=\s*([^;]*);", source)
             if id_match is None:
                 raise exceptions.NotFoundException(
                     f"Cannot find page id for site: {site.unix_name}, page: {target_pages_for_url[0].fullname}"
                 )
-            page_id = int(id_match.group(1))
+            page_id_text = id_match.group(1).strip()
+            if re.fullmatch(r"[0-9]+", page_id_text) is None:
+                raise exceptions.NoElementException(
+                    f"Page ID is malformed for site: {site.unix_name}, page: {target_pages_for_url[0].fullname} "
+                    f"(field=page_id, value={page_id_text})"
+                )
+            page_id = int(page_id_text)
             for page in target_pages_for_url:
                 page.id = page_id
 

@@ -1216,6 +1216,31 @@ class TestPageCollectionAcquire:
 
         request.assert_called_once()
 
+    @pytest.mark.parametrize("page_id_text", ["latest", "123abc"])
+    def test_acquire_page_ids_malformed_id_metadata_includes_page_and_value_context(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+        page_id_text: str,
+    ) -> None:
+        """page_idの値が壊れている場合は欠落ではなく値つきの構造エラーにする"""
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        response = httpx.Response(200, text=f"WIKIREQUEST.info.pageId = {page_id_text};")
+        request = MagicMock(return_value=[response])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                rf"Page ID is malformed for site: test-site, page: test-page "
+                rf"\(field=page_id, value={page_id_text}\)"
+            ),
+        ):
+            collection.get_page_ids()
+
+        request.assert_called_once()
+
     def test_acquire_page_ids_missing_id_raises_not_found_with_page_context(
         self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
     ) -> None:
