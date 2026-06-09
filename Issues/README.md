@@ -724,6 +724,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [718-pr-validate-site-invite-action-status-type.md](718-pr-validate-site-invite-action-status-type.md): upstream PR draft for the committed site-invitation action status type validation fix.
 - [719-pr-validate-forum-category-create-thread-status-type.md](719-pr-validate-forum-category-create-thread-status-type.md): upstream PR draft for the committed forum-category create-thread action status type validation fix.
 - [720-pr-validate-forum-thread-reply-status-type.md](720-pr-validate-forum-thread-reply-status-type.md): upstream PR draft for the committed forum-thread reply action status type validation fix.
+- [721-pr-validate-forum-post-edit-status-type.md](721-pr-validate-forum-post-edit-status-type.md): upstream PR draft for the committed forum-post edit action status type validation fix.
 
 ## Local Evidence Index
 
@@ -1356,5 +1357,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 623: `e247364 fix(site): validate invite status type`
 - Local implementation commits, continued 624: `685cf72 fix(forum_category): validate create thread status type`
 - Local implementation commits, continued 625: `e2a8842 fix(forum_thread): validate reply status type`
+- Local implementation commits, continued 626: `c8ed69f fix(forum_post): validate edit status type`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
