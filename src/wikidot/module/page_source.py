@@ -11,6 +11,14 @@ if TYPE_CHECKING:
     from .page import Page
 
 
+def _validate_page_source_page(value: object) -> "Page":
+    from .page import Page
+
+    if not isinstance(value, Page):
+        raise ValueError("page must be a Page")
+    return value
+
+
 @dataclass
 class PageSource:
     """
@@ -31,6 +39,7 @@ class PageSource:
     wiki_text: str
 
     def __post_init__(self) -> None:
+        self.page = _validate_page_source_page(self.page)
         if not isinstance(self.wiki_text, str):
             raise ValueError("wiki_text must be a string")
 
