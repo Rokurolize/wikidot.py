@@ -426,7 +426,7 @@ class ForumThreadCollection(list["ForumThread"]):
         if not isinstance(id, int) or isinstance(id, bool):
             raise ValueError("id must be an integer")
         for thread in self:
-            if thread.id == id:
+            if _validate_thread_id(thread.id) == id:
                 return thread
         return None
 

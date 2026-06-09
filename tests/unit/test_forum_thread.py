@@ -84,6 +84,10 @@ def _thread_with_id(source_thread: ForumThread, thread_id: int) -> ForumThread:
     )
 
 
+def _mutate_retained_thread_id(thread: ForumThread, thread_id: object) -> None:
+    thread.id = cast(Any, thread_id)
+
+
 # ============================================================
 # ForumThreadCollectionテスト
 # ============================================================
@@ -170,6 +174,14 @@ class TestForumThreadCollectionInit:
         found = collection.find(9999)
         assert found is None
 
+    def test_find_accepts_thread_with_zero_retained_id(
+        self, mock_site_no_http: Site, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        thread = _thread_with_id(mock_forum_thread_no_http, 0)
+        collection = ForumThreadCollection(mock_site_no_http, [thread])
+
+        assert collection.find(0) is thread
+
     @pytest.mark.parametrize("bad_id", [None, True, "3001", 3001.0])
     def test_find_rejects_non_integer_ids(
         self, mock_site_no_http: Site, mock_forum_thread_no_http: ForumThread, bad_id: object
@@ -180,6 +192,39 @@ class TestForumThreadCollectionInit:
 
         with pytest.raises(ValueError, match="id must be an integer"):
             collection.find(bad_find_id)
+
+    @pytest.mark.parametrize(
+        ("retained_thread_id", "lookup_id"),
+        [
+            (None, 3001),
+            (True, 1),
+            (False, 0),
+            ("3001", 3001),
+            (3001.0, 3001),
+            ([], 3001),
+        ],
+    )
+    def test_find_rejects_thread_with_malformed_retained_ids(
+        self,
+        mock_site_no_http: Site,
+        mock_forum_thread_no_http: ForumThread,
+        retained_thread_id: object,
+        lookup_id: int,
+    ) -> None:
+        _mutate_retained_thread_id(mock_forum_thread_no_http, retained_thread_id)
+        collection = ForumThreadCollection(mock_site_no_http, [mock_forum_thread_no_http])
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            collection.find(lookup_id)
+
+    def test_find_rejects_thread_with_negative_retained_id(
+        self, mock_site_no_http: Site, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        _mutate_retained_thread_id(mock_forum_thread_no_http, -1)
+        collection = ForumThreadCollection(mock_site_no_http, [mock_forum_thread_no_http])
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            collection.find(3001)
 
 
 class TestForumThreadCollectionParseListInCategory:
