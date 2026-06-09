@@ -730,6 +730,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [724-pr-validate-page-metadata-status-type.md](724-pr-validate-page-metadata-status-type.md): upstream PR draft for the committed page metadata action status type validation fix.
 - [725-pr-validate-recent-change-revision-cell-shape.md](725-pr-validate-recent-change-revision-cell-shape.md): upstream PR draft for the committed recent-change revision cell shape validation fix.
 - [726-pr-validate-forum-category-href-id-shape.md](726-pr-validate-forum-category-href-id-shape.md): upstream PR draft for the committed forum category href ID shape validation fix.
+- [727-pr-validate-forum-thread-href-id-shape.md](727-pr-validate-forum-thread-href-id-shape.md): upstream PR draft for the committed forum thread href ID shape validation fix.
 
 ## Local Evidence Index
 
@@ -1368,5 +1369,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 629: `0e744d0 fix(page): validate metadata status type`
 - Local implementation commits, continued 630: `9e3b3a4 fix(site): validate recent change revision cells`
 - Local implementation commits, continued 631: `1934631 fix(forum_category): validate category href ids`
+- Local implementation commits, continued 632: `e1b8394 fix(forum_thread): validate thread href ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
