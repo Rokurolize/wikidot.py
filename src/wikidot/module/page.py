@@ -977,14 +977,17 @@ class PageCollection(list["Page"]):
             List of pages to store
         """
         validated_pages = [] if pages is None else _validate_pages(pages)
-        super().__init__(validated_pages)
-
         if site is not None:
-            self.site = _validate_page_collection_site(site)
-        elif len(self) == 0:
-            self.site = None
+            collection_site = _validate_page_collection_site(site)
+            _validate_pages_belong_to_collection_site(collection_site, validated_pages)
+        elif len(validated_pages) == 0:
+            collection_site = None
         else:
-            self.site = self[0].site
+            collection_site = _validate_page_collection_site(validated_pages[0].site)
+            _validate_pages_belong_to_collection_site(collection_site, validated_pages)
+
+        super().__init__(validated_pages)
+        self.site = collection_site
 
     def _get_site_for_batch(self) -> "Site | None":
         if self.site is None:

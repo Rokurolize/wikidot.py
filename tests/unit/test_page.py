@@ -45,9 +45,16 @@ def _cached_page_vote(page: Page, value: int = 1) -> PageVote:
     return PageVote(page=page, user=_page_user(page), value=value)
 
 
-def _other_page_like(page: Page, *, fullname: str = "other-page", page_id: int | None = 222) -> Page:
+def _other_page_like(
+    page: Page,
+    *,
+    site: Site | None = None,
+    fullname: str = "other-page",
+    page_id: int | None = 222,
+) -> Page:
+    page_site = page.site if site is None else site
     return Page(
-        site=page.site,
+        site=page_site,
         fullname=fullname,
         name=fullname,
         category=page.category,
@@ -223,6 +230,44 @@ class TestPageCollectionInit:
 
         with pytest.raises(ValueError, match="pages list entries must be Page"):
             PageCollection(mock_site_no_http, bad_pages)
+
+    def test_init_rejects_page_from_different_site(
+        self,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+    ) -> None:
+        """明示されたsiteと異なるsiteのページは初期化時に拒否する"""
+        other_site = Site(
+            client=mock_site_no_http.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        other_page = _other_page_like(mock_page_no_http, site=other_site)
+
+        with pytest.raises(ValueError, match="pages must belong to the collection site"):
+            PageCollection(mock_site_no_http, [other_page])
+
+    def test_init_rejects_mixed_page_sites_when_site_is_inferred(
+        self,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+    ) -> None:
+        """site未指定で推定したsiteと異なるページは初期化時に拒否する"""
+        other_site = Site(
+            client=mock_site_no_http.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        other_page = _other_page_like(mock_page_no_http, site=other_site)
+
+        with pytest.raises(ValueError, match="pages must belong to the collection site"):
+            PageCollection(pages=[mock_page_no_http, other_page])
 
     def test_find_existing_page(self, mock_site_no_http: Site, mock_page_no_http: Page) -> None:
         """存在するページをfullnameで検索できる"""
@@ -1003,29 +1048,9 @@ class TestPageCollectionAcquire:
             domain="other-site.wikidot.com",
             ssl_supported=True,
         )
-        other_page = Page(
-            site=other_site,
-            fullname="other-page",
-            name="other-page",
-            category="_default",
-            title="Other Page",
-            children_count=0,
-            comments_count=0,
-            size=1000,
-            rating=10,
-            votes_count=5,
-            rating_percent=0.0,
-            revisions_count=3,
-            parent_fullname=None,
-            tags=["tag1"],
-            created_by=mock_page_no_http.created_by,
-            created_at=mock_page_no_http.created_at,
-            updated_by=mock_page_no_http.updated_by,
-            updated_at=mock_page_no_http.updated_at,
-            commented_by=None,
-            commented_at=None,
-        )
-        collection = PageCollection(mock_site_no_http, [other_page])
+        other_page = _other_page_like(mock_page_no_http, site=other_site)
+        collection = PageCollection(mock_site_no_http, [])
+        collection.append(other_page)
         request = MagicMock(return_value=[])
         monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
 
