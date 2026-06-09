@@ -307,6 +307,16 @@ class TestUserCollection:
         with pytest.raises(ValueError, match="users list entries must be AbstractUser"):
             UserCollection([user])
 
+    def test_from_names_empty_input_skips_client_validation_and_request(self, httpx_mock: HTTPXMock) -> None:
+        """空の一括取得はclient検証やリクエストを行わず空のコレクションを返す"""
+        bad_client: Any = object()
+
+        result = UserCollection.from_names(bad_client, [])
+
+        assert isinstance(result, UserCollection)
+        assert list(result) == []
+        assert httpx_mock.get_requests() == []
+
     def test_from_names_rejects_non_list_names_before_request(
         self, mock_client_no_http: MagicMock, httpx_mock: HTTPXMock
     ) -> None:

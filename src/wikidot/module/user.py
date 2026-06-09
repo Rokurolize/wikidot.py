@@ -152,6 +152,9 @@ class UserCollection(list["AbstractUser"]):
         """
         names = _validate_user_names(names)
         raise_when_not_found = _validate_raise_when_not_found(raise_when_not_found)
+        if len(names) == 0:
+            return UserCollection([])
+
         client = _validate_user_lookup_client(client)
         responses = RequestUtil.request(
             client,
