@@ -690,6 +690,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [684-pr-validate-forum-thread-reply-retained-id-state.md](684-pr-validate-forum-thread-reply-retained-id-state.md): upstream PR draft for the committed forum thread reply retained ID validation fix.
 - [685-pr-validate-private-message-send-recipient-id-range.md](685-pr-validate-private-message-send-recipient-id-range.md): upstream PR draft for the committed private-message send recipient ID range validation fix.
 - [686-pr-validate-site-invite-user-id-range.md](686-pr-validate-site-invite-user-id-range.md): upstream PR draft for the committed site invitation target user ID range validation fix.
+- [687-pr-validate-site-application-user-id-range.md](687-pr-validate-site-application-user-id-range.md): upstream PR draft for the committed site application applicant user ID range validation fix.
 
 ## Local Evidence Index
 
@@ -1288,5 +1289,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 589: `abe2b11 fix(forum_thread): validate reply retained id`
 - Local implementation commits, continued 590: `60d37ab fix(private_message): validate send recipient id range`
 - Local implementation commits, continued 591: `ba33ae4 fix(site): validate invite user id range`
+- Local implementation commits, continued 592: `c060a78 fix(site_application): validate application user id range`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
