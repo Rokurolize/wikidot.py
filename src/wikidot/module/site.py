@@ -81,6 +81,19 @@ def _parse_recent_change_user(
         ) from exc
 
 
+def _parse_recent_change_revision_no(site: "Site", rev_elem: Tag, *, page_no: int, change_index: int) -> int:
+    rev_value = rev_elem.get_text(" ", strip=True)
+    rev_match = re.fullmatch(r"\(\s*rev\.\s*(\d+)\s*\)|rev\.\s*(\d+)", rev_value)
+    if rev_match is None:
+        error = "malformed" if re.search(r"\d", rev_value) is not None else "not found"
+        raise exceptions.NoElementException(
+            f"Revision number is {error} for site: {site.unix_name} "
+            f"(page={page_no}, change={change_index}, field=revision_no, value={rev_value})"
+        )
+    revision_text = next(group for group in rev_match.groups() if group is not None)
+    return int(revision_text)
+
+
 def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", event: str, data: dict[str, Any]) -> Any:
     try:
         status = data["status"]
@@ -1764,16 +1777,9 @@ class Site:
                 rev_elem = metadata_row.find("td", class_="revision-no", recursive=False)
                 if rev_elem is None:
                     raise NoElementException(f"Revision number element is not found {parse_context}")
-                rev_text = rev_elem.get_text()
-                rev_match = re.search(r"(\d+)", rev_text)
-                if rev_match is None:
-                    rev_value = rev_elem.get_text(" ", strip=True)
-                    raise NoElementException(
-                        "Revision number is not found "
-                        f"for site: {self.unix_name} "
-                        f"(page={page_no}, change={change_index}, field=revision_no, value={rev_value})"
-                    )
-                revision_no = int(rev_match.group(1))
+                revision_no = _parse_recent_change_revision_no(
+                    self, rev_elem, page_no=page_no, change_index=change_index
+                )
 
                 user_cell = metadata_row.find("td", class_="mod-by", recursive=False)
                 user_elem = (

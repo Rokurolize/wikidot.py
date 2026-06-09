@@ -3483,6 +3483,37 @@ Real edit comment
         ):
             site.get_recent_changes()
 
+    def test_get_recent_changes_rejects_revision_number_with_trailing_text(self, site_changes: dict[str, Any]) -> None:
+        """変更履歴revision番号は埋め込み数字ではなく構造的なrev値だけ受け付ける"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = re.sub(
+            r'<td class="revision-no"[^>]*>\s*\(rev\. 3\)\s*</td>',
+            '<td class="revision-no">rev. 3 latest</td>',
+            site_changes["body"],
+            count=1,
+        )
+        assert body != site_changes["body"]
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Revision number is malformed for site: test "
+                r"\(page=1, change=1, field=revision_no, value=rev\. 3 latest\)"
+            ),
+        ):
+            site.get_recent_changes()
+
     def test_get_recent_changes_malformed_odate_includes_raw_class_context(self, site_changes: dict[str, Any]) -> None:
         """変更履歴timestampの異常値はraw class値付きで失敗する"""
         mock_client = create_mock_client()
