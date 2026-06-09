@@ -392,7 +392,7 @@ class ForumPostCollection(list["ForumPost"]):
         if not isinstance(id, int) or isinstance(id, bool):
             raise ValueError("id must be an integer")
         for post in self:
-            if post.id == id:
+            if _validate_post_id(post.id) == id:
                 return post
         return None
 
