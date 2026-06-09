@@ -701,6 +701,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [695-pr-validate-forum-thread-creator-user-id-state.md](695-pr-validate-forum-thread-creator-user-id-state.md): upstream PR draft for the committed ForumThread constructor creator user ID state validation fix.
 - [696-pr-validate-forum-post-actor-user-id-state.md](696-pr-validate-forum-post-actor-user-id-state.md): upstream PR draft for the committed ForumPost constructor actor user ID state validation fix.
 - [697-pr-validate-forum-post-revision-creator-user-id-state.md](697-pr-validate-forum-post-revision-creator-user-id-state.md): upstream PR draft for the committed ForumPostRevision constructor creator user ID state validation fix.
+- [698-pr-validate-page-metadata-user-id-state.md](698-pr-validate-page-metadata-user-id-state.md): upstream PR draft for the committed Page constructor metadata user ID state validation fix.
 
 ## Local Evidence Index
 
@@ -1310,5 +1311,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 600: `4e3d1d0 fix(forum_thread): validate creator user ids`
 - Local implementation commits, continued 601: `7a82c42 fix(forum_post): validate actor user ids`
 - Local implementation commits, continued 602: `b958308 fix(forum_post_revision): validate creator user ids`
+- Local implementation commits, continued 603: `1b32dc3 fix(page): validate metadata user ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
