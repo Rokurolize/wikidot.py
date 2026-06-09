@@ -103,6 +103,8 @@ def _validate_site_invitation_user(user: object) -> User:
         raise ValueError("user must be a User")
     if not isinstance(user.id, int) or isinstance(user.id, bool):
         raise ValueError("user.id must be an integer")
+    if user.id < 0:
+        raise ValueError("user.id must be non-negative")
     if not isinstance(user.name, str):
         raise ValueError("user.name must be a string")
     return user

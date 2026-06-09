@@ -2667,6 +2667,30 @@ class TestSiteInviteUser:
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
 
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    def test_invite_user_rejects_negative_user_id_before_login(self, user_id: int) -> None:
+        """招待先Userの保持済みIDが負数の場合はログイン確認やAMCリクエスト前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        mock_client.login_check = MagicMock()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        bad_user = User(client=mock_client, id=12345, name="test-user")
+        bad_user.id = user_id
+        mock_client.amc_client.request = MagicMock()
+
+        with pytest.raises(ValueError, match="user.id must be non-negative"):
+            site.invite_user(bad_user, "Welcome message")
+
+        mock_client.login_check.assert_not_called()
+        mock_client.amc_client.request.assert_not_called()
+
     def test_invite_user_success(self, site_invite_member_success: dict[str, Any]) -> None:
         """ユーザー招待成功"""
         mock_client = create_mock_client(is_logged_in=True)
@@ -2692,6 +2716,29 @@ class TestSiteInviteUser:
         assert call_args["action"] == "ManageSiteMembershipAction"
         assert call_args["event"] == "inviteMember"
         assert call_args["user_id"] == 12345
+
+    def test_invite_user_accepts_zero_user_id(self, site_invite_member_success: dict[str, Any]) -> None:
+        """ゼロの招待先ユーザーIDは招待payloadにそのまま使える"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = site_invite_member_success
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        mock_user = User(client=mock_client, id=0, name="zero-user")
+
+        site.invite_user(mock_user, "Welcome message")
+
+        call_args = mock_client.amc_client.request.call_args[0][0][0]
+        assert call_args["user_id"] == 0
 
     def test_invite_user_missing_action_status_includes_site_user_event_and_field_context(self) -> None:
         """招待応答のstatus欠落は文脈付きNoElementException"""
