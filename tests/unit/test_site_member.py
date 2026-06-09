@@ -98,6 +98,25 @@ class TestSiteMemberDataclass:
         with pytest.raises(ValueError, match="member.user must belong to the site"):
             SiteMember(site=site, user=user, joined_at=None)
 
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    def test_init_rejects_negative_user_id(self, user_id: int) -> None:
+        """SiteMember.userのIDが負数なら初期化時に拒否する"""
+        site = _site()
+        user = _member_user(client=site.client)
+        user.id = user_id
+
+        with pytest.raises(ValueError, match="member.user.id must be non-negative"):
+            SiteMember(site=site, user=user, joined_at=None)
+
+    def test_init_accepts_zero_user_id(self) -> None:
+        """SiteMember.userのIDは0を有効な値として扱う"""
+        site = _site()
+        user = _member_user(user_id=0, client=site.client)
+
+        member = SiteMember(site=site, user=user, joined_at=None)
+
+        assert member.user.id == 0
+
     @pytest.mark.parametrize("joined_at", [True, 1700000000, "2024-01-01", []])
     def test_init_rejects_malformed_joined_at(self, joined_at: object) -> None:
         """SiteMember.joined_atはdatetimeまたはNoneだけ受け付ける"""
@@ -976,8 +995,8 @@ class TestSiteMemberChangeGroup:
         site._moderators = cached_moderators
         site._admins = cached_admins
         bad_user = self._user(client=site.client)
-        bad_user.id = user_id
         member = SiteMember(site=site, user=bad_user, joined_at=None)
+        member.user.id = user_id
 
         with pytest.raises(ValueError, match="member.user.id must be non-negative"):
             getattr(member, method_name)()

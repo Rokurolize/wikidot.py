@@ -123,6 +123,8 @@ def _require_site_member_action_status(member: "SiteMember", event: str, data: d
 def _validate_site_member_user(user: object) -> AbstractUser:
     if not isinstance(user, AbstractUser):
         raise ValueError("member.user must be an AbstractUser")
+    if isinstance(user.id, int) and not isinstance(user.id, bool) and user.id < 0:
+        raise ValueError("member.user.id must be non-negative")
     return user
 
 
