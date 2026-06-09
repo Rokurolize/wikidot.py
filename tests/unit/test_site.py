@@ -3455,6 +3455,70 @@ Real edit comment
         ):
             site.get_recent_changes()
 
+    @pytest.mark.parametrize(
+        "href",
+        [
+            "http://example.com/test:test-page",
+            "https://other.wikidot.com/test:test-page",
+            "http:test:test-page",
+            "javascript:alert(1)",
+            "#test:test-page",
+            "?page=test:test-page",
+        ],
+    )
+    def test_get_recent_changes_rejects_malformed_page_href_routes(
+        self, site_changes: dict[str, Any], href: str
+    ) -> None:
+        """変更履歴タイトルhrefがページ経路でない場合は文脈付きで失敗する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = site_changes["body"].replace('<a href="/test:test-page">', f'<a href="{href}">', 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(NoElementException) as exc_info:
+            site.get_recent_changes()
+
+        message = str(exc_info.value)
+        assert "Page fullname href is malformed for site: test" in message
+        assert "(page=1, change=1, field=href" in message
+        assert f"value={href}" in message
+
+    def test_get_recent_changes_accepts_same_site_absolute_page_href(self, site_changes: dict[str, Any]) -> None:
+        """変更履歴タイトルhrefが同一サイトの絶対URLでもページ名として正規化する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = site_changes["body"].replace(
+            '<a href="/test:test-page">',
+            '<a href="https://test.wikidot.com/test:test-page?from=changes#edit">',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+
+            changes = site.get_recent_changes()
+
+        assert changes[0].page_fullname == "test:test-page"
+
     def test_get_recent_changes_empty_page_title_includes_site_page_and_item_context(
         self, site_changes: dict[str, Any]
     ) -> None:

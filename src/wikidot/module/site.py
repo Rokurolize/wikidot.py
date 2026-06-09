@@ -5,6 +5,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Literal, Optional, cast, overload
+from urllib.parse import urlsplit
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -92,6 +93,28 @@ def _parse_recent_change_revision_no(site: "Site", rev_elem: Tag, *, page_no: in
         )
     revision_text = next(group for group in rev_match.groups() if group is not None)
     return int(revision_text)
+
+
+def _parse_recent_change_page_fullname(site: "Site", href: str, *, page_no: int, change_index: int) -> str:
+    href_text = href.strip()
+    href_parts = urlsplit(href_text)
+    page_fullname = href_parts.path.strip("/")
+    href_host = href_parts.hostname.lower() if href_parts.hostname is not None else None
+
+    malformed = (
+        href_parts.scheme not in {"", "http", "https"}
+        or (href_parts.scheme in {"http", "https"} and href_parts.netloc == "")
+        or (href_parts.netloc != "" and href_host != site.domain.lower())
+        or (page_fullname == "" and (href_parts.query != "" or href_parts.fragment != ""))
+    )
+    if malformed:
+        raise exceptions.NoElementException(
+            "Page fullname href is malformed "
+            f"for site: {site.unix_name} "
+            f"(page={page_no}, change={change_index}, field=href, value={href_text})"
+        )
+
+    return page_fullname
 
 
 def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", event: str, data: dict[str, Any]) -> Any:
@@ -1751,7 +1774,9 @@ class Site:
                 href = title_elem.get("href")
                 if not isinstance(href, str) or href.strip() == "":
                     raise NoElementException(f"Title href is not found {parse_context}")
-                page_fullname = href.strip().strip("/")
+                page_fullname = _parse_recent_change_page_fullname(
+                    self, href, page_no=page_no, change_index=change_index
+                )
                 if page_fullname == "":
                     raise NoElementException(f"Page fullname is not found {parse_context}")
 
