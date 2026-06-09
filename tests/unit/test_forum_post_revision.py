@@ -15,7 +15,7 @@ from wikidot.module.forum_post import ForumPost
 from wikidot.module.forum_post_revision import ForumPostRevision, ForumPostRevisionCollection
 from wikidot.module.forum_thread import ForumThread
 from wikidot.module.site import Site
-from wikidot.module.user import User
+from wikidot.module.user import AbstractUser, User
 
 if TYPE_CHECKING:
     from wikidot.module.forum_post import ForumPost
@@ -90,6 +90,10 @@ def _mutate_retained_revision_id(revision: ForumPostRevision, retained_id: objec
 
 def _mutate_retained_revision_number(revision: ForumPostRevision, retained_rev_no: object) -> None:
     revision.rev_no = cast(Any, retained_rev_no)
+
+
+def _mutate_retained_user_id(user: AbstractUser, retained_id: object) -> None:
+    user.id = cast(Any, retained_id)
 
 
 # ============================================================
@@ -2110,6 +2114,58 @@ class TestForumPostRevisionBasic:
                 created_by=other_client_user,
                 created_at=datetime.now(tz=timezone.utc),
             )
+
+    @pytest.mark.parametrize("retained_id", [True, False, "12345", 12345.0, []])
+    def test_init_rejects_malformed_retained_created_by_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """ForumPostRevisionの初期化は壊れた保持作成者IDを拒否する"""
+        created_by = _user(mock_forum_post_no_http.thread.site.client)
+        _mutate_retained_user_id(created_by, retained_id)
+
+        with pytest.raises(ValueError, match="created_by.id must be an integer or None"):
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=0,
+                created_by=created_by,
+                created_at=datetime.now(tz=timezone.utc),
+            )
+
+    @pytest.mark.parametrize("retained_id", [-1, -100])
+    def test_init_rejects_negative_retained_created_by_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: int
+    ) -> None:
+        """ForumPostRevisionの初期化は負の保持作成者IDを拒否する"""
+        created_by = _user(mock_forum_post_no_http.thread.site.client)
+        _mutate_retained_user_id(created_by, retained_id)
+
+        with pytest.raises(ValueError, match="created_by.id must be non-negative or None"):
+            ForumPostRevision(
+                post=mock_forum_post_no_http,
+                id=9001,
+                rev_no=0,
+                created_by=created_by,
+                created_at=datetime.now(tz=timezone.utc),
+            )
+
+    @pytest.mark.parametrize("retained_id", [None, 0])
+    def test_init_accepts_optional_retained_created_by_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: int | None
+    ) -> None:
+        """ForumPostRevisionの初期化は未取得またはゼロの保持作成者IDを保持できる"""
+        created_by = _user(mock_forum_post_no_http.thread.site.client)
+        _mutate_retained_user_id(created_by, retained_id)
+
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=created_by,
+            created_at=datetime.now(tz=timezone.utc),
+        )
+
+        assert revision.created_by.id == retained_id
 
     @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-11-14", []])
     def test_init_rejects_malformed_created_at(self, mock_forum_post_no_http: ForumPost, created_at: object) -> None:
