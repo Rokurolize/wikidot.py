@@ -1278,5 +1278,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 584: `f4ea207 fix(forum_post_revision): validate list acquisition post ids`
 - Local implementation commits, continued 585: `dd24cbe fix(forum_post): validate post-list acquisition thread ids`
 - Local implementation commits, continued 586: `4c0c8cf fix(forum_thread): validate category thread-list acquisition ids`
+- Local implementation commits, continued 587: `c1847af fix(forum_post): validate source acquisition ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
