@@ -260,6 +260,14 @@ def _validate_site_config_object(config: object) -> AjaxModuleConnectorConfig:
     return config
 
 
+def _validate_site_amc_request_state(site: "Site") -> tuple["Client", str, bool]:
+    return (
+        _validate_site_client(site.client),
+        _validate_site_routing_text_field("unix_name", site.unix_name),
+        _validate_site_ssl_supported(site.ssl_supported),
+    )
+
+
 def _validate_amc_retry_batch_size(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"batch_size must be positive, got {value}")
@@ -1385,10 +1393,11 @@ class Site:
         if len(bodies) == 0:
             return ()
 
+        client, unix_name, ssl_supported = _validate_site_amc_request_state(self)
         if return_exceptions:
-            return self.client.amc_client.request(bodies, True, self.unix_name, self.ssl_supported)
+            return client.amc_client.request(bodies, True, unix_name, ssl_supported)
         else:
-            return self.client.amc_client.request(bodies, False, self.unix_name, self.ssl_supported)
+            return client.amc_client.request(bodies, False, unix_name, ssl_supported)
 
     def amc_request_with_retry(
         self,
@@ -1425,7 +1434,8 @@ class Site:
         if len(bodies) == 0:
             return ()
 
-        config = _validate_site_config_object(self.client.amc_client.config)
+        client = _validate_site_client(self.client)
+        config = _validate_site_config_object(client.amc_client.config)
         batch_size = batch_size if batch_size is not None else _validate_amc_retry_batch_size(config.retry_batch_size)
         max_retries = (
             max_retries if max_retries is not None else _validate_amc_retry_max_retries(config.retry_max_retries)

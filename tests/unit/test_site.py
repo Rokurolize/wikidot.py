@@ -2449,6 +2449,72 @@ class TestSiteAmcRequest:
         with pytest.raises(ValueError, match="return_exceptions must be a boolean"):
             site.amc_request([], return_exceptions=return_exceptions)
 
+    @pytest.mark.parametrize(
+        ("field_name", "bad_value", "message"),
+        [
+            ("client", object(), "client must be a Client"),
+            ("unix_name", True, "unix_name must be a string"),
+            ("unix_name", " ", "unix_name must not be empty"),
+            ("ssl_supported", "true", "ssl_supported must be a boolean"),
+        ],
+    )
+    def test_amc_request_rejects_mutated_request_state_before_client_request(
+        self,
+        field_name: str,
+        bad_value: object,
+        message: str,
+    ) -> None:
+        """AMC requestは変更されたSite request stateを委譲前に拒否する"""
+        mock_client = create_mock_client()
+        mock_client.amc_client.request.return_value = (MagicMock(),)
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        setattr(site, field_name, cast(Any, bad_value))
+
+        with pytest.raises(ValueError, match=message):
+            site.amc_request([{"moduleName": "Test"}])
+
+        mock_client.amc_client.request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("field_name", "bad_value", "message"),
+        [
+            ("client", object(), "client must be a Client"),
+            ("unix_name", True, "unix_name must be a string"),
+            ("unix_name", " ", "unix_name must not be empty"),
+            ("ssl_supported", "true", "ssl_supported must be a boolean"),
+        ],
+    )
+    def test_amc_request_with_retry_rejects_mutated_request_state_before_client_request(
+        self,
+        field_name: str,
+        bad_value: object,
+        message: str,
+    ) -> None:
+        """AMC retry helperも変更されたSite request stateをrequest前に拒否する"""
+        mock_client = create_mock_client()
+        mock_client.amc_client.request.return_value = (MagicMock(),)
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        setattr(site, field_name, cast(Any, bad_value))
+
+        with pytest.raises(ValueError, match=message):
+            site.amc_request_with_retry([{"moduleName": "Test"}])
+
+        mock_client.amc_client.request.assert_not_called()
+
     def test_amc_request_with_retry_empty_bodies_returns_empty_without_config(self) -> None:
         """空AMC retry batchはclient configに触れず空tupleを返す"""
 
