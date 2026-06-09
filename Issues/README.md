@@ -739,6 +739,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [733-pr-validate-odate-time-class-shape.md](733-pr-validate-odate-time-class-shape.md): upstream PR draft for the committed odate time-class shape validation fix.
 - [734-pr-validate-page-id-script-shape.md](734-pr-validate-page-id-script-shape.md): upstream PR draft for the committed page-ID script shape validation fix.
 - [735-pr-validate-site-id-script-shape.md](735-pr-validate-site-id-script-shape.md): upstream PR draft for the committed site-ID script shape validation fix.
+- [736-pr-validate-regular-user-href-shape.md](736-pr-validate-regular-user-href-shape.md): upstream PR draft for the committed regular-user href shape validation fix.
 
 ## Local Evidence Index
 
@@ -1386,5 +1387,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 638: `558b3e8 fix(odate): validate time class shape`
 - Local implementation commits, continued 639: `0f47c09 fix(page): report malformed page id metadata`
 - Local implementation commits, continued 640: `f3551fe fix(site): validate generated site id shape`
+- Local implementation commits, continued 641: `c71aea5 fix(user): validate regular user href shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
