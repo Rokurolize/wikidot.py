@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 from bs4 import BeautifulSoup
@@ -69,6 +69,23 @@ def _category_on_other_site(category: ForumCategory) -> ForumCategory:
         threads_count=category.threads_count,
         posts_count=category.posts_count,
     )
+
+
+def _category_with_id(source_category: ForumCategory, category_id: int) -> ForumCategory:
+    from wikidot.module.forum_category import ForumCategory
+
+    return ForumCategory(
+        site=source_category.site,
+        id=category_id,
+        title=f"Category {category_id}",
+        description=source_category.description,
+        threads_count=source_category.threads_count,
+        posts_count=source_category.posts_count,
+    )
+
+
+def _mutate_retained_category_id(category: ForumCategory, category_id: object) -> None:
+    category.id = cast(Any, category_id)
 
 
 def _thread_with_id(source_thread: ForumThread, thread_id: int) -> ForumThread:
@@ -330,6 +347,115 @@ class TestForumThreadCollectionAcquireAll:
 
         with pytest.raises(ValueError, match="category must be a ForumCategory"):
             ForumThreadCollection.acquire_all_in_category(bad_category)
+
+    def test_acquire_all_accepts_zero_retained_category_id(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """カテゴリ内スレッド取得は0 retained category IDを有効なIDとして送信する"""
+        zero_category = _category_with_id(mock_forum_category_no_http, 0)
+        body_with_pager = forum_threads_in_category["body"] + '<div class="pager"><a>1</a><a>2</a><a>next</a></div>'
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+        second_response = MagicMock()
+        second_response.json.return_value = forum_threads_in_category
+        zero_category.site.amc_request = MagicMock()
+        zero_category.site.amc_request_with_retry = MagicMock(side_effect=[(first_response,), (second_response,)])
+
+        collection = ForumThreadCollection.acquire_all_in_category(zero_category)
+
+        assert zero_category._threads is collection
+        assert len(collection) == 4
+        assert all(thread.category == zero_category for thread in collection)
+        zero_category.site.amc_request.assert_not_called()
+        assert zero_category.site.amc_request_with_retry.call_args_list == [
+            call(
+                [
+                    {
+                        "p": 1,
+                        "c": 0,
+                        "moduleName": "forum/ForumViewCategoryModule",
+                    }
+                ]
+            ),
+            call(
+                [
+                    {
+                        "p": 2,
+                        "c": 0,
+                        "moduleName": "forum/ForumViewCategoryModule",
+                    }
+                ]
+            ),
+        ]
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "1001", 1001.0, []])
+    def test_acquire_all_rejects_malformed_retained_category_ids_before_fetch(
+        self, mock_forum_category_no_http: ForumCategory, retained_id: object
+    ) -> None:
+        """カテゴリ内スレッド取得は壊れたretained category IDを取得前に拒否する"""
+        _mutate_retained_category_id(mock_forum_category_no_http, retained_id)
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_category_no_http._threads is None
+
+    def test_acquire_all_rejects_negative_retained_category_id_before_fetch(
+        self, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        """カテゴリ内スレッド取得は負のretained category IDを取得前に拒否する"""
+        _mutate_retained_category_id(mock_forum_category_no_http, -1)
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_category_no_http._threads is None
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "1001", 1001.0, []])
+    def test_acquire_all_rejects_malformed_cached_retained_category_ids_before_cache_return(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        retained_id: object,
+    ) -> None:
+        """カテゴリ内スレッド取得は壊れたretained category IDをcached返却前に拒否する"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http._threads = cached_threads
+        _mutate_retained_category_id(mock_forum_category_no_http, retained_id)
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_category_no_http._threads is cached_threads
+
+    def test_acquire_all_rejects_negative_cached_retained_category_id_before_cache_return(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """カテゴリ内スレッド取得は負のretained category IDをcached返却前に拒否する"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http._threads = cached_threads
+        _mutate_retained_category_id(mock_forum_category_no_http, -1)
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_category_no_http._threads is cached_threads
 
     def test_category_threads_retries_transient_first_page_failures(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]

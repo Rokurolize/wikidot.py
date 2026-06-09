@@ -112,6 +112,12 @@ def _validate_forum_category(category: object) -> "ForumCategory":
     return category
 
 
+def _validate_forum_category_id(category_id: object) -> int:
+    from .forum_category import _validate_forum_category_id as validate_category_id
+
+    return validate_category_id(category_id)
+
+
 def _validate_optional_forum_category(category: object) -> Optional["ForumCategory"]:
     if category is None:
         return None
@@ -718,6 +724,7 @@ class ForumThreadCollection(list["ForumThread"]):
             If HTML element parsing fails
         """
         category = _validate_forum_category(category)
+        category_id = _validate_forum_category_id(category.id)
         if category._threads is not None:
             return category._threads
 
@@ -732,14 +739,14 @@ class ForumThreadCollection(list["ForumThread"]):
             [
                 {
                     "p": 1,
-                    "c": category.id,
+                    "c": category_id,
                     "moduleName": "forum/ForumViewCategoryModule",
                 }
             ]
         )[0]
         if first_response is None:
             raise UnexpectedException(
-                f"Cannot retrieve forum threads for site: {category.site.unix_name}, category: {category.id}, page: 1"
+                f"Cannot retrieve forum threads for site: {category.site.unix_name}, category: {category_id}, page: 1"
             )
 
         first_body = ForumThreadCollection._thread_list_response_body(first_response, category, 1)
@@ -766,7 +773,7 @@ class ForumThreadCollection(list["ForumThread"]):
             [
                 {
                     "p": page,
-                    "c": category.id,
+                    "c": category_id,
                     "moduleName": "forum/ForumViewCategoryModule",
                 }
                 for page in page_numbers
@@ -776,7 +783,7 @@ class ForumThreadCollection(list["ForumThread"]):
         for page, response in zip(page_numbers, responses, strict=True):
             if response is None:
                 raise UnexpectedException(
-                    f"Cannot retrieve forum threads for site: {category.site.unix_name}, category: {category.id}, page: {page}"
+                    f"Cannot retrieve forum threads for site: {category.site.unix_name}, category: {category_id}, page: {page}"
                 )
             body = ForumThreadCollection._thread_list_response_body(response, category, page)
             html = BeautifulSoup(body, "lxml")
