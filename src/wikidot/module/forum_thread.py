@@ -240,6 +240,22 @@ def _parse_thread_list_count(
     return count
 
 
+def _parse_thread_list_thread_id(
+    site: "Site", category: Optional["ForumCategory"], row_index: int, page: int | None, href: object
+) -> int:
+    href_text = str(href)
+    thread_id_match = re.search(r"(?:^|/)t-(\d+)(?=[/?#]|$)", href_text)
+    if thread_id_match is not None:
+        return int(thread_id_match.group(1))
+
+    if re.search(r"(?:^|/)t-[^/?#]*", href_text) is not None:
+        parse_context = _thread_list_parse_context(site, category, row_index, page, field="id", value=href_text)
+        raise NoElementException(f"Thread ID is malformed {parse_context}")
+
+    parse_context = _thread_list_parse_context(site, category, row_index, page)
+    raise NoElementException(f"Thread ID is not found {parse_context}")
+
+
 def _parse_thread_list_user(
     site: "Site",
     category: Optional["ForumCategory"],
@@ -577,11 +593,7 @@ class ForumThreadCollection(list["ForumThread"]):
                 if title_href is None:
                     raise NoElementException(f"Title href is not found {parse_context}")
 
-                thread_id_match = re.search(r"t-(\d+)", str(title_href))
-                if thread_id_match is None:
-                    raise NoElementException(f"Thread ID is not found {parse_context}")
-
-                thread_id = int(thread_id_match.group(1))
+                thread_id = _parse_thread_list_thread_id(site, category, row_index, page, title_href)
 
                 description_elem = name_elem.select_one(":scope > div.description")
                 user_elem = started_elem.select_one(":scope > span.printuser")
@@ -603,7 +615,7 @@ class ForumThreadCollection(list["ForumThread"]):
 
                 thread = ForumThread(
                     site=site,
-                    id=int(thread_id),
+                    id=thread_id,
                     title=title.get_text(" ", strip=True),
                     description=description_elem.get_text(" ", strip=True),
                     created_by=_parse_thread_list_user(site, category, row_index, page, user_elem),

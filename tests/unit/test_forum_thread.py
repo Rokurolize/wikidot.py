@@ -683,6 +683,28 @@ class TestForumThreadCollectionAcquireAll:
         assert collection[0].title == "First part Second part"
         mock_forum_category_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_thread_id_includes_category_context(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド一覧のhref内IDが壊れている場合はカテゴリ・ページ・行・値を含めて失敗する"""
+        body_with_bad_thread_id = forum_threads_in_category["body"].replace(
+            '<a href="/forum/t-3001/test-thread">Test Thread</a>',
+            '<a href="/forum/t-3001-latest/test-thread">Test Thread</a>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body_with_bad_thread_id}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Thread ID is malformed for site: test-site "
+                r"\(category=1001, page=1, row=1, field=id, value=/forum/t-3001-latest/test-thread\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
     def test_acquire_all_missing_name_cell_class_includes_category_context(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
