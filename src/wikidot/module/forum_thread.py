@@ -359,7 +359,7 @@ def _parse_thread_detail_created_at(
         raise NoElementException(f"Forum thread detail created_at is malformed {parse_context}") from exc
 
 
-def _require_forum_thread_action_status(thread: "ForumThread", event: str, data: dict[str, Any]) -> Any:
+def _require_forum_thread_action_status(thread: "ForumThread", event: str, data: dict[str, Any]) -> str:
     try:
         status = data["status"]
     except KeyError as exc:
@@ -367,6 +367,12 @@ def _require_forum_thread_action_status(thread: "ForumThread", event: str, data:
             f"Forum thread action response is malformed for site: {thread.site.unix_name}, thread: {thread.id} "
             f"(event={event}, field=status)"
         ) from exc
+
+    if not isinstance(status, str):
+        raise NoElementException(
+            f"Forum thread action response is malformed for site: {thread.site.unix_name}, thread: {thread.id} "
+            f"(event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
 
     if status != "ok":
         raise WikidotStatusCodeException(
