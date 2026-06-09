@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -34,9 +34,22 @@ def _user(client: Any) -> User:
     return User(client=client, id=12345, name="test-user", unix_name="test-user")
 
 
-def _post_with_id(source_post: ForumPost, post_id: int) -> ForumPost:
+def _thread_with_id(source_thread: ForumThread, thread_id: int) -> ForumThread:
+    return ForumThread(
+        site=source_thread.site,
+        id=thread_id,
+        title=f"Thread {thread_id}",
+        description=source_thread.description,
+        created_by=source_thread.created_by,
+        created_at=source_thread.created_at,
+        post_count=source_thread.post_count,
+        category=source_thread.category,
+    )
+
+
+def _post_with_thread_and_id(source_post: ForumPost, thread: ForumThread, post_id: int) -> ForumPost:
     return ForumPost(
-        thread=source_post.thread,
+        thread=thread,
         id=post_id,
         title=f"Post {post_id}",
         text=source_post.text,
@@ -47,6 +60,28 @@ def _post_with_id(source_post: ForumPost, post_id: int) -> ForumPost:
         edited_at=source_post.edited_at,
         _parent_id=source_post.parent_id,
     )
+
+
+def _post_with_id(source_post: ForumPost, post_id: int) -> ForumPost:
+    return _post_with_thread_and_id(source_post, source_post.thread, post_id)
+
+
+def _revision_for_post(post: ForumPost) -> ForumPostRevision:
+    return ForumPostRevision(
+        post=post,
+        id=9001,
+        rev_no=0,
+        created_by=_user(post.thread.site.client),
+        created_at=datetime.now(tz=timezone.utc),
+    )
+
+
+def _mutate_retained_post_id(post: ForumPost, retained_id: object) -> None:
+    post.id = cast(Any, retained_id)
+
+
+def _mutate_retained_thread_id(thread: ForumThread, retained_id: object) -> None:
+    thread.id = cast(Any, retained_id)
 
 
 # ============================================================
@@ -116,6 +151,186 @@ class TestForumPostRevisionCollectionInit:
 
         with pytest.raises(ValueError, match="revisions must belong to the collection post"):
             ForumPostRevisionCollection(post=None, revisions=revisions)
+
+    def test_init_accepts_zero_retained_post_and_thread_ids(self, mock_forum_post_no_http: ForumPost) -> None:
+        """0のpost/thread IDを持つ同一postのrevisionコレクションは保持できる"""
+        zero_thread = _thread_with_id(mock_forum_post_no_http.thread, 0)
+        zero_post = _post_with_thread_and_id(mock_forum_post_no_http, zero_thread, 0)
+        revision = _revision_for_post(zero_post)
+
+        explicit_collection = ForumPostRevisionCollection(zero_post, [revision])
+        inferred_collection = ForumPostRevisionCollection(post=None, revisions=[revision])
+
+        assert explicit_collection.post is zero_post
+        assert inferred_collection.post is zero_post
+
+    @pytest.mark.parametrize(
+        ("retained_id", "target_id"),
+        [(True, 1), (False, 0), ("5001", 5001), (5001.0, 5001), ([], 5001)],
+    )
+    def test_init_rejects_explicit_parent_with_malformed_retained_post_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object, target_id: int
+    ) -> None:
+        """明示親postの壊れた保持IDは所有権比較前に拒否する"""
+        target_post = _post_with_id(mock_forum_post_no_http, target_id)
+        revision_parent = _post_with_id(mock_forum_post_no_http, target_id)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_post_id(target_post, retained_id)
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumPostRevisionCollection(target_post, [revision])
+
+    def test_init_rejects_explicit_parent_with_negative_retained_post_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """明示親postの負の保持IDは所有権比較前に拒否する"""
+        target_post = _post_with_id(mock_forum_post_no_http, 5001)
+        revision_parent = _post_with_id(mock_forum_post_no_http, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_post_id(target_post, -1)
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumPostRevisionCollection(target_post, [revision])
+
+    @pytest.mark.parametrize(
+        ("retained_id", "target_id"),
+        [(True, 1), (False, 0), ("5001", 5001), (5001.0, 5001), ([], 5001)],
+    )
+    def test_init_rejects_explicit_entry_with_malformed_retained_post_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object, target_id: int
+    ) -> None:
+        """明示親コレクション内revision postの壊れた保持IDは所有権比較前に拒否する"""
+        target_post = _post_with_id(mock_forum_post_no_http, target_id)
+        revision_parent = _post_with_id(mock_forum_post_no_http, target_id)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_post_id(revision_parent, retained_id)
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumPostRevisionCollection(target_post, [revision])
+
+    def test_init_rejects_explicit_entry_with_negative_retained_post_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """明示親コレクション内revision postの負の保持IDは所有権比較前に拒否する"""
+        target_post = _post_with_id(mock_forum_post_no_http, 5001)
+        revision_parent = _post_with_id(mock_forum_post_no_http, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_post_id(revision_parent, -1)
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumPostRevisionCollection(target_post, [revision])
+
+    @pytest.mark.parametrize(
+        ("retained_id", "target_thread_id"),
+        [(True, 1), (False, 0), ("3001", 3001), (3001.0, 3001), ([], 3001)],
+    )
+    def test_init_rejects_explicit_parent_with_malformed_retained_thread_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object, target_thread_id: int
+    ) -> None:
+        """明示親postの壊れたthread保持IDは所有権比較前に拒否する"""
+        target_thread = _thread_with_id(mock_forum_post_no_http.thread, target_thread_id)
+        revision_thread = _thread_with_id(mock_forum_post_no_http.thread, target_thread_id)
+        target_post = _post_with_thread_and_id(mock_forum_post_no_http, target_thread, 5001)
+        revision_parent = _post_with_thread_and_id(mock_forum_post_no_http, revision_thread, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_thread_id(target_thread, retained_id)
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumPostRevisionCollection(target_post, [revision])
+
+    def test_init_rejects_explicit_parent_with_negative_retained_thread_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """明示親postの負のthread保持IDは所有権比較前に拒否する"""
+        target_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        revision_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        target_post = _post_with_thread_and_id(mock_forum_post_no_http, target_thread, 5001)
+        revision_parent = _post_with_thread_and_id(mock_forum_post_no_http, revision_thread, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_thread_id(target_thread, -1)
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            ForumPostRevisionCollection(target_post, [revision])
+
+    @pytest.mark.parametrize(
+        ("retained_id", "target_thread_id"),
+        [(True, 1), (False, 0), ("3001", 3001), (3001.0, 3001), ([], 3001)],
+    )
+    def test_init_rejects_explicit_entry_with_malformed_retained_thread_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object, target_thread_id: int
+    ) -> None:
+        """明示親コレクション内revision threadの壊れた保持IDは所有権比較前に拒否する"""
+        target_thread = _thread_with_id(mock_forum_post_no_http.thread, target_thread_id)
+        revision_thread = _thread_with_id(mock_forum_post_no_http.thread, target_thread_id)
+        target_post = _post_with_thread_and_id(mock_forum_post_no_http, target_thread, 5001)
+        revision_parent = _post_with_thread_and_id(mock_forum_post_no_http, revision_thread, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_thread_id(revision_thread, retained_id)
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumPostRevisionCollection(target_post, [revision])
+
+    def test_init_rejects_explicit_entry_with_negative_retained_thread_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """明示親コレクション内revision threadの負の保持IDは所有権比較前に拒否する"""
+        target_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        revision_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        target_post = _post_with_thread_and_id(mock_forum_post_no_http, target_thread, 5001)
+        revision_parent = _post_with_thread_and_id(mock_forum_post_no_http, revision_thread, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_thread_id(revision_thread, -1)
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            ForumPostRevisionCollection(target_post, [revision])
+
+    @pytest.mark.parametrize("retained_id", [True, False, "5001", 5001.0, []])
+    def test_init_rejects_inferred_parent_with_malformed_retained_post_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """推論親post自身の壊れた保持IDは所有権比較前に拒否する"""
+        revision_parent = _post_with_id(mock_forum_post_no_http, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_post_id(revision_parent, retained_id)
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumPostRevisionCollection(post=None, revisions=[revision])
+
+    def test_init_rejects_inferred_parent_with_negative_retained_post_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """推論親post自身の負の保持IDは所有権比較前に拒否する"""
+        revision_parent = _post_with_id(mock_forum_post_no_http, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_post_id(revision_parent, -1)
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumPostRevisionCollection(post=None, revisions=[revision])
+
+    @pytest.mark.parametrize("retained_id", [True, False, "3001", 3001.0, []])
+    def test_init_rejects_inferred_parent_with_malformed_retained_thread_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """推論親post自身の壊れたthread保持IDは所有権比較前に拒否する"""
+        revision_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        revision_parent = _post_with_thread_and_id(mock_forum_post_no_http, revision_thread, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_thread_id(revision_thread, retained_id)
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumPostRevisionCollection(post=None, revisions=[revision])
+
+    def test_init_rejects_inferred_parent_with_negative_retained_thread_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """推論親post自身の負のthread保持IDは所有権比較前に拒否する"""
+        revision_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        revision_parent = _post_with_thread_and_id(mock_forum_post_no_http, revision_thread, 5001)
+        revision = _revision_for_post(revision_parent)
+        _mutate_retained_thread_id(revision_thread, -1)
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            ForumPostRevisionCollection(post=None, revisions=[revision])
 
     @pytest.mark.parametrize("post", [True, "5001", {"id": 5001}, object()])
     def test_init_rejects_malformed_posts(self, post: object) -> None:

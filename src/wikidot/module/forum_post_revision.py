@@ -67,6 +67,18 @@ def _validate_forum_post_thread(thread: object) -> "ForumThread":
     return thread
 
 
+def _validate_forum_post_id(post_id: object) -> int:
+    from .forum_post import _validate_post_id
+
+    return _validate_post_id(post_id)
+
+
+def _validate_forum_thread_id(thread_id: object) -> int:
+    from .forum_thread import _validate_thread_id
+
+    return _validate_thread_id(thread_id)
+
+
 def _validate_forum_thread_site(site: object) -> "Site":
     from .site import Site
 
@@ -186,11 +198,15 @@ def _validate_revisions_belong_to_post(post: "ForumPost", revisions: list["Forum
 
     post_thread = _validate_forum_post_thread(post.thread)
     post_site = _validate_forum_thread_site(post_thread.site)
+    post_id = _validate_forum_post_id(post.id)
+    post_thread_id = _validate_forum_thread_id(post_thread.id)
     for revision in revisions:
         revision_post = _validate_forum_post(revision.post)
         revision_thread = _validate_forum_post_thread(revision_post.thread)
         revision_site = _validate_forum_thread_site(revision_thread.site)
-        if revision_post.id != post.id or revision_thread.id != post_thread.id or revision_site is not post_site:
+        revision_post_id = _validate_forum_post_id(revision_post.id)
+        revision_thread_id = _validate_forum_thread_id(revision_thread.id)
+        if revision_post_id != post_id or revision_thread_id != post_thread_id or revision_site is not post_site:
             raise ValueError("revisions must belong to the collection post")
 
 
