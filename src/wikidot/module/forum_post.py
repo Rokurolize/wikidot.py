@@ -145,7 +145,18 @@ def _validate_post_created_by(created_by: object) -> "AbstractUser":
 
     if not isinstance(created_by, AbstractUser):
         raise ValueError("created_by must be an AbstractUser")
+    _validate_post_actor_id("created_by", created_by.id)
     return created_by
+
+
+def _validate_post_actor_id(field: str, value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field}.id must be an integer or None")
+    if value < 0:
+        raise ValueError(f"{field}.id must be non-negative or None")
+    return value
 
 
 def _validate_post_created_by_site(site: "Site", created_by: "AbstractUser") -> None:
@@ -167,6 +178,7 @@ def _validate_optional_post_edited_by(edited_by: object) -> Optional["AbstractUs
 
     if not isinstance(edited_by, AbstractUser):
         raise ValueError("edited_by must be an AbstractUser or None")
+    _validate_post_actor_id("edited_by", edited_by.id)
     return edited_by
 
 

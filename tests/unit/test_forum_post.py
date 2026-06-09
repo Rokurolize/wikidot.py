@@ -15,7 +15,7 @@ from wikidot.module.forum_post import ForumPost, ForumPostCollection
 from wikidot.module.forum_post_revision import ForumPostRevision, ForumPostRevisionCollection
 from wikidot.module.forum_thread import ForumThread
 from wikidot.module.site import Site
-from wikidot.module.user import User
+from wikidot.module.user import AbstractUser, User
 
 
 def _client() -> Client:
@@ -121,6 +121,10 @@ def _mutate_retained_post_id(post: ForumPost, retained_id: object) -> None:
 
 def _mutate_retained_thread_id(thread: ForumThread, retained_id: object) -> None:
     thread.id = cast(Any, retained_id)
+
+
+def _mutate_retained_user_id(user: AbstractUser, retained_id: object) -> None:
+    user.id = cast(Any, retained_id)
 
 
 class TestForumPostCollectionInit:
@@ -2266,6 +2270,76 @@ class TestForumPostBasic:
                 _source=mock_forum_post_no_http._source,
             )
 
+    @pytest.mark.parametrize("retained_id", [True, False, "12345", 12345.0, []])
+    def test_init_rejects_malformed_retained_created_by_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """ForumPostの初期化は壊れた保持投稿者IDを拒否する"""
+        created_by = mock_forum_post_no_http.created_by
+        _mutate_retained_user_id(created_by, retained_id)
+
+        with pytest.raises(ValueError, match="created_by.id must be an integer or None"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    @pytest.mark.parametrize("retained_id", [-1, -100])
+    def test_init_rejects_negative_retained_created_by_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: int
+    ) -> None:
+        """ForumPostの初期化は負の保持投稿者IDを拒否する"""
+        created_by = mock_forum_post_no_http.created_by
+        _mutate_retained_user_id(created_by, retained_id)
+
+        with pytest.raises(ValueError, match="created_by.id must be non-negative or None"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=mock_forum_post_no_http.edited_by,
+                edited_at=mock_forum_post_no_http.edited_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    @pytest.mark.parametrize("retained_id", [None, 0])
+    def test_init_accepts_optional_retained_created_by_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: int | None
+    ) -> None:
+        """ForumPostの初期化は未取得またはゼロの保持投稿者IDを保持できる"""
+        created_by = mock_forum_post_no_http.created_by
+        _mutate_retained_user_id(created_by, retained_id)
+
+        post = ForumPost(
+            thread=mock_forum_post_no_http.thread,
+            id=mock_forum_post_no_http.id,
+            title=mock_forum_post_no_http.title,
+            text=mock_forum_post_no_http.text,
+            element=mock_forum_post_no_http.element,
+            created_by=created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=mock_forum_post_no_http.edited_by,
+            edited_at=mock_forum_post_no_http.edited_at,
+            _parent_id=mock_forum_post_no_http._parent_id,
+            _source=mock_forum_post_no_http._source,
+        )
+
+        assert post.created_by.id == retained_id
+
     @pytest.mark.parametrize("created_at", [None, True, 1700000000, "2023-11-14", []])
     def test_init_rejects_malformed_created_at(self, mock_forum_post_no_http: ForumPost, created_at: object) -> None:
         """ForumPostの初期化はdatetimeの作成日時だけ受け付ける"""
@@ -2329,6 +2403,92 @@ class TestForumPostBasic:
                 _parent_id=mock_forum_post_no_http._parent_id,
                 _source=mock_forum_post_no_http._source,
             )
+
+    @pytest.mark.parametrize("retained_id", [True, False, "54322", 54322.0, []])
+    def test_init_rejects_malformed_retained_edited_by_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """ForumPostの初期化は壊れた保持編集者IDを拒否する"""
+        edited_by = User(
+            client=mock_forum_post_no_http.thread.site.client,
+            id=54322,
+            name="edit_user",
+            unix_name="edit-user",
+        )
+        _mutate_retained_user_id(edited_by, retained_id)
+
+        with pytest.raises(ValueError, match="edited_by.id must be an integer or None"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=edited_by,
+                edited_at=mock_forum_post_no_http.created_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    @pytest.mark.parametrize("retained_id", [-1, -100])
+    def test_init_rejects_negative_retained_edited_by_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: int
+    ) -> None:
+        """ForumPostの初期化は負の保持編集者IDを拒否する"""
+        edited_by = User(
+            client=mock_forum_post_no_http.thread.site.client,
+            id=54322,
+            name="edit_user",
+            unix_name="edit-user",
+        )
+        _mutate_retained_user_id(edited_by, retained_id)
+
+        with pytest.raises(ValueError, match="edited_by.id must be non-negative or None"):
+            ForumPost(
+                thread=mock_forum_post_no_http.thread,
+                id=mock_forum_post_no_http.id,
+                title=mock_forum_post_no_http.title,
+                text=mock_forum_post_no_http.text,
+                element=mock_forum_post_no_http.element,
+                created_by=mock_forum_post_no_http.created_by,
+                created_at=mock_forum_post_no_http.created_at,
+                edited_by=edited_by,
+                edited_at=mock_forum_post_no_http.created_at,
+                _parent_id=mock_forum_post_no_http._parent_id,
+                _source=mock_forum_post_no_http._source,
+            )
+
+    @pytest.mark.parametrize("retained_id", [None, 0])
+    def test_init_accepts_optional_retained_edited_by_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: int | None
+    ) -> None:
+        """ForumPostの初期化は未取得またはゼロの保持編集者IDを保持できる"""
+        edited_by = User(
+            client=mock_forum_post_no_http.thread.site.client,
+            id=54322,
+            name="edit_user",
+            unix_name="edit-user",
+        )
+        _mutate_retained_user_id(edited_by, retained_id)
+
+        post = ForumPost(
+            thread=mock_forum_post_no_http.thread,
+            id=mock_forum_post_no_http.id,
+            title=mock_forum_post_no_http.title,
+            text=mock_forum_post_no_http.text,
+            element=mock_forum_post_no_http.element,
+            created_by=mock_forum_post_no_http.created_by,
+            created_at=mock_forum_post_no_http.created_at,
+            edited_by=edited_by,
+            edited_at=mock_forum_post_no_http.created_at,
+            _parent_id=mock_forum_post_no_http._parent_id,
+            _source=mock_forum_post_no_http._source,
+        )
+
+        assert post.edited_by is not None
+        assert post.edited_by.id == retained_id
 
     @pytest.mark.parametrize("edited_at", [True, 1700000000, "2023-11-14", []])
     def test_init_rejects_malformed_edited_at(self, mock_forum_post_no_http: ForumPost, edited_at: object) -> None:
