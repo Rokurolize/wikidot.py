@@ -168,7 +168,7 @@ class PageFileCollection(list["PageFile"]):
         """
         name = _validate_file_name(name)
         for file in self:
-            if file.name == name:
+            if _validate_file_name(file.name) == name:
                 return file
         return None
 

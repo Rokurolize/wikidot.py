@@ -87,6 +87,10 @@ def _mutate_retained_file_id(file: PageFile, file_id: object) -> None:
     file.id = cast(Any, file_id)
 
 
+def _mutate_retained_file_name(file: PageFile, name: object) -> None:
+    file.name = cast(Any, name)
+
+
 class TestPageFileCollection:
     """PageFileCollectionのテスト"""
 
@@ -294,6 +298,28 @@ class TestPageFileCollection:
 
         with pytest.raises(ValueError, match="name must not be empty"):
             collection.find_by_name(file_name)
+
+    @pytest.mark.parametrize("file_name", [None, True, 123, 1.0, []])
+    def test_find_by_name_rejects_malformed_retained_file_names(self, file_name: object) -> None:
+        """find_by_nameは保持しているファイル名の破損も検索前に検証する"""
+        page = _page()
+        file = _page_file(page, file_id=1, name="document.pdf")
+        _mutate_retained_file_name(file, file_name)
+        collection = PageFileCollection(page=page, files=[file])
+
+        with pytest.raises(ValueError, match="name must be a string"):
+            collection.find_by_name("document.pdf")
+
+    @pytest.mark.parametrize("file_name", ["", "   "])
+    def test_find_by_name_rejects_blank_retained_file_names(self, file_name: str) -> None:
+        """find_by_nameは保持しているblankファイル名の破損も検索前に検証する"""
+        page = _page()
+        file = _page_file(page, file_id=1, name="document.pdf")
+        _mutate_retained_file_name(file, file_name)
+        collection = PageFileCollection(page=page, files=[file])
+
+        with pytest.raises(ValueError, match="name must not be empty"):
+            collection.find_by_name("document.pdf")
 
 
 class TestPageFileCollectionParseSize:
