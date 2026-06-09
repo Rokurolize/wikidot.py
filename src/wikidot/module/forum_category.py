@@ -51,6 +51,12 @@ def _require_forum_category_action_status(category: "ForumCategory", event: str,
             f"Forum category action response is malformed for site: {category.site.unix_name}, "
             f"category: {category.id} (event={event}, field=status)"
         ) from exc
+    if not isinstance(status, str):
+        raise NoElementException(
+            f"Forum category action response is malformed for site: {category.site.unix_name}, "
+            f"category: {category.id} (event={event}, field=status, expected=str, "
+            f"actual={type(status).__name__})"
+        )
 
     if status != "ok":
         raise WikidotStatusCodeException(

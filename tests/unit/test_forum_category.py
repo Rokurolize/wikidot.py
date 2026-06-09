@@ -1214,3 +1214,67 @@ class TestForumCategoryCreateThread:
             )
 
         assert mock_forum_category_no_http.site.amc_request.call_count == 1
+
+    def test_create_thread_malformed_action_status_type_preserves_cache_and_does_not_fetch_created_thread(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        forum_thread_detail: dict[str, Any],
+    ) -> None:
+        """スレッド作成応答のstatus型異常は文脈付きで失敗し作成済みスレッドを取得しない"""
+        mock_forum_category_no_http.site.client.is_logged_in = True
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+
+        create_response = MagicMock()
+        create_response.json.return_value = {"threadId": 3001, "status": ["not-ok"]}
+        detail_response = MagicMock()
+        detail_response.json.return_value = forum_thread_detail
+        mock_forum_category_no_http.site.amc_request = MagicMock(side_effect=[[create_response], [detail_response]])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum category action response is malformed for site: test-site, category: 1001 "
+                r"\(event=newThread, field=status, expected=str, actual=list\)"
+            ),
+        ):
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )
+
+        assert mock_forum_category_no_http.site.amc_request.call_count == 1
+        assert mock_forum_category_no_http._threads is cached_threads
+        assert create_response.json.call_count == 1
+
+    def test_create_thread_explicit_non_ok_action_status_preserves_cache_and_does_not_fetch_created_thread(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        forum_thread_detail: dict[str, Any],
+    ) -> None:
+        """明示的な非ok statusはWikidotStatusCodeExceptionとして保持する"""
+        mock_forum_category_no_http.site.client.is_logged_in = True
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+
+        create_response = MagicMock()
+        create_response.json.return_value = {"threadId": 3001, "status": "not_ok"}
+        detail_response = MagicMock()
+        detail_response.json.return_value = forum_thread_detail
+        mock_forum_category_no_http.site.amc_request = MagicMock(side_effect=[[create_response], [detail_response]])
+
+        with pytest.raises(exceptions.WikidotStatusCodeException) as exc_info:
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )
+
+        assert exc_info.value.status_code == "not_ok"
+        assert mock_forum_category_no_http.site.amc_request.call_count == 1
+        assert mock_forum_category_no_http._threads is cached_threads
