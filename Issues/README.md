@@ -714,6 +714,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [708-pr-validate-page-file-collection-retained-names.md](708-pr-validate-page-file-collection-retained-names.md): upstream PR draft for the committed page-file collection retained name validation fix.
 - [709-pr-reject-blank-user-profile-titles.md](709-pr-reject-blank-user-profile-titles.md): upstream PR draft for the committed blank user profile title parser validation fix.
 - [710-pr-reject-cross-site-duplicate-thread-ids.md](710-pr-reject-cross-site-duplicate-thread-ids.md): upstream PR draft for the committed cross-site duplicate forum thread ID validation fix.
+- [711-pr-reject-cross-site-duplicate-post-ids.md](711-pr-reject-cross-site-duplicate-post-ids.md): upstream PR draft for the committed cross-site duplicate forum post ID validation fix.
 
 ## Local Evidence Index
 
@@ -1336,5 +1337,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 613: `e83d094 fix(page_file): validate retained file names`
 - Local implementation commits, continued 614: `c236186 fix(user): reject blank profile titles`
 - Local implementation commits, continued 615: `72c7df8 fix(forum_post): reject cross-site duplicate thread ids`
+- Local implementation commits, continued 616: `29848eb fix(forum_post_revision): reject cross-site duplicate post ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
