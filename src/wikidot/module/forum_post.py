@@ -64,12 +64,15 @@ def _validate_single_thread_site(sites: list["Site"]) -> "Site":
     return site
 
 
-def _validate_posts_belong_to_thread(thread: "ForumThread", site: "Site", posts: list["ForumPost"]) -> None:
+def _validate_posts_belong_to_thread(thread: "ForumThread", site: "Site", posts: list["ForumPost"]) -> int:
+    thread_id = _validate_forum_thread_id(thread.id)
     for post in posts:
         post_thread = _validate_forum_thread(post.thread)
         post_site = _validate_forum_thread_site(post_thread.site)
-        if post_thread.id != thread.id or post_site is not site:
+        post_thread_id = _validate_forum_thread_id(post_thread.id)
+        if post_thread_id != thread_id or post_site is not site:
             raise ValueError("posts must belong to the collection thread")
+    return thread_id
 
 
 def _validate_post_id(post_id: object) -> int:
@@ -453,15 +456,15 @@ class ForumPostCollection(list["ForumPost"]):
         return body
 
     @staticmethod
-    def _source_response_body(response: Any, post: "ForumPost") -> str:
+    def _source_response_body(response: Any, post: "ForumPost", post_id: int) -> str:
         body = response.json().get("body")
         if body is None:
             raise NoElementException(
-                f"Forum post source response body is not found for site: {post.thread.site.unix_name}, post: {post.id}"
+                f"Forum post source response body is not found for site: {post.thread.site.unix_name}, post: {post_id}"
             )
         if not isinstance(body, str):
             raise NoElementException(
-                f"Forum post source response body is malformed for site: {post.thread.site.unix_name}, post: {post.id} "
+                f"Forum post source response body is malformed for site: {post.thread.site.unix_name}, post: {post_id} "
                 f"(field=body, expected=str, actual={type(body).__name__})"
             )
         return body
@@ -800,27 +803,30 @@ class ForumPostCollection(list["ForumPost"]):
         thread = _validate_forum_thread(thread)
         site = _validate_forum_thread_site(thread.site)
         posts = _validate_forum_posts(posts)
-        _validate_posts_belong_to_thread(thread, site, posts)
+        thread_id = _validate_posts_belong_to_thread(thread, site, posts)
         if len(posts) == 0:
             return posts
+        post_ids = [_validate_post_id(post.id) for post in posts]
 
         sources_by_id: dict[int, str] = {}
-        for post in posts:
+        for post, post_id in zip(posts, post_ids, strict=True):
             if post._source is not None:
-                sources_by_id[post.id] = post._source
+                sources_by_id[post_id] = post._source
 
         target_posts: list[ForumPost] = []
+        target_post_ids: list[int] = []
         target_posts_by_id: dict[int, list[ForumPost]] = {}
-        for post in posts:
+        for post, post_id in zip(posts, post_ids, strict=True):
             if post._source is not None:
                 continue
-            if post.id in sources_by_id:
-                post._source = sources_by_id[post.id]
+            if post_id in sources_by_id:
+                post._source = sources_by_id[post_id]
                 continue
-            if post.id not in target_posts_by_id:
+            if post_id not in target_posts_by_id:
                 target_posts.append(post)
-                target_posts_by_id[post.id] = []
-            target_posts_by_id[post.id].append(post)
+                target_post_ids.append(post_id)
+                target_posts_by_id[post_id] = []
+            target_posts_by_id[post_id].append(post)
 
         if len(target_posts) == 0:
             return posts
@@ -829,27 +835,27 @@ class ForumPostCollection(list["ForumPost"]):
             [
                 {
                     "moduleName": "forum/sub/ForumEditPostFormModule",
-                    "threadId": thread.id,
-                    "postId": post.id,
+                    "threadId": thread_id,
+                    "postId": post_id,
                 }
-                for post in target_posts
+                for post_id in target_post_ids
             ]
         )
 
-        for post, response in zip(target_posts, responses, strict=True):
+        for post, post_id, response in zip(target_posts, target_post_ids, responses, strict=True):
             if response is None:
                 continue
-            html = BeautifulSoup(ForumPostCollection._source_response_body(response, post), "lxml")
+            html = BeautifulSoup(ForumPostCollection._source_response_body(response, post, post_id), "lxml")
             edit_form = html.select_one("form#edit-post-form")
             source_elem = (
                 edit_form.select_one(":scope > textarea[name='source']") if isinstance(edit_form, Tag) else None
             )
             if source_elem is None:
                 raise NoElementException(
-                    f"Source textarea is not found for site: {thread.site.unix_name}, post: {post.id}"
+                    f"Source textarea is not found for site: {thread.site.unix_name}, post: {post_id}"
                 )
             source = source_elem.get_text()
-            for target_post in target_posts_by_id[post.id]:
+            for target_post in target_posts_by_id[post_id]:
                 target_post._source = source
 
         return posts

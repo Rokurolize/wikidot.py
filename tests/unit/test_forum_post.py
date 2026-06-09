@@ -1291,6 +1291,173 @@ class TestForumPostCollectionGetSources:
         mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
         assert other_post._source is None
 
+    def test_get_post_sources_accepts_zero_retained_post_and_thread_ids(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """ソース取得は0 retained post/thread IDを有効なIDとして送信する"""
+        zero_thread = _thread_with_id(mock_forum_thread_no_http, 0)
+        zero_post = _post_with_thread_and_id(mock_forum_post_no_http, zero_thread, 0)
+        collection = ForumPostCollection(zero_thread, [zero_post])
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_editpost_form
+        zero_thread.site.amc_request = MagicMock()
+        zero_thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        result = collection.get_post_sources()
+
+        assert result == collection
+        assert zero_post._source == "Test source content in wikidot syntax"
+        zero_thread.site.amc_request.assert_not_called()
+        zero_thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/sub/ForumEditPostFormModule",
+                    "threadId": 0,
+                    "postId": 0,
+                }
+            ]
+        )
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "5001", 5001.0, []])
+    def test_get_post_sources_rejects_malformed_retained_post_ids_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """壊れたretained post IDはソース取得前に拒否する"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        _mutate_retained_post_id(mock_forum_post_no_http, retained_id)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
+    def test_get_post_sources_rejects_negative_retained_post_id_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """負のretained post IDはソース取得前に拒否する"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        _mutate_retained_post_id(mock_forum_post_no_http, -1)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "5001", 5001.0, []])
+    def test_get_post_sources_rejects_malformed_cached_retained_post_ids_before_cache_return(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """取得済みソースでも壊れたretained post IDはcached返却前に拒否する"""
+        mock_forum_post_no_http._source = "cached source"
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        _mutate_retained_post_id(mock_forum_post_no_http, retained_id)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._source == "cached source"
+
+    def test_get_post_sources_rejects_negative_cached_retained_post_id_before_cache_return(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """取得済みソースでも負のretained post IDはcached返却前に拒否する"""
+        mock_forum_post_no_http._source = "cached source"
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        _mutate_retained_post_id(mock_forum_post_no_http, -1)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._source == "cached source"
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "3001", 3001.0, []])
+    def test_get_post_sources_rejects_malformed_retained_thread_ids_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """壊れたretained thread IDはソース取得前に拒否する"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        _mutate_retained_thread_id(mock_forum_thread_no_http, retained_id)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
+    def test_get_post_sources_rejects_negative_retained_thread_id_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """負のretained thread IDはソース取得前に拒否する"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        _mutate_retained_thread_id(mock_forum_thread_no_http, -1)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "3001", 3001.0, []])
+    def test_get_post_sources_rejects_malformed_cached_retained_thread_ids_before_cache_return(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """取得済みソースでも壊れたretained thread IDはcached返却前に拒否する"""
+        mock_forum_post_no_http._source = "cached source"
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        _mutate_retained_thread_id(mock_forum_thread_no_http, retained_id)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._source == "cached source"
+
+    def test_get_post_sources_rejects_negative_cached_retained_thread_id_before_cache_return(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """取得済みソースでも負のretained thread IDはcached返却前に拒否する"""
+        mock_forum_post_no_http._source = "cached source"
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        _mutate_retained_thread_id(mock_forum_thread_no_http, -1)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            collection.get_post_sources()
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._source == "cached source"
+
     def test_get_post_sources_success(
         self,
         mock_forum_thread_no_http: ForumThread,
