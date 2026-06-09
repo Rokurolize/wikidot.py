@@ -4074,6 +4074,31 @@ class TestPageWriteMethods:
 
         assert mock_page_with_id._metas == {"old": "value"}
 
+    def test_metas_setter_malformed_action_status_type_does_not_update_local_state(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """metaタグsetter応答のstatus型異常はレスポンス形状異常として扱う"""
+        mock_page_with_id._metas = {"old": "value"}
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"status": ["not-ok"]}
+        ok_response = MagicMock()
+        ok_response.json.return_value = {"status": "ok"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response, ok_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page metadata action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=deleteMetaTag, field=status, expected=str, actual=list\)"
+            ),
+        ):
+            mock_page_with_id.metas = {"new": "value"}
+
+        assert mock_page_with_id._metas == {"old": "value"}
+
     def test_metas_setter_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
         """metas setterのsite型異常はログイン確認やAMC前に拒否する"""
         mock_page_with_id._metas = {"old": "value"}
@@ -4196,6 +4221,32 @@ class TestPageWriteMethods:
             match=(
                 r"Page metadata action response is malformed for site: test-site, page: test-page "
                 r"\(id=12345, event=saveTags, field=status\)"
+            ),
+        ):
+            mock_page_with_id.set_metadata(tags=["new-tag"])
+
+        assert mock_page_with_id.tags == ["old-tag"]
+        assert mock_page_with_id.parent_fullname == "old-parent"
+        assert mock_page_with_id._metas == {"keep": "same"}
+
+    def test_set_metadata_malformed_action_status_type_does_not_update_local_state(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """metadata更新応答のstatus型異常はレスポンス形状異常として扱う"""
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {"keep": "same"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"status": ["not-ok"]}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page metadata action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=saveTags, field=status, expected=str, actual=list\)"
             ),
         ):
             mock_page_with_id.set_metadata(tags=["new-tag"])
