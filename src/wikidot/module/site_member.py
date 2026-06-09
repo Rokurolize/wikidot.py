@@ -111,6 +111,13 @@ def _require_site_member_action_status(member: "SiteMember", event: str, data: d
             f"user: {member.user.name} (id={member.user.id}, event={event}, field=status)"
         ) from exc
 
+    if not isinstance(status, str):
+        raise NoElementException(
+            f"Site member action response is malformed for site: {member.site.unix_name}, "
+            f"user: {member.user.name} "
+            f"(id={member.user.id}, event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
+
     if status != "ok":
         raise WikidotStatusCodeException(
             f"Failed to complete site member action for site: {member.site.unix_name}, "
