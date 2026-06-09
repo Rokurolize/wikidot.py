@@ -671,6 +671,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [665-pr-validate-forum-thread-posts-cache-retained-thread-id-state.md](665-pr-validate-forum-thread-posts-cache-retained-thread-id-state.md): upstream PR draft for the committed forum thread posts-cache retained thread-ID validation fix.
 - [666-pr-validate-forum-post-revisions-cache-retained-id-state.md](666-pr-validate-forum-post-revisions-cache-retained-id-state.md): upstream PR draft for the committed forum post revisions-cache retained post/thread-ID validation fix.
 - [667-pr-validate-forum-post-revision-collection-retained-owner-id-state.md](667-pr-validate-forum-post-revision-collection-retained-owner-id-state.md): upstream PR draft for the committed forum post revision collection retained owner post/thread-ID validation fix.
+- [668-pr-validate-forum-category-threads-cache-retained-category-id-state.md](668-pr-validate-forum-category-threads-cache-retained-category-id-state.md): upstream PR draft for the committed forum category threads-cache retained category-ID validation fix.
 
 ## Local Evidence Index
 
@@ -1250,5 +1251,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 570: `c9a0d38 fix(forum_thread): validate posts cache retained thread ids`
 - Local implementation commits, continued 571: `4d1bc7d fix(forum_post): validate revisions cache retained ids`
 - Local implementation commits, continued 572: `61f6450 fix(forum_post_revision): validate collection retained owner ids`
+- Local implementation commits, continued 573: `c0bb353 fix(forum_category): validate threads cache owner ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
