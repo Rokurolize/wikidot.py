@@ -1,7 +1,7 @@
 """PageVotesモジュールのユニットテスト"""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -72,6 +72,10 @@ def _page_on_same_site(page: Page, fullname: str = "other-page") -> Page:
 
 def _vote_user(page: Page, user_id: int = 12345, name: str = "test-user") -> User:
     return User(client=page.site.client, id=user_id, name=name, unix_name=name)
+
+
+def _mutate_retained_user_id(user: User, user_id: object) -> None:
+    user.id = cast(Any, user_id)
 
 
 class TestPageVoteCollection:
@@ -220,6 +224,77 @@ class TestPageVoteCollection:
         search_user = User(client=_client(), id=12345, name="search-user", unix_name="search-user")
 
         with pytest.raises(ValueError, match="user must belong to the site"):
+            collection.find(search_user)
+
+    def test_find_accepts_vote_with_zero_retained_user_id(self) -> None:
+        """retained user.id=0の投票検索は有効なIDとして扱う"""
+        page = _page()
+        vote_user = self._user(page, 0, "vote-user")
+        vote = PageVote(page=page, user=vote_user, value=1)
+        collection = PageVoteCollection(page, [vote])
+        search_user = self._user(page, 0, "search-user")
+
+        assert collection.find(search_user) is vote
+
+    def test_find_skips_vote_with_missing_retained_user_id(self) -> None:
+        """保持済み投票のuser.id=Noneは別ユーザー検索時に無効化せずスキップする"""
+        page = _page()
+        missing_id_user = User(client=page.site.client, id=None, name="missing-id", unix_name="missing-id")
+        target_user = self._user(page, 12345, "target-user")
+        target_vote = PageVote(page=page, user=target_user, value=-1)
+        collection = PageVoteCollection(
+            page,
+            [
+                PageVote(page=page, user=missing_id_user, value=1),
+                target_vote,
+            ],
+        )
+        search_user = self._user(page, 12345, "search-user")
+
+        assert collection.find(search_user) is target_vote
+
+    def test_find_rejects_negative_retained_search_user_id(self) -> None:
+        """findの検索対象user.idは負数の保持状態を受け付けない"""
+        page = _page()
+        collection = PageVoteCollection(page, [PageVote(page=page, user=self._user(page, 1), value=1)])
+        search_user = self._user(page, 12345, "search-user")
+        _mutate_retained_user_id(search_user, -1)
+
+        with pytest.raises(ValueError, match="user.id must be non-negative"):
+            collection.find(search_user)
+
+    @pytest.mark.parametrize(
+        ("retained_id", "search_id"),
+        [
+            (True, 1),
+            (False, 0),
+            ("12345", 12345),
+            (12345.0, 12345),
+            ([], 12345),
+        ],
+    )
+    def test_find_rejects_vote_with_malformed_retained_user_ids(self, retained_id: object, search_id: int) -> None:
+        """保持済み投票のuser.idは比較前に整数またはNoneへ正規化される"""
+        page = _page()
+        vote_user = self._user(page, search_id, "vote-user")
+        vote = PageVote(page=page, user=vote_user, value=1)
+        _mutate_retained_user_id(vote_user, retained_id)
+        collection = PageVoteCollection(page, [vote])
+        search_user = self._user(page, search_id, "search-user")
+
+        with pytest.raises(ValueError, match="vote.user.id must be an integer or None"):
+            collection.find(search_user)
+
+    def test_find_rejects_vote_with_negative_retained_user_id(self) -> None:
+        """保持済み投票のuser.idは負数を比較対象にしない"""
+        page = _page()
+        vote_user = self._user(page, 12345, "vote-user")
+        vote = PageVote(page=page, user=vote_user, value=1)
+        _mutate_retained_user_id(vote_user, -1)
+        collection = PageVoteCollection(page, [vote])
+        search_user = self._user(page, 12345, "search-user")
+
+        with pytest.raises(ValueError, match="vote.user.id must be non-negative or None"):
             collection.find(search_user)
 
 

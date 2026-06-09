@@ -40,11 +40,28 @@ def _validate_vote_value(value: object) -> int:
     return value
 
 
+def _validate_vote_search_user_id(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("user.id must be an integer")
+    if value < 0:
+        raise ValueError("user.id must be non-negative")
+    return value
+
+
+def _validate_stored_vote_user_id(value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("vote.user.id must be an integer or None")
+    if value < 0:
+        raise ValueError("vote.user.id must be non-negative or None")
+    return value
+
+
 def _validate_vote_search_user(user: object) -> AbstractUser:
     if not isinstance(user, AbstractUser):
         raise ValueError("user must be an AbstractUser")
-    if not isinstance(user.id, int) or isinstance(user.id, bool):
-        raise ValueError("user.id must be an integer")
+    _validate_vote_search_user_id(user.id)
     return user
 
 
@@ -114,8 +131,9 @@ class PageVoteCollection(list["PageVote"]):
         """
         user = _validate_vote_search_user(user)
         _validate_vote_user_site(self.page, user)
+        user_id = _validate_vote_search_user_id(user.id)
         for vote in self:
-            if vote.user.id == user.id:
+            if _validate_stored_vote_user_id(vote.user.id) == user_id:
                 return vote
         raise ValueError(f"User {user} has not voted on page {self.page}")
 
