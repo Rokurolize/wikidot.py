@@ -712,6 +712,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [706-pr-skip-empty-user-profile-lookups.md](706-pr-skip-empty-user-profile-lookups.md): upstream PR draft for the committed empty bulk user profile lookup fast-path fix.
 - [707-pr-validate-page-collection-retained-fullnames.md](707-pr-validate-page-collection-retained-fullnames.md): upstream PR draft for the committed page collection retained fullname validation fix.
 - [708-pr-validate-page-file-collection-retained-names.md](708-pr-validate-page-file-collection-retained-names.md): upstream PR draft for the committed page-file collection retained name validation fix.
+- [709-pr-reject-blank-user-profile-titles.md](709-pr-reject-blank-user-profile-titles.md): upstream PR draft for the committed blank user profile title parser validation fix.
 
 ## Local Evidence Index
 
@@ -1332,5 +1333,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 611: `28d642c perf(user): skip empty profile lookups`
 - Local implementation commits, continued 612: `e3ded45 fix(page): validate collection retained fullnames`
 - Local implementation commits, continued 613: `e83d094 fix(page_file): validate retained file names`
+- Local implementation commits, continued 614: `c236186 fix(user): reject blank profile titles`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
