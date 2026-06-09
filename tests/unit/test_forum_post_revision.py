@@ -1130,6 +1130,46 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
 
+    def test_acquire_all_for_posts_rejects_duplicate_post_ids_from_different_sites_before_fetch(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """異なるsiteの同一post IDは重複取得扱いにせず取得前に拒否する"""
+        other_site = Site(
+            client=mock_forum_post_no_http.thread.site.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        other_thread = ForumThread(
+            site=other_site,
+            id=3002,
+            title="Other Site Thread",
+            description=mock_forum_post_no_http.thread.description,
+            created_by=mock_forum_post_no_http.thread.created_by,
+            created_at=mock_forum_post_no_http.thread.created_at,
+            post_count=mock_forum_post_no_http.thread.post_count,
+            category=None,
+        )
+        other_post = _post_with_thread_and_id(mock_forum_post_no_http, other_thread, 5001)
+        response = MagicMock()
+        response.json.return_value = forum_post_revisions
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(response,))
+        other_site.amc_request = MagicMock()
+        other_site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="posts must belong to the same Site"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http, other_post])
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        other_site.amc_request.assert_not_called()
+        other_site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._revisions is None
+        assert other_post._revisions is None
+
     def test_acquire_all_for_posts_rejects_mixed_site_posts_before_fetch(
         self, mock_forum_post_no_http: ForumPost
     ) -> None:

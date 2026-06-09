@@ -228,6 +228,26 @@ def _validate_single_site(sites: list["Site"]) -> "Site":
     return site
 
 
+def _validate_duplicate_post_ids_share_site(posts: list["ForumPost"], post_ids: list[int]) -> None:
+    posts_by_id: dict[int, ForumPost] = {}
+    sites_by_post_id: dict[int, Site] = {}
+    for post, post_id in zip(posts, post_ids, strict=True):
+        existing_post = posts_by_id.get(post_id)
+        if existing_post is None:
+            posts_by_id[post_id] = post
+            continue
+
+        existing_site = sites_by_post_id.get(post_id)
+        if existing_site is None:
+            existing_thread = _validate_forum_post_thread(existing_post.thread)
+            existing_site = _validate_forum_thread_site(existing_thread.site)
+            sites_by_post_id[post_id] = existing_site
+        post_thread = _validate_forum_post_thread(post.thread)
+        site = _validate_forum_thread_site(post_thread.site)
+        if site is not existing_site:
+            raise ValueError("posts must belong to the same Site")
+
+
 class ForumPostRevisionCollection(list["ForumPostRevision"]):
     """
     Class representing a collection of forum post revisions
@@ -501,6 +521,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         if len(posts) == 0:
             return {}
         post_ids = [_validate_forum_post_id(post.id) for post in posts]
+        _validate_duplicate_post_ids_share_site(posts, post_ids)
 
         result: dict[int, ForumPostRevisionCollection] = {}
         target_posts: list[ForumPost] = []
