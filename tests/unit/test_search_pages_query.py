@@ -231,6 +231,9 @@ class TestSearchPagesQueryUseCases:
 class TestSearchPagesQueryValidation:
     """SearchPagesQueryのバリデーションテスト"""
 
+    class _NameBearingObject:
+        name = "not-a-wikidot-user"
+
     def test_invalid_parameter_raises_value_error(self):
         """無効なパラメータでValueErrorが発生すること"""
         import pytest
@@ -338,6 +341,21 @@ class TestSearchPagesQueryValidation:
         """文字列系のListPages条件はstrまたはNoneだけ受け付ける"""
         with pytest.raises(ValueError, match=message):
             SearchPagesQuery(**kwargs)
+
+    @pytest.mark.parametrize(
+        "created_by",
+        [
+            True,
+            12345,
+            {"name": "test-user"},
+            object(),
+            _NameBearingObject(),
+        ],
+    )
+    def test_created_by_must_be_user_string_or_none(self, created_by: Any):
+        """created_byはユーザー、文字列、Noneだけ受け付ける"""
+        with pytest.raises(ValueError, match="created_by must be an AbstractUser, string, or None"):
+            SearchPagesQuery(created_by=created_by)
 
     def test_all_valid_parameters_work(self):
         """すべて有効なパラメータは正常に動作すること"""

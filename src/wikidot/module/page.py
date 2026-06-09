@@ -699,7 +699,7 @@ class SearchPagesQueryParams(TypedDict, total=False):
         Creation date condition (e.g., "> -86400 86400")
     updated_at : str
         Update date condition
-    created_by : User | str
+    created_by : AbstractUser | str
         Filter by creator
     rating : str
         Filter by rating value
@@ -732,7 +732,7 @@ class SearchPagesQueryParams(TypedDict, total=False):
     link_to: str
     created_at: str
     updated_at: str
-    created_by: "User | str"
+    created_by: "AbstractUser | str"
     rating: str
     votes: str
     name: str
@@ -769,7 +769,7 @@ class SearchPagesQuery:
         Creation date condition
     updated_at : str | None, default None
         Update date condition
-    created_by : User | str | None, default None
+    created_by : AbstractUser | str | None, default None
         Filter by creator
     rating : str | None, default None
         Filter by rating value
@@ -839,6 +839,17 @@ class SearchPagesQuery:
             raise ValueError(f"{field} must be a string or None")
         return value
 
+    @staticmethod
+    def _validate_optional_created_by(value: object) -> "AbstractUser | str | None":
+        if value is None or isinstance(value, str):
+            return value
+
+        from .user import AbstractUser
+
+        if not isinstance(value, AbstractUser):
+            raise ValueError("created_by must be an AbstractUser, string, or None")
+        return value
+
     def __init__(self, **kwargs: Unpack[SearchPagesQueryParams]) -> None:
         """
         Initialize SearchPagesQuery
@@ -870,7 +881,7 @@ class SearchPagesQuery:
         self.link_to: str | None = self._validate_optional_string("link_to", kwargs.get("link_to"))
         self.created_at: str | None = self._validate_optional_string("created_at", kwargs.get("created_at"))
         self.updated_at: str | None = self._validate_optional_string("updated_at", kwargs.get("updated_at"))
-        self.created_by: User | str | None = kwargs.get("created_by")
+        self.created_by: AbstractUser | str | None = self._validate_optional_created_by(kwargs.get("created_by"))
         self.rating: str | None = self._validate_optional_string("rating", kwargs.get("rating"))
         self.votes: str | None = self._validate_optional_string("votes", kwargs.get("votes"))
         self.name: str | None = self._validate_optional_string("name", kwargs.get("name"))
@@ -897,7 +908,7 @@ class SearchPagesQuery:
         Convert query parameters to dictionary format
 
         If tags are in list format, converts them to a space-separated string.
-        If created_by is a User object, converts it to the user's Wikidot
+        If created_by is a user object, converts it to the user's Wikidot
         unix name because ListPagesModule expects a scalar form field.
 
         Returns
