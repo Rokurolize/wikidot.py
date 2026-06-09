@@ -197,6 +197,8 @@ class UserCollection(list["AbstractUser"]):
             if name_elem is None:
                 raise NoElementException(f"User name element not found {parse_context}")
             name = name_elem.get_text(" ", strip=True)
+            if name == "":
+                raise NoElementException(f"User name is not found {parse_context}")
 
             # avatar_url取得
             avatar_url = f"https://www.wikidot.com/avatar.php?userid={user_id}"

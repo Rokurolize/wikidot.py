@@ -585,6 +585,35 @@ class TestUserCollection:
         ):
             UserCollection.from_names(client, ["bad"])
 
+    @pytest.mark.parametrize("title_html", ["", "   ", "<span> </span>"])
+    def test_from_names_blank_name_element_raises(self, httpx_mock: HTTPXMock, title_html: str) -> None:
+        """プロフィール名がblankの場合NoElementException"""
+        client = create_lookup_client()
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head><title>bad - Wikidot</title></head>
+        <body>
+        <div id="user-info">
+            <h1 class="profile-title">{title_html}</h1>
+            <a class="btn btn-default btn-xs" href="http://www.wikidot.com/account/messages#/new/123">
+                PM
+            </a>
+        </div>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/user:info/bad",
+            text=html,
+        )
+
+        with pytest.raises(
+            NoElementException,
+            match=r"User name is not found for requested user: bad \(index=1\)",
+        ):
+            UserCollection.from_names(client, ["bad"])
+
     def test_iteration(self, mock_client_no_http: MagicMock) -> None:
         """UserCollectionはイテレート可能"""
         users = UserCollection(
