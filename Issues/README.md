@@ -693,6 +693,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [687-pr-validate-site-application-user-id-range.md](687-pr-validate-site-application-user-id-range.md): upstream PR draft for the committed site application applicant user ID range validation fix.
 - [688-pr-validate-site-member-action-user-id-range.md](688-pr-validate-site-member-action-user-id-range.md): upstream PR draft for the committed site member role-change user ID range validation fix.
 - [689-pr-validate-site-application-constructor-user-id-range.md](689-pr-validate-site-application-constructor-user-id-range.md): upstream PR draft for the committed site application constructor user ID range validation fix.
+- [690-pr-validate-site-member-constructor-user-id-range.md](690-pr-validate-site-member-constructor-user-id-range.md): upstream PR draft for the committed site member constructor user ID range validation fix.
 
 ## Local Evidence Index
 
@@ -1294,5 +1295,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 592: `c060a78 fix(site_application): validate application user id range`
 - Local implementation commits, continued 593: `fa4a7e7 fix(site_member): validate action user id range`
 - Local implementation commits, continued 594: `cf27a37 fix(site_application): validate constructor user id range`
+- Local implementation commits, continued 595: `265813d fix(site_member): validate constructor user id range`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
