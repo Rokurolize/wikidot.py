@@ -644,6 +644,61 @@ class TestForumPostRevisionCollectionAcquireAll:
         bad_thread.site.amc_request_with_retry.assert_not_called()
         assert mock_forum_post_no_http._revisions is None
 
+    def test_acquire_all_accepts_zero_retained_post_id(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """単一postの0 retained IDは有効なpostIdとして送信する"""
+        zero_post = _post_with_id(mock_forum_post_no_http, 0)
+        mock_response = MagicMock()
+        mock_response.json.return_value = forum_post_revisions
+        zero_post.thread.site.amc_request = MagicMock()
+        zero_post.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumPostRevisionCollection.acquire_all(zero_post)
+
+        assert zero_post._revisions is collection
+        assert len(collection) == 3
+        zero_post.thread.site.amc_request.assert_not_called()
+        zero_post.thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionsModule",
+                    "postId": 0,
+                }
+            ]
+        )
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "5001", 5001.0, []])
+    def test_acquire_all_rejects_malformed_retained_post_ids_before_fetch(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """単一postの壊れたretained post IDをリビジョン一覧取得前に拒否する"""
+        _mutate_retained_post_id(mock_forum_post_no_http, retained_id)
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._revisions is None
+
+    def test_acquire_all_rejects_negative_retained_post_id_before_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """単一postの負のretained post IDをリビジョン一覧取得前に拒否する"""
+        _mutate_retained_post_id(mock_forum_post_no_http, -1)
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._revisions is None
+
     def test_acquire_all_retries_transient_fetch_failures(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
@@ -917,6 +972,62 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
 
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+
+    def test_acquire_all_for_posts_accepts_zero_retained_post_id(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """複数post取得は0 retained post IDを有効なpostIdとして送信する"""
+        zero_post = self._post_with_id(mock_forum_post_no_http, 0)
+        response = MagicMock()
+        response.json.return_value = forum_post_revisions
+        zero_post.thread.site.amc_request = MagicMock()
+        zero_post.thread.site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        result = ForumPostRevisionCollection.acquire_all_for_posts([zero_post])
+
+        assert set(result) == {0}
+        assert zero_post._revisions is result[0]
+        assert len(result[0]) == 3
+        zero_post.thread.site.amc_request.assert_not_called()
+        zero_post.thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/sub/ForumPostRevisionsModule",
+                    "postId": 0,
+                }
+            ]
+        )
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "5001", 5001.0, []])
+    def test_acquire_all_for_posts_rejects_malformed_retained_post_ids_before_fetch(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """複数post取得は壊れたretained post IDをリビジョン一覧取得前に拒否する"""
+        _mutate_retained_post_id(mock_forum_post_no_http, retained_id)
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http])
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._revisions is None
+
+    def test_acquire_all_for_posts_rejects_negative_retained_post_id_before_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """複数post取得は負のretained post IDをリビジョン一覧取得前に拒否する"""
+        _mutate_retained_post_id(mock_forum_post_no_http, -1)
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http])
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._revisions is None
 
     def test_acquire_all_for_posts_retries_transient_fetch_failures(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]

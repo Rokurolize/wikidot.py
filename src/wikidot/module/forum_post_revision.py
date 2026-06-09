@@ -429,6 +429,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             Collection containing all revisions for the post
         """
         post = _validate_forum_post(post)
+        post_id = _validate_forum_post_id(post.id)
         if post._revisions is not None:
             return post._revisions
 
@@ -438,13 +439,13 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             [
                 {
                     "moduleName": "forum/sub/ForumPostRevisionsModule",
-                    "postId": post.id,
+                    "postId": post_id,
                 }
             ]
         )[0]
         if response is None:
             raise exceptions.UnexpectedException(
-                f"Cannot retrieve forum post revisions for site: {site.unix_name}, post: {post.id}"
+                f"Cannot retrieve forum post revisions for site: {site.unix_name}, post: {post_id}"
             )
 
         html = BeautifulSoup(_revision_list_response_body(response, post), "lxml")
@@ -488,28 +489,31 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         with_html = _validate_with_html(with_html)
         if len(posts) == 0:
             return {}
+        post_ids = [_validate_forum_post_id(post.id) for post in posts]
 
         result: dict[int, ForumPostRevisionCollection] = {}
         target_posts: list[ForumPost] = []
+        target_post_ids: list[int] = []
         site: Site | None = None
         cached_revisions_by_id: dict[int, ForumPostRevisionCollection] = {}
-        for post in posts:
-            if post._revisions is not None and post.id not in cached_revisions_by_id:
-                cached_revisions_by_id[post.id] = post._revisions
+        for post, post_id in zip(posts, post_ids, strict=True):
+            if post._revisions is not None and post_id not in cached_revisions_by_id:
+                cached_revisions_by_id[post_id] = post._revisions
 
         seen_post_ids: set[int] = set()
-        for post in posts:
-            if post.id in seen_post_ids:
+        for post, post_id in zip(posts, post_ids, strict=True):
+            if post_id in seen_post_ids:
                 continue
-            seen_post_ids.add(post.id)
-            cached_revisions = cached_revisions_by_id.get(post.id)
+            seen_post_ids.add(post_id)
+            cached_revisions = cached_revisions_by_id.get(post_id)
             if cached_revisions is not None:
                 if cached_revisions.post is post:
-                    result[post.id] = cached_revisions
+                    result[post_id] = cached_revisions
                 else:
-                    result[post.id] = ForumPostRevisionCollection._copy_for_post(post, cached_revisions)
+                    result[post_id] = ForumPostRevisionCollection._copy_for_post(post, cached_revisions)
                 continue
             target_posts.append(post)
+            target_post_ids.append(post_id)
 
         # Step 1: Get and parse missing revision lists
         if len(target_posts) > 0:
@@ -521,20 +525,20 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                 [
                     {
                         "moduleName": "forum/sub/ForumPostRevisionsModule",
-                        "postId": post.id,
+                        "postId": post_id,
                     }
-                    for post in target_posts
+                    for post_id in target_post_ids
                 ]
             )
 
-            for post, response in zip(target_posts, responses, strict=True):
+            for post, post_id, response in zip(target_posts, target_post_ids, responses, strict=True):
                 if response is None:
                     raise exceptions.UnexpectedException(
-                        f"Cannot retrieve forum post revisions for site: {site.unix_name}, post: {post.id}"
+                        f"Cannot retrieve forum post revisions for site: {site.unix_name}, post: {post_id}"
                     )
                 html = BeautifulSoup(_revision_list_response_body(response, post), "lxml")
                 revisions = ForumPostRevisionCollection._parse(post, html)
-                result[post.id] = ForumPostRevisionCollection(post=post, revisions=revisions)
+                result[post_id] = ForumPostRevisionCollection(post=post, revisions=revisions)
 
         # Step 2: Optionally get HTML content for all revisions
         if with_html:
@@ -582,8 +586,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     for target_revision in all_revisions_by_id[revision_id]:
                         target_revision._html = revision_html
 
-        for post in target_posts:
-            post._revisions = result[post.id]
+        for post, post_id in zip(target_posts, target_post_ids, strict=True):
+            post._revisions = result[post_id]
 
         return result
 
