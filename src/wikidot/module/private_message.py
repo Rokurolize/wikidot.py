@@ -51,7 +51,18 @@ def _validate_private_message_user(field: str, user: object) -> "AbstractUser":
 
     if not isinstance(user, AbstractUser):
         raise ValueError(f"{field} must be an AbstractUser")
+    _validate_private_message_user_id(field, user.id)
     return user
+
+
+def _validate_private_message_user_id(field: str, user_id: object) -> int | None:
+    if user_id is None:
+        return None
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        raise ValueError(f"{field}.id must be an integer or None")
+    if user_id < 0:
+        raise ValueError(f"{field}.id must be non-negative or None")
+    return user_id
 
 
 def _validate_private_message_user_client(client: "Client", field: str, user: "AbstractUser") -> None:

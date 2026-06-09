@@ -104,6 +104,10 @@ def _mutate_retained_message_id(message: PrivateMessage, message_id: object) -> 
     message.id = cast(Any, message_id)
 
 
+def _mutate_retained_user_id(user: User, user_id: object) -> None:
+    user.id = cast(Any, user_id)
+
+
 class TestPrivateMessageCollection:
     """PrivateMessageCollectionクラスのテスト"""
 
@@ -1173,6 +1177,64 @@ class TestPrivateMessage:
 
         with pytest.raises(ValueError, match=message):
             PrivateMessage(**inputs)
+
+    @pytest.mark.parametrize("field", ["sender", "recipient"])
+    @pytest.mark.parametrize("retained_id", [True, False, "12345", 12345.0, []])
+    def test_init_rejects_malformed_retained_user_ids(
+        self, mock_client, sender_user, recipient_user, field: str, retained_id: object
+    ) -> None:
+        """PrivateMessageの初期化は保持済み送受信者IDの型を検証する"""
+        inputs = {
+            "client": mock_client,
+            "id": 1,
+            "sender": sender_user,
+            "recipient": recipient_user,
+            "subject": "Test Subject",
+            "body": "Test Body",
+            "created_at": datetime(2023, 1, 1, 12, 0, 0),
+        }
+        _mutate_retained_user_id(inputs[field], retained_id)
+
+        with pytest.raises(ValueError, match=rf"{field}\.id must be an integer or None"):
+            PrivateMessage(**inputs)
+
+    @pytest.mark.parametrize("field", ["sender", "recipient"])
+    def test_init_rejects_negative_retained_user_id(self, mock_client, sender_user, recipient_user, field: str) -> None:
+        """PrivateMessageの初期化は負の保持済み送受信者IDを拒否する"""
+        inputs = {
+            "client": mock_client,
+            "id": 1,
+            "sender": sender_user,
+            "recipient": recipient_user,
+            "subject": "Test Subject",
+            "body": "Test Body",
+            "created_at": datetime(2023, 1, 1, 12, 0, 0),
+        }
+        _mutate_retained_user_id(inputs[field], -1)
+
+        with pytest.raises(ValueError, match=rf"{field}\.id must be non-negative or None"):
+            PrivateMessage(**inputs)
+
+    @pytest.mark.parametrize("field", ["sender", "recipient"])
+    @pytest.mark.parametrize("retained_id", [None, 0])
+    def test_init_accepts_optional_retained_user_ids(
+        self, mock_client, sender_user, recipient_user, field: str, retained_id: int | None
+    ) -> None:
+        """PrivateMessageの初期化は欠落またはゼロの保持済み送受信者IDを保持する"""
+        inputs = {
+            "client": mock_client,
+            "id": 1,
+            "sender": sender_user,
+            "recipient": recipient_user,
+            "subject": "Test Subject",
+            "body": "Test Body",
+            "created_at": datetime(2023, 1, 1, 12, 0, 0),
+        }
+        _mutate_retained_user_id(inputs[field], retained_id)
+
+        message = PrivateMessage(**inputs)
+
+        assert getattr(message, field).id == retained_id
 
     @pytest.mark.parametrize(
         ("field", "message"),
