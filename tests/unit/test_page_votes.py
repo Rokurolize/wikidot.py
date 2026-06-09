@@ -348,6 +348,36 @@ class TestPageVote:
         with pytest.raises(ValueError, match="user must be an AbstractUser"):
             PageVote(page=page, user=bad_user, value=1)
 
+    @pytest.mark.parametrize("retained_id", [True, False, "12345", 12345.0, []])
+    def test_init_rejects_malformed_retained_user_ids(self, retained_id: object) -> None:
+        """投票の初期化は保持済みuser.idを整数またはNoneへ正規化する"""
+        page = _page()
+        user = _vote_user(page)
+        _mutate_retained_user_id(user, retained_id)
+
+        with pytest.raises(ValueError, match="vote.user.id must be an integer or None"):
+            PageVote(page=page, user=user, value=1)
+
+    def test_init_rejects_negative_retained_user_id(self) -> None:
+        """投票の初期化は保持済みuser.idの負数を受け付けない"""
+        page = _page()
+        user = _vote_user(page)
+        _mutate_retained_user_id(user, -1)
+
+        with pytest.raises(ValueError, match="vote.user.id must be non-negative or None"):
+            PageVote(page=page, user=user, value=1)
+
+    @pytest.mark.parametrize("retained_id", [None, 0])
+    def test_init_accepts_optional_retained_user_ids(self, retained_id: int | None) -> None:
+        """投票の初期化は保持済みuser.id=Noneと0を既存互換として扱う"""
+        page = _page()
+        user = _vote_user(page)
+        _mutate_retained_user_id(user, retained_id)
+
+        vote = PageVote(page=page, user=user, value=1)
+
+        assert vote.user.id == retained_id
+
     def test_init_rejects_user_from_different_client(self) -> None:
         """投票ユーザーはページのsite clientに属するユーザーだけ受け付ける"""
         page = _page()

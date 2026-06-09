@@ -163,4 +163,5 @@ class PageVote:
         self.page = _validate_vote_page(self.page)
         self.user = _validate_vote_user(self.user)
         _validate_vote_user_site(self.page, self.user)
+        _validate_stored_vote_user_id(self.user.id)
         self.value = _validate_vote_value(self.value)
