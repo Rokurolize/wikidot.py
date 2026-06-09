@@ -814,6 +814,26 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
 
+    def test_acquire_rejects_message_href_with_embedded_id_segment(self, mock_client):
+        """メッセージ行のdata-href内IDが非IDセグメントに埋め込まれていればNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": '<table><tr class="message" data-href="/account/messages/view/message-123"></tr></table>'
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(
+                NoElementException,
+                match=r"Message ID is malformed in data-href: /account/messages/view/message-123 "
+                r"for module: dashboard/messages/DMInboxModule \(page=1, row=1\)",
+            ),
+        ):
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+        mock_from_ids.assert_not_called()
+
     def test_acquire_ignores_non_numeric_pager_targets(self, mock_client):
         """数値ページがないpagerでは単一ページとして扱う"""
         mock_response = MagicMock()

@@ -298,6 +298,21 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         return f"for module: {module_name} (page={page}, row={row_index})"
 
     @staticmethod
+    def _parse_message_list_message_id(module_name: str, page: int, row_index: int, data_href: object) -> int:
+        data_href_text = str(data_href)
+        parse_context = PrivateMessageCollection._message_list_parse_context(module_name, page, row_index)
+        message_id_match = re.search(r"(?:^|/)(\d+)/?(?:[?#].*)?$", data_href_text)
+        if message_id_match is not None:
+            return int(message_id_match.group(1))
+
+        if re.search(r"\d+", data_href_text) is not None:
+            raise exceptions.NoElementException(
+                f"Message ID is malformed in data-href: {data_href_text} {parse_context}"
+            )
+
+        raise exceptions.NoElementException(f"Message ID is not found in data-href: {data_href_text} {parse_context}")
+
+    @staticmethod
     def _message_list_fetch_context(module_name: str, page: int) -> str:
         return f"for module: {module_name}, page: {page}"
 
@@ -562,13 +577,9 @@ class PrivateMessageCollection(list["PrivateMessage"]):
                 if data_href is None:
                     raise exceptions.NoElementException(f"Message data-href attribute is not found {parse_context}")
 
-                message_id_match = re.search(r"(\d+)(?:[/?#].*)?$", str(data_href))
-                if message_id_match is None:
-                    raise exceptions.NoElementException(
-                        f"Message ID is not found in data-href: {data_href} {parse_context}"
-                    )
-
-                message_id = int(message_id_match.group(1))
+                message_id = PrivateMessageCollection._parse_message_list_message_id(
+                    module_name, page, row_index, data_href
+                )
                 if message_id in seen_message_ids:
                     continue
                 seen_message_ids.add(message_id)
