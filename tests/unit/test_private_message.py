@@ -1506,6 +1506,23 @@ class TestPrivateMessage:
 
         assert mock_response.json.call_count == 1
 
+    def test_send_malformed_action_status_type_includes_recipient_event_and_type_context(self, mock_client, mock_user):
+        """送信応答のstatus型不正は文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": ["not-ok"]}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Private message send action response is malformed for recipient: test-user "
+                r"\(id=12345, event=send, field=status, expected=str, actual=list\)"
+            ),
+        ):
+            PrivateMessage.send(mock_client, mock_user, "Test Subject", "Test Body")
+
+        assert mock_response.json.call_count == 1
+
     def test_send_explicit_non_ok_action_status_raises_status_exception(self, mock_client, mock_user):
         """送信応答の明示的な非ok statusはWikidotStatusCodeException"""
         mock_response = MagicMock()
