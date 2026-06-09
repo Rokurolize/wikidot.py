@@ -718,6 +718,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [712-pr-validate-site-amc-request-state.md](712-pr-validate-site-amc-request-state.md): upstream PR draft for the committed Site AMC request retained-state validation fix.
 - [713-pr-validate-amc-site-ssl-state.md](713-pr-validate-amc-site-ssl-state.md): upstream PR draft for the committed raw AMC site SSL request-state validation fix.
 - [714-pr-validate-page-save-status-type.md](714-pr-validate-page-save-status-type.md): upstream PR draft for the committed page save status type validation fix.
+- [715-pr-validate-private-message-send-status-type.md](715-pr-validate-private-message-send-status-type.md): upstream PR draft for the committed private-message send status type validation fix.
 
 ## Local Evidence Index
 
@@ -1344,5 +1345,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 617: `ef0cec9 fix(site): validate amc request state`
 - Local implementation commits, continued 618: `cd8ab25 fix(amc): validate site ssl request state`
 - Local implementation commits, continued 619: `71f5e73 fix(page): validate save status type`
+- Local implementation commits, continued 620: `c3f6c35 fix(private_message): validate send status type`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
