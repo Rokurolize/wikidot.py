@@ -528,6 +528,21 @@ class TestSiteApplicationProcess:
         assert call_args["user_id"] == 12345
         assert mock_response.json.call_count == 1
 
+    def test_accept_accepts_zero_user_id(self):
+        """ゼロの申請者ユーザーIDは承認payloadにそのまま使える"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok"}
+        site.amc_request.return_value = (mock_response,)
+        user = User(client=mock_client, id=0, name="ZeroUser")
+
+        app = SiteApplication(site=site, user=user, text="")
+        app.accept()
+
+        call_args = site.amc_request.call_args[0][0][0]
+        assert call_args["user_id"] == 0
+
     def test_accept_success_invalidates_members_cache(self):
         """申請承認成功後はサイトメンバー一覧キャッシュを再取得させる"""
         mock_client = create_mock_client(is_logged_in=True)
@@ -581,6 +596,25 @@ class TestSiteApplicationProcess:
         app = SiteApplication(site=site, user=user, text="")
         app.decline()
 
+        assert site._members is cached_members
+
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    def test_decline_rejects_negative_user_id_before_login(self, user_id: int) -> None:
+        """申請拒否は保持済み申請者IDが負数の場合にログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        cached_members = [object()]
+        site._members = cached_members
+        bad_user = User(client=mock_client, id=12345, name="TestUser")
+        bad_user.id = user_id
+
+        app = SiteApplication(site=site, user=bad_user, text="")
+
+        with pytest.raises(ValueError, match="application.user.id must be non-negative"):
+            app.decline()
+
+        mock_client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
         assert site._members is cached_members
 
     def test_accept_rejects_non_user_before_login(self) -> None:
@@ -660,6 +694,25 @@ class TestSiteApplicationProcess:
         app = SiteApplication(site=site, user=bad_user, text="")
 
         with pytest.raises(ValueError, match=message):
+            app.accept()
+
+        mock_client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
+        assert site._members is cached_members
+
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    def test_accept_rejects_negative_user_id_before_login(self, user_id: int) -> None:
+        """申請承認は保持済み申請者IDが負数の場合にログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        cached_members = [object()]
+        site._members = cached_members
+        bad_user = User(client=mock_client, id=12345, name="TestUser")
+        bad_user.id = user_id
+
+        app = SiteApplication(site=site, user=bad_user, text="")
+
+        with pytest.raises(ValueError, match="application.user.id must be non-negative"):
             app.accept()
 
         mock_client.login_check.assert_not_called()

@@ -75,6 +75,8 @@ def _validate_site_application_user(user: object) -> AbstractUser:
     user = _validate_site_application_user_object(user)
     if not isinstance(user.id, int) or isinstance(user.id, bool):
         raise ValueError("application.user.id must be an integer")
+    if user.id < 0:
+        raise ValueError("application.user.id must be non-negative")
     if not isinstance(user.name, str):
         raise ValueError("application.user.name must be a string")
     return user
