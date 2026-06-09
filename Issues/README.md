@@ -741,6 +741,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [735-pr-validate-site-id-script-shape.md](735-pr-validate-site-id-script-shape.md): upstream PR draft for the committed site-ID script shape validation fix.
 - [736-pr-validate-regular-user-href-shape.md](736-pr-validate-regular-user-href-shape.md): upstream PR draft for the committed regular-user href shape validation fix.
 - [737-pr-validate-profile-id-href-routes.md](737-pr-validate-profile-id-href-routes.md): upstream PR draft for the committed profile ID href route validation fix.
+- [738-pr-validate-recent-change-title-href-routes.md](738-pr-validate-recent-change-title-href-routes.md): upstream PR draft for the committed recent-change title href route validation fix.
 
 ## Local Evidence Index
 
@@ -1390,5 +1391,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 640: `f3551fe fix(site): validate generated site id shape`
 - Local implementation commits, continued 641: `c71aea5 fix(user): validate regular user href shape`
 - Local implementation commits, continued 642: `aec2e8d fix(user): validate profile id href routes`
+- Local implementation commits, continued 643: `b98244c fix(site): validate recent change title href routes`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
