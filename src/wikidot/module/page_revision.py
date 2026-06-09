@@ -191,7 +191,7 @@ class PageRevisionCollection(list["PageRevision"]):
         if not isinstance(id, int) or isinstance(id, bool):
             raise ValueError("id must be an integer")
         for revision in self:
-            if revision.id == id:
+            if _validate_revision_id(revision.id) == id:
                 return revision
         return None
 

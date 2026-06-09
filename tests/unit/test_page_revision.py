@@ -5,7 +5,7 @@ PageRevision, PageRevisionCollectionクラスをテストする。
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -86,6 +86,21 @@ def _page_on_same_site(page: Page, fullname: str = "other-page") -> Page:
     )
 
 
+def _revision_with_id(page: Page, user: User, revision_id: int) -> PageRevision:
+    return PageRevision(
+        page=page,
+        id=revision_id,
+        rev_no=1,
+        created_by=user,
+        created_at=datetime(2023, 1, 1, 12, 0, 0),
+        comment="Initial revision",
+    )
+
+
+def _mutate_retained_revision_id(revision: PageRevision, revision_id: object) -> None:
+    revision.id = cast(Any, revision_id)
+
+
 class TestPageRevisionCollection:
     """PageRevisionCollectionクラスのテスト"""
 
@@ -162,6 +177,42 @@ class TestPageRevisionCollection:
 
         with pytest.raises(ValueError, match="id must be an integer"):
             collection.find(revision_id)
+
+    def test_find_accepts_revision_with_zero_retained_id(self, mock_page, mock_user) -> None:
+        """findは保持済みの0リビジョンIDを有効なIDとして扱う"""
+        revision = _revision_with_id(mock_page, mock_user, 0)
+        collection = PageRevisionCollection(revisions=[revision])
+
+        assert collection.find(0) is revision
+
+    @pytest.mark.parametrize(
+        ("retained_id", "lookup_id"),
+        [
+            (None, 100),
+            (True, 1),
+            (False, 0),
+            ("100", 100),
+            (100.0, 100),
+            ([], 100),
+        ],
+    )
+    def test_find_rejects_revision_with_malformed_retained_ids(
+        self, sample_revision, retained_id: object, lookup_id: int
+    ) -> None:
+        """findは保持済みリビジョンIDの破損を比較前に拒否する"""
+        _mutate_retained_revision_id(sample_revision, retained_id)
+        collection = PageRevisionCollection(revisions=[sample_revision])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.find(lookup_id)
+
+    def test_find_rejects_revision_with_negative_retained_id(self, sample_revision) -> None:
+        """findは負の保持済みリビジョンIDを通常の未検出として扱わない"""
+        _mutate_retained_revision_id(sample_revision, -1)
+        collection = PageRevisionCollection(revisions=[sample_revision])
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            collection.find(100)
 
     def test_get_sources_requires_page(self):
         """get_sourcesはpageが必要"""
