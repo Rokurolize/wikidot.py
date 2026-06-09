@@ -675,6 +675,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [669-pr-validate-page-vote-lookup-retained-user-id-state.md](669-pr-validate-page-vote-lookup-retained-user-id-state.md): upstream PR draft for the committed page vote lookup retained user-ID validation fix.
 - [670-pr-validate-forum-category-collection-retained-id-state.md](670-pr-validate-forum-category-collection-retained-id-state.md): upstream PR draft for the committed forum category collection retained ID validation fix.
 - [671-pr-validate-page-file-collection-retained-id-state.md](671-pr-validate-page-file-collection-retained-id-state.md): upstream PR draft for the committed page-file collection retained ID validation fix.
+- [672-pr-validate-forum-post-collection-retained-id-state.md](672-pr-validate-forum-post-collection-retained-id-state.md): upstream PR draft for the committed forum-post collection retained ID validation fix.
 
 ## Local Evidence Index
 
@@ -1258,5 +1259,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 574: `b835612 fix(page_votes): validate retained vote user ids`
 - Local implementation commits, continued 575: `3b4c2f6 fix(forum_category): validate collection retained ids`
 - Local implementation commits, continued 576: `a33e62d fix(page_file): validate collection retained ids`
+- Local implementation commits, continued 577: `b97f601 fix(forum_post): validate collection retained ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
