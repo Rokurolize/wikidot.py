@@ -1262,5 +1262,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 576: `a33e62d fix(page_file): validate collection retained ids`
 - Local implementation commits, continued 577: `b97f601 fix(forum_post): validate collection retained ids`
 - Local implementation commits, continued 578: `71b2a70 fix(forum_thread): validate collection retained ids`
+- Local implementation commits, continued 579: `782a5de fix(private_message): validate collection retained ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
