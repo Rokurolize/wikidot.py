@@ -710,6 +710,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [704-pr-validate-page-revision-collection-page-ownership.md](704-pr-validate-page-revision-collection-page-ownership.md): upstream PR draft for the committed page-revision collection constructor ownership validation fix.
 - [705-pr-validate-page-collection-site-ownership.md](705-pr-validate-page-collection-site-ownership.md): upstream PR draft for the committed page collection constructor site ownership validation fix.
 - [706-pr-skip-empty-user-profile-lookups.md](706-pr-skip-empty-user-profile-lookups.md): upstream PR draft for the committed empty bulk user profile lookup fast-path fix.
+- [707-pr-validate-page-collection-retained-fullnames.md](707-pr-validate-page-collection-retained-fullnames.md): upstream PR draft for the committed page collection retained fullname validation fix.
 
 ## Local Evidence Index
 
@@ -1328,5 +1329,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 609: `501ff7d fix(page_revision): validate collection page ownership`
 - Local implementation commits, continued 610: `f135260 fix(page): validate collection site ownership`
 - Local implementation commits, continued 611: `28d642c perf(user): skip empty profile lookups`
+- Local implementation commits, continued 612: `e3ded45 fix(page): validate collection retained fullnames`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
