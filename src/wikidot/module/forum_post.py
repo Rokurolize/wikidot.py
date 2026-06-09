@@ -644,7 +644,8 @@ class ForumPostCollection(list["ForumPost"]):
             If HTML element parsing fails
         """
         thread = _validate_forum_thread(thread)
-        return ForumPostCollection.acquire_all_in_threads([thread])[thread.id]
+        thread_id = _validate_forum_thread_id(thread.id)
+        return ForumPostCollection.acquire_all_in_threads([thread])[thread_id]
 
     @staticmethod
     def acquire_all_in_threads(
@@ -674,27 +675,30 @@ class ForumPostCollection(list["ForumPost"]):
         threads = _validate_forum_threads(threads)
         if len(threads) == 0:
             return {}
+        thread_ids = [_validate_forum_thread_id(thread.id) for thread in threads]
 
         result: dict[int, ForumPostCollection] = {}
         cached_posts_by_id: dict[int, ForumPostCollection] = {}
-        for thread in threads:
-            if thread._posts is not None and thread.id not in cached_posts_by_id:
-                cached_posts_by_id[thread.id] = thread._posts
+        for thread, thread_id in zip(threads, thread_ids, strict=True):
+            if thread._posts is not None and thread_id not in cached_posts_by_id:
+                cached_posts_by_id[thread_id] = thread._posts
 
         target_threads: list[ForumThread] = []
+        target_thread_ids: list[int] = []
         seen_thread_ids: set[int] = set()
-        for thread in threads:
-            if thread.id in seen_thread_ids:
+        for thread, thread_id in zip(threads, thread_ids, strict=True):
+            if thread_id in seen_thread_ids:
                 continue
-            seen_thread_ids.add(thread.id)
+            seen_thread_ids.add(thread_id)
             if thread._posts is not None:
-                result[thread.id] = thread._posts
+                result[thread_id] = thread._posts
                 continue
-            cached_posts = cached_posts_by_id.get(thread.id)
+            cached_posts = cached_posts_by_id.get(thread_id)
             if cached_posts is not None:
-                result[thread.id] = ForumPostCollection._copy_for_thread(thread, cached_posts)
+                result[thread_id] = ForumPostCollection._copy_for_thread(thread, cached_posts)
                 continue
             target_threads.append(thread)
+            target_thread_ids.append(thread_id)
 
         if len(target_threads) == 0:
             return result
@@ -708,25 +712,25 @@ class ForumPostCollection(list["ForumPost"]):
                 {
                     "moduleName": "forum/ForumViewThreadPostsModule",
                     "pageNo": "1",
-                    "t": str(thread.id),
+                    "t": str(thread_id),
                 }
-                for thread in target_threads
+                for thread_id in target_thread_ids
             ]
         )
 
         # Step 2: Parse first pages and determine pagination
-        additional_requests: list[tuple[ForumThread, int]] = []
+        additional_requests: list[tuple[ForumThread, int, int]] = []
 
-        for thread, response in zip(target_threads, first_page_responses, strict=True):
+        for thread, thread_id, response in zip(target_threads, target_thread_ids, first_page_responses, strict=True):
             if response is None:
                 raise UnexpectedException(
-                    f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread.id}, page: 1"
+                    f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread_id}, page: 1"
                 )
             body = ForumPostCollection._post_list_response_body(response, thread, 1)
             html = BeautifulSoup(body, "lxml")
 
             posts = ForumPostCollection._parse(thread, html, page=1)
-            result[thread.id] = ForumPostCollection(thread=thread, posts=posts)
+            result[thread_id] = ForumPostCollection(thread=thread, posts=posts)
 
             # Check pagination
             pager = ForumPostCollection._pager_from_html(html)
@@ -739,7 +743,7 @@ class ForumPostCollection(list["ForumPost"]):
 
             # Queue additional page requests
             for page in range(2, last_page + 1):
-                additional_requests.append((thread, page))
+                additional_requests.append((thread, thread_id, page))
 
         # Step 3: Fetch additional pages
         if len(additional_requests) > 0:
@@ -748,24 +752,24 @@ class ForumPostCollection(list["ForumPost"]):
                     {
                         "moduleName": "forum/ForumViewThreadPostsModule",
                         "pageNo": str(page),
-                        "t": str(thread.id),
+                        "t": str(thread_id),
                     }
-                    for thread, page in additional_requests
+                    for _, thread_id, page in additional_requests
                 ]
             )
 
-            for (thread, page), response in zip(additional_requests, additional_responses, strict=True):
+            for (thread, thread_id, page), response in zip(additional_requests, additional_responses, strict=True):
                 if response is None:
                     raise UnexpectedException(
-                        f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread.id}, page: {page}"
+                        f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread_id}, page: {page}"
                     )
                 body = ForumPostCollection._post_list_response_body(response, thread, page)
                 html = BeautifulSoup(body, "lxml")
                 posts = ForumPostCollection._parse(thread, html, page=page)
-                result[thread.id].extend(posts)
+                result[thread_id].extend(posts)
 
-        for thread in target_threads:
-            thread._posts = result[thread.id]
+        for thread, thread_id in zip(target_threads, target_thread_ids, strict=True):
+            thread._posts = result[thread_id]
 
         return result
 

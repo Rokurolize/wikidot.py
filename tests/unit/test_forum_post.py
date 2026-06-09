@@ -519,6 +519,154 @@ class TestForumPostCollectionAcquireAll:
         assert mock_forum_thread_no_http._posts is None
         assert other_thread._posts is None
 
+    def test_acquire_all_in_thread_accepts_zero_retained_thread_id(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """単一thread取得は0 retained thread IDを有効なIDとして送信する"""
+        zero_thread = _thread_with_id(mock_forum_thread_no_http, 0)
+        response = MagicMock()
+        response.json.return_value = forum_posts_in_thread
+        zero_thread.site.amc_request = MagicMock()
+        zero_thread.site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection = ForumPostCollection.acquire_all_in_thread(zero_thread)
+
+        assert zero_thread._posts is collection
+        assert len(collection) == 2
+        zero_thread.site.amc_request.assert_not_called()
+        zero_thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/ForumViewThreadPostsModule",
+                    "pageNo": "1",
+                    "t": "0",
+                }
+            ]
+        )
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "3001", 3001.0, []])
+    def test_acquire_all_in_thread_rejects_malformed_retained_thread_ids_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, retained_id: object
+    ) -> None:
+        """単一thread取得は壊れたretained thread IDを投稿一覧取得前に拒否する"""
+        _mutate_retained_thread_id(mock_forum_thread_no_http, retained_id)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_thread_no_http._posts is None
+
+    def test_acquire_all_in_thread_rejects_negative_retained_thread_id_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """単一thread取得は負のretained thread IDを投稿一覧取得前に拒否する"""
+        _mutate_retained_thread_id(mock_forum_thread_no_http, -1)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_thread_no_http._posts is None
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "3001", 3001.0, []])
+    def test_acquire_all_in_thread_rejects_malformed_cached_retained_thread_ids_before_cache_return(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """単一thread取得は壊れたretained thread IDをcached返却前に拒否する"""
+        cached_collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        mock_forum_thread_no_http._posts = cached_collection
+        _mutate_retained_thread_id(mock_forum_thread_no_http, retained_id)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_thread_no_http._posts is cached_collection
+
+    def test_acquire_all_in_thread_rejects_negative_cached_retained_thread_id_before_cache_return(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """単一thread取得は負のretained thread IDをcached返却前に拒否する"""
+        cached_collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        mock_forum_thread_no_http._posts = cached_collection
+        _mutate_retained_thread_id(mock_forum_thread_no_http, -1)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_thread_no_http._posts is cached_collection
+
+    def test_acquire_all_in_threads_accepts_zero_retained_thread_id(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """複数thread取得は0 retained thread IDを有効なIDとして送信する"""
+        zero_thread = _thread_with_id(mock_forum_thread_no_http, 0)
+        response = MagicMock()
+        response.json.return_value = forum_posts_in_thread
+        zero_thread.site.amc_request = MagicMock()
+        zero_thread.site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        result = ForumPostCollection.acquire_all_in_threads([zero_thread])
+
+        assert set(result) == {0}
+        assert zero_thread._posts is result[0]
+        assert len(result[0]) == 2
+        zero_thread.site.amc_request.assert_not_called()
+        zero_thread.site.amc_request_with_retry.assert_called_once_with(
+            [
+                {
+                    "moduleName": "forum/ForumViewThreadPostsModule",
+                    "pageNo": "1",
+                    "t": "0",
+                }
+            ]
+        )
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "3001", 3001.0, []])
+    def test_acquire_all_in_threads_rejects_malformed_retained_thread_ids_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread, retained_id: object
+    ) -> None:
+        """複数thread取得は壊れたretained thread IDを投稿一覧取得前に拒否する"""
+        _mutate_retained_thread_id(mock_forum_thread_no_http, retained_id)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http])
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_thread_no_http._posts is None
+
+    def test_acquire_all_in_threads_rejects_negative_retained_thread_id_before_fetch(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """複数thread取得は負のretained thread IDを投稿一覧取得前に拒否する"""
+        _mutate_retained_thread_id(mock_forum_thread_no_http, -1)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http])
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_thread_no_http._posts is None
+
     def test_acquire_all_single_page(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
