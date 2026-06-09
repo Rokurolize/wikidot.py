@@ -67,6 +67,16 @@ class TestOdateParse:
         with pytest.raises(ValueError, match="odate unix time is malformed: time_latest"):
             odate_parse(elem)
 
+    @pytest.mark.parametrize("time_class", ["time_time_1702814400", "time_1702814400_time_"])
+    def test_parse_odate_with_ambiguous_time_class_shape_raises(self, time_class: str) -> None:
+        """time_接頭辞が複数含まれるクラスはタイムスタンプとして正規化しない"""
+        soup = BeautifulSoup(f'<span class="odate {time_class}">Dec 17 2023</span>', "lxml")
+        elem = soup.select_one("span.odate")
+        assert elem is not None
+
+        with pytest.raises(ValueError, match=rf"odate unix time is malformed: {time_class}"):
+            odate_parse(elem)
+
     def test_parse_odate_recent_timestamp(self, odate_html_factory: Callable[[int], str]) -> None:
         """最近のタイムスタンプをパースできる"""
         # 2024-01-01 00:00:00 UTC = 1704067200
