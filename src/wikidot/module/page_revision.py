@@ -66,6 +66,17 @@ def _validate_revision_created_by(value: object) -> "AbstractUser":
 
     if not isinstance(value, AbstractUser):
         raise ValueError("created_by must be an AbstractUser")
+    _validate_revision_created_by_id(value.id)
+    return value
+
+
+def _validate_revision_created_by_id(value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("created_by.id must be an integer or None")
+    if value < 0:
+        raise ValueError("created_by.id must be non-negative or None")
     return value
 
 

@@ -101,6 +101,10 @@ def _mutate_retained_revision_id(revision: PageRevision, revision_id: object) ->
     revision.id = cast(Any, revision_id)
 
 
+def _mutate_retained_user_id(user: User, user_id: object) -> None:
+    user.id = cast(Any, user_id)
+
+
 class TestPageRevisionCollection:
     """PageRevisionCollectionクラスのテスト"""
 
@@ -878,6 +882,56 @@ class TestPageRevision:
                 created_at=datetime(2023, 1, 1, 12, 0, 0),
                 comment="Initial revision",
             )
+
+    @pytest.mark.parametrize("retained_id", [True, False, "12345", 12345.0, []])
+    def test_init_rejects_malformed_retained_created_by_ids(
+        self, mock_page, mock_user: User, retained_id: object
+    ) -> None:
+        """PageRevision初期化時のcreated_by.idはNoneまたは非bool整数だけ受け付ける"""
+        _mutate_retained_user_id(mock_user, retained_id)
+
+        with pytest.raises(ValueError, match="created_by.id must be an integer or None"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+            )
+
+    @pytest.mark.parametrize("retained_id", [-1, -100])
+    def test_init_rejects_negative_retained_created_by_ids(self, mock_page, mock_user: User, retained_id: int) -> None:
+        """PageRevision初期化時のcreated_by.idは負数を受け付けない"""
+        _mutate_retained_user_id(mock_user, retained_id)
+
+        with pytest.raises(ValueError, match="created_by.id must be non-negative or None"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+            )
+
+    @pytest.mark.parametrize("retained_id", [None, 0])
+    def test_init_accepts_optional_retained_created_by_ids(
+        self, mock_page, mock_user: User, retained_id: int | None
+    ) -> None:
+        """PageRevision初期化時のcreated_by.idはNoneと0を互換値として保持する"""
+        _mutate_retained_user_id(mock_user, retained_id)
+
+        revision = PageRevision(
+            page=mock_page,
+            id=100,
+            rev_no=1,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 1, 12, 0, 0),
+            comment="Initial revision",
+        )
+
+        assert revision.created_by.id == retained_id
 
     def test_init_rejects_created_by_from_different_client(self, mock_page) -> None:
         """PageRevisionは親pageのsiteと異なるclientの作成者を拒否する"""
