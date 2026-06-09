@@ -2546,6 +2546,103 @@ class TestForumPostEdit:
         bad_site.amc_request.assert_not_called()
         assert mock_forum_post_no_http._source is None
 
+    def test_edit_accepts_zero_retained_post_and_thread_ids(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+        amc_ok_response: dict[str, Any],
+    ) -> None:
+        """投稿編集は0 retained post/thread IDを有効なIDとして送信する"""
+        _mutate_retained_post_id(mock_forum_post_no_http, 0)
+        _mutate_retained_thread_id(mock_forum_post_no_http.thread, 0)
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+
+        form_response = MagicMock()
+        form_response.json.return_value = forum_editpost_form
+        save_response = MagicMock()
+        save_response.json.return_value = amc_ok_response
+
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[save_response])
+
+        mock_forum_post_no_http.edit(source="Updated source")
+
+        form_request = mock_forum_post_no_http.thread.site.amc_request_with_retry.call_args.args[0][0]
+        assert form_request["threadId"] == 0
+        assert form_request["postId"] == 0
+        save_request = mock_forum_post_no_http.thread.site.amc_request.call_args.args[0][0]
+        assert save_request["postId"] == 0
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "5001", 5001.0, []])
+    def test_edit_rejects_malformed_retained_post_ids_before_login_or_form_fetch(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """壊れたretained post IDは投稿編集前に拒否する"""
+        _mutate_retained_post_id(mock_forum_post_no_http, retained_id)
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.client.login_check.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
+    def test_edit_rejects_negative_retained_post_id_before_login_or_form_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """負のretained post IDは投稿編集前に拒否する"""
+        _mutate_retained_post_id(mock_forum_post_no_http, -1)
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.client.login_check.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "3001", 3001.0, []])
+    def test_edit_rejects_malformed_retained_thread_ids_before_login_or_form_fetch(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object
+    ) -> None:
+        """壊れたretained thread IDは投稿編集前に拒否する"""
+        _mutate_retained_thread_id(mock_forum_post_no_http.thread, retained_id)
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.client.login_check.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
+    def test_edit_rejects_negative_retained_thread_id_before_login_or_form_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """負のretained thread IDは投稿編集前に拒否する"""
+        _mutate_retained_thread_id(mock_forum_post_no_http.thread, -1)
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.client.login_check.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
     def test_edit_scopes_current_revision_id_to_edit_form_direct_child(
         self,
         mock_forum_post_no_http: ForumPost,

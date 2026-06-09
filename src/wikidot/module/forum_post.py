@@ -1077,6 +1077,8 @@ class ForumPost:
             title = validate_text_field("title", title)
         thread = _validate_forum_thread(self.thread)
         site = _validate_forum_thread_site(thread.site)
+        thread_id = _validate_forum_thread_id(thread.id)
+        post_id = _validate_post_id(self.id)
         site.client.login_check()
 
         # 現在のリビジョンIDを取得
@@ -1084,14 +1086,14 @@ class ForumPost:
             [
                 {
                     "moduleName": "forum/sub/ForumEditPostFormModule",
-                    "threadId": thread.id,
-                    "postId": self.id,
+                    "threadId": thread_id,
+                    "postId": post_id,
                 }
             ]
         )[0]
         if form_response is None:
             raise UnexpectedException(
-                f"Cannot retrieve forum post edit form for site: {self.thread.site.unix_name}, post: {self.id}"
+                f"Cannot retrieve forum post edit form for site: {self.thread.site.unix_name}, post: {post_id}"
             )
 
         html = BeautifulSoup(ForumPost._edit_form_response_body(form_response, self), "lxml")
@@ -1101,22 +1103,22 @@ class ForumPost:
         )
         if revision_elem is None:
             raise NoElementException(
-                f"Current revision ID input is not found for site: {self.thread.site.unix_name}, post: {self.id}"
+                f"Current revision ID input is not found for site: {self.thread.site.unix_name}, post: {post_id}"
             )
         revision_value = revision_elem.get("value")
         if revision_value is None:
             raise NoElementException(
-                f"Current revision ID value is not found for site: {self.thread.site.unix_name}, post: {self.id}"
+                f"Current revision ID value is not found for site: {self.thread.site.unix_name}, post: {post_id}"
             )
         try:
             current_revision_id = int(str(revision_value))
         except ValueError as exc:
             raise NoElementException(
-                f"Current revision ID value is malformed for site: {self.thread.site.unix_name}, post: {self.id}"
+                f"Current revision ID value is malformed for site: {self.thread.site.unix_name}, post: {post_id}"
             ) from exc
         if current_revision_id < 0:
             raise NoElementException(
-                f"Current revision ID value must be non-negative for site: {self.thread.site.unix_name}, post: {self.id}"
+                f"Current revision ID value must be non-negative for site: {self.thread.site.unix_name}, post: {post_id}"
             )
 
         # 編集を保存
@@ -1126,7 +1128,7 @@ class ForumPost:
                     "action": "ForumAction",
                     "event": "saveEditPost",
                     "moduleName": "Empty",
-                    "postId": self.id,
+                    "postId": post_id,
                     "currentRevisionId": current_revision_id,
                     "title": title if title is not None else self.title,
                     "source": source,
