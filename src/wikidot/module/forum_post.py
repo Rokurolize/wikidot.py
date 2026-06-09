@@ -45,6 +45,12 @@ def _validate_forum_thread_site(site: object) -> "Site":
     return site
 
 
+def _validate_forum_thread_id(thread_id: object) -> int:
+    from .forum_thread import _validate_thread_id
+
+    return _validate_thread_id(thread_id)
+
+
 def _validate_forum_post(post: object) -> "ForumPost":
     if not isinstance(post, ForumPost):
         raise ValueError("post must be a ForumPost")
@@ -114,7 +120,11 @@ def _validate_revisions_cache_post_matches(
     revision_post = _validate_forum_post(candidate_post)
     revision_thread = _validate_forum_thread(revision_post.thread)
     revision_site = _validate_forum_thread_site(revision_thread.site)
-    if revision_post.id != post.id or revision_thread.id != post_thread.id or revision_site is not post_site:
+    post_id = _validate_post_id(post.id)
+    revision_post_id = _validate_post_id(revision_post.id)
+    post_thread_id = _validate_forum_thread_id(post_thread.id)
+    revision_thread_id = _validate_forum_thread_id(revision_thread.id)
+    if revision_post_id != post_id or revision_thread_id != post_thread_id or revision_site is not post_site:
         raise ValueError("post.revisions must belong to the post")
 
 

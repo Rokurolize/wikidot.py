@@ -54,9 +54,22 @@ def _post_on_other_thread(post: ForumPost) -> ForumPost:
     )
 
 
-def _post_with_id(source_post: ForumPost, post_id: int) -> ForumPost:
+def _thread_with_id(source_thread: ForumThread, thread_id: int) -> ForumThread:
+    return ForumThread(
+        site=source_thread.site,
+        id=thread_id,
+        title=f"Thread {thread_id}",
+        description=source_thread.description,
+        created_by=source_thread.created_by,
+        created_at=source_thread.created_at,
+        post_count=source_thread.post_count,
+        category=source_thread.category,
+    )
+
+
+def _post_with_thread_and_id(source_post: ForumPost, thread: ForumThread, post_id: int) -> ForumPost:
     return ForumPost(
-        thread=source_post.thread,
+        thread=thread,
         id=post_id,
         title=f"Post {post_id}",
         text=source_post.text,
@@ -67,6 +80,47 @@ def _post_with_id(source_post: ForumPost, post_id: int) -> ForumPost:
         edited_at=source_post.edited_at,
         _parent_id=source_post.parent_id,
     )
+
+
+def _post_with_id(source_post: ForumPost, post_id: int) -> ForumPost:
+    return _post_with_thread_and_id(source_post, source_post.thread, post_id)
+
+
+def _post_with_revisions_cache(
+    source_post: ForumPost, revisions: ForumPostRevisionCollection, *, post_id: int | None = None
+) -> ForumPost:
+    return ForumPost(
+        thread=source_post.thread,
+        id=source_post.id if post_id is None else post_id,
+        title=source_post.title,
+        text=source_post.text,
+        element=source_post.element,
+        created_by=source_post.created_by,
+        created_at=source_post.created_at,
+        edited_by=source_post.edited_by,
+        edited_at=source_post.edited_at,
+        _parent_id=source_post.parent_id,
+        _source=source_post._source,
+        _revisions=revisions,
+    )
+
+
+def _revision_for_post(post: ForumPost) -> ForumPostRevision:
+    return ForumPostRevision(
+        post=post,
+        id=9001,
+        rev_no=0,
+        created_by=post.created_by,
+        created_at=datetime.now(),
+    )
+
+
+def _mutate_retained_post_id(post: ForumPost, retained_id: object) -> None:
+    post.id = cast(Any, retained_id)
+
+
+def _mutate_retained_thread_id(thread: ForumThread, retained_id: object) -> None:
+    thread.id = cast(Any, retained_id)
 
 
 class TestForumPostCollectionInit:
@@ -1462,6 +1516,142 @@ class TestForumPostBasic:
         )
 
         assert post.revisions is revisions
+
+    def test_init_accepts_revisions_cache_with_zero_retained_post_and_thread_ids(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """0のpost/thread IDを持つ同一投稿リビジョンキャッシュは保持できる"""
+        zero_thread = _thread_with_id(mock_forum_post_no_http.thread, 0)
+        zero_post = _post_with_thread_and_id(mock_forum_post_no_http, zero_thread, 0)
+        revisions = ForumPostRevisionCollection(zero_post, [])
+
+        post = _post_with_revisions_cache(zero_post, revisions)
+
+        assert post.revisions is revisions
+
+    @pytest.mark.parametrize(
+        ("retained_id", "target_id"),
+        [(True, 1), (False, 0), ("5001", 5001), (5001.0, 5001), ([], 5001)],
+    )
+    def test_init_rejects_revisions_cache_with_malformed_retained_parent_post_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object, target_id: int
+    ) -> None:
+        """初期リビジョンキャッシュ親postの壊れた保持IDは所有権比較前に拒否する"""
+        target_post = _post_with_id(mock_forum_post_no_http, target_id)
+        cached_parent = _post_with_id(mock_forum_post_no_http, target_id)
+        revisions = ForumPostRevisionCollection(cached_parent, [])
+        _mutate_retained_post_id(cached_parent, retained_id)
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            _post_with_revisions_cache(target_post, revisions)
+
+    def test_init_rejects_revisions_cache_with_negative_retained_parent_post_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """初期リビジョンキャッシュ親postの負の保持IDは所有権比較前に拒否する"""
+        target_post = _post_with_id(mock_forum_post_no_http, 5001)
+        cached_parent = _post_with_id(mock_forum_post_no_http, 5001)
+        revisions = ForumPostRevisionCollection(cached_parent, [])
+        _mutate_retained_post_id(cached_parent, -1)
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            _post_with_revisions_cache(target_post, revisions)
+
+    @pytest.mark.parametrize(
+        ("retained_id", "target_thread_id"),
+        [(True, 1), (False, 0), ("3001", 3001), (3001.0, 3001), ([], 3001)],
+    )
+    def test_init_rejects_revisions_cache_with_malformed_retained_parent_thread_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object, target_thread_id: int
+    ) -> None:
+        """初期リビジョンキャッシュ親threadの壊れた保持IDは所有権比較前に拒否する"""
+        target_thread = _thread_with_id(mock_forum_post_no_http.thread, target_thread_id)
+        cached_thread = _thread_with_id(mock_forum_post_no_http.thread, target_thread_id)
+        target_post = _post_with_thread_and_id(mock_forum_post_no_http, target_thread, 5001)
+        cached_parent = _post_with_thread_and_id(mock_forum_post_no_http, cached_thread, 5001)
+        revisions = ForumPostRevisionCollection(cached_parent, [])
+        _mutate_retained_thread_id(cached_thread, retained_id)
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            _post_with_revisions_cache(target_post, revisions)
+
+    def test_init_rejects_revisions_cache_with_negative_retained_parent_thread_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """初期リビジョンキャッシュ親threadの負の保持IDは所有権比較前に拒否する"""
+        target_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        cached_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        target_post = _post_with_thread_and_id(mock_forum_post_no_http, target_thread, 5001)
+        cached_parent = _post_with_thread_and_id(mock_forum_post_no_http, cached_thread, 5001)
+        revisions = ForumPostRevisionCollection(cached_parent, [])
+        _mutate_retained_thread_id(cached_thread, -1)
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            _post_with_revisions_cache(target_post, revisions)
+
+    @pytest.mark.parametrize(
+        ("retained_id", "target_id"),
+        [(True, 1), (False, 0), ("5001", 5001), (5001.0, 5001), ([], 5001)],
+    )
+    def test_init_rejects_revisions_cache_entry_with_malformed_retained_post_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object, target_id: int
+    ) -> None:
+        """初期リビジョンキャッシュ要素postの壊れた保持IDは所有権比較前に拒否する"""
+        target_post = _post_with_id(mock_forum_post_no_http, target_id)
+        revision_parent = _post_with_id(mock_forum_post_no_http, target_id)
+        revisions = ForumPostRevisionCollection(target_post, [])
+        revisions.append(_revision_for_post(revision_parent))
+        _mutate_retained_post_id(revision_parent, retained_id)
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            _post_with_revisions_cache(target_post, revisions)
+
+    def test_init_rejects_revisions_cache_entry_with_negative_retained_post_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """初期リビジョンキャッシュ要素postの負の保持IDは所有権比較前に拒否する"""
+        target_post = _post_with_id(mock_forum_post_no_http, 5001)
+        revision_parent = _post_with_id(mock_forum_post_no_http, 5001)
+        revisions = ForumPostRevisionCollection(target_post, [])
+        revisions.append(_revision_for_post(revision_parent))
+        _mutate_retained_post_id(revision_parent, -1)
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            _post_with_revisions_cache(target_post, revisions)
+
+    @pytest.mark.parametrize(
+        ("retained_id", "target_thread_id"),
+        [(True, 1), (False, 0), ("3001", 3001), (3001.0, 3001), ([], 3001)],
+    )
+    def test_init_rejects_revisions_cache_entry_with_malformed_retained_thread_ids(
+        self, mock_forum_post_no_http: ForumPost, retained_id: object, target_thread_id: int
+    ) -> None:
+        """初期リビジョンキャッシュ要素threadの壊れた保持IDは所有権比較前に拒否する"""
+        target_thread = _thread_with_id(mock_forum_post_no_http.thread, target_thread_id)
+        revision_thread = _thread_with_id(mock_forum_post_no_http.thread, target_thread_id)
+        target_post = _post_with_thread_and_id(mock_forum_post_no_http, target_thread, 5001)
+        revision_parent = _post_with_thread_and_id(mock_forum_post_no_http, revision_thread, 5001)
+        revisions = ForumPostRevisionCollection(target_post, [])
+        revisions.append(_revision_for_post(revision_parent))
+        _mutate_retained_thread_id(revision_thread, retained_id)
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            _post_with_revisions_cache(target_post, revisions)
+
+    def test_init_rejects_revisions_cache_entry_with_negative_retained_thread_id(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """初期リビジョンキャッシュ要素threadの負の保持IDは所有権比較前に拒否する"""
+        target_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        revision_thread = _thread_with_id(mock_forum_post_no_http.thread, 3001)
+        target_post = _post_with_thread_and_id(mock_forum_post_no_http, target_thread, 5001)
+        revision_parent = _post_with_thread_and_id(mock_forum_post_no_http, revision_thread, 5001)
+        revisions = ForumPostRevisionCollection(target_post, [])
+        revisions.append(_revision_for_post(revision_parent))
+        _mutate_retained_thread_id(revision_thread, -1)
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
+            _post_with_revisions_cache(target_post, revisions)
 
     def test_init_rejects_revisions_cache_from_different_post(self, mock_forum_post_no_http: ForumPost) -> None:
         """初期リビジョンキャッシュの親postが異なる場合は拒否する"""
