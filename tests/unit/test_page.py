@@ -295,6 +295,20 @@ class TestPageCollectionInit:
         with pytest.raises(ValueError, match="fullname must be a string"):
             collection.find(bad_fullname_value)
 
+    @pytest.mark.parametrize("bad_fullname", [None, True, 123, 1.0, []])
+    def test_find_rejects_malformed_retained_page_fullnames(
+        self,
+        mock_site_no_http: Site,
+        mock_page_no_http: Page,
+        bad_fullname: object,
+    ) -> None:
+        """findは保持しているページfullnameの破損も検索前に検証する"""
+        mock_page_no_http.fullname = cast(Any, bad_fullname)
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+
+        with pytest.raises(ValueError, match="fullname must be a string"):
+            collection.find("test-page")
+
     @pytest.mark.parametrize("bad_fullname", [None, True, 123, 1.0])
     def test_get_by_fullname_rejects_non_string_fullnames_before_search(
         self,

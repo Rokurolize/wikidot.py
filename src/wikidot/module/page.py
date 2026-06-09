@@ -1025,7 +1025,7 @@ class PageCollection(list["Page"]):
         """
         fullname = _validate_page_text_field("fullname", fullname)
         for page in self:
-            if page.fullname == fullname:
+            if _validate_page_text_field("fullname", page.fullname) == fullname:
                 return page
         return None
 
