@@ -1392,5 +1392,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 641: `c71aea5 fix(user): validate regular user href shape`
 - Local implementation commits, continued 642: `aec2e8d fix(user): validate profile id href routes`
 - Local implementation commits, continued 643: `b98244c fix(site): validate recent change title href routes`
+- Local implementation commits, continued 644: `282a52f fix(page_file): validate file link href routes`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
