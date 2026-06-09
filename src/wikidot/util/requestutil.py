@@ -1,4 +1,5 @@
 import asyncio
+import math
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -20,9 +21,10 @@ if TYPE_CHECKING:
 def _validate_positive_number_option(field_name: str, value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{field_name} must be a positive number")
-    if value <= 0:
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value) or numeric_value <= 0:
         raise ValueError(f"{field_name} must be a positive number")
-    return float(value)
+    return numeric_value
 
 
 def _validate_request_config_object(config: object) -> AjaxModuleConnectorConfig:

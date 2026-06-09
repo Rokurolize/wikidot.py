@@ -8,6 +8,7 @@ error handling, and retry functionality.
 
 import asyncio
 import json.decoder
+import math
 import random
 from dataclasses import dataclass
 from typing import Any, Literal, overload
@@ -239,17 +240,19 @@ def _validate_non_negative_int_option(field_name: str, value: object) -> int:
 def _validate_positive_number_option(field_name: str, value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{field_name} must be a positive number")
-    if value <= 0:
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value) or numeric_value <= 0:
         raise ValueError(f"{field_name} must be a positive number")
-    return float(value)
+    return numeric_value
 
 
 def _validate_non_negative_number_option(field_name: str, value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{field_name} must be a non-negative number")
-    if value < 0:
+    numeric_value = float(value)
+    if not math.isfinite(numeric_value) or numeric_value < 0:
         raise ValueError(f"{field_name} must be a non-negative number")
-    return float(value)
+    return numeric_value
 
 
 def _validate_amc_request_config(

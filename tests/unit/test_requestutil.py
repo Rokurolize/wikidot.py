@@ -163,7 +163,7 @@ class TestRequestUtilConfigValidation:
         assert httpx_mock.get_requests() == []
 
     @pytest.mark.parametrize("method", ["GET", "POST"])
-    @pytest.mark.parametrize("request_timeout", [None, True, "1", 0, -0.1])
+    @pytest.mark.parametrize("request_timeout", [None, True, "1", 0, -0.1, float("nan"), float("inf"), -float("inf")])
     def test_rejects_invalid_request_timeout_before_request(
         self,
         httpx_mock,
@@ -202,7 +202,7 @@ class TestRequestUtilConfigValidation:
 
     @pytest.mark.parametrize("method", ["GET", "POST"])
     @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
-    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1, float("nan"), float("inf"), -float("inf")])
     def test_rejects_invalid_retry_number_config_before_request(
         self,
         httpx_mock,

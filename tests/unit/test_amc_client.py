@@ -260,7 +260,9 @@ class TestAjaxModuleConnectorConfig:
         assert config.retry_batch_size == 25
         assert config.retry_max_retries == 7
 
-    @pytest.mark.parametrize("request_timeout", [None, True, False, "1", 0, -0.1])
+    @pytest.mark.parametrize(
+        "request_timeout", [None, True, False, "1", 0, -0.1, float("nan"), float("inf"), -float("inf")]
+    )
     def test_rejects_invalid_request_timeout(self, request_timeout: Any) -> None:
         """request_timeoutは構築時に正の数値として検証する"""
         with pytest.raises(ValueError, match="request_timeout must be a positive number"):
@@ -274,7 +276,7 @@ class TestAjaxModuleConnectorConfig:
             AjaxModuleConnectorConfig(**{field: value})
 
     @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
-    @pytest.mark.parametrize("value", [None, True, False, "1", -0.1])
+    @pytest.mark.parametrize("value", [None, True, False, "1", -0.1, float("nan"), float("inf"), -float("inf")])
     def test_rejects_invalid_non_negative_number_fields(self, field: str, value: Any) -> None:
         """非負の数値設定は構築時に検証する"""
         with pytest.raises(ValueError, match=rf"{field} must be a non-negative number"):
@@ -533,7 +535,7 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert httpx_mock.get_requests() == []
 
-    @pytest.mark.parametrize("request_timeout", [None, True, "1", 0, -0.1])
+    @pytest.mark.parametrize("request_timeout", [None, True, "1", 0, -0.1, float("nan"), float("inf"), -float("inf")])
     def test_request_rejects_invalid_positive_timeout_config_before_request(
         self,
         httpx_mock: HTTPXMock,
@@ -550,7 +552,7 @@ class TestAjaxModuleConnectorClientRequest:
         assert httpx_mock.get_requests() == []
 
     @pytest.mark.parametrize("field", ["retry_interval", "max_backoff", "backoff_factor"])
-    @pytest.mark.parametrize("value", [None, True, "1", -0.1])
+    @pytest.mark.parametrize("value", [None, True, "1", -0.1, float("nan"), float("inf"), -float("inf")])
     def test_request_rejects_invalid_retry_number_config_before_request(
         self,
         httpx_mock: HTTPXMock,
