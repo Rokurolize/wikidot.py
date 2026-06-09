@@ -150,7 +150,9 @@ def _validate_posts_cache_thread_matches(
 ) -> None:
     posts_thread = _validate_forum_thread(candidate_thread)
     posts_site = _validate_forum_thread_site(posts_thread.site)
-    if posts_thread.id != thread.id or posts_site is not thread_site:
+    thread_id = _validate_thread_id(thread.id)
+    posts_thread_id = _validate_thread_id(posts_thread.id)
+    if posts_thread_id != thread_id or posts_site is not thread_site:
         raise ValueError("thread.posts must belong to the thread")
 
 

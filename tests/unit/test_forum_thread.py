@@ -1415,6 +1415,43 @@ class TestForumThreadBasic:
 
         assert thread.posts is posts
 
+    def test_init_accepts_posts_cache_with_zero_retained_thread_ids(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """スレッドID 0 の投稿キャッシュ所有関係は有効な保持IDとして扱う"""
+        from wikidot.module.forum_post import ForumPost, ForumPostCollection
+
+        thread_with_zero_id = _thread_with_id(mock_forum_thread_no_http, 0)
+        element = BeautifulSoup('<div class="post" id="post-5002"></div>', "lxml").select_one("div.post")
+        assert element is not None
+        posts = ForumPostCollection(thread_with_zero_id, [])
+        posts.append(
+            ForumPost(
+                thread=thread_with_zero_id,
+                id=5002,
+                title="Zero Thread Post",
+                text="<p>Zero thread post content</p>",
+                element=element,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+            )
+        )
+
+        thread = ForumThread(
+            site=thread_with_zero_id.site,
+            id=thread_with_zero_id.id,
+            title=thread_with_zero_id.title,
+            description=thread_with_zero_id.description,
+            created_by=thread_with_zero_id.created_by,
+            created_at=thread_with_zero_id.created_at,
+            post_count=thread_with_zero_id.post_count,
+            category=thread_with_zero_id.category,
+            _posts=posts,
+        )
+
+        assert thread.posts is posts
+
     def test_init_rejects_posts_cache_from_different_thread(self, mock_forum_thread_no_http: ForumThread) -> None:
         """別スレッド用の投稿キャッシュは初期化時に拒否する"""
         from wikidot.module.forum_post import ForumPostCollection
@@ -1422,6 +1459,58 @@ class TestForumThreadBasic:
         posts = ForumPostCollection(_thread_with_id(mock_forum_thread_no_http, 3002), [])
 
         with pytest.raises(ValueError, match="thread.posts must belong to the thread"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+                _posts=posts,
+            )
+
+    @pytest.mark.parametrize("retained_thread_id", [True, False, "3001", 3001.0, []])
+    def test_init_rejects_posts_cache_with_malformed_retained_parent_thread_ids(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        retained_thread_id: object,
+    ) -> None:
+        """投稿キャッシュ親スレッドの保持IDが壊れていれば初期化時に拒否する"""
+        from wikidot.module.forum_post import ForumPostCollection
+
+        target_id = int(retained_thread_id) if isinstance(retained_thread_id, bool) else mock_forum_thread_no_http.id
+        target_thread = _thread_with_id(mock_forum_thread_no_http, target_id)
+        cached_thread = _thread_with_id(mock_forum_thread_no_http, target_id)
+        posts = ForumPostCollection(cached_thread, [])
+        cached_thread.id = cast(Any, retained_thread_id)
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumThread(
+                site=target_thread.site,
+                id=target_thread.id,
+                title=target_thread.title,
+                description=target_thread.description,
+                created_by=target_thread.created_by,
+                created_at=target_thread.created_at,
+                post_count=target_thread.post_count,
+                category=target_thread.category,
+                _posts=posts,
+            )
+
+    def test_init_rejects_posts_cache_with_negative_retained_parent_thread_id(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """投稿キャッシュ親スレッドの保持IDが負なら初期化時に拒否する"""
+        from wikidot.module.forum_post import ForumPostCollection
+
+        cached_thread = _thread_with_id(mock_forum_thread_no_http, mock_forum_thread_no_http.id)
+        posts = ForumPostCollection(cached_thread, [])
+        cached_thread.id = -1
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
             ForumThread(
                 site=mock_forum_thread_no_http.site,
                 id=mock_forum_thread_no_http.id,
@@ -1457,6 +1546,84 @@ class TestForumThreadBasic:
         )
 
         with pytest.raises(ValueError, match="thread.posts must belong to the thread"):
+            ForumThread(
+                site=mock_forum_thread_no_http.site,
+                id=mock_forum_thread_no_http.id,
+                title=mock_forum_thread_no_http.title,
+                description=mock_forum_thread_no_http.description,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+                post_count=mock_forum_thread_no_http.post_count,
+                category=mock_forum_thread_no_http.category,
+                _posts=posts,
+            )
+
+    @pytest.mark.parametrize("retained_thread_id", [True, False, "3001", 3001.0, []])
+    def test_init_rejects_posts_cache_entry_with_malformed_retained_thread_ids(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        retained_thread_id: object,
+    ) -> None:
+        """投稿キャッシュ要素の保持スレッドIDが壊れていれば初期化時に拒否する"""
+        from wikidot.module.forum_post import ForumPost, ForumPostCollection
+
+        target_id = int(retained_thread_id) if isinstance(retained_thread_id, bool) else mock_forum_thread_no_http.id
+        target_thread = _thread_with_id(mock_forum_thread_no_http, target_id)
+        post_thread = _thread_with_id(mock_forum_thread_no_http, target_id)
+        element = BeautifulSoup('<div class="post" id="post-5002"></div>', "lxml").select_one("div.post")
+        assert element is not None
+        posts = ForumPostCollection(target_thread, [])
+        posts.append(
+            ForumPost(
+                thread=post_thread,
+                id=5002,
+                title="Same Thread Post",
+                text="<p>Same thread post content</p>",
+                element=element,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+            )
+        )
+        post_thread.id = cast(Any, retained_thread_id)
+
+        with pytest.raises(ValueError, match="thread_id must be an integer"):
+            ForumThread(
+                site=target_thread.site,
+                id=target_thread.id,
+                title=target_thread.title,
+                description=target_thread.description,
+                created_by=target_thread.created_by,
+                created_at=target_thread.created_at,
+                post_count=target_thread.post_count,
+                category=target_thread.category,
+                _posts=posts,
+            )
+
+    def test_init_rejects_posts_cache_entry_with_negative_retained_thread_id(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """投稿キャッシュ要素の保持スレッドIDが負なら初期化時に拒否する"""
+        from wikidot.module.forum_post import ForumPost, ForumPostCollection
+
+        post_thread = _thread_with_id(mock_forum_thread_no_http, mock_forum_thread_no_http.id)
+        element = BeautifulSoup('<div class="post" id="post-5002"></div>', "lxml").select_one("div.post")
+        assert element is not None
+        posts = ForumPostCollection(mock_forum_thread_no_http, [])
+        posts.append(
+            ForumPost(
+                thread=post_thread,
+                id=5002,
+                title="Same Thread Post",
+                text="<p>Same thread post content</p>",
+                element=element,
+                created_by=mock_forum_thread_no_http.created_by,
+                created_at=mock_forum_thread_no_http.created_at,
+            )
+        )
+        post_thread.id = -1
+
+        with pytest.raises(ValueError, match="thread_id must be non-negative"):
             ForumThread(
                 site=mock_forum_thread_no_http.site,
                 id=mock_forum_thread_no_http.id,
