@@ -1338,5 +1338,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 614: `c236186 fix(user): reject blank profile titles`
 - Local implementation commits, continued 615: `72c7df8 fix(forum_post): reject cross-site duplicate thread ids`
 - Local implementation commits, continued 616: `29848eb fix(forum_post_revision): reject cross-site duplicate post ids`
+- Local implementation commits, continued 617: `ef0cec9 fix(site): validate amc request state`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
