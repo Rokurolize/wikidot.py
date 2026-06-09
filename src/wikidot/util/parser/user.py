@@ -40,6 +40,8 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
             deleted_user_id = int(str(data_id))
         except ValueError as exc:
             raise ValueError(f"deleted user id is malformed: {data_id}") from exc
+        if deleted_user_id < 0:
+            raise ValueError(f"deleted user id is malformed: {data_id}")
         return user.DeletedUser(client=client, id=deleted_user_id)
 
     if "class" in elem.attrs and "anonymous" in elem["class"]:

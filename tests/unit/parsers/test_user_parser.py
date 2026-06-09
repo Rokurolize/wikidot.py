@@ -130,6 +130,16 @@ class TestUserParserDeletedUser:
         with pytest.raises(ValueError, match="deleted user id is malformed: latest"):
             user_parse(mock_client_no_http, elem)
 
+    def test_parse_deleted_user_with_negative_data_id_raises(self, mock_client_no_http: MagicMock) -> None:
+        """data-idが負の削除済みユーザーはパーサー文脈付きで失敗する"""
+        html = '<span class="printuser deleted" data-id="-1">(account deleted)</span>'
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        with pytest.raises(ValueError, match="deleted user id is malformed: -1"):
+            user_parse(mock_client_no_http, elem)
+
 
 class TestUserParserAnonymousUser:
     """匿名ユーザーのパーステスト"""
