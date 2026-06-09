@@ -234,6 +234,49 @@ class TestPageRevisionCollection:
         mock_page.site.amc_request.assert_not_called()
         mock_page.site.amc_request_with_retry.assert_not_called()
 
+    def test_get_sources_accepts_zero_retained_revision_id(self, mock_page, mock_user) -> None:
+        """get_sourcesは保持済みの0リビジョンIDを有効なIDとして扱う"""
+        revision = _revision_with_id(mock_page, mock_user, 0)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": '<div class="page-source">Zero revision source</div>'}
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
+        collection = PageRevisionCollection(page=mock_page, revisions=[revision])
+
+        result = collection.get_sources()
+
+        assert result == collection
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "history/PageSourceModule", "revision_id": 0}]
+        )
+        assert revision.source.wiki_text == "Zero revision source"
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "100", 100.0, []])
+    def test_get_sources_rejects_malformed_retained_revision_ids_before_fetch(
+        self, mock_page, sample_revision, retained_id: object
+    ) -> None:
+        """get_sourcesは保持済みリビジョンIDの破損を送信前に拒否する"""
+        _mutate_retained_revision_id(sample_revision, retained_id)
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.get_sources()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_not_called()
+        assert sample_revision._source is None
+
+    def test_get_sources_rejects_negative_retained_revision_id_before_fetch(self, mock_page, sample_revision) -> None:
+        """get_sourcesは負の保持済みリビジョンIDを送信前に拒否する"""
+        _mutate_retained_revision_id(sample_revision, -1)
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            collection.get_sources()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_not_called()
+        assert sample_revision._source is None
+
     def test_get_sources_success(self, mock_page, sample_revision):
         """get_sourcesの成功ケース"""
         mock_response = MagicMock()
@@ -462,6 +505,51 @@ class TestPageRevisionCollection:
 
         mock_page.site.amc_request.assert_not_called()
         mock_page.site.amc_request_with_retry.assert_not_called()
+
+    def test_get_htmls_accepts_zero_retained_revision_id(self, mock_page, mock_user) -> None:
+        """get_htmlsは保持済みの0リビジョンIDを有効なIDとして扱う"""
+        revision = _revision_with_id(mock_page, mock_user, 0)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": "onclick=\"document.getElementById('page-version-info').style.display='none'\">close</a>\n</div>\n<p>Zero HTML</p>"
+        }
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
+        collection = PageRevisionCollection(page=mock_page, revisions=[revision])
+
+        result = collection.get_htmls()
+
+        assert result == collection
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "history/PageVersionModule", "revision_id": 0}]
+        )
+        assert revision._html == "<p>Zero HTML</p>"
+
+    @pytest.mark.parametrize("retained_id", [None, True, False, "100", 100.0, []])
+    def test_get_htmls_rejects_malformed_retained_revision_ids_before_fetch(
+        self, mock_page, sample_revision, retained_id: object
+    ) -> None:
+        """get_htmlsは保持済みリビジョンIDの破損を送信前に拒否する"""
+        _mutate_retained_revision_id(sample_revision, retained_id)
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.get_htmls()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_not_called()
+        assert sample_revision._html is None
+
+    def test_get_htmls_rejects_negative_retained_revision_id_before_fetch(self, mock_page, sample_revision) -> None:
+        """get_htmlsは負の保持済みリビジョンIDを送信前に拒否する"""
+        _mutate_retained_revision_id(sample_revision, -1)
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            collection.get_htmls()
+
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_not_called()
+        assert sample_revision._html is None
 
     def test_get_htmls_success(self, mock_page, sample_revision):
         """get_htmlsの成功ケース"""

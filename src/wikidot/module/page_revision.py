@@ -230,22 +230,23 @@ class PageRevisionCollection(list["PageRevision"]):
         if any(not isinstance(revision, PageRevision) for revision in revisions):
             raise ValueError("revisions list entries must be PageRevision")
         _validate_revisions_belong_to_page(page, revisions)
+        revision_ids = [_validate_revision_id(revision.id) for revision in revisions]
 
         acquired_revisions_by_id: dict[int, PageRevision] = {}
         if copy_acquired_func is not None:
-            for revision in revisions:
+            for revision, revision_id in zip(revisions, revision_ids, strict=True):
                 if check_acquired_func(revision):
-                    acquired_revisions_by_id[revision.id] = revision
+                    acquired_revisions_by_id[revision_id] = revision
 
         target_revisions_by_id: dict[int, list[PageRevision]] = {}
-        for revision in revisions:
+        for revision, revision_id in zip(revisions, revision_ids, strict=True):
             if check_acquired_func(revision):
                 continue
-            acquired_revision = acquired_revisions_by_id.get(revision.id)
+            acquired_revision = acquired_revisions_by_id.get(revision_id)
             if acquired_revision is not None and copy_acquired_func is not None:
                 copy_acquired_func(acquired_revision, revision)
                 continue
-            target_revisions_by_id.setdefault(revision.id, []).append(revision)
+            target_revisions_by_id.setdefault(revision_id, []).append(revision)
 
         if len(target_revisions_by_id) == 0:
             return revisions
