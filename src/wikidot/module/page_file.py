@@ -9,7 +9,7 @@ import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, cast
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup, Tag
 
@@ -80,6 +80,26 @@ def _validate_file_size(value: object) -> int:
     if value < 0:
         raise ValueError("size must be non-negative")
     return value
+
+
+def _parse_file_link_url(site_url: str, href: str, *, file_id: int, name: str, context: str) -> str:
+    href_parts = urlsplit(href)
+    url = urljoin(f"{site_url}/", href)
+    url_parts = urlsplit(url)
+
+    if (
+        href_parts.scheme not in ("", "http", "https")
+        or (href_parts.scheme in ("http", "https") and href_parts.netloc == "")
+        or url_parts.scheme not in ("http", "https")
+        or url_parts.netloc == ""
+        or url_parts.path.strip("/") == ""
+    ):
+        location = f"{context}, file: {name}" if context else f"for file: {name}"
+        raise exceptions.NoElementException(
+            f"Page file link href is malformed {location} (id={file_id}, field=href, value={href})"
+        )
+
+    return url
 
 
 class PageFileCollection(list["PageFile"]):
@@ -250,7 +270,7 @@ class PageFileCollection(list["PageFile"]):
                 raise exceptions.NoElementException(
                     f"Page file link href is not found {location} (id={file_id}, field=href)"
                 )
-            url = urljoin(f"{site_url}/", str(href))
+            url = _parse_file_link_url(site_url, href, file_id=file_id, name=name, context=context)
 
             mime_elem = tds[1].find("span", recursive=False)
             mime_title = mime_elem.get("title") if isinstance(mime_elem, Tag) else None

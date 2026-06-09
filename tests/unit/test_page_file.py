@@ -1,5 +1,6 @@
 """PageFileモジュールのユニットテスト"""
 
+import re
 from datetime import datetime
 from typing import Any, cast
 from unittest.mock import MagicMock
@@ -613,6 +614,52 @@ class TestPageFileCollectionAcquire:
         collection = PageFileCollection.acquire(page)
 
         assert collection[0].url == "https://cdn.example.com/file.txt"
+
+    @pytest.mark.parametrize(
+        "href",
+        [
+            "javascript:alert(1)",
+            "mailto:file@example.com",
+            "http:file.txt",
+            "/",
+            "#file.txt",
+            "?file=file.txt",
+        ],
+    )
+    def test_acquire_rejects_malformed_file_link_href_routes(self, href: str) -> None:
+        """構造的に有効な添付ファイル行でhrefルートが壊れている場合は文脈付きで失敗する"""
+        page = _page()
+        page.id = 12345
+        page.fullname = "test-page"
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        site.unix_name = "test-site"
+        page.site = site
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": f"""
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-100">
+                            <td><a href="{href}">file.txt</a></td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>1 KB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page file link href is malformed for site: test-site, page: test-page, "
+                rf"file: file\.txt \(id=100, field=href, value={re.escape(href)}\)"
+            ),
+        ):
+            PageFileCollection.acquire(page)
 
     def test_acquire_requires_file_mime_title(self):
         """構造的に有効な添付ファイル行でMIME titleが欠落した場合は文脈付きで失敗する"""
