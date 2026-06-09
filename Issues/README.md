@@ -735,6 +735,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [729-pr-validate-forum-thread-detail-post-count-shape.md](729-pr-validate-forum-thread-detail-post-count-shape.md): upstream PR draft for the committed forum thread detail post-count shape validation fix.
 - [730-pr-validate-deleted-user-data-id-range.md](730-pr-validate-deleted-user-data-id-range.md): upstream PR draft for the committed deleted-user data-id range validation fix.
 - [731-pr-validate-finite-http-numeric-controls.md](731-pr-validate-finite-http-numeric-controls.md): upstream PR draft for the committed finite HTTP numeric-control validation fix.
+- [732-pr-validate-finite-amc-and-requestutil-numeric-controls.md](732-pr-validate-finite-amc-and-requestutil-numeric-controls.md): upstream PR draft for the committed finite AMC and direct URL numeric-control validation fix.
 
 ## Local Evidence Index
 
@@ -1378,5 +1379,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 634: `38e8f7a fix(forum_thread): validate detail post count shape`
 - Local implementation commits, continued 635: `9a3d448 fix(user): validate deleted user data id range`
 - Local implementation commits, continued 636: `422be1a fix(http): validate finite numeric controls`
+- Local implementation commits, continued 637: `cecc882 fix(http): validate finite request numeric controls`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
