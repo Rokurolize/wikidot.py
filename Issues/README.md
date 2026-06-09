@@ -728,6 +728,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [722-pr-validate-page-action-status-type.md](722-pr-validate-page-action-status-type.md): upstream PR draft for the committed non-metadata page action status type validation fix.
 - [723-pr-validate-page-rating-status-type.md](723-pr-validate-page-rating-status-type.md): upstream PR draft for the committed page rating action status type validation fix.
 - [724-pr-validate-page-metadata-status-type.md](724-pr-validate-page-metadata-status-type.md): upstream PR draft for the committed page metadata action status type validation fix.
+- [725-pr-validate-recent-change-revision-cell-shape.md](725-pr-validate-recent-change-revision-cell-shape.md): upstream PR draft for the committed recent-change revision cell shape validation fix.
 
 ## Local Evidence Index
 
@@ -1364,5 +1365,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 627: `0c01961 fix(page): validate action status type`
 - Local implementation commits, continued 628: `34d87c2 fix(page): validate rating status type`
 - Local implementation commits, continued 629: `0e744d0 fix(page): validate metadata status type`
+- Local implementation commits, continued 630: `9e3b3a4 fix(site): validate recent change revision cells`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
