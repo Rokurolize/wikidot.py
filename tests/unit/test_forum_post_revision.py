@@ -66,11 +66,11 @@ def _post_with_id(source_post: ForumPost, post_id: int) -> ForumPost:
     return _post_with_thread_and_id(source_post, source_post.thread, post_id)
 
 
-def _revision_for_post(post: ForumPost) -> ForumPostRevision:
+def _revision_for_post(post: ForumPost, revision_id: int = 9001, rev_no: int = 0) -> ForumPostRevision:
     return ForumPostRevision(
         post=post,
-        id=9001,
-        rev_no=0,
+        id=revision_id,
+        rev_no=rev_no,
         created_by=_user(post.thread.site.client),
         created_at=datetime.now(tz=timezone.utc),
     )
@@ -82,6 +82,14 @@ def _mutate_retained_post_id(post: ForumPost, retained_id: object) -> None:
 
 def _mutate_retained_thread_id(thread: ForumThread, retained_id: object) -> None:
     thread.id = cast(Any, retained_id)
+
+
+def _mutate_retained_revision_id(revision: ForumPostRevision, retained_id: object) -> None:
+    revision.id = cast(Any, retained_id)
+
+
+def _mutate_retained_revision_number(revision: ForumPostRevision, retained_rev_no: object) -> None:
+    revision.rev_no = cast(Any, retained_rev_no)
 
 
 # ============================================================
@@ -380,6 +388,13 @@ class TestForumPostRevisionCollectionFind:
         found = collection.find(9999)
         assert found is None
 
+    def test_find_accepts_revision_with_zero_retained_id(self, mock_forum_post_no_http: ForumPost) -> None:
+        """0の保持済みリビジョンIDは検索できる"""
+        revision = _revision_for_post(mock_forum_post_no_http, revision_id=0)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+        assert collection.find(0) is revision
+
     @pytest.mark.parametrize("revision_id", [None, True, "9001", 9001.0])
     def test_find_rejects_non_integer_ids(self, mock_forum_post_no_http: ForumPost, revision_id: object) -> None:
         """findは整数以外の検索IDを拒否する"""
@@ -395,6 +410,40 @@ class TestForumPostRevisionCollectionFind:
         bad_revision_id: Any = revision_id
         with pytest.raises(ValueError, match="id must be an integer"):
             collection.find(bad_revision_id)
+
+    @pytest.mark.parametrize(
+        ("retained_revision_id", "lookup_id"),
+        [
+            (None, 9001),
+            (True, 1),
+            (False, 0),
+            ("9001", 9001),
+            (9001.0, 9001),
+            ([], 9001),
+        ],
+    )
+    def test_find_rejects_revision_with_malformed_retained_ids(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        retained_revision_id: object,
+        lookup_id: int,
+    ) -> None:
+        """保持済みリビジョンIDが壊れている場合は検索比較前に拒否する"""
+        revision = _revision_for_post(mock_forum_post_no_http)
+        _mutate_retained_revision_id(revision, retained_revision_id)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            collection.find(lookup_id)
+
+    def test_find_rejects_revision_with_negative_retained_id(self, mock_forum_post_no_http: ForumPost) -> None:
+        """保持済みリビジョンIDが負数の場合は検索比較前に拒否する"""
+        revision = _revision_for_post(mock_forum_post_no_http)
+        _mutate_retained_revision_id(revision, -1)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            collection.find(9001)
 
 
 class TestForumPostRevisionCollectionFindByRevNo:
@@ -430,6 +479,15 @@ class TestForumPostRevisionCollectionFindByRevNo:
         found = collection.find_by_rev_no(99)
         assert found is None
 
+    def test_find_by_rev_no_accepts_revision_with_zero_retained_rev_no(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """0の保持済みリビジョン番号は検索できる"""
+        revision = _revision_for_post(mock_forum_post_no_http, revision_id=9001, rev_no=0)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+        assert collection.find_by_rev_no(0) is revision
+
     @pytest.mark.parametrize("rev_no", [None, True, "1", 1.0])
     def test_find_by_rev_no_rejects_non_integer_revision_numbers(
         self, mock_forum_post_no_http: ForumPost, rev_no: object
@@ -447,6 +505,42 @@ class TestForumPostRevisionCollectionFindByRevNo:
         bad_rev_no: Any = rev_no
         with pytest.raises(ValueError, match="rev_no must be an integer"):
             collection.find_by_rev_no(bad_rev_no)
+
+    @pytest.mark.parametrize(
+        ("retained_rev_no", "lookup_rev_no"),
+        [
+            (None, 1),
+            (True, 1),
+            (False, 0),
+            ("1", 1),
+            (1.0, 1),
+            ([], 1),
+        ],
+    )
+    def test_find_by_rev_no_rejects_revision_with_malformed_retained_rev_nos(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        retained_rev_no: object,
+        lookup_rev_no: int,
+    ) -> None:
+        """保持済みリビジョン番号が壊れている場合は検索比較前に拒否する"""
+        revision = _revision_for_post(mock_forum_post_no_http, revision_id=9002, rev_no=1)
+        _mutate_retained_revision_number(revision, retained_rev_no)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+        with pytest.raises(ValueError, match="rev_no must be an integer"):
+            collection.find_by_rev_no(lookup_rev_no)
+
+    def test_find_by_rev_no_rejects_revision_with_negative_retained_rev_no(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """保持済みリビジョン番号が負数の場合は検索比較前に拒否する"""
+        revision = _revision_for_post(mock_forum_post_no_http, revision_id=9002, rev_no=1)
+        _mutate_retained_revision_number(revision, -1)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+        with pytest.raises(ValueError, match="rev_no must be non-negative"):
+            collection.find_by_rev_no(1)
 
 
 class TestForumPostRevisionCollectionParse:

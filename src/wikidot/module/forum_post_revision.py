@@ -282,7 +282,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         if not isinstance(id, int) or isinstance(id, bool):
             raise ValueError("id must be an integer")
         for revision in self:
-            if revision.id == id:
+            if _validate_revision_id(revision.id) == id:
                 return revision
         return None
 
@@ -303,7 +303,7 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
         if not isinstance(rev_no, int) or isinstance(rev_no, bool):
             raise ValueError("rev_no must be an integer")
         for revision in self:
-            if revision.rev_no == rev_no:
+            if _validate_revision_number(revision.rev_no) == rev_no:
                 return revision
         return None
 
