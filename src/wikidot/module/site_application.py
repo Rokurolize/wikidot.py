@@ -68,6 +68,8 @@ def _parse_application_user(
 def _validate_site_application_user_object(user: object) -> AbstractUser:
     if not isinstance(user, AbstractUser):
         raise ValueError("application.user must be an AbstractUser")
+    if isinstance(user.id, int) and not isinstance(user.id, bool) and user.id < 0:
+        raise ValueError("application.user.id must be non-negative")
     return user
 
 

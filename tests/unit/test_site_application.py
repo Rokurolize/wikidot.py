@@ -103,6 +103,25 @@ class TestSiteApplicationDataclass:
         with pytest.raises(ValueError, match="application.user must belong to the site"):
             SiteApplication(site=site, user=user, text="")
 
+    @pytest.mark.parametrize("user_id", [-1, -100])
+    def test_init_rejects_negative_user_id(self, user_id: int) -> None:
+        """SiteApplication.userのIDが負数なら初期化時に拒否する"""
+        site = _site()
+        user = _application_user(site.client)
+        user.id = user_id
+
+        with pytest.raises(ValueError, match="application.user.id must be non-negative"):
+            SiteApplication(site=site, user=user, text="")
+
+    def test_init_accepts_zero_user_id(self) -> None:
+        """SiteApplication.userのIDは0を有効な値として扱う"""
+        site = _site()
+        user = _application_user(site.client, user_id=0)
+
+        app = SiteApplication(site=site, user=user, text="")
+
+        assert app.user.id == 0
+
     @pytest.mark.parametrize("text", [None, True, 123, ["Please let me join"], object()])
     def test_init_rejects_malformed_text(self, text: object):
         """SiteApplication.textが文字列でなければ初期化時に拒否する"""
@@ -606,9 +625,9 @@ class TestSiteApplicationProcess:
         cached_members = [object()]
         site._members = cached_members
         bad_user = User(client=mock_client, id=12345, name="TestUser")
-        bad_user.id = user_id
 
         app = SiteApplication(site=site, user=bad_user, text="")
+        app.user.id = user_id
 
         with pytest.raises(ValueError, match="application.user.id must be non-negative"):
             app.decline()
@@ -708,9 +727,9 @@ class TestSiteApplicationProcess:
         cached_members = [object()]
         site._members = cached_members
         bad_user = User(client=mock_client, id=12345, name="TestUser")
-        bad_user.id = user_id
 
         app = SiteApplication(site=site, user=bad_user, text="")
+        app.user.id = user_id
 
         with pytest.raises(ValueError, match="application.user.id must be non-negative"):
             app.accept()
