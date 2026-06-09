@@ -705,6 +705,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [699-pr-validate-site-application-constructor-user-id-state.md](699-pr-validate-site-application-constructor-user-id-state.md): upstream PR draft for the committed SiteApplication constructor user ID state validation fix.
 - [700-pr-validate-site-member-constructor-user-id-state.md](700-pr-validate-site-member-constructor-user-id-state.md): upstream PR draft for the committed SiteMember constructor user ID state validation fix.
 - [701-pr-validate-site-constructor-client.md](701-pr-validate-site-constructor-client.md): upstream PR draft for the committed Site constructor client validation fix.
+- [702-pr-validate-page-source-constructor-page.md](702-pr-validate-page-source-constructor-page.md): upstream PR draft for the committed PageSource constructor page validation fix.
 
 ## Local Evidence Index
 
@@ -1318,5 +1319,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 604: `50c2c50 fix(site_application): validate constructor user id state`
 - Local implementation commits, continued 605: `93e401d fix(site_member): validate constructor user id state`
 - Local implementation commits, continued 606: `d9e71b3 fix(site): validate constructor client`
+- Local implementation commits, continued 607: `f38bcb5 fix(page_source): validate constructor page`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
