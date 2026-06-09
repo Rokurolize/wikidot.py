@@ -166,13 +166,17 @@ class PageRevisionCollection(list["PageRevision"]):
         revisions : list[PageRevision] | None, default None
             List of revisions to store
         """
-        super().__init__(_validate_revisions(revisions))
+        revisions = _validate_revisions(revisions)
         if page is not None:
             self.page = _validate_revision_page(page)
-        elif len(self) > 0:
-            self.page = self[0].page
+            _validate_revisions_belong_to_page(self.page, revisions)
+        elif len(revisions) > 0:
+            self.page = _validate_revision_page(revisions[0].page)
+            _validate_revisions_belong_to_page(self.page, revisions)
         else:
             self.page = None
+
+        super().__init__(revisions)
 
     def __iter__(self) -> Iterator["PageRevision"]:
         """

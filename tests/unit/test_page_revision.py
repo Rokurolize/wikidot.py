@@ -155,6 +155,36 @@ class TestPageRevisionCollection:
         collection = PageRevisionCollection(revisions=[sample_revision])
         assert collection.page == sample_revision.page
 
+    def test_init_rejects_mixed_revision_pages_when_page_is_inferred(self, sample_revision, mock_user):
+        """推測されたpageと異なるPageRevision要素を初期化時に拒否する"""
+        other_page = _page_on_same_site(sample_revision.page)
+        other_revision = PageRevision(
+            page=other_page,
+            id=101,
+            rev_no=2,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 2, 12, 0, 0),
+            comment="Other page revision",
+        )
+
+        with pytest.raises(ValueError, match="revisions must belong to the collection page"):
+            PageRevisionCollection(revisions=[sample_revision, other_revision])
+
+    def test_init_rejects_revision_from_different_page(self, mock_page, mock_user):
+        """明示されたpageと異なるPageRevision要素を初期化時に拒否する"""
+        other_page = _page_on_same_site(mock_page)
+        other_revision = PageRevision(
+            page=other_page,
+            id=101,
+            rev_no=2,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 2, 12, 0, 0),
+            comment="Other page revision",
+        )
+
+        with pytest.raises(ValueError, match="revisions must belong to the collection page"):
+            PageRevisionCollection(page=mock_page, revisions=[other_revision])
+
     def test_iter(self, sample_revision):
         """イテレータのテスト"""
         collection = PageRevisionCollection(revisions=[sample_revision])
@@ -430,7 +460,8 @@ class TestPageRevisionCollection:
         mock_response.json.return_value = {"body": '<div class="page-source">Wrong page source</div>'}
         mock_page.site.amc_request_with_retry.return_value = (mock_response,)
 
-        collection = PageRevisionCollection(page=mock_page, revisions=[other_revision])
+        collection = PageRevisionCollection(page=mock_page, revisions=[])
+        collection.append(other_revision)
 
         with pytest.raises(ValueError, match="revisions must belong to the collection page"):
             collection.get_sources()
@@ -745,7 +776,8 @@ class TestPageRevisionCollection:
         mock_response.json.return_value = {"body": "<p>Wrong page HTML</p>"}
         mock_page.site.amc_request_with_retry.return_value = (mock_response,)
 
-        collection = PageRevisionCollection(page=mock_page, revisions=[other_revision])
+        collection = PageRevisionCollection(page=mock_page, revisions=[])
+        collection.append(other_revision)
 
         with pytest.raises(ValueError, match="revisions must belong to the collection page"):
             collection.get_htmls()

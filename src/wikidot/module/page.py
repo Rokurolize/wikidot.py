@@ -244,7 +244,12 @@ def _validate_page_revisions(page: "Page", value: object) -> PageRevisionCollect
         revisions = value
     elif isinstance(value, list):
         _validate_page_revision_entries(value)
-        revisions = PageRevisionCollection(page, cast(list[PageRevision], value))
+        try:
+            revisions = PageRevisionCollection(page, cast(list[PageRevision], value))
+        except ValueError as exc:
+            if str(exc) == "revisions must belong to the collection page":
+                raise ValueError("page.revisions must belong to the page") from exc
+            raise
     else:
         raise ValueError("page.revisions must be a list or PageRevisionCollection")
     _validate_revisions_cache_belongs_to_page(page, revisions)
