@@ -3201,6 +3201,76 @@ class TestPageWriteMethods:
         ):
             mock_page_with_id.destroy()
 
+    def test_destroy_malformed_action_status_type_preserves_page_bound_caches(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """削除応答のstatus型異常は文脈付きで失敗しページ付属キャッシュを消さない"""
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        cached_revisions = PageRevisionCollection(
+            mock_page_with_id,
+            [
+                PageRevision(
+                    page=mock_page_with_id,
+                    id=1,
+                    rev_no=1,
+                    created_by=_page_user(mock_page_with_id),
+                    created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
+                    comment="cached revision",
+                )
+            ],
+        )
+        cached_votes = PageVoteCollection(
+            mock_page_with_id,
+            [PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)],
+        )
+        cached_metas = {"cached": "meta"}
+        cached_discussion = MagicMock()
+        cached_files = PageFileCollection(
+            mock_page_with_id,
+            [
+                PageFile(
+                    page=mock_page_with_id,
+                    id=1,
+                    name="cached.txt",
+                    url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+                    mime_type="text/plain",
+                    size=10,
+                )
+            ],
+        )
+        mock_page_with_id._source = cached_source
+        mock_page_with_id._revisions = cached_revisions
+        mock_page_with_id._votes = cached_votes
+        mock_page_with_id._metas = cached_metas
+        mock_page_with_id._discussion = cached_discussion
+        mock_page_with_id._discussion_checked = True
+        mock_page_with_id._files = cached_files
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"status": ["not-ok"]}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=deletePage, field=status, expected=str, actual=list\)"
+            ),
+        ):
+            mock_page_with_id.destroy()
+
+        assert mock_page_with_id._source is cached_source
+        assert mock_page_with_id._revisions is cached_revisions
+        assert mock_page_with_id._votes is cached_votes
+        assert mock_page_with_id._metas is cached_metas
+        assert mock_page_with_id._discussion is cached_discussion
+        assert mock_page_with_id._discussion_checked is True
+        assert mock_page_with_id._files is cached_files
+        assert mock_page_with_id.site.amc_request.call_count == 1
+        assert malformed_response.json.call_count == 1
+
     def test_commit_tags_success(self, mock_page_with_id: Page, page_savetags_success: dict[str, Any]) -> None:
         """タグを正常に保存できる"""
         mock_response = MagicMock()
@@ -3440,6 +3510,73 @@ class TestPageWriteMethods:
         assert mock_page_with_id.fullname == "test-page"
         assert mock_page_with_id.category == "_default"
         assert mock_page_with_id.name == "test-page"
+
+    def test_rename_malformed_action_status_type_preserves_local_name_and_files_cache(
+        self, mock_page_with_id: Page
+    ) -> None:
+        """rename応答のstatus型異常は文脈付きで失敗しローカルページ名を更新しない"""
+        cached_file = PageFile(
+            page=mock_page_with_id,
+            id=1,
+            name="cached.txt",
+            url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+            mime_type="text/plain",
+            size=10,
+        )
+        cached_files = PageFileCollection(mock_page_with_id, [cached_file])
+        mock_page_with_id._files = cached_files
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = {"status": ["not-ok"]}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=renamePage, field=status, expected=str, actual=list\)"
+            ),
+        ):
+            mock_page_with_id.rename("component:new-name")
+
+        assert mock_page_with_id.fullname == "test-page"
+        assert mock_page_with_id.category == "_default"
+        assert mock_page_with_id.name == "test-page"
+        assert mock_page_with_id._files is cached_files
+        assert mock_page_with_id.site.amc_request.call_count == 1
+        assert malformed_response.json.call_count == 1
+
+    def test_rename_explicit_non_ok_action_status_preserves_local_name_and_files_cache(
+        self, mock_page_with_id: Page
+    ) -> None:
+        """rename応答の明示的な非ok statusはWikidotStatusCodeExceptionとして保持する"""
+        cached_file = PageFile(
+            page=mock_page_with_id,
+            id=1,
+            name="cached.txt",
+            url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+            mime_type="text/plain",
+            size=10,
+        )
+        cached_files = PageFileCollection(mock_page_with_id, [cached_file])
+        mock_page_with_id._files = cached_files
+        response = MagicMock()
+        response.json.return_value = {"status": "not_ok"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(exceptions.WikidotStatusCodeException) as exc_info:
+            mock_page_with_id.rename("component:new-name")
+
+        assert exc_info.value.status_code == "not_ok"
+        assert mock_page_with_id.fullname == "test-page"
+        assert mock_page_with_id.category == "_default"
+        assert mock_page_with_id.name == "test-page"
+        assert mock_page_with_id._files is cached_files
+        assert mock_page_with_id.site.amc_request.call_count == 1
+        assert response.json.call_count == 1
 
     def test_rename_rejects_non_string_fullname_before_request(self, mock_page_with_id: Page) -> None:
         """renameのnew_fullnameはリクエスト前に文字列として検証する"""

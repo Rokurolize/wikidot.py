@@ -617,7 +617,7 @@ def _require_page_save_status(site: "Site", fullname: str, data: dict[str, Any])
     return status
 
 
-def _require_page_action_status(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> Any:
+def _require_page_action_status(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> str:
     try:
         status = data["status"]
     except KeyError as exc:
@@ -625,6 +625,12 @@ def _require_page_action_status(site: "Site", page: "Page", event: str, data: di
             f"Page action response is malformed for site: {site.unix_name}, page: {page.fullname} "
             f"(id={page.id}, event={event}, field=status)"
         ) from exc
+
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Page action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
 
     if status != "ok":
         raise exceptions.WikidotStatusCodeException(
