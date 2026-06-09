@@ -681,6 +681,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [675-pr-validate-forum-post-revision-collection-retained-identity-state.md](675-pr-validate-forum-post-revision-collection-retained-identity-state.md): upstream PR draft for the committed forum post revision collection retained identity validation fix.
 - [676-pr-validate-page-revision-collection-retained-id-state.md](676-pr-validate-page-revision-collection-retained-id-state.md): upstream PR draft for the committed page revision collection retained ID validation fix.
 - [677-pr-validate-page-revision-acquisition-retained-id-state.md](677-pr-validate-page-revision-acquisition-retained-id-state.md): upstream PR draft for the committed page revision source/HTML acquisition retained ID validation fix.
+- [678-pr-validate-forum-post-revision-html-acquisition-retained-id-state.md](678-pr-validate-forum-post-revision-html-acquisition-retained-id-state.md): upstream PR draft for the committed forum post revision HTML acquisition retained ID validation fix.
 
 ## Local Evidence Index
 
@@ -1270,5 +1271,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 580: `51e42cf fix(forum_post_revision): validate collection retained ids`
 - Local implementation commits, continued 581: `90fda3c fix(page_revision): validate collection retained ids`
 - Local implementation commits, continued 582: `362702e fix(page_revision): validate acquisition retained ids`
+- Local implementation commits, continued 583: `cf73ece fix(forum_post_revision): validate html acquisition retained ids`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
