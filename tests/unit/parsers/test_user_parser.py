@@ -170,6 +170,19 @@ class TestUserParserDeletedUser:
         with pytest.raises(ValueError, match="deleted user id is malformed: latest"):
             user_parse(mock_client_no_http, elem)
 
+    def test_parse_deleted_user_rejects_non_ascii_digit_data_id(self, mock_client_no_http: MagicMock) -> None:
+        """削除済みユーザーのdata-idはASCII数字だけを受け入れる"""
+        fullwidth_user_id = "\uff11\uff12\uff13"
+        html = f'<span class="printuser deleted" data-id="{fullwidth_user_id}">(account deleted)</span>'
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        with pytest.raises(ValueError) as exc_info:
+            user_parse(mock_client_no_http, elem)
+
+        assert str(exc_info.value) == f"deleted user id is malformed: {fullwidth_user_id}"
+
     def test_parse_deleted_user_with_negative_data_id_raises(self, mock_client_no_http: MagicMock) -> None:
         """data-idが負の削除済みユーザーはパーサー文脈付きで失敗する"""
         html = '<span class="printuser deleted" data-id="-1">(account deleted)</span>'

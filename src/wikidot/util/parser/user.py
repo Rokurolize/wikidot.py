@@ -36,12 +36,10 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
 
     if "deleted" in elem.get("class", []):
         data_id = elem.get("data-id", 0)
-        try:
-            deleted_user_id = int(str(data_id))
-        except ValueError as exc:
-            raise ValueError(f"deleted user id is malformed: {data_id}") from exc
-        if deleted_user_id < 0:
+        data_id_text = str(data_id)
+        if re.fullmatch(r"[0-9]+", data_id_text) is None:
             raise ValueError(f"deleted user id is malformed: {data_id}")
+        deleted_user_id = int(data_id_text)
         return user.DeletedUser(client=client, id=deleted_user_id)
 
     if "class" in elem.attrs and "anonymous" in elem["class"]:
