@@ -776,6 +776,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [770-pr-validate-publish-visibility-interval-finite.md](770-pr-validate-publish-visibility-interval-finite.md): upstream PR draft for the committed publish visibility interval finite-value validation fix.
 - [771-pr-cap-backoff-before-overflow.md](771-pr-cap-backoff-before-overflow.md): upstream PR draft for the committed retry backoff overflow capping fix.
 - [772-pr-validate-whorated-vote-value-ascii-shape.md](772-pr-validate-whorated-vote-value-ascii-shape.md): upstream PR draft for the committed WhoRated vote-value ASCII-shape validation fix.
+- [773-pr-validate-rating-points-ascii-shape.md](773-pr-validate-rating-points-ascii-shape.md): upstream PR draft for the committed page rating points ASCII-shape validation fix.
 
 ## Local Evidence Index
 
@@ -1460,5 +1461,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 675: `c21549f fix(site): validate finite publish visibility interval`
 - Local implementation commits, continued 676: `f54cbcf fix(http): cap backoff after overflow`, `a496a64 fix(http): preserve capped backoff jitter`
 - Local implementation commits, continued 677: `217e73e fix(page): reject non-ascii whorated vote digits`
+- Local implementation commits, continued 678: `5b8a8a0 fix(page): validate rating points ascii shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
