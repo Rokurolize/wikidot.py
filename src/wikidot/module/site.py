@@ -1857,8 +1857,13 @@ class Site:
 
             for pager_link in reversed(pager.select("a")):
                 page_text = pager_link.get_text(strip=True)
-                if page_text.isdigit():
+                if re.fullmatch(r"[0-9]+", page_text) is not None:
                     return int(page_text)
+                if page_text.isdigit():
+                    raise NoElementException(
+                        f"Recent changes pager page is malformed for site: {self.unix_name}, page: 1 "
+                        f"(field=page, value={page_text})"
+                    )
             return 1
 
         def request_body(page_no: int) -> dict[str, Any]:

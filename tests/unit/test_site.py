@@ -3970,6 +3970,42 @@ Real edit comment
         assert len(changes) == 2
         mock_client.amc_client.request.assert_called_once()
 
+    def test_get_recent_changes_rejects_non_ascii_digit_pager_link(self, site_changes: dict[str, Any]) -> None:
+        """変更履歴のページ番号はASCII数字だけを受け付ける"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        fullwidth_page = "\uff12"
+
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            **site_changes,
+            "body": site_changes["body"].replace(
+                '<div class="pager"><span class="pager-no">ページ 1</span><span class="current">1</span></div>',
+                f'<div class="pager"><a href="#">1</a><a href="#">{fullwidth_page}</a></div>',
+            ),
+        }
+        second_response = self._site_change_response(2, last_page=2)
+        mock_client.amc_client.request.side_effect = [(first_response,), (second_response,)]
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+
+            with pytest.raises(
+                NoElementException,
+                match=rf"Recent changes pager page is malformed for site: test, page: 1 "
+                rf"\(field=page, value={fullwidth_page}\)",
+            ):
+                site.get_recent_changes()
+
+        mock_client.amc_client.request.assert_called_once()
+
     def test_get_recent_changes_ignores_comment_pager_markup(self, site_changes: dict[str, Any]) -> None:
         """編集コメント内のpager風HTMLを変更履歴ページ送りとして扱わない"""
         mock_client = create_mock_client()
