@@ -785,6 +785,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [779-pr-validate-page-source-cache-source-fullnames.md](779-pr-validate-page-source-cache-source-fullnames.md): upstream PR draft for the committed page source-cache source-owner fullname validation fix.
 - [780-pr-validate-page-revision-source-cache-source-fullnames.md](780-pr-validate-page-revision-source-cache-source-fullnames.md): upstream PR draft for the committed page revision source-cache source-owner fullname validation fix.
 - [781-pr-validate-page-revisions-cache-page-fullnames.md](781-pr-validate-page-revisions-cache-page-fullnames.md): upstream PR draft for the committed page revisions-cache page-fullname validation fix.
+- [782-pr-validate-page-votes-cache-page-fullnames.md](782-pr-validate-page-votes-cache-page-fullnames.md): upstream PR draft for the committed page votes-cache page-fullname validation fix.
 
 ## Local Evidence Index
 
@@ -1478,5 +1479,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 684: `71ed044 fix(page): validate source cache source fullnames`
 - Local implementation commits, continued 685: `88dc816 fix(page_revision): validate source cache source fullnames`
 - Local implementation commits, continued 686: `e058085 fix(page): validate revisions cache page fullnames`
+- Local implementation commits, continued 687: `4769459 fix(page): validate votes cache page fullnames`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
