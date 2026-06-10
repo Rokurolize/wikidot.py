@@ -3525,6 +3525,58 @@ class TestPageWriteMethods:
         assert mock_page_with_id._discussion_checked is True
         assert mock_page_with_id._files is cached_files
 
+    @pytest.mark.parametrize("page_id", [True, False, "12345", 12345.0, []])
+    def test_destroy_rejects_malformed_retained_page_ids_before_login(
+        self, mock_page_with_id: Page, page_id: object
+    ) -> None:
+        """破棄時の保持済みpage id型異常はログイン確認前に拒否する"""
+        bad_page_id = page_id
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        cached_metas = {"cached": "meta"}
+        cached_discussion = MagicMock()
+        mock_page_with_id._id = cast(Any, bad_page_id)
+        mock_page_with_id._source = cached_source
+        mock_page_with_id._metas = cached_metas
+        mock_page_with_id._discussion = cached_discussion
+        mock_page_with_id._discussion_checked = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be an integer"):
+            mock_page_with_id.destroy()
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id is bad_page_id
+        assert mock_page_with_id._source is cached_source
+        assert mock_page_with_id._metas is cached_metas
+        assert mock_page_with_id._discussion is cached_discussion
+        assert mock_page_with_id._discussion_checked is True
+
+    def test_destroy_rejects_negative_retained_page_id_before_login(self, mock_page_with_id: Page) -> None:
+        """破棄時の負の保持済みpage idはログイン確認前に拒否する"""
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        cached_metas = {"cached": "meta"}
+        cached_discussion = MagicMock()
+        mock_page_with_id._id = -1
+        mock_page_with_id._source = cached_source
+        mock_page_with_id._metas = cached_metas
+        mock_page_with_id._discussion = cached_discussion
+        mock_page_with_id._discussion_checked = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be non-negative"):
+            mock_page_with_id.destroy()
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id == -1
+        assert mock_page_with_id._source is cached_source
+        assert mock_page_with_id._metas is cached_metas
+        assert mock_page_with_id._discussion is cached_discussion
+        assert mock_page_with_id._discussion_checked is True
+
     def test_destroy_missing_action_status_includes_site_page_event_and_field_context(
         self,
         mock_page_with_id: Page,
