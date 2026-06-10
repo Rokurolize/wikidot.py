@@ -883,6 +883,26 @@ class TestPrivateMessageCollection:
 
         mock_from_ids.assert_called_once_with(mock_client, [123])
 
+    def test_acquire_rejects_non_ascii_digit_message_href_id(self, mock_client):
+        """メッセージdata-hrefのIDはUnicode数字を通常IDへ正規化しない"""
+        fullwidth_message_id = "\uff11\uff12\uff13"
+        data_href = f"/account/messages/view/{fullwidth_message_id}"
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": f'<table><tr class="message" data-href="{data_href}"></tr></table>'}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(
+                NoElementException,
+                match=rf"Message ID is malformed in data-href: {re.escape(data_href)} "
+                r"for module: dashboard/messages/DMInboxModule \(page=1, row=1\)",
+            ),
+        ):
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+        mock_from_ids.assert_not_called()
+
     def test_acquire_ignores_non_numeric_pager_targets(self, mock_client):
         """数値ページがないpagerでは単一ページとして扱う"""
         mock_response = MagicMock()

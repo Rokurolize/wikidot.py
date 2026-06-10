@@ -304,7 +304,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         parse_context = PrivateMessageCollection._message_list_parse_context(module_name, page, row_index)
         data_href_parts = urlsplit(data_href_text)
         data_href_host = data_href_parts.hostname.lower() if data_href_parts.hostname is not None else None
-        message_id_match = re.fullmatch(r"/?account/messages/view/(\d+)/?", data_href_parts.path)
+        message_id_match = re.fullmatch(r"/?account/messages/view/([0-9]+)/?", data_href_parts.path)
         if re.search(r"\d+", data_href_text) is not None and (
             data_href_parts.scheme not in ("", "http", "https")
             or (data_href_parts.scheme in ("http", "https") and data_href_parts.netloc == "")
