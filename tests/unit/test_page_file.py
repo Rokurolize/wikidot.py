@@ -731,6 +731,43 @@ class TestPageFileCollectionAcquire:
         ):
             PageFileCollection.acquire(page)
 
+    def test_acquire_rejects_non_finite_file_size(self):
+        """構造的に有効な添付ファイル行でサイズ値が非有限になる場合は文脈付きで失敗する"""
+        page = _page()
+        page.id = 12345
+        page.fullname = "test-page"
+        site = MagicMock()
+        site.url = "https://test.wikidot.com"
+        site.unix_name = "test-site"
+        page.site = site
+        size_text = f"{'9' * 400} GB"
+
+        response = MagicMock()
+        response.json.return_value = {
+            "body": f"""
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-100">
+                            <td><a href="/local--files/test-page/file.txt">file.txt</a></td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>{size_text}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            PageFileCollection.acquire(page)
+
+        message = str(exc_info.value)
+        assert (
+            "Page file size is malformed for site: test-site, page: test-page, "
+            "file: file.txt (id=100, field=size, value="
+        ) in message
+        assert size_text in message
+
     def test_acquire_requires_file_link_href(self):
         """構造的に有効な添付ファイル行でhrefが欠落した場合は文脈付きで失敗する"""
         page = _page()

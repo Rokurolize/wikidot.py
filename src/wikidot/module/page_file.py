@@ -5,6 +5,7 @@ This module provides classes and functions related to files attached
 to Wikidot site pages. It enables operations such as retrieving file information.
 """
 
+import math
 import re
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -221,7 +222,10 @@ class PageFileCollection(list["PageFile"]):
         multiplier = _SIZE_MULTIPLIERS.get(unit)
         if multiplier is None:
             return None
-        return int(value * multiplier)
+        size = value * multiplier
+        if not math.isfinite(size):
+            return None
+        return int(size)
 
     @staticmethod
     def _parse_file_fields_from_html(
