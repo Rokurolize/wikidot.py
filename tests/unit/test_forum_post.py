@@ -2764,6 +2764,40 @@ class TestForumPostEdit:
         mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
 
+    def test_edit_rejects_malformed_retained_title_before_login_or_form_fetch(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+        amc_ok_response: dict[str, Any],
+    ) -> None:
+        """省略title編集時のretained title不正はログイン確認やフォーム取得前に拒否する"""
+        mock_forum_post_no_http.title = cast(Any, 3)
+        mock_forum_post_no_http._source = "Original source"
+        cached_revisions = ForumPostRevisionCollection(mock_forum_post_no_http, [])
+        cached_posts = ForumPostCollection(mock_forum_post_no_http.thread, [mock_forum_post_no_http])
+        mock_forum_post_no_http._revisions = cached_revisions
+        mock_forum_post_no_http.thread._posts = cached_posts
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+
+        form_response = MagicMock()
+        form_response.json.return_value = forum_editpost_form
+        save_response = MagicMock()
+        save_response.json.return_value = amc_ok_response
+
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[save_response])
+
+        with pytest.raises(ValueError, match="title must be a string"):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.client.login_check.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http.title == 3
+        assert mock_forum_post_no_http._source == "Original source"
+        assert mock_forum_post_no_http._revisions is cached_revisions
+        assert mock_forum_post_no_http.thread._posts is cached_posts
+
     def test_edit_rejects_mutated_thread_before_login_or_form_fetch(self, mock_forum_post_no_http: ForumPost) -> None:
         """投稿編集時の親スレッド不正値はログイン確認やフォーム取得前に拒否する"""
         bad_thread = MagicMock()

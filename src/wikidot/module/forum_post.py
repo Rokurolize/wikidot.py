@@ -1122,6 +1122,7 @@ class ForumPost:
         source = validate_text_field("source", source)
         if title is not None:
             title = validate_text_field("title", title)
+        save_title = title if title is not None else validate_text_field("title", self.title)
         thread = _validate_forum_thread(self.thread)
         site = _validate_forum_thread_site(thread.site)
         thread_id = _validate_forum_thread_id(thread.id)
@@ -1177,7 +1178,7 @@ class ForumPost:
                     "moduleName": "Empty",
                     "postId": post_id,
                     "currentRevisionId": current_revision_id,
-                    "title": title if title is not None else self.title,
+                    "title": save_title,
                     "source": source,
                 }
             ]
