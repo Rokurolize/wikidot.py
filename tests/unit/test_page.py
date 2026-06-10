@@ -700,6 +700,22 @@ class TestPageCollectionSearchPages:
 
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_search_pages_rejects_mutated_site_client_before_config_read(self, mock_site_no_http: Site) -> None:
+        """保持済みsite.client不正値はListPages retry設定読み取り前に拒否する"""
+
+        class MalformedClient:
+            @property
+            def amc_client(self) -> object:
+                raise AssertionError("malformed site.client should not read amc_client")
+
+        mock_site_no_http.client = cast(Any, MalformedClient())
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_search_pages_basic(self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]) -> None:
         """基本的なページ検索ができる"""
         mock_response = MagicMock()

@@ -1291,7 +1291,8 @@ class PageCollection(list["Page"]):
 
     @staticmethod
     def _request_listpages_page(site: "Site", query_dict: dict[str, Any], offset: int | None) -> httpx.Response:
-        config = site.client.amc_client.config
+        client = _validate_page_site_client(site)
+        config = client.amc_client.config
         max_retries = _validate_listpages_retry_max_retries(getattr(config, "retry_max_retries", 3))
 
         last_exception: Exception | None = None
