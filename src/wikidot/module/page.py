@@ -2948,6 +2948,7 @@ class Page:
         force_edit = _validate_page_bool_field("force_edit", force_edit)
 
         site = _validate_page_site(self.site)
+        fullname = _validate_page_text_field("fullname", self.fullname)
         if title is None:
             title = _validate_page_text_field("title", self.title)
         site.client.login_check()
@@ -2960,7 +2961,7 @@ class Page:
 
         page = Page.create_or_edit(
             site,
-            self.fullname,
+            fullname,
             self.id,
             title,
             source,
