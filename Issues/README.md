@@ -745,6 +745,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [739-pr-validate-page-file-link-href-routes.md](739-pr-validate-page-file-link-href-routes.md): upstream PR draft for the committed page-file link href route validation fix.
 - [740-pr-validate-forum-category-href-routes.md](740-pr-validate-forum-category-href-routes.md): upstream PR draft for the committed forum category href route validation fix.
 - [741-pr-validate-forum-thread-href-routes.md](741-pr-validate-forum-thread-href-routes.md): upstream PR draft for the committed forum thread href route validation fix.
+- [742-pr-validate-private-message-data-href-routes.md](742-pr-validate-private-message-data-href-routes.md): upstream PR draft for the committed private-message list data-href route validation fix.
 
 ## Local Evidence Index
 
@@ -1398,5 +1399,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 644: `282a52f fix(page_file): validate file link href routes`
 - Local implementation commits, continued 645: `b26e1c9 fix(forum_category): validate category href routes`
 - Local implementation commits, continued 646: `57ca8d4 fix(forum_thread): validate thread href routes`
+- Local implementation commits, continued 647: `3b98817 fix(private_message): validate list data href routes`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
