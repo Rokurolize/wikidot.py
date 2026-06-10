@@ -787,6 +787,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [781-pr-validate-page-revisions-cache-page-fullnames.md](781-pr-validate-page-revisions-cache-page-fullnames.md): upstream PR draft for the committed page revisions-cache page-fullname validation fix.
 - [782-pr-validate-page-votes-cache-page-fullnames.md](782-pr-validate-page-votes-cache-page-fullnames.md): upstream PR draft for the committed page votes-cache page-fullname validation fix.
 - [783-pr-validate-page-files-cache-page-fullnames.md](783-pr-validate-page-files-cache-page-fullnames.md): upstream PR draft for the committed page files-cache page-fullname validation fix.
+- [784-pr-validate-forum-post-edit-retained-title.md](784-pr-validate-forum-post-edit-retained-title.md): upstream PR draft for the committed forum post edit retained-title validation fix.
 
 ## Local Evidence Index
 
@@ -1482,5 +1483,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 686: `e058085 fix(page): validate revisions cache page fullnames`
 - Local implementation commits, continued 687: `4769459 fix(page): validate votes cache page fullnames`
 - Local implementation commits, continued 688: `a4bfaa5 fix(page): validate files cache page fullnames`
+- Local implementation commits, continued 689: `8d92c91 fix(forum_post): validate retained edit title`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
