@@ -3651,6 +3651,37 @@ class TestPageWriteMethods:
         malformed_site.amc_request.assert_not_called()
         assert mock_page_with_id.tags == ["tag-one", "tag-two"]
 
+    @pytest.mark.parametrize("invalid_page_id", [True, False, "12345", 12345.0, []])
+    def test_commit_tags_rejects_malformed_retained_page_ids_before_login(
+        self, mock_page_with_id: Page, invalid_page_id: Any
+    ) -> None:
+        """タグ保存時のretained page id型不正はログイン確認やAMC保存前に拒否する"""
+        mock_page_with_id.tags = ["tag-one", "tag-two"]
+        mock_page_with_id._id = cast(Any, invalid_page_id)
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be an integer"):
+            mock_page_with_id.commit_tags()
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.tags == ["tag-one", "tag-two"]
+
+    def test_commit_tags_rejects_negative_retained_page_id_before_login(self, mock_page_with_id: Page) -> None:
+        """タグ保存時の負のretained page idはログイン確認やAMC保存前に拒否する"""
+        mock_page_with_id.tags = ["tag-one", "tag-two"]
+        mock_page_with_id._id = -1
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be non-negative"):
+            mock_page_with_id.commit_tags()
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.tags == ["tag-one", "tag-two"]
+
     @pytest.mark.parametrize(
         ("invalid_tags", "message"),
         [
