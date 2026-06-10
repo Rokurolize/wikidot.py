@@ -59,7 +59,7 @@ def _parse_category_id(site: "Site", row_index: int, href: object) -> int:
         parse_context = _category_parse_context(site, row_index, field="id", value=href_text)
         raise NoElementException(f"Category ID is malformed {parse_context}")
 
-    category_id_match = re.search(r"(?:^|/)c-(\d+)(?=[/?#]|$)", href_parts.path)
+    category_id_match = re.search(r"(?:^|/)c-([0-9]+)(?=[/?#]|$)", href_parts.path)
     if category_id_match is not None:
         return int(category_id_match.group(1))
 
