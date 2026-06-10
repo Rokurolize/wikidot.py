@@ -800,6 +800,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [794-pr-validate-set-metadata-retained-page-id.md](794-pr-validate-set-metadata-retained-page-id.md): upstream PR draft for the committed batched metadata retained page-ID validation fix.
 - [795-pr-validate-metas-setter-retained-page-id.md](795-pr-validate-metas-setter-retained-page-id.md): upstream PR draft for the committed direct metas setter retained page-ID validation fix.
 - [796-pr-validate-create-thread-retained-category-id.md](796-pr-validate-create-thread-retained-category-id.md): upstream PR draft for the committed forum create-thread retained category-ID validation fix.
+- [797-pr-source-result-url.md](797-pr-source-result-url.md): upstream PR draft for the committed source-result URL ledger export improvement.
 
 ## Local Evidence Index
 
@@ -1508,5 +1509,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 699: `a29d242 fix(page): validate metadata page id`
 - Local implementation commits, continued 700: `3e79344 fix(page): validate metas setter page id`
 - Local implementation commits, continued 701: `db083e7 fix(forum_category): validate create thread category id`
+- Local implementation commits, continued 702: `4e682e2 feat(site): expose source result urls`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
