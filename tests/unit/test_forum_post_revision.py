@@ -827,6 +827,35 @@ class TestForumPostRevisionCollectionAcquireAll:
         assert mock_forum_post_no_http._revisions is None
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
 
+    def test_acquire_all_rejects_non_ascii_digit_revision_id(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """生成HTMLのリビジョンIDはUnicode数字へ正規化せず壊れた構造として拒否する"""
+        fullwidth_revision_id = "\uff19\uff10\uff10\uff13"
+        malformed_body = forum_post_revisions["body"].replace(
+            "showRevision(event, 9003)",
+            f"showRevision(event, {fullwidth_revision_id})",
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_post_revisions, "body": malformed_body}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post revision ID is malformed for site: test-site, post: 5001 "
+                r"\(row=1, field=revision_id, "
+                rf"value=WIKIDOT\.modules\.ForumViewThreadModule\.listeners\.showRevision\(event, "
+                rf"{fullwidth_revision_id}\)\)"
+            ),
+        ):
+            ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        assert mock_forum_post_no_http._revisions is None
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+
     def test_acquire_all_malformed_odate_includes_post_row_and_value_context(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
