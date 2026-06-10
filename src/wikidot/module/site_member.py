@@ -23,6 +23,7 @@ from ..util.parser import user as user_parser
 from .user import AbstractUser
 
 if TYPE_CHECKING:
+    from .client import Client
     from .site import Site
 
 
@@ -164,6 +165,14 @@ def _validate_site_member_site(site: object) -> "Site":
     if not isinstance(site, Site):
         raise ValueError("site must be a Site")
     return site
+
+
+def _validate_site_member_site_client(site: "Site") -> "Client":
+    from .client import Client
+
+    if not isinstance(site.client, Client):
+        raise ValueError("client must be a Client")
+    return site.client
 
 
 def _validate_site_member_user_site(site: "Site", user: AbstractUser) -> None:
@@ -441,7 +450,8 @@ class SiteMember:
         site = _validate_site_member_site(self.site)
         user = _validate_site_member_action_user(self.user)
         _validate_site_member_user_site(site, user)
-        site.client.login_check()
+        client = _validate_site_member_site_client(site)
+        client.login_check()
 
         try:
             response = site.amc_request(

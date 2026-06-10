@@ -1603,7 +1603,8 @@ class Site:
         text = _validate_page_text_field("text", text)
         user = _validate_site_invitation_user(user)
         _validate_site_invitation_user_site(self, user)
-        self.client.login_check()
+        client = _validate_site_client(self.client)
+        client.login_check()
         try:
             response = self.amc_request(
                 [

@@ -2977,6 +2977,30 @@ class TestSiteInviteUser:
         mock_client.login_check.assert_not_called()
         mock_client.amc_client.request.assert_not_called()
 
+    def test_invite_user_rejects_mutated_site_client_before_login(self) -> None:
+        """Site.clientがClientでなければ招待ログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        mock_user = User(client=mock_client, id=12345, name="test-user")
+        malformed_client = MagicMock()
+        malformed_client.login_check = MagicMock()
+        malformed_client.amc_client = MagicMock()
+        site.client = malformed_client
+        mock_user.client = malformed_client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            site.invite_user(mock_user, "Welcome message")
+
+        malformed_client.login_check.assert_not_called()
+        malformed_client.amc_client.request.assert_not_called()
+
     @pytest.mark.parametrize("user_id", [-1, -100])
     def test_invite_user_rejects_negative_user_id_before_login(self, user_id: int) -> None:
         """招待先Userの保持済みIDが負数の場合はログイン確認やAMCリクエスト前に拒否する"""

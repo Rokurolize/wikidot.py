@@ -1104,3 +1104,24 @@ class TestSiteMemberChangeGroup:
 
         site.client.login_check.assert_not_called()
         site.amc_request.assert_not_called()
+
+    def test_change_group_rejects_mutated_site_client_before_login(self) -> None:
+        """権限変更はSite.clientがClientでなければログイン確認前に拒否する"""
+        site = _site()
+        cached_moderators = [object()]
+        cached_admins = [object()]
+        site._moderators = cached_moderators
+        site._admins = cached_admins
+        member = SiteMember(site=site, user=self._user(client=site.client), joined_at=None)
+        malformed_client = MagicMock()
+        malformed_client.login_check = MagicMock()
+        site.client = malformed_client
+        member.user.client = malformed_client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            member.to_moderator()
+
+        malformed_client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
+        assert site._moderators is cached_moderators
+        assert site._admins is cached_admins

@@ -166,6 +166,19 @@ class TestSiteApplicationAcquireAll:
         with pytest.raises(ValueError, match="site must be a Site"):
             SiteApplication.acquire_all(bad_site)
 
+    def test_acquire_all_rejects_mutated_site_client_before_login(self) -> None:
+        """Site.clientがClientでなければ申請一覧取得前に拒否する"""
+        site = _site()
+        malformed_client = MagicMock()
+        malformed_client.login_check = MagicMock()
+        site.client = malformed_client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            SiteApplication.acquire_all(site)
+
+        malformed_client.login_check.assert_not_called()
+        site.amc_request_with_retry.assert_not_called()
+
     def test_site_applications_retries_transient_fetch_failures(self):
         """site.applicationsは一時的なAMC失敗を再試行して申請を返す"""
         mock_client = create_mock_client(is_logged_in=True)
@@ -711,6 +724,25 @@ class TestSiteApplicationProcess:
             app.accept()
 
         mock_client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
+        assert site._members is cached_members
+
+    def test_accept_rejects_mutated_site_client_before_login(self) -> None:
+        """申請承認はSite.clientがClientでなければログイン確認前に拒否する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        cached_members = [object()]
+        site._members = cached_members
+        app = SiteApplication(site=site, user=_application_user(mock_client), text="")
+        malformed_client = MagicMock()
+        malformed_client.login_check = MagicMock()
+        site.client = malformed_client
+        app.user.client = malformed_client
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            app.accept()
+
+        malformed_client.login_check.assert_not_called()
         site.amc_request.assert_not_called()
         assert site._members is cached_members
 

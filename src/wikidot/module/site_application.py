@@ -16,6 +16,7 @@ from ..util.parser import user as user_parser
 
 if TYPE_CHECKING:
     from ..module.site import Site
+    from .client import Client
 
 
 def _site_name(site: "Site") -> str:
@@ -110,6 +111,14 @@ def _validate_site_application_site(site: object) -> "Site":
     if not isinstance(site, Site):
         raise ValueError("site must be a Site")
     return site
+
+
+def _validate_site_application_site_client(site: "Site") -> "Client":
+    from .client import Client
+
+    if not isinstance(site.client, Client):
+        raise ValueError("client must be a Client")
+    return site.client
 
 
 def _require_site_application_action_status(
@@ -209,7 +218,8 @@ class SiteApplication:
             If response parsing fails
         """
         site = _validate_site_application_site(site)
-        site.client.login_check()
+        client = _validate_site_application_site_client(site)
+        client.login_check()
 
         response = site.amc_request_with_retry([{"moduleName": "managesite/ManageSiteMembersApplicationsModule"}])[0]
         if response is None:
@@ -310,7 +320,8 @@ class SiteApplication:
         site = _validate_site_application_site(self.site)
         user = _validate_site_application_user(self.user)
         _validate_site_application_user_site(site, user)
-        site.client.login_check()
+        client = _validate_site_application_site_client(site)
+        client.login_check()
 
         status_text = {"accept": "accepted", "decline": "declined"}[action]
         event = "acceptApplication"
