@@ -1416,5 +1416,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 653: `ec14aea fix(user): validate onclick id ascii shape`
 - Local implementation commits, continued 654: `54f4278 fix(user): validate deleted user data id shape`
 - Local implementation commits, continued 655: `a8c119a fix(site_member): validate pager page shape`
+- Local implementation commits, continued 656: `5b82597 fix(private_message): validate pager page shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
