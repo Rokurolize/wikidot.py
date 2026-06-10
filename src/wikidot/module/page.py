@@ -2521,7 +2521,8 @@ class Page:
         """
         site = _validate_page_site(self.site)
         page_id = _validate_retained_page_id(self)
-        site.client.login_check()
+        client = _validate_page_site_client(site)
+        client.login_check()
         if page_id is None:
             page_id = self.id
         response = site.amc_request(
@@ -2620,7 +2621,8 @@ class Page:
         value = _validate_metas(value)
         site = _validate_page_site(self.site)
         page_id = _validate_retained_page_id(self)
-        site.client.login_check()
+        client = _validate_page_site_client(site)
+        client.login_check()
         request_bodies = self._meta_update_request_bodies(value, page_id)
 
         if request_bodies:
@@ -2731,7 +2733,8 @@ class Page:
             if tags is not None or parent_fullname is not _UNSET_PARENT or metas is not None
             else None
         )
-        site.client.login_check()
+        client = _validate_page_site_client(site)
+        client.login_check()
 
         request_bodies: list[dict[str, Any]] = []
         if tags is not None:
@@ -2983,7 +2986,8 @@ class Page:
         page_id = _validate_retained_page_id(self)
         if title is None:
             title = _validate_page_text_field("title", self.title)
-        site.client.login_check()
+        client = _validate_page_site_client(site)
+        client.login_check()
 
         # Noneならそのままにする
         if source is None:
@@ -3030,7 +3034,8 @@ class Page:
         tags = _validate_page_tags(self.tags)
         site = _validate_page_site(self.site)
         page_id = _validate_retained_page_id(self)
-        site.client.login_check()
+        client = _validate_page_site_client(site)
+        client.login_check()
         if page_id is None:
             page_id = self.id
         response = site.amc_request(
@@ -3074,7 +3079,8 @@ class Page:
         parent_value = _normalize_parent_fullname(parent_fullname)
         site = _validate_page_site(self.site)
         page_id = _validate_retained_page_id(self)
-        site.client.login_check()
+        client = _validate_page_site_client(site)
+        client.login_check()
         if page_id is None:
             page_id = self.id
         response = site.amc_request(
@@ -3119,7 +3125,8 @@ class Page:
         new_fullname = _validate_page_text_field("new_fullname", new_fullname)
         site = _validate_page_site(self.site)
         page_id = _validate_retained_page_id(self)
-        site.client.login_check()
+        client = _validate_page_site_client(site)
+        client.login_check()
         if page_id is None:
             page_id = self.id
         response = site.amc_request(
@@ -3173,7 +3180,8 @@ class Page:
 
         site = _validate_page_site(self.site)
         page_id = _validate_retained_page_id(self)
-        site.client.login_check()
+        client = _validate_page_site_client(site)
+        client.login_check()
         if page_id is None:
             page_id = self.id
         response = site.amc_request(
@@ -3215,7 +3223,8 @@ class Page:
         """
         site = _validate_page_site(self.site)
         page_id = _validate_retained_page_id(self)
-        site.client.login_check()
+        client = _validate_page_site_client(site)
+        client.login_check()
         if page_id is None:
             page_id = self.id
         response = site.amc_request(

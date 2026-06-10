@@ -4992,6 +4992,66 @@ class TestPageWriteMethods:
         assert mock_page_with_id.parent_fullname == "old-parent"
         assert mock_page_with_id._metas == {"keep": "same"}
 
+    @pytest.mark.parametrize(
+        "operation",
+        [
+            "destroy",
+            "commit_tags",
+            "set_parent",
+            "rename",
+            "vote",
+            "cancel_vote",
+            "metas",
+            "set_metadata",
+        ],
+    )
+    def test_write_methods_reject_mutated_site_client_before_login(
+        self,
+        mock_page_with_id: Page,
+        operation: str,
+    ) -> None:
+        """直接write系メソッドは保持Siteのclient差し替えをログイン前に拒否する"""
+        malformed_client = MagicMock()
+        mock_page_with_id.site.client = cast(Any, malformed_client)
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {"old": "value"}
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            if operation == "destroy":
+                mock_page_with_id.destroy()
+            elif operation == "commit_tags":
+                mock_page_with_id.commit_tags()
+            elif operation == "set_parent":
+                mock_page_with_id.set_parent("new-parent")
+            elif operation == "rename":
+                mock_page_with_id.rename("component:new-name")
+            elif operation == "vote":
+                mock_page_with_id.vote(1)
+            elif operation == "cancel_vote":
+                mock_page_with_id.cancel_vote()
+            elif operation == "metas":
+                mock_page_with_id.metas = {"new": "value"}
+            elif operation == "set_metadata":
+                mock_page_with_id.set_metadata(
+                    tags=["new-tag"],
+                    parent_fullname="new-parent",
+                    metas={"new": "value"},
+                )
+            else:
+                raise AssertionError(f"unknown operation: {operation}")
+
+        malformed_client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.fullname == "test-page"
+        assert mock_page_with_id.category == "_default"
+        assert mock_page_with_id.name == "test-page"
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id.tags == ["old-tag"]
+        assert mock_page_with_id.parent_fullname == "old-parent"
+        assert mock_page_with_id._metas == {"old": "value"}
+
     def test_set_metadata_can_clear_parent(self, mock_page_with_id: Page) -> None:
         """parent_fullname=Noneを明示すると親ページをクリアする"""
         mock_page_with_id.parent_fullname = "old-parent"
@@ -6047,6 +6107,43 @@ class TestPageEdit:
             mock_page_with_id.edit(title="Updated Title", source="Updated source")
 
         malformed_site.client.login_check.assert_not_called()
+        create_or_edit.assert_not_called()
+        assert mock_page_with_id.title == original_title
+        assert mock_page_with_id.revisions_count == original_revisions_count
+        assert mock_page_with_id._source is cached_source
+        assert mock_page_with_id._revisions is cached_revisions
+
+    def test_edit_rejects_mutated_site_client_before_login_or_delegation(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """Page.editは保持Siteのclient差し替えをログインや保存委譲前に拒否する"""
+        original_title = mock_page_with_id.title
+        original_revisions_count = mock_page_with_id.revisions_count
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        cached_revision = PageRevision(
+            page=mock_page_with_id,
+            id=1,
+            rev_no=1,
+            created_by=_page_user(mock_page_with_id),
+            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            comment="Old revision",
+        )
+        cached_revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        mock_page_with_id._source = cached_source
+        mock_page_with_id._revisions = cached_revisions
+        malformed_client = MagicMock()
+        mock_page_with_id.site.client = cast(Any, malformed_client)
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match="client must be a Client"),
+        ):
+            mock_page_with_id.edit(title="Updated Title", source="Updated source")
+
+        malformed_client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
         create_or_edit.assert_not_called()
         assert mock_page_with_id.title == original_title
         assert mock_page_with_id.revisions_count == original_revisions_count
