@@ -2948,11 +2948,11 @@ class Page:
         force_edit = _validate_page_bool_field("force_edit", force_edit)
 
         site = _validate_page_site(self.site)
+        if title is None:
+            title = _validate_page_text_field("title", self.title)
         site.client.login_check()
 
         # Noneならそのままにする
-        if title is None:
-            title = self.title
         if source is None:
             source = self.source.wiki_text
         if comment is None:
