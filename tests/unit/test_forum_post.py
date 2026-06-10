@@ -3020,6 +3020,41 @@ class TestForumPostEdit:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         assert mock_forum_post_no_http._source is None
 
+    def test_edit_fullwidth_current_revision_id_value_fails_before_save(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+        amc_ok_response: dict[str, Any],
+    ) -> None:
+        """currentRevisionId valueが全角数字の場合はsite/postつきで保存せず失敗する"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        fullwidth_revision_id = "\uff19\uff10\uff10\uff11"
+        form_with_fullwidth_revision_value = {
+            **forum_editpost_form,
+            "body": forum_editpost_form["body"].replace(
+                '<input type="hidden" name="currentRevisionId" value="9001"/>',
+                f'<input type="hidden" name="currentRevisionId" value="{fullwidth_revision_id}"/>',
+                1,
+            ),
+        }
+
+        form_response = MagicMock()
+        form_response.json.return_value = form_with_fullwidth_revision_value
+        save_response = MagicMock()
+        save_response.json.return_value = amc_ok_response
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[save_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Current revision ID value is malformed for site: test-site, post: 5001",
+        ):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source is None
+
     def test_edit_negative_current_revision_id_value_fails_before_save(
         self,
         mock_forum_post_no_http: ForumPost,

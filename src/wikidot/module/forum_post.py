@@ -1157,12 +1157,12 @@ class ForumPost:
             raise NoElementException(
                 f"Current revision ID value is not found for site: {self.thread.site.unix_name}, post: {post_id}"
             )
-        try:
-            current_revision_id = int(str(revision_value))
-        except ValueError as exc:
+        revision_text = str(revision_value)
+        if re.fullmatch(r"-?[0-9]+", revision_text) is None:
             raise NoElementException(
                 f"Current revision ID value is malformed for site: {self.thread.site.unix_name}, post: {post_id}"
-            ) from exc
+            )
+        current_revision_id = int(revision_text)
         if current_revision_id < 0:
             raise NoElementException(
                 f"Current revision ID value must be non-negative for site: {self.thread.site.unix_name}, post: {post_id}"
