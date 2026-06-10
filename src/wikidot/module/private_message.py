@@ -341,6 +341,20 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         return response_body
 
     @staticmethod
+    def _parse_message_list_pager_page(module_name: str, page_text: str) -> int | None:
+        if re.fullmatch(r"[0-9]+", page_text) is not None:
+            return int(page_text)
+
+        if page_text.isdigit():
+            raise exceptions.NoElementException(
+                "Message list pager page is malformed "
+                f"{PrivateMessageCollection._message_list_fetch_context(module_name, 1)} "
+                f"(field=page, value={page_text})"
+            )
+
+        return None
+
+    @staticmethod
     def _message_detail_fetch_context(module_name: str, message_id: int) -> str:
         return f"for module: {module_name}, message: {message_id}"
 
@@ -542,8 +556,9 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         max_page = 1
         for pager_target in reversed(pager):
             page_text = pager_target.get_text(strip=True)
-            if page_text.isdigit():
-                max_page = int(page_text)
+            parsed_page = PrivateMessageCollection._parse_message_list_pager_page(module_name, page_text)
+            if parsed_page is not None:
+                max_page = parsed_page
                 break
 
         if max_page > 1:

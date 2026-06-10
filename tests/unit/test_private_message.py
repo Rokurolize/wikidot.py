@@ -921,6 +921,31 @@ class TestPrivateMessageCollection:
 
         mock_from_ids.assert_called_once_with(mock_client, [123])
 
+    def test_acquire_rejects_non_ascii_digit_pager_target(self, mock_client):
+        """一覧pagerのUnicode数字を通常ページ番号へ正規化しない"""
+        fullwidth_page = "\uff12"
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": f"""
+            <div class="pager"><span class="target">1</span><span class="target">{fullwidth_page}</span></div>
+            <table><tr class="message" data-href="/account/messages/view/123"></tr></table>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(
+                NoElementException,
+                match=rf"Message list pager page is malformed for module: dashboard/messages/DMInboxModule, "
+                rf"page: 1 \(field=page, value={re.escape(fullwidth_page)}\)",
+            ),
+        ):
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+        assert mock_client.amc_client.request.call_count == 1
+        mock_from_ids.assert_not_called()
+
     def test_acquire_reuses_first_page_body_for_message_ids(self, mock_client):
         """1ページ目の一覧レスポンスbodyをページャ判定とメッセージID抽出で再利用する"""
         mock_response = MagicMock()
