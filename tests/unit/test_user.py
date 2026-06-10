@@ -560,6 +560,42 @@ class TestUserCollection:
     @pytest.mark.parametrize(
         "href",
         [
+            "http://www.wikidot.com/userkarma.php/１２３",
+            "http://www.wikidot.com/account/messages#/new/１２３",
+        ],
+    )
+    def test_from_names_rejects_non_ascii_digit_id_href(self, httpx_mock: HTTPXMock, href: str) -> None:
+        """プロフィールID hrefの非ASCII数字を整数IDとして採用しない"""
+        client = create_lookup_client()
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <body>
+        <div id="user-info">
+            <h1 class="profile-title">bad</h1>
+            <a class="btn btn-default btn-xs" href="{href}">
+                Karma
+            </a>
+        </div>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/user:info/bad",
+            text=html,
+        )
+
+        with pytest.raises(NoElementException) as exc_info:
+            UserCollection.from_names(client, ["bad"])
+
+        assert (
+            str(exc_info.value)
+            == f"User ID is malformed for requested user: bad (index=1, field=user_id, value={href})"
+        )
+
+    @pytest.mark.parametrize(
+        "href",
+        [
             "http://example.com/userkarma.php/777",
             "http://www.wikidot.com/profile/userkarma.php/777",
             "http://www.wikidot.com/userkarma.php/777/extra",

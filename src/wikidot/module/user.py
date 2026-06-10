@@ -14,8 +14,8 @@ if TYPE_CHECKING:
 
 
 _PROFILE_ID_HREF_PATTERNS = (
-    re.compile(r"(?:https?://www\.wikidot\.com)?/userkarma\.php/(\d+)(?:[?#].*)?"),
-    re.compile(r"(?:https?://www\.wikidot\.com)?/account/messages#/new/(\d+)(?:[?#].*)?"),
+    re.compile(r"(?:https?://www\.wikidot\.com)?/userkarma\.php/([0-9]+)(?:[?#].*)?"),
+    re.compile(r"(?:https?://www\.wikidot\.com)?/account/messages#/new/([0-9]+)(?:[?#].*)?"),
 )
 
 
