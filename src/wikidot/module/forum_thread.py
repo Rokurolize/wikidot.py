@@ -330,7 +330,7 @@ def _parse_thread_detail_post_count(
     site: "Site", thread_id: int | None, category: Optional["ForumCategory"], value: object
 ) -> int:
     value_text = str(value).strip()
-    post_count_match = re.fullmatch(r"(?:Number of posts:\s*)?(-?\d+)", value_text)
+    post_count_match = re.fullmatch(r"(?:Number of posts:\s*)?(-?[0-9]+)", value_text)
     if post_count_match is None:
         parse_context = _thread_detail_parse_context(site, thread_id, category, field="posts", value=value_text)
         raise NoElementException(f"Post count is malformed {parse_context}")

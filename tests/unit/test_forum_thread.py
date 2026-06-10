@@ -1215,6 +1215,29 @@ class TestForumThreadCollectionAcquireFromIds:
 
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_from_ids_rejects_non_ascii_digit_post_count(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """スレッド詳細の投稿数が非ASCII数字ならNoElementException"""
+        fullwidth_count = "\uff15"
+        value = f"Number of posts: {fullwidth_count}"
+        body = forum_thread_detail["body"].replace("Number of posts: 5", value, 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Post count is malformed for site: test-site "
+                rf"\(thread=3001, field=posts, value={re.escape(value)}\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_acquire_from_ids_negative_post_count_includes_thread_and_value_context(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
     ) -> None:
