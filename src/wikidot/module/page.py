@@ -2836,6 +2836,7 @@ class Page:
         page_id = _validate_optional_page_id(page_id)
         force_edit = _validate_page_bool_field("force_edit", force_edit)
         raise_on_exists = _validate_page_bool_field("raise_on_exists", raise_on_exists)
+        site = _validate_page_site(site)
 
         site.client.login_check()
 

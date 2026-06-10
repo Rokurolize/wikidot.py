@@ -1365,6 +1365,25 @@ class TestSitePageAccessor:
 
         mock_site_no_http.page.get.assert_not_called()
 
+    def test_create_rejects_malformed_accessor_site_before_login(self, mock_site_no_http: Site) -> None:
+        """create時のアクセサsite型異常はログインや保存前に拒否する"""
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        mock_site_no_http.page.site = cast(Any, malformed_site)
+        mock_site_no_http.page.get = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match="site must be a Site"),
+        ):
+            mock_site_no_http.page.create("test-page")
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
     def test_publish_edits_existing_page_sets_metadata_and_verifies_source(self, mock_site_no_http: Site) -> None:
         """既存ページの保存、メタデータ更新、ソース検証を一つのpublish操作で実行する"""
         mock_site_no_http.client.login_check = MagicMock()
@@ -1438,6 +1457,25 @@ class TestSitePageAccessor:
         assert result.tags_updated is False
         assert result.parent_updated is False
         assert result.metas_updated is False
+
+    def test_publish_rejects_malformed_accessor_site_before_save(self, mock_site_no_http: Site) -> None:
+        """publish時のアクセサsite型異常はログインや保存前に拒否する"""
+        malformed_site = MagicMock()
+        malformed_site.client.login_check = MagicMock()
+        malformed_site.amc_request = MagicMock()
+        mock_site_no_http.page.site = cast(Any, malformed_site)
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match="site must be a Site"),
+        ):
+            mock_site_no_http.page.publish("test-page")
+
+        malformed_site.client.login_check.assert_not_called()
+        malformed_site.amc_request.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
 
     def test_publish_result_reports_create_or_edit_outcome(self, mock_site_no_http: Site) -> None:
         """publishの戻り値は新規作成か既存編集かを判別できる"""

@@ -980,8 +980,9 @@ class SitePageAccessor:
         source = _validate_page_source(source)
         comment = _validate_page_text_field("comment", comment)
         force_edit = _validate_page_bool_field("force_edit", force_edit)
+        site = _validate_site_accessor_site(self.site)
 
-        self.site.client.login_check()
+        site.client.login_check()
 
         if force_edit:
             existing_page = self.get(fullname, raise_when_not_found=False)
@@ -989,7 +990,7 @@ class SitePageAccessor:
                 return existing_page.edit(title=title, source=source, comment=comment, force_edit=True)
 
         return Page.create_or_edit(
-            site=self.site,
+            site=site,
             fullname=fullname,
             title=title,
             source=source,
@@ -1115,14 +1116,15 @@ class SitePageAccessor:
         parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
         if parent_updated:
             parent_value = _normalize_parent_fullname(parent_fullname)
+        site = _validate_site_accessor_site(self.site)
 
-        self.site.client.login_check()
+        site.client.login_check()
 
         existing_page = self.get(fullname, raise_when_not_found=False)
         if existing_page is None:
             created = True
             page = Page.create_or_edit(
-                site=self.site,
+                site=site,
                 fullname=fullname,
                 title=title,
                 source=source,
@@ -1153,7 +1155,7 @@ class SitePageAccessor:
             source_matches = fetched_source == expected_source
             if not source_matches:
                 raise exceptions.UnexpectedException(
-                    f"Saved source verification failed for site: {self.site.unix_name}, page: {fullname}"
+                    f"Saved source verification failed for site: {site.unix_name}, page: {fullname}"
                 )
 
         if tags_updated or parent_updated or metas_updated:
