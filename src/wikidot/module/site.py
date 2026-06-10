@@ -413,6 +413,8 @@ class PagePublishResult:
         Created or edited page.
     site : str
         Site unix name associated with the published page.
+    fullname : str
+        Page fullname associated with the published page.
     page_id : int
         Public page ID resolved after saving.
     source_matches : bool | None
@@ -498,6 +500,11 @@ class PagePublishResult:
         return "create" if self.created else "edit"
 
     @property
+    def fullname(self) -> str:
+        """Page fullname for audit records."""
+        return self.page.fullname
+
+    @property
     def url(self) -> str:
         """Page URL for audit records."""
         return self.page.get_url()
@@ -511,7 +518,7 @@ class PagePublishResult:
         """Return a compact audit-friendly representation of this publish result."""
         return {
             "site": self.site,
-            "fullname": self.page.fullname,
+            "fullname": self.fullname,
             "url": self.url,
             "page_id": self.page_id,
             "created": self.created,

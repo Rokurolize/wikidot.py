@@ -1522,6 +1522,7 @@ class TestSitePageAccessor:
             created=False,
         )
 
+        assert result.fullname == "test-page"
         assert result.url == "https://test-site.wikidot.com/test-page"
         assert result.site == "test-site"
         assert result.source_verification_requested is True
