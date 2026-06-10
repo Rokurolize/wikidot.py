@@ -84,7 +84,7 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
         raise ValueError(f"user href is malformed: {href}")
     user_unix = user_unix_match.group(1)
     onclick = str(_user.get("onclick", ""))
-    user_id_match = re.search(r"userInfo\((\d+)\)", onclick)
+    user_id_match = re.search(r"userInfo\(([0-9]+)\)", onclick)
     if user_id_match is None:
         malformed_user_id_match = re.search(r"userInfo\(([^)]*)\)", onclick)
         if malformed_user_id_match is not None:

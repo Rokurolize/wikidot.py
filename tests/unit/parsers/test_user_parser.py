@@ -50,6 +50,23 @@ class TestUserParserRegularUser:
         with pytest.raises(ValueError, match="user id is malformed: latest"):
             user_parse(mock_client_no_http, elem)
 
+    def test_parse_regular_user_rejects_non_ascii_digit_onclick_id(self, mock_client_no_http: MagicMock) -> None:
+        """通常ユーザーのuserInfo値はASCII数字だけを受け入れる"""
+        fullwidth_user_id = "\uff11\uff12\uff13\uff14\uff15"
+        html = (
+            '<span class="printuser"><a href="http://www.wikidot.com/user:info/fullwidth-user" '
+            f'onclick="WIKIDOT.page.listeners.userInfo({fullwidth_user_id}); return false;">'
+            "fullwidth-user</a></span>"
+        )
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        with pytest.raises(ValueError) as exc_info:
+            user_parse(mock_client_no_http, elem)
+
+        assert str(exc_info.value) == f"user id is malformed: {fullwidth_user_id}"
+
     def test_parse_regular_user_preserves_display_name_text_spacing(self, mock_client_no_http: MagicMock) -> None:
         """装飾要素を含む表示名の語境界を保持する"""
         html = """
