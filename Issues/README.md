@@ -783,6 +783,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [777-pr-validate-result-page-fullnames.md](777-pr-validate-result-page-fullnames.md): upstream PR draft for the committed result page-fullname validation fix.
 - [778-pr-validate-source-result-source-fullnames.md](778-pr-validate-source-result-source-fullnames.md): upstream PR draft for the committed source-result source-owner fullname validation fix.
 - [779-pr-validate-page-source-cache-source-fullnames.md](779-pr-validate-page-source-cache-source-fullnames.md): upstream PR draft for the committed page source-cache source-owner fullname validation fix.
+- [780-pr-validate-page-revision-source-cache-source-fullnames.md](780-pr-validate-page-revision-source-cache-source-fullnames.md): upstream PR draft for the committed page revision source-cache source-owner fullname validation fix.
 
 ## Local Evidence Index
 
@@ -1474,5 +1475,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 682: `026d13c fix(site): validate result page fullnames`
 - Local implementation commits, continued 683: `6b40fb7 fix(site): validate source result source fullnames`
 - Local implementation commits, continued 684: `71ed044 fix(page): validate source cache source fullnames`
+- Local implementation commits, continued 685: `88dc816 fix(page_revision): validate source cache source fullnames`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
