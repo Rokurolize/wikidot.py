@@ -671,6 +671,11 @@ def _parse_page_rating_points(site: "Site", page: "Page", event: str, data: dict
         ) from exc
 
     value_text = str(value).strip()
+    if re.fullmatch(r"[+-]?[0-9]+", value_text) is None:
+        raise exceptions.NoElementException(
+            f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=points, value={value_text})"
+        )
     try:
         return int(value_text)
     except (TypeError, ValueError) as exc:

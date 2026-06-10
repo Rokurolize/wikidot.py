@@ -3901,6 +3901,42 @@ class TestPageWriteMethods:
 
         assert mock_page_with_id.rating == 10
 
+    def test_vote_accepts_ascii_string_points(self, mock_page_with_id: Page) -> None:
+        """投票応答のASCII整数points文字列は従来通り採用する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "type": "P", "points": "11"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        new_rating = mock_page_with_id.vote(1)
+
+        assert new_rating == 11
+        assert mock_page_with_id.rating == 11
+
+    def test_vote_rejects_non_ascii_digit_points_before_state_update(self, mock_page_with_id: Page) -> None:
+        """投票応答のpoints値はUnicode数字を通常整数へ正規化しない"""
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        fullwidth_points = "\uff11\uff11"
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "type": "P", "points": fullwidth_points}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                rf"Page rating response is malformed for site: test-site, page: test-page "
+                rf"\(id=12345, event=ratePage, field=points, value={fullwidth_points}\)"
+            ),
+        ):
+            mock_page_with_id.vote(1)
+
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is not None
+
     def test_vote_missing_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
         """投票応答のstatus欠落はpointsがあってもローカル状態を更新しない"""
         cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
