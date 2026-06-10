@@ -230,11 +230,10 @@ def _odate_class_value(odate_elem: Tag) -> str:
 def _parse_thread_list_count(
     site: "Site", category: Optional["ForumCategory"], row_index: int, page: int | None, value: str
 ) -> int:
-    try:
-        count = int(value)
-    except ValueError as exc:
+    if re.fullmatch(r"-?[0-9]+", value) is None:
         parse_context = _thread_list_parse_context(site, category, row_index, page, field="posts", value=value)
-        raise NoElementException(f"Posts count is malformed {parse_context}") from exc
+        raise NoElementException(f"Posts count is malformed {parse_context}")
+    count = int(value)
     if count < 0:
         parse_context = _thread_list_parse_context(site, category, row_index, page, field="posts", value=value)
         raise NoElementException(f"Posts count must be non-negative {parse_context}")

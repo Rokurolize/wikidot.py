@@ -818,6 +818,29 @@ class TestForumThreadCollectionAcquireAll:
         ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
 
+    def test_acquire_all_rejects_non_ascii_digit_post_count(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッド一覧の投稿数が非ASCII数字なら正規化して採用しない"""
+        fullwidth_count = "\uff15"
+        body_with_bad_count = forum_threads_in_category["body"].replace(
+            '<td class="posts">5</td>',
+            f'<td class="posts">{fullwidth_count}</td>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body_with_bad_count}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Posts count is malformed for site: test-site "
+                rf"\(category=1001, page=1, row=1, field=posts, value={re.escape(fullwidth_count)}\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
     def test_acquire_all_negative_post_count_includes_category_context(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
