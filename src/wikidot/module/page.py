@@ -3183,14 +3183,17 @@ class Page:
             When vote cancellation fails
         """
         site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
         site.client.login_check()
+        if page_id is None:
+            page_id = self.id
         response = site.amc_request(
             [
                 {
                     "action": "RateAction",
                     "event": "cancelVote",
                     "moduleName": "Empty",
-                    "pageId": self.id,
+                    "pageId": page_id,
                 }
             ]
         )[0]

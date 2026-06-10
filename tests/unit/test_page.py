@@ -4361,6 +4361,46 @@ class TestPageWriteMethods:
         assert mock_page_with_id.rating == 10
         assert mock_page_with_id._votes is not None
 
+    @pytest.mark.parametrize("page_id", [True, False, "12345", 12345.0, []])
+    def test_cancel_vote_rejects_malformed_retained_page_ids_before_login(
+        self, mock_page_with_id: Page, page_id: object
+    ) -> None:
+        """投票取消時の保持済みpage id型異常はログイン確認前に拒否する"""
+        bad_page_id = page_id
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        cached_votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_page_with_id._id = cast(Any, bad_page_id)
+        mock_page_with_id._votes = cached_votes
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be an integer"):
+            mock_page_with_id.cancel_vote()
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id is bad_page_id
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is cached_votes
+
+    def test_cancel_vote_rejects_negative_retained_page_id_before_login(self, mock_page_with_id: Page) -> None:
+        """投票取消時の負の保持済みpage idはログイン確認前に拒否する"""
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        cached_votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_page_with_id._id = -1
+        mock_page_with_id._votes = cached_votes
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be non-negative"):
+            mock_page_with_id.cancel_vote()
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id == -1
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is cached_votes
+
     def test_cancel_vote_malformed_points_includes_site_page_event_field_and_value_context(
         self, mock_page_with_id: Page
     ) -> None:
