@@ -806,6 +806,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [800-pr-validate-page-save-site-clients.md](800-pr-validate-page-save-site-clients.md): upstream PR draft for the committed page save retained-client validation fix.
 - [801-pr-validate-page-action-site-clients.md](801-pr-validate-page-action-site-clients.md): upstream PR draft for the committed direct page action retained-client validation fix.
 - [802-pr-validate-forum-action-site-clients.md](802-pr-validate-forum-action-site-clients.md): upstream PR draft for the committed forum action retained-client validation fix.
+- [803-pr-validate-site-admin-action-clients.md](803-pr-validate-site-admin-action-clients.md): upstream PR draft for the committed site administration retained-client validation fix.
 
 ## Local Evidence Index
 
@@ -1520,5 +1521,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 705: `21456b2 fix(page): validate save site clients`
 - Local implementation commits, continued 706: `806cf96 fix(page): validate action site clients`
 - Local implementation commits, continued 707: `99ebe2c fix(forum): validate action site clients`
+- Local implementation commits, continued 708: `7aa3752 fix(site): validate admin action clients`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
