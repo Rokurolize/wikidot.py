@@ -541,6 +541,8 @@ class PageSourceResult:
         Site unix name associated with the page.
     fullname : str
         Page fullname associated with the source attempt.
+    url : str
+        Page URL associated with the source attempt.
     page_id : int | None
         Page ID already associated with the source attempt. None when the page ID is not loaded.
     source : PageSource | None
@@ -554,7 +556,7 @@ class PageSourceResult:
     error_message : str | None
         String representation of the error when source retrieval failed. None when retrieval succeeded.
     as_dict : dict[str, str | int | bool | None]
-        Ledger-friendly dictionary containing site, fullname, page_id, ok, wiki_text, error_type, and error_message.
+        Ledger-friendly dictionary containing site, fullname, url, page_id, ok, wiki_text, error_type, and error_message.
     """
 
     page: "Page"
@@ -579,6 +581,11 @@ class PageSourceResult:
     def fullname(self) -> str:
         """Page fullname associated with this source result."""
         return self.page.fullname
+
+    @property
+    def url(self) -> str:
+        """Page URL associated with this source result."""
+        return self.page.get_url()
 
     @property
     def site(self) -> str:
@@ -616,6 +623,7 @@ class PageSourceResult:
         return {
             "site": self.site,
             "fullname": self.fullname,
+            "url": self.url,
             "page_id": self.page_id,
             "ok": self.ok,
             "wiki_text": self.wiki_text,

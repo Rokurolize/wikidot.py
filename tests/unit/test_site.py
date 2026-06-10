@@ -749,6 +749,20 @@ class TestSitePagesAccessor:
         assert results[1].error_type == "NotFoundException"
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_source_result_exposes_url_without_lookup(self, mock_site_no_http: Site) -> None:
+        """PageSourceResult.urlは通信せずページURLを公開する"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page._id = None
+        mock_site_no_http.amc_request = MagicMock()
+
+        result = PageSourceResult(page=page, source=None, error=NotFoundException("missing"))
+
+        with patch.object(PageCollection, "get_page_ids") as get_page_ids:
+            assert result.url == "https://test-site.wikidot.com/page-one"
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_source_result_page_id_does_not_trigger_lookup(self, mock_site_no_http: Site) -> None:
         """PageSourceResult.page_idは未取得IDを通信で補完しない"""
         page = self._page(mock_site_no_http, "page-one", 371)
@@ -1041,6 +1055,7 @@ class TestSitePagesAccessor:
             {
                 "site": "test-site",
                 "fullname": "page-one",
+                "url": "https://test-site.wikidot.com/page-one",
                 "page_id": 371,
                 "ok": True,
                 "wiki_text": "source 371",
@@ -1050,6 +1065,7 @@ class TestSitePagesAccessor:
             {
                 "site": "test-site",
                 "fullname": "page-two",
+                "url": "https://test-site.wikidot.com/page-two",
                 "page_id": 372,
                 "ok": False,
                 "wiki_text": None,
