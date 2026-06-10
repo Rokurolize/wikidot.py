@@ -84,7 +84,7 @@ def _parse_recent_change_user(
 
 def _parse_recent_change_revision_no(site: "Site", rev_elem: Tag, *, page_no: int, change_index: int) -> int:
     rev_value = rev_elem.get_text(" ", strip=True)
-    rev_match = re.fullmatch(r"\(\s*rev\.\s*(\d+)\s*\)|rev\.\s*(\d+)", rev_value)
+    rev_match = re.fullmatch(r"\(\s*rev\.\s*([0-9]+)\s*\)|rev\.\s*([0-9]+)", rev_value)
     if rev_match is None:
         error = "malformed" if re.search(r"\d", rev_value) is not None else "not found"
         raise exceptions.NoElementException(

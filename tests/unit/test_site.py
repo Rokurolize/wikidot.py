@@ -3608,6 +3608,37 @@ Real edit comment
         ):
             site.get_recent_changes()
 
+    def test_get_recent_changes_rejects_non_ascii_digit_revision_number(self, site_changes: dict[str, Any]) -> None:
+        """変更履歴revision番号はUnicode数字正規化ではなくASCII数字だけ受け付ける"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        fullwidth_revision_no = "\uff13"
+        body = re.sub(
+            r'<td class="revision-no"[^>]*>\s*\(rev\. 3\)\s*</td>',
+            f'<td class="revision-no">(rev. {fullwidth_revision_no})</td>',
+            site_changes["body"],
+            count=1,
+        )
+        assert body != site_changes["body"]
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(NoElementException) as exc_info:
+            site.get_recent_changes()
+
+        message = str(exc_info.value)
+        assert "Revision number is malformed for site: test" in message
+        assert "(page=1, change=1, field=revision_no" in message
+        assert f"value=(rev. {fullwidth_revision_no})" in message
+
     def test_get_recent_changes_malformed_odate_includes_raw_class_context(self, site_changes: dict[str, Any]) -> None:
         """変更履歴timestampの異常値はraw class値付きで失敗する"""
         mock_client = create_mock_client()
