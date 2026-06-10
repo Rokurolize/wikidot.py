@@ -471,6 +471,16 @@ class TestPageInit:
         assert page.source is source
         assert page.id == 0
 
+    def test_init_rejects_source_cache_with_malformed_retained_source_page_fullname(
+        self, mock_site_no_http: Any
+    ) -> None:
+        source_owner = _page(mock_site_no_http, _id=371)
+        source_owner.fullname = cast(Any, 371)
+        source = PageSource(source_owner, "cached source")
+
+        with pytest.raises(ValueError, match=r"page\.source\.page\.fullname must be a string"):
+            _page(mock_site_no_http, _id=371, _source=source)
+
     def test_init_accepts_valid_optional_revisions(self, mock_site_no_http: Any) -> None:
         page_without_revisions = _page(mock_site_no_http)
         revisions_owner = _page(mock_site_no_http)

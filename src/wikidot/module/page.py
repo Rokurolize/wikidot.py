@@ -210,7 +210,9 @@ def _validate_page_revision_entries(revisions: list[object] | PageRevisionCollec
         raise ValueError("page.revisions list entries must be PageRevision")
 
 
-def _validate_page_cache_owner(page: "Page", candidate_page: object, message: str) -> None:
+def _validate_page_cache_owner(
+    page: "Page", candidate_page: object, message: str, candidate_fullname_field: str | None = None
+) -> None:
     if not isinstance(candidate_page, Page):
         raise ValueError(message)
     candidate_site = _validate_page_site(candidate_page.site)
@@ -221,13 +223,20 @@ def _validate_page_cache_owner(page: "Page", candidate_page: object, message: st
     if page_id is not None and candidate_page_id is not None:
         if candidate_page_id != page_id:
             raise ValueError(message)
+        if candidate_fullname_field is not None:
+            _validate_page_text_field(candidate_fullname_field, candidate_page.fullname)
         return
-    if candidate_page.fullname != page.fullname:
+    candidate_fullname = (
+        _validate_page_text_field(candidate_fullname_field, candidate_page.fullname)
+        if candidate_fullname_field is not None
+        else candidate_page.fullname
+    )
+    if candidate_fullname != page.fullname:
         raise ValueError(message)
 
 
 def _validate_source_cache_belongs_to_page(page: "Page", source: PageSource) -> None:
-    _validate_page_cache_owner(page, source.page, "page.source must belong to the page")
+    _validate_page_cache_owner(page, source.page, "page.source must belong to the page", "page.source.page.fullname")
 
 
 def _validate_revisions_cache_belongs_to_page(page: "Page", revisions: PageRevisionCollection) -> None:

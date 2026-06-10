@@ -2868,6 +2868,26 @@ class TestPageProperties:
 
         assert mock_page_with_id.source is source
 
+    def test_source_setter_rejects_malformed_retained_source_page_fullname(self, mock_page_with_id: Page) -> None:
+        """壊れたsource page名はsource所有判定に使わない"""
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id.source = cached_source
+        source_page = _other_page_like(
+            mock_page_with_id,
+            fullname=mock_page_with_id.fullname,
+            page_id=mock_page_with_id._id,
+        )
+        source_page.fullname = cast(Any, 12345)
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match=r"page\.source\.page\.fullname must be a string"):
+            mock_page_with_id.source = PageSource(source_page, "other source")
+
+        assert mock_page_with_id._source is cached_source
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
     def test_refresh_source_forces_remote_source_fetch(
         self, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:
