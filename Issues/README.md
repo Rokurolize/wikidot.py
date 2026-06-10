@@ -751,6 +751,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [745-pr-validate-private-message-data-href-id-ascii-shape.md](745-pr-validate-private-message-data-href-id-ascii-shape.md): upstream PR draft for the committed private-message data-href ID ASCII-shape validation fix.
 - [746-pr-validate-forum-category-href-id-ascii-shape.md](746-pr-validate-forum-category-href-id-ascii-shape.md): upstream PR draft for the committed forum category href ID ASCII-shape validation fix.
 - [747-pr-validate-forum-thread-href-id-ascii-shape.md](747-pr-validate-forum-thread-href-id-ascii-shape.md): upstream PR draft for the committed forum thread href ID ASCII-shape validation fix.
+- [748-pr-validate-regular-user-onclick-id-ascii-shape.md](748-pr-validate-regular-user-onclick-id-ascii-shape.md): upstream PR draft for the committed regular-user onclick ID ASCII-shape validation fix.
 
 ## Local Evidence Index
 
@@ -1410,5 +1411,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 650: `f0f91f9 fix(private_message): validate data href id ascii shape`
 - Local implementation commits, continued 651: `bc84782 fix(forum_category): validate href id ascii shape`
 - Local implementation commits, continued 652: `19214a2 fix(forum_thread): validate href id ascii shape`
+- Local implementation commits, continued 653: `ec14aea fix(user): validate onclick id ascii shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
