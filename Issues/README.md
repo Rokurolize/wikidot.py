@@ -803,6 +803,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [797-pr-source-result-url.md](797-pr-source-result-url.md): upstream PR draft for the committed source-result URL ledger export improvement.
 - [798-pr-publish-result-fullname.md](798-pr-publish-result-fullname.md): upstream PR draft for the committed publish-result fullname property improvement.
 - [799-pr-validate-page-write-site-boundaries.md](799-pr-validate-page-write-site-boundaries.md): upstream PR draft for the committed page write site-boundary validation fix.
+- [800-pr-validate-page-save-site-clients.md](800-pr-validate-page-save-site-clients.md): upstream PR draft for the committed page save retained-client validation fix.
 
 ## Local Evidence Index
 
@@ -1514,5 +1515,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 702: `4e682e2 feat(site): expose source result urls`
 - Local implementation commits, continued 703: `e7a2656 feat(site): expose publish result fullnames`
 - Local implementation commits, continued 704: `961cbe3 fix(page): validate write site boundaries`
+- Local implementation commits, continued 705: `21456b2 fix(page): validate save site clients`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
