@@ -761,6 +761,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [755-pr-validate-recent-changes-pager-page-ascii-shape.md](755-pr-validate-recent-changes-pager-page-ascii-shape.md): upstream PR draft for the committed recent-changes pager page ASCII-shape validation fix.
 - [756-pr-validate-page-revision-row-id-ascii-shape.md](756-pr-validate-page-revision-row-id-ascii-shape.md): upstream PR draft for the committed page revision row ID ASCII-shape validation fix.
 - [757-pr-validate-forum-post-id-ascii-shape.md](757-pr-validate-forum-post-id-ascii-shape.md): upstream PR draft for the committed forum post ID ASCII-shape validation fix.
+- [758-pr-validate-forum-post-revision-id-ascii-shape.md](758-pr-validate-forum-post-revision-id-ascii-shape.md): upstream PR draft for the committed forum post revision ID ASCII-shape validation fix.
 
 ## Local Evidence Index
 
@@ -1430,5 +1431,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 660: `e19e338 fix(site): validate recent changes pager page shape`
 - Local implementation commits, continued 661: `0b20d59 fix(page): validate revision row id ascii shape`
 - Local implementation commits, continued 662: `01da4b6 fix(forum_post): validate post id ascii shape`
+- Local implementation commits, continued 663: `55aaab1 fix(forum_post_revision): validate revision id ascii shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
