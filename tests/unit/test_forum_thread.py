@@ -927,6 +927,31 @@ class TestForumThreadCollectionAcquireAll:
         assert len(collection) == 2
         mock_forum_category_no_http.site.amc_request_with_retry.assert_called_once()
 
+    def test_acquire_all_rejects_non_ascii_digit_pager_link(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """数字風だがASCIIではないpagerページ番号は文脈付きで失敗する"""
+        fullwidth_page = "\uff12"
+        first_response = MagicMock()
+        body_with_pager = (
+            forum_threads_in_category["body"] + f'<div class="pager"><a>1</a><a>{fullwidth_page}</a></div>'
+        )
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(first_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread list pager page is malformed for site: test-site, category: 1001, page: 1 "
+                rf"\(field=page, value={re.escape(fullwidth_page)}\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_called_once()
+
     def test_acquire_all_raises_when_paginated_retry_is_exhausted(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:

@@ -492,6 +492,20 @@ class ForumThreadCollection(list["ForumThread"]):
         return None
 
     @staticmethod
+    def _parse_thread_list_pager_page(category: "ForumCategory", page_text: str) -> int | None:
+        if re.fullmatch(r"[0-9]+", page_text) is not None:
+            return int(page_text)
+
+        if page_text.isdigit():
+            raise NoElementException(
+                "Forum thread list pager page is malformed "
+                f"for site: {category.site.unix_name}, category: {category.id}, page: 1 "
+                f"(field=page, value={page_text})"
+            )
+
+        return None
+
+    @staticmethod
     def _is_inside_thread_description(element: Tag) -> bool:
         for ancestor in element.parents:
             if not isinstance(ancestor, Tag):
@@ -805,8 +819,9 @@ class ForumThreadCollection(list["ForumThread"]):
         last_page = 1
         for link in reversed(pager.select("a")):
             page_text = link.get_text(strip=True)
-            if page_text.isdigit():
-                last_page = int(page_text)
+            page = ForumThreadCollection._parse_thread_list_pager_page(category, page_text)
+            if page is not None:
+                last_page = page
                 break
         if last_page == 1:
             return cache_threads()
