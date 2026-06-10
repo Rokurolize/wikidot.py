@@ -5,6 +5,7 @@ This module provides classes and functionality related to Wikidot forum posts (i
 It enables operations such as retrieving post information and display.
 """
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
@@ -452,12 +453,27 @@ class ForumPostCollection(list["ForumPost"]):
         )
 
     @staticmethod
-    def _last_page_from_pager(pager: Tag) -> int:
+    def _parse_post_list_pager_page(thread: "ForumThread", page_text: str) -> int | None:
+        if re.fullmatch(r"[0-9]+", page_text) is not None:
+            return int(page_text)
+
+        if page_text.isdigit():
+            raise NoElementException(
+                "Forum post list pager page is malformed "
+                f"for site: {thread.site.unix_name}, thread: {thread.id}, page: 1 "
+                f"(field=page, value={page_text})"
+            )
+
+        return None
+
+    @staticmethod
+    def _last_page_from_pager(thread: "ForumThread", pager: Tag) -> int:
         last_page = 1
         for pager_target in reversed(pager.select("span.target")):
             page_text = pager_target.get_text(strip=True)
-            if page_text.isdigit():
-                last_page = int(page_text)
+            page = ForumPostCollection._parse_post_list_pager_page(thread, page_text)
+            if page is not None:
+                last_page = page
                 break
         return last_page
 
@@ -771,7 +787,7 @@ class ForumPostCollection(list["ForumPost"]):
             if pager is None:
                 continue
 
-            last_page = ForumPostCollection._last_page_from_pager(pager)
+            last_page = ForumPostCollection._last_page_from_pager(thread, pager)
             if last_page <= 1:
                 continue
 

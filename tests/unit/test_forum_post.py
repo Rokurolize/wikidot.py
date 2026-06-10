@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from typing import Any, cast
 from unittest.mock import MagicMock
@@ -1201,6 +1202,32 @@ class TestForumPostCollectionAcquireAll:
         collection = ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
 
         assert len(collection) == 2
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_called_once()
+
+    def test_acquire_all_rejects_non_ascii_digit_pager_target(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """数字風だがASCIIではないpagerページ番号は文脈付きで失敗する"""
+        fullwidth_page = "\uff12"
+        body_with_pager = (
+            forum_posts_in_thread["body"]
+            + f'<div class="pager"><span class="target">1</span><span class="target">{fullwidth_page}</span></div>'
+        )
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(first_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post list pager page is malformed for site: test-site, thread: 3001, page: 1 "
+                rf"\(field=page, value={re.escape(fullwidth_page)}\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
         mock_forum_thread_no_http.site.amc_request_with_retry.assert_called_once()
 
