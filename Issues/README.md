@@ -798,6 +798,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [792-pr-validate-cancel-vote-retained-page-id.md](792-pr-validate-cancel-vote-retained-page-id.md): upstream PR draft for the committed page cancel-vote retained page-ID validation fix.
 - [793-pr-validate-destroy-retained-page-id.md](793-pr-validate-destroy-retained-page-id.md): upstream PR draft for the committed page destroy retained page-ID validation fix.
 - [794-pr-validate-set-metadata-retained-page-id.md](794-pr-validate-set-metadata-retained-page-id.md): upstream PR draft for the committed batched metadata retained page-ID validation fix.
+- [795-pr-validate-metas-setter-retained-page-id.md](795-pr-validate-metas-setter-retained-page-id.md): upstream PR draft for the committed direct metas setter retained page-ID validation fix.
 
 ## Local Evidence Index
 
@@ -1504,5 +1505,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 697: `afa62a3 fix(page): validate cancel vote page id`
 - Local implementation commits, continued 698: `9d037c7 fix(page): validate destroy page id`
 - Local implementation commits, continued 699: `a29d242 fix(page): validate metadata page id`
+- Local implementation commits, continued 700: `3e79344 fix(page): validate metas setter page id`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
