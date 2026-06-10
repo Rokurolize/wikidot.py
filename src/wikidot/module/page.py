@@ -404,7 +404,7 @@ DEFAULT_MODULE_BODY = [
 def _parse_revision_row_id(site: "Site", page: "Page", value: object) -> int:
     value_text = str(value)
     raw_id = value_text.removeprefix("revision-row-")
-    if value_text == raw_id or not raw_id.isdigit():
+    if value_text == raw_id or re.fullmatch(r"[0-9]+", raw_id) is None:
         raise exceptions.NoElementException(
             f"Revision ID is malformed for site: {site.unix_name}, page: {page.fullname} "
             f"(id={page.id}, field=revision_row_id, value={value_text})"
