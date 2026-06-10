@@ -414,13 +414,13 @@ def _parse_revision_row_id(site: "Site", page: "Page", value: object) -> int:
 
 def _parse_revision_number(site: "Site", page: "Page", rev_id: int, value: object) -> int:
     value_text = str(value).strip()
-    try:
-        rev_no = int(value_text.removesuffix("."))
-    except ValueError as exc:
+    raw_rev_no = value_text.removesuffix(".")
+    if re.fullmatch(r"-?[0-9]+", raw_rev_no) is None:
         raise exceptions.NoElementException(
             f"Revision number is malformed for site: {site.unix_name}, page: {page.fullname}, "
             f"revision: {rev_id} (id={page.id}, field=revision_number, value={value_text})"
-        ) from exc
+        )
+    rev_no = int(raw_rev_no)
     if rev_no < 0:
         raise exceptions.NoElementException(
             f"Revision number must be non-negative for site: {site.unix_name}, page: {page.fullname}, "

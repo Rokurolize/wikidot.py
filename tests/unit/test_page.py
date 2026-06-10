@@ -1874,6 +1874,33 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request.assert_not_called()
         assert mock_page_with_id._revisions is None
 
+    def test_acquire_revisions_rejects_non_ascii_digit_revision_number(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+        page_revisionlist: dict[str, Any],
+    ) -> None:
+        """履歴番号セルが非ASCII数字を含む場合は正規化せずNoElementException"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        fullwidth_rev_no = "\uff13"
+
+        body = page_revisionlist["body"].replace("<td>3.</td>", f"<td>{fullwidth_rev_no}.</td>", 1)
+        mock_response = self._json_response({"body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Revision number is malformed for site: test-site, page: test-page, revision: 1000003 "
+                rf"\(id=12345, field=revision_number, value={fullwidth_rev_no}\.\)"
+            ),
+        ):
+            collection.get_page_revisions()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._revisions is None
+
     def test_acquire_revisions_negative_revision_number_includes_site_page_and_value_context(
         self,
         mock_site_no_http: Site,
