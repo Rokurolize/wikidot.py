@@ -634,6 +634,26 @@ class TestPageInit:
         with pytest.raises(ValueError, match=r"page\.files must belong to the page"):
             _page(mock_site_no_http, _files=files)
 
+    def test_init_rejects_files_cache_with_malformed_retained_parent_page_fullname(
+        self, mock_site_no_http: Any
+    ) -> None:
+        files_owner = _page(mock_site_no_http, _id=371)
+        files_owner.fullname = cast(Any, 371)
+        files = PageFileCollection(files_owner, [])
+
+        with pytest.raises(ValueError, match=r"page\.files\.page\.fullname must be a string"):
+            _page(mock_site_no_http, _id=371, _files=files)
+
+    def test_init_rejects_files_cache_entry_with_malformed_retained_page_fullname(self, mock_site_no_http: Any) -> None:
+        files_owner = _page(mock_site_no_http, _id=371)
+        files: Any = PageFileCollection(files_owner, [_page_file(files_owner)])
+        file_page = _page(mock_site_no_http, _id=371)
+        file_page.fullname = cast(Any, 371)
+        files[0] = _page_file(file_page, 101)
+
+        with pytest.raises(ValueError, match=r"page\.files\.page\.fullname must be a string"):
+            _page(mock_site_no_http, _id=371, _files=files)
+
     def test_init_accepts_valid_optional_metas(self, mock_site_no_http: Any) -> None:
         page_without_metas = _page(mock_site_no_http)
         metas = {"description": "cached description", "og:title": "Cached title"}

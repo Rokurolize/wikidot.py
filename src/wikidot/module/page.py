@@ -325,9 +325,9 @@ def _validate_optional_page_file_collection(value: object) -> "PageFileCollectio
 def _validate_files_cache_belongs_to_page(page: "Page", files: "PageFileCollection") -> None:
     message = "page.files must belong to the page"
     if files.page is not None:
-        _validate_page_cache_owner(page, files.page, message)
+        _validate_page_cache_owner(page, files.page, message, "page.files.page.fullname")
     for file in files:
-        _validate_page_cache_owner(page, file.page, message)
+        _validate_page_cache_owner(page, file.page, message, "page.files.page.fullname")
 
 
 def _validate_page_vote_value(value: object) -> int:
