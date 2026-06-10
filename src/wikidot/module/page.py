@@ -518,9 +518,12 @@ def _parse_listpages_finite_ascii_float_field(site: "Site", page_name: str, key:
 
 
 def _parse_listpages_percentage_field(site: "Site", page_name: str, key: str, value: object) -> float:
-    parsed = _parse_listpages_float_field(site, page_name, key, value)
+    value_text = str(value).strip()
+    if not value_text.isascii():
+        raise _listpages_float_field_error(site, page_name, key, value_text)
+
+    parsed = _parse_listpages_float_field(site, page_name, key, value_text)
     if not math.isfinite(parsed) or not 0 <= parsed <= 100:
-        value_text = str(value).strip()
         raise exceptions.NoElementException(
             f"ListPages percentage field must be between 0.0 and 100.0 "
             f"for site: {site.unix_name}, page: {page_name} (field={key}, value={value_text})"

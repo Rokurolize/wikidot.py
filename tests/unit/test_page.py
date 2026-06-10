@@ -558,6 +558,36 @@ class TestPageCollectionParse:
         ):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    def test_parse_rejects_non_ascii_digit_rating_percent(
+        self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any]
+    ) -> None:
+        """5-star評価率の非ASCII数字を採用しない"""
+        fullwidth_percent = "\uff17\uff15%"
+        body = (
+            page_listpages_pm_rating["body"]
+            .replace(
+                '<span class="set rating"><span class="name">rating</span> <span class="value">75</span></span>',
+                '<span class="set rating"><span class="page-rate-list-pages-start"></span>'
+                '<span class="name">rating</span> <span class="value">4.0</span></span>',
+            )
+            .replace(
+                '<span class="set rating_percent"><span class="name">rating_percent</span> '
+                '<span class="value">75%</span></span>',
+                '<span class="set rating_percent"><span class="name">rating_percent</span> '
+                f'<span class="value">{fullwidth_percent}</span></span>',
+            )
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            PageCollection._parse(mock_site_no_http, html_body)
+
+        raw_value = fullwidth_percent.removesuffix("%")
+        assert str(exc_info.value) == (
+            "ListPages float field is malformed for site: test-site, page: test-page "
+            f"(field=rating_percent, value={raw_value})"
+        )
+
     @pytest.mark.parametrize("rating_percent", ["-1%", "101%", "nan%", "inf%"])
     def test_parse_out_of_range_rating_percent_includes_site_page_and_value_context(
         self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any], rating_percent: str
