@@ -807,6 +807,32 @@ class TestForumPostCollectionAcquireAll:
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_rejects_non_ascii_digit_post_id(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """生成HTMLの投稿IDはUnicode数字へ正規化せず壊れた構造として拒否する"""
+        fullwidth_post_id = "post-５００１"
+        body = forum_posts_in_thread["body"].replace(
+            '<div class="post" id="post-5001">',
+            f'<div class="post" id="{fullwidth_post_id}">',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_posts_in_thread, "body": body}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Post ID is malformed for site: test-site "
+                rf"\(thread=3001, page=1, post=1, field=post_id, value={re.escape(fullwidth_post_id)}\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_malformed_parent_post_id_includes_child_post_context(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_nested: dict[str, Any]
     ) -> None:

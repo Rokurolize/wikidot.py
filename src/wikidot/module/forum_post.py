@@ -262,7 +262,7 @@ def _parse_post_id_value(
 ) -> int:
     value_text = str(value)
     raw_id = value_text.removeprefix("post-")
-    if value_text == raw_id or not raw_id.isdigit():
+    if value_text == raw_id or re.fullmatch(r"[0-9]+", raw_id) is None:
         parse_context = _post_list_parse_context(thread, page, post_index, post_id, field=field, value=value_text)
         raise NoElementException(f"Post ID is malformed {parse_context}")
     return int(raw_id)
