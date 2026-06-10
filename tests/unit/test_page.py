@@ -5755,6 +5755,84 @@ class TestPageEdit:
         assert mock_page_with_id._source is cached_source
         assert mock_page_with_id._revisions is cached_revisions
 
+    @pytest.mark.parametrize("page_id", [True, False, "12345", 12345.0, []])
+    def test_edit_rejects_malformed_retained_page_ids_before_login_or_delegation(
+        self, mock_page_with_id: Page, page_id: object
+    ) -> None:
+        """Page.edit時のretained page id型不正はログイン確認や保存委譲前に拒否する"""
+        original_title = mock_page_with_id.title
+        original_revisions_count = mock_page_with_id.revisions_count
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        cached_revision = PageRevision(
+            page=mock_page_with_id,
+            id=1,
+            rev_no=1,
+            created_by=_page_user(mock_page_with_id),
+            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            comment="Old revision",
+        )
+        cached_revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        bad_page_id: Any = page_id
+        mock_page_with_id._id = bad_page_id
+        mock_page_with_id._source = cached_source
+        mock_page_with_id._revisions = cached_revisions
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        edited_page = MagicMock()
+        edited_page.title = "Updated Title"
+        edited_page.revisions_count = original_revisions_count + 1
+
+        with (
+            patch.object(Page, "create_or_edit", return_value=edited_page) as create_or_edit,
+            pytest.raises(ValueError, match=r"page\.id must be an integer"),
+        ):
+            mock_page_with_id.edit(title="Updated Title", source="Updated source")
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        create_or_edit.assert_not_called()
+        assert mock_page_with_id._id is bad_page_id
+        assert mock_page_with_id.title == original_title
+        assert mock_page_with_id.revisions_count == original_revisions_count
+        assert mock_page_with_id._source is cached_source
+        assert mock_page_with_id._revisions is cached_revisions
+
+    def test_edit_rejects_negative_retained_page_id_before_login_or_delegation(self, mock_page_with_id: Page) -> None:
+        """Page.edit時の負のretained page idはログイン確認や保存委譲前に拒否する"""
+        original_title = mock_page_with_id.title
+        original_revisions_count = mock_page_with_id.revisions_count
+        cached_source = PageSource(mock_page_with_id, "cached source")
+        cached_revision = PageRevision(
+            page=mock_page_with_id,
+            id=1,
+            rev_no=1,
+            created_by=_page_user(mock_page_with_id),
+            created_at=datetime(2024, 1, 1, tzinfo=timezone.utc),
+            comment="Old revision",
+        )
+        cached_revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        mock_page_with_id._id = -1
+        mock_page_with_id._source = cached_source
+        mock_page_with_id._revisions = cached_revisions
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        edited_page = MagicMock()
+        edited_page.title = "Updated Title"
+        edited_page.revisions_count = original_revisions_count + 1
+
+        with (
+            patch.object(Page, "create_or_edit", return_value=edited_page) as create_or_edit,
+            pytest.raises(ValueError, match=r"page\.id must be non-negative"),
+        ):
+            mock_page_with_id.edit(title="Updated Title", source="Updated source")
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        create_or_edit.assert_not_called()
+        assert mock_page_with_id._id == -1
+        assert mock_page_with_id.title == original_title
+        assert mock_page_with_id.revisions_count == original_revisions_count
+        assert mock_page_with_id._source is cached_source
+        assert mock_page_with_id._revisions is cached_revisions
+
     def test_edit_rejects_non_string_source_before_request(self, mock_page_with_id: Page) -> None:
         """Page.editのsourceは保存前に文字列として検証する"""
         invalid_source: Any = 3

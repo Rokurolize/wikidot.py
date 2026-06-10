@@ -2949,6 +2949,7 @@ class Page:
 
         site = _validate_page_site(self.site)
         fullname = _validate_page_text_field("fullname", self.fullname)
+        page_id = _validate_retained_page_id(self)
         if title is None:
             title = _validate_page_text_field("title", self.title)
         site.client.login_check()
@@ -2958,11 +2959,13 @@ class Page:
             source = self.source.wiki_text
         if comment is None:
             comment = ""
+        if page_id is None:
+            page_id = self.id
 
         page = Page.create_or_edit(
             site,
             fullname,
-            self.id,
+            page_id,
             title,
             source,
             comment,
