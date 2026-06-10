@@ -742,6 +742,9 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [736-pr-validate-regular-user-href-shape.md](736-pr-validate-regular-user-href-shape.md): upstream PR draft for the committed regular-user href shape validation fix.
 - [737-pr-validate-profile-id-href-routes.md](737-pr-validate-profile-id-href-routes.md): upstream PR draft for the committed profile ID href route validation fix.
 - [738-pr-validate-recent-change-title-href-routes.md](738-pr-validate-recent-change-title-href-routes.md): upstream PR draft for the committed recent-change title href route validation fix.
+- [739-pr-validate-page-file-link-href-routes.md](739-pr-validate-page-file-link-href-routes.md): upstream PR draft for the committed page-file link href route validation fix.
+- [740-pr-validate-forum-category-href-routes.md](740-pr-validate-forum-category-href-routes.md): upstream PR draft for the committed forum category href route validation fix.
+- [741-pr-validate-forum-thread-href-routes.md](741-pr-validate-forum-thread-href-routes.md): upstream PR draft for the committed forum thread href route validation fix.
 
 ## Local Evidence Index
 
@@ -1394,5 +1397,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 643: `b98244c fix(site): validate recent change title href routes`
 - Local implementation commits, continued 644: `282a52f fix(page_file): validate file link href routes`
 - Local implementation commits, continued 645: `b26e1c9 fix(forum_category): validate category href routes`
+- Local implementation commits, continued 646: `57ca8d4 fix(forum_thread): validate thread href routes`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
