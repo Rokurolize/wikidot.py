@@ -404,6 +404,25 @@ class TestQuickModuleMemberLookup:
         ):
             QuickModule.member_lookup(123456, "test")
 
+    def test_member_lookup_fullwidth_digit_user_id_includes_module_site_row_and_value_context(self) -> None:
+        """メンバー検索の全角数字user_idはQuickModule文脈付きで失敗する"""
+        fullwidth_user_id = "\uff11\uff12\uff13\uff14\uff15"
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": fullwidth_user_id, "name": "bad-user"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    rf"QuickModule user ID is malformed for module: MemberLookupQModule, site_id=123456 "
+                    rf"\(row=1, field=user_id, value={fullwidth_user_id}\)"
+                ),
+            ),
+        ):
+            QuickModule.member_lookup(123456, "test")
+
     def test_member_lookup_negative_user_id_includes_module_site_row_and_value_context(self):
         """メンバー検索の負数user_idはQuickModule文脈付きで失敗する"""
         mock_response = MagicMock()
@@ -543,6 +562,25 @@ class TestQuickModuleUserLookup:
                 match=(
                     r"QuickModule user ID is malformed for module: UserLookupQModule, site_id=123456 "
                     r"\(row=1, field=user_id, value=latest\)"
+                ),
+            ),
+        ):
+            QuickModule.user_lookup(123456, "test")
+
+    def test_user_lookup_fullwidth_digit_user_id_includes_module_site_row_and_value_context(self) -> None:
+        """ユーザー検索の全角数字user_idはQuickModule文脈付きで失敗する"""
+        fullwidth_user_id = "\uff11\uff12\uff13\uff14\uff15"
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.json.return_value = {"users": [{"user_id": fullwidth_user_id, "name": "bad-user"}]}
+
+        with (
+            patch("httpx.get", return_value=mock_response),
+            pytest.raises(
+                ValueError,
+                match=(
+                    rf"QuickModule user ID is malformed for module: UserLookupQModule, site_id=123456 "
+                    rf"\(row=1, field=user_id, value={fullwidth_user_id}\)"
                 ),
             ),
         ):

@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, TypeVar
@@ -234,13 +235,13 @@ class QuickModule:
     @staticmethod
     def _map_user_item(module_name: str, site_id: int, row_index: int, item: dict[str, Any]) -> QMCUser:
         user_id_value = QuickModule._row_field(module_name, site_id, row_index, item, "user_id")
-        try:
-            user_id = int(str(user_id_value))
-        except (TypeError, ValueError) as exc:
+        user_id_text = str(user_id_value)
+        if re.fullmatch(r"-?[0-9]+", user_id_text) is None:
             raise ValueError(
                 f"QuickModule user ID is malformed for module: {module_name}, site_id={site_id} "
                 f"(row={row_index}, field=user_id, value={user_id_value})"
-            ) from exc
+            )
+        user_id = int(user_id_text)
         if user_id < 0:
             raise ValueError(
                 f"QuickModule user ID is malformed for module: {module_name}, site_id={site_id} "
