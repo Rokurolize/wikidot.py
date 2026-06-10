@@ -822,6 +822,17 @@ class TestSitePagesAccessor:
 
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_source_result_rejects_malformed_result_page_fullname(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultのpage.fullnameは文字列だけ受け付ける"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page.fullname = cast(Any, 371)
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page\\.fullname must be a string"):
+            PageSourceResult(page=page, source=None, error=NotFoundException("missing"))
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     @pytest.mark.parametrize("source", ["source", True, object()])
     def test_source_result_rejects_malformed_source(self, mock_site_no_http: Site, source: Any) -> None:
         """PageSourceResultのsourceはPageSourceまたはNoneだけ受け付ける"""
@@ -1519,6 +1530,24 @@ class TestSitePageAccessor:
         mock_site_no_http.amc_request = MagicMock()
 
         with pytest.raises(ValueError, match="page\\.site must be a Site"):
+            PagePublishResult(
+                page=page,
+                page_id=12345,
+                source_matches=None,
+                tags_updated=False,
+                parent_updated=False,
+                metas_updated=False,
+            )
+
+        mock_site_no_http.amc_request.assert_not_called()
+
+    def test_publish_result_rejects_malformed_result_page_fullname(self, mock_site_no_http: Site) -> None:
+        """PagePublishResultのpage.fullnameは文字列だけ受け付ける"""
+        page = self._page(mock_site_no_http, "test-page", 12345)
+        page.fullname = cast(Any, 12345)
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page\\.fullname must be a string"):
             PagePublishResult(
                 page=page,
                 page_id=12345,

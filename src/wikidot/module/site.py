@@ -350,6 +350,10 @@ def _validate_result_page_site(page: Page) -> None:
         raise ValueError("page.site must be a Site")
 
 
+def _validate_result_page_fullname(page: Page) -> None:
+    _validate_page_text_field("page.fullname", page.fullname)
+
+
 def _validate_publish_result_page_id_matches_page(page: Page, page_id: int) -> None:
     retained_page_id = _validate_optional_page_constructor_id(page._id)
     if retained_page_id is not None and retained_page_id != page_id:
@@ -455,6 +459,7 @@ class PagePublishResult:
         _validate_publish_result_page(self.page)
         _validate_publish_result_page_id_matches_page(self.page, self.page_id)
         _validate_result_page_site(self.page)
+        _validate_result_page_fullname(self.page)
 
     @property
     def metadata_update_count(self) -> int:
@@ -560,6 +565,7 @@ class PageSourceResult:
         _validate_source_result_error(self.error)
         _validate_source_result_outcome(self.source, self.error)
         _validate_result_page_site(self.page)
+        _validate_result_page_fullname(self.page)
         _validate_source_result_source_belongs_to_page(self.page, self.source)
 
     @property
