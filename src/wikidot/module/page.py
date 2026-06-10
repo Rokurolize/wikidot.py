@@ -494,10 +494,27 @@ def _parse_listpages_float_field(site: "Site", page_name: str, key: str, value: 
     try:
         return float(value_text)
     except ValueError as exc:
-        raise exceptions.NoElementException(
-            f"ListPages float field is malformed for site: {site.unix_name}, page: {page_name} "
-            f"(field={key}, value={value_text})"
-        ) from exc
+        raise _listpages_float_field_error(site, page_name, key, value_text) from exc
+
+
+def _listpages_float_field_error(
+    site: "Site", page_name: str, key: str, value_text: str
+) -> exceptions.NoElementException:
+    return exceptions.NoElementException(
+        f"ListPages float field is malformed for site: {site.unix_name}, page: {page_name} "
+        f"(field={key}, value={value_text})"
+    )
+
+
+def _parse_listpages_finite_ascii_float_field(site: "Site", page_name: str, key: str, value: object) -> float:
+    value_text = str(value).strip()
+    try:
+        parsed = float(value_text)
+    except ValueError as exc:
+        raise _listpages_float_field_error(site, page_name, key, value_text) from exc
+    if not value_text.isascii() or not math.isfinite(parsed):
+        raise _listpages_float_field_error(site, page_name, key, value_text)
+    return parsed
 
 
 def _parse_listpages_percentage_field(site: "Site", page_name: str, key: str, value: object) -> float:
@@ -1203,7 +1220,7 @@ class PageCollection(list["Page"]):
                 elif key in ["rating"]:
                     page_name = str(page_params.get("fullname", "unknown"))
                     if is_5star_rating:
-                        value = _parse_listpages_float_field(site, page_name, key, value_element.text)
+                        value = _parse_listpages_finite_ascii_float_field(site, page_name, key, value_element.text)
                     else:
                         value = _parse_listpages_integer_field(site, page_name, key, value_element.text)
 

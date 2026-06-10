@@ -608,6 +608,26 @@ class TestPageCollectionParse:
         ):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    @pytest.mark.parametrize("rating_value", ["\uff14.\uff10", "nan", "inf"])
+    def test_parse_rejects_malformed_5star_rating_float_shape(
+        self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any], rating_value: str
+    ) -> None:
+        """5-star評価値の非ASCII・非有限float値を採用しない"""
+        body = page_listpages_pm_rating["body"].replace(
+            '<span class="set rating"><span class="name">rating</span> <span class="value">75</span></span>',
+            '<span class="set rating"><span class="page-rate-list-pages-start"></span>'
+            f'<span class="name">rating</span> <span class="value">{rating_value}</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            PageCollection._parse(mock_site_no_http, html_body)
+
+        assert str(exc_info.value) == (
+            "ListPages float field is malformed for site: test-site, page: test-page "
+            f"(field=rating, value={rating_value})"
+        )
+
     def test_parse_malformed_rating_includes_site_page_and_value_context(
         self, mock_site_no_http: Site, page_listpages_pm_rating: dict[str, Any]
     ) -> None:
