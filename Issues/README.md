@@ -766,6 +766,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [760-pr-validate-forum-thread-detail-post-count-ascii-shape.md](760-pr-validate-forum-thread-detail-post-count-ascii-shape.md): upstream PR draft for the committed forum thread detail post-count ASCII-shape validation fix.
 - [761-pr-validate-page-revision-number-ascii-shape.md](761-pr-validate-page-revision-number-ascii-shape.md): upstream PR draft for the committed page revision number ASCII-shape validation fix.
 - [762-pr-validate-forum-category-count-ascii-shape.md](762-pr-validate-forum-category-count-ascii-shape.md): upstream PR draft for the committed forum category count ASCII-shape validation fix.
+- [763-pr-validate-forum-thread-list-post-count-ascii-shape.md](763-pr-validate-forum-thread-list-post-count-ascii-shape.md): upstream PR draft for the committed forum thread-list post-count ASCII-shape validation fix.
 
 ## Local Evidence Index
 
@@ -1440,5 +1441,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 665: `816aa82 fix(forum_thread): validate detail post count ascii shape`
 - Local implementation commits, continued 666: `bbc8312 fix(page): validate revision number ascii shape`
 - Local implementation commits, continued 667: `0ae2953 fix(forum_category): validate count ascii shape`
+- Local implementation commits, continued 668: `e7f85be fix(forum_thread): validate list count ascii shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
