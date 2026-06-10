@@ -771,6 +771,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [765-pr-validate-forum-post-edit-revision-ascii-shape.md](765-pr-validate-forum-post-edit-revision-ascii-shape.md): upstream PR draft for the committed forum post edit-form revision ID ASCII-shape validation fix.
 - [766-pr-validate-profile-id-href-ascii-shape.md](766-pr-validate-profile-id-href-ascii-shape.md): upstream PR draft for the committed profile ID href ASCII-shape validation fix.
 - [767-pr-validate-listpages-integer-field-ascii-shape.md](767-pr-validate-listpages-integer-field-ascii-shape.md): upstream PR draft for the committed ListPages integer field ASCII-shape validation fix.
+- [768-pr-validate-listpages-rating-float-shape.md](768-pr-validate-listpages-rating-float-shape.md): upstream PR draft for the committed ListPages rating float-shape validation fix.
 
 ## Local Evidence Index
 
@@ -1450,5 +1451,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 670: `16ae334 fix(forum_post): validate edit revision ascii shape`
 - Local implementation commits, continued 671: `4135cb7 fix(user): validate profile id href ascii shape`
 - Local implementation commits, continued 672: `27dc177 fix(page): validate listpages integer ascii shape`
+- Local implementation commits, continued 673: `391ed7e fix(page): validate listpages rating float shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
