@@ -452,6 +452,26 @@ class TestPageCollectionParse:
         ):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    def test_parse_rejects_non_ascii_digit_integer_field(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """ListPages整数フィールドの非ASCII数字を整数として採用しない"""
+        fullwidth_comments = "\uff12"
+        body = page_listpages_single["body"].replace(
+            '<span class="set comments"><span class="name">comments</span> <span class="value">0</span></span>',
+            '<span class="set comments"><span class="name">comments</span> '
+            f'<span class="value">{fullwidth_comments}</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            PageCollection._parse(mock_site_no_http, html_body)
+
+        assert (
+            str(exc_info.value) == "ListPages integer field is malformed for site: test-site, page: scp-001 "
+            f"(field=comments, value={fullwidth_comments})"
+        )
+
     def test_parse_negative_count_field_includes_site_page_and_value_context(
         self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
     ) -> None:

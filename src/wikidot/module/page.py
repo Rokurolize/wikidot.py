@@ -470,13 +470,12 @@ def _parse_revision_created_at(site: "Site", page: "Page", rev_id: int, odate_el
 
 def _parse_listpages_integer_field(site: "Site", page_name: str, key: str, value: object) -> int:
     value_text = str(value).strip()
-    try:
-        return int(value_text)
-    except ValueError as exc:
+    if re.fullmatch(r"-?[0-9]+", value_text) is None:
         raise exceptions.NoElementException(
             f"ListPages integer field is malformed for site: {site.unix_name}, page: {page_name} "
             f"(field={key}, value={value_text})"
-        ) from exc
+        )
+    return int(value_text)
 
 
 def _parse_listpages_non_negative_integer_field(site: "Site", page_name: str, key: str, value: object) -> int:
