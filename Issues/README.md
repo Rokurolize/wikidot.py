@@ -754,6 +754,8 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [748-pr-validate-regular-user-onclick-id-ascii-shape.md](748-pr-validate-regular-user-onclick-id-ascii-shape.md): upstream PR draft for the committed regular-user onclick ID ASCII-shape validation fix.
 - [749-pr-validate-deleted-user-data-id-ascii-shape.md](749-pr-validate-deleted-user-data-id-ascii-shape.md): upstream PR draft for the committed deleted-user data-id ASCII-shape validation fix.
 - [750-pr-validate-site-member-pager-page-ascii-shape.md](750-pr-validate-site-member-pager-page-ascii-shape.md): upstream PR draft for the committed site-member pager page ASCII-shape validation fix.
+- [751-pr-validate-private-message-pager-page-ascii-shape.md](751-pr-validate-private-message-pager-page-ascii-shape.md): upstream PR draft for the committed private-message pager page ASCII-shape validation fix.
+- [752-pr-validate-forum-post-pager-page-ascii-shape.md](752-pr-validate-forum-post-pager-page-ascii-shape.md): upstream PR draft for the committed forum post-list pager page ASCII-shape validation fix.
 
 ## Local Evidence Index
 
@@ -1417,5 +1419,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 654: `54f4278 fix(user): validate deleted user data id shape`
 - Local implementation commits, continued 655: `a8c119a fix(site_member): validate pager page shape`
 - Local implementation commits, continued 656: `5b82597 fix(private_message): validate pager page shape`
+- Local implementation commits, continued 657: `efee046 fix(forum_post): validate pager page shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
