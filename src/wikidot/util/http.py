@@ -120,7 +120,7 @@ def calculate_backoff(
     max_backoff = _validate_non_negative_number_option("max_backoff", max_backoff)
 
     backoff = _calculate_exponential_backoff(retry_count, base_interval, backoff_factor, max_backoff)
-    if not math.isfinite(backoff) or backoff >= max_backoff:
+    if not math.isfinite(backoff):
         return max_backoff
     jitter = random.uniform(0, backoff * 0.1)
     return min(backoff + jitter, max_backoff)
