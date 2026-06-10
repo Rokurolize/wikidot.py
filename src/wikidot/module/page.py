@@ -2610,8 +2610,9 @@ class Page:
         """
         value = _validate_metas(value)
         site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
         site.client.login_check()
-        request_bodies = self._meta_update_request_bodies(value)
+        request_bodies = self._meta_update_request_bodies(value, page_id)
 
         if request_bodies:
             responses = site.amc_request(request_bodies)

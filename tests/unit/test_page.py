@@ -4750,6 +4750,40 @@ class TestPageWriteMethods:
         malformed_site.amc_request_with_retry.assert_not_called()
         assert mock_page_with_id._metas == {"old": "value"}
 
+    @pytest.mark.parametrize("page_id", [True, False, "12345", 12345.0, []])
+    def test_metas_setter_rejects_malformed_retained_page_ids_before_login(
+        self, mock_page_with_id: Page, page_id: object
+    ) -> None:
+        """metas setterの保持済みpage id型異常はログイン確認前に拒否する"""
+        bad_page_id = page_id
+        mock_page_with_id._id = cast(Any, bad_page_id)
+        mock_page_with_id._metas = {"old": "value"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be an integer"):
+            mock_page_with_id.metas = {"new": "value"}
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id is bad_page_id
+        assert mock_page_with_id._metas == {"old": "value"}
+
+    def test_metas_setter_rejects_negative_retained_page_id_before_login(self, mock_page_with_id: Page) -> None:
+        """metas setterの負の保持済みpage idはログイン確認前に拒否する"""
+        mock_page_with_id._id = -1
+        mock_page_with_id._metas = {"old": "value"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be non-negative"):
+            mock_page_with_id.metas = {"new": "value"}
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id == -1
+        assert mock_page_with_id._metas == {"old": "value"}
+
     def test_metas_setter_rejects_invalid_metas_before_request(self, mock_page_with_id: Page) -> None:
         """metas setterは文字列キーと文字列値の辞書だけ受け付ける"""
         invalid_metas: dict[Any, str] = {3: "description"}
