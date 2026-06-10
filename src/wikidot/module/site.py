@@ -395,7 +395,9 @@ def _validate_source_result_source_belongs_to_page(page: Page, source: PageSourc
     if result_page_id is not None and source_page_id is not None:
         if source_page_id != result_page_id:
             raise ValueError(message)
+        _validate_page_text_field("source.page.fullname", source_page.fullname)
         return
+    _validate_page_text_field("source.page.fullname", source_page.fullname)
     if source_page.fullname != page.fullname:
         raise ValueError(message)
 

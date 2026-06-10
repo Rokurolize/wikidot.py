@@ -861,6 +861,23 @@ class TestSitePagesAccessor:
         assert result.source is source
         assert result.wiki_text == "source 371"
 
+    def test_source_result_rejects_malformed_retained_source_page_fullname(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultは壊れたsourceページ名を所有判定に使わない"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        source_page = self._page(mock_site_no_http, "page-one", 371)
+        source_page.fullname = cast(Any, 371)
+        source = PageSource(page=source_page, wiki_text="source 371")
+        mock_site_no_http.amc_request = MagicMock()
+
+        with (
+            patch.object(PageCollection, "get_page_ids") as get_page_ids,
+            pytest.raises(ValueError, match="source\\.page\\.fullname must be a string"),
+        ):
+            PageSourceResult(page=page, source=source)
+
+        get_page_ids.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
     @pytest.mark.parametrize(
         ("result_cached_id", "source_cached_id"),
         [
