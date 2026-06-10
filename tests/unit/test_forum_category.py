@@ -519,6 +519,38 @@ class TestForumCategoryCollectionAcquireAll:
             ForumCategoryCollection.acquire_all(mock_site_no_http)
 
     @pytest.mark.parametrize(
+        ("valid_cell", "non_ascii_cell", "expected_match"),
+        [
+            (
+                '<td class="threads">10</td>',
+                '<td class="threads">\uff11\uff10</td>',
+                r"Thread count is malformed for site: test-site \(row=1, field=threads, value=\uff11\uff10\)",
+            ),
+            (
+                '<td class="posts">50</td>',
+                '<td class="posts">\uff15\uff10</td>',
+                r"Post count is malformed for site: test-site \(row=1, field=posts, value=\uff15\uff10\)",
+            ),
+        ],
+    )
+    def test_acquire_all_rejects_non_ascii_digit_counts(
+        self,
+        mock_site_no_http: Site,
+        forum_start: dict[str, Any],
+        valid_cell: str,
+        non_ascii_cell: str,
+        expected_match: str,
+    ) -> None:
+        """カテゴリ件数セルが非ASCII数字を含む場合は正規化せずNoElementException"""
+        body = forum_start["body"].replace(valid_cell, non_ascii_cell, 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(exceptions.NoElementException, match=expected_match):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    @pytest.mark.parametrize(
         ("valid_cell", "negative_cell", "expected_match"),
         [
             (

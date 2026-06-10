@@ -33,11 +33,10 @@ def _category_parse_context(site: "Site", row_index: int, **details: object) -> 
 
 
 def _parse_category_count(site: "Site", row_index: int, field: str, label: str, value: str) -> int:
-    try:
-        count = int(value)
-    except ValueError as exc:
+    if re.fullmatch(r"-?[0-9]+", value) is None:
         parse_context = _category_parse_context(site, row_index, field=field, value=value)
-        raise NoElementException(f"{label} is malformed {parse_context}") from exc
+        raise NoElementException(f"{label} is malformed {parse_context}")
+    count = int(value)
     if count < 0:
         parse_context = _category_parse_context(site, row_index, field=field, value=value)
         raise NoElementException(f"{label} must be non-negative {parse_context}")
