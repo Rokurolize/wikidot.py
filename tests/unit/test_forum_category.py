@@ -1231,6 +1231,56 @@ class TestForumCategoryCreateThread:
         mock_forum_category_no_http.site.client.login_check.assert_not_called()
         mock_forum_category_no_http.site.amc_request.assert_not_called()
 
+    @pytest.mark.parametrize("category_id", [None, True, False, "1001", 1001.0, []])
+    def test_create_thread_rejects_malformed_retained_category_ids_before_login(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        category_id: object,
+    ) -> None:
+        """保持済みcategory id型異常はログイン確認やAMCリクエスト前に拒否する"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        _mutate_retained_category_id(mock_forum_category_no_http, category_id)
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be an integer"):
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )
+
+        mock_forum_category_no_http.site.client.login_check.assert_not_called()
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        assert mock_forum_category_no_http.id is category_id
+        assert mock_forum_category_no_http._threads is cached_threads
+
+    def test_create_thread_rejects_negative_retained_category_id_before_login(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """負の保持済みcategory idはログイン確認やAMCリクエスト前に拒否する"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        _mutate_retained_category_id(mock_forum_category_no_http, -1)
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="id must be non-negative"):
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )
+
+        mock_forum_category_no_http.site.client.login_check.assert_not_called()
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        assert mock_forum_category_no_http.id == -1
+        assert mock_forum_category_no_http._threads is cached_threads
+
     @pytest.mark.parametrize("response_body", [{}, {"threadId": "3001"}])
     def test_create_thread_missing_or_invalid_thread_id_raises(
         self,

@@ -498,6 +498,7 @@ class ForumCategory:
         title = validate_text_field("title", title)
         description = validate_text_field("description", description)
         source = validate_text_field("source", source)
+        category_id = _validate_forum_category_id(self.id)
         self.site.client.login_check()
 
         # 作成リクエスト
@@ -507,7 +508,7 @@ class ForumCategory:
                     "moduleName": "Empty",
                     "action": "ForumAction",
                     "event": "newThread",
-                    "category_id": self.id,
+                    "category_id": category_id,
                     "title": title,
                     "description": description,
                     "source": source,
@@ -518,10 +519,10 @@ class ForumCategory:
         # responseからthreadIdを取得
         thread_id = response.get("threadId")
         if not isinstance(thread_id, int) or isinstance(thread_id, bool):
-            raise NoElementException(f"Thread ID is not found for site: {self.site.unix_name}, category: {self.id}")
+            raise NoElementException(f"Thread ID is not found for site: {self.site.unix_name}, category: {category_id}")
         if thread_id < 0:
             raise NoElementException(
-                f"Thread ID must be non-negative for site: {self.site.unix_name}, category: {self.id}"
+                f"Thread ID must be non-negative for site: {self.site.unix_name}, category: {category_id}"
             )
 
         _require_forum_category_action_status(self, "newThread", response)
