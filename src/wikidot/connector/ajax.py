@@ -9,7 +9,6 @@ error handling, and retry functionality.
 import asyncio
 import json.decoder
 import math
-import random
 from dataclasses import dataclass
 from typing import Any, Literal, overload
 
@@ -24,7 +23,7 @@ from ..common.exceptions import (
     WikidotStatusCodeException,
 )
 from ..util.async_helper import run_coroutine
-from ..util.http import sync_get_with_retry
+from ..util.http import calculate_backoff, sync_get_with_retry
 from ..util.stringutil import StringUtil
 
 
@@ -356,11 +355,7 @@ def _calculate_backoff(
     backoff_factor = _validate_non_negative_number_option("backoff_factor", backoff_factor)
     max_backoff = _validate_non_negative_number_option("max_backoff", max_backoff)
 
-    # backoff_factor^(retry_count-1) * base_interval
-    backoff = (backoff_factor ** (retry_count - 1)) * base_interval
-    # Add 10% jitter
-    jitter = random.uniform(0, backoff * 0.1)
-    return min(backoff + jitter, max_backoff)
+    return calculate_backoff(retry_count, base_interval, backoff_factor, max_backoff)
 
 
 class AjaxModuleConnectorClient:

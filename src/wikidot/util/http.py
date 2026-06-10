@@ -60,6 +60,36 @@ def _validate_retry_options(
     )
 
 
+def _calculate_exponential_backoff(
+    retry_count: int,
+    base_interval: float,
+    backoff_factor: float,
+    max_backoff: float,
+) -> float:
+    exponent = retry_count - 1
+
+    try:
+        return (backoff_factor**exponent) * base_interval
+    except OverflowError:
+        pass
+
+    if base_interval == 0:
+        return 0.0
+
+    try:
+        backoff_log = math.log(base_interval) + exponent * math.log(backoff_factor)
+    except (OverflowError, ValueError):
+        return max_backoff
+
+    if max_backoff == 0 or backoff_log >= math.log(max_backoff):
+        return max_backoff
+
+    try:
+        return math.exp(backoff_log)
+    except OverflowError:
+        return max_backoff
+
+
 def calculate_backoff(
     retry_count: int,
     base_interval: float,
@@ -89,7 +119,9 @@ def calculate_backoff(
     backoff_factor = _validate_non_negative_number_option("backoff_factor", backoff_factor)
     max_backoff = _validate_non_negative_number_option("max_backoff", max_backoff)
 
-    backoff = (backoff_factor ** (retry_count - 1)) * base_interval
+    backoff = _calculate_exponential_backoff(retry_count, base_interval, backoff_factor, max_backoff)
+    if not math.isfinite(backoff) or backoff >= max_backoff:
+        return max_backoff
     jitter = random.uniform(0, backoff * 0.1)
     return min(backoff + jitter, max_backoff)
 

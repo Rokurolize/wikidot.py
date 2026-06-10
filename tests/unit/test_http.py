@@ -3,6 +3,7 @@
 リトライ機構を持つHTTPリクエスト関数のテストを行う。
 """
 
+import math
 from typing import Any
 
 import httpx
@@ -89,6 +90,19 @@ class TestCalculateBackoff:
         """max_backoffを超えない"""
         result = calculate_backoff(10, 1.0, 2.0, 60.0)
         assert result == 60.0
+
+    def test_caps_large_exponential_backoff_before_overflow(self):
+        """max_backoffを超える巨大な指数バックオフも上限で丸める"""
+        result = calculate_backoff(1025, 1.0, 2.0, 60.0)
+        assert result == 60.0
+
+    def test_large_exponential_backoff_preserves_tiny_base_below_cap(self):
+        """指数部だけが巨大な場合も上限未満なら有限のバックオフを返す"""
+        expected_backoff = math.exp(math.log(1e-308) + 1024 * math.log(2.0))
+
+        result = calculate_backoff(1025, 1e-308, 2.0, 60.0)
+
+        assert expected_backoff <= result <= expected_backoff * 1.1
 
 
 class TestSyncGetWithRetry:

@@ -167,6 +167,11 @@ class TestCalculateBackoff:
         result = _calculate_backoff(10, 1.0, 2.0, 60.0)
         assert result == 60.0
 
+    def test_caps_large_exponential_backoff_before_overflow(self):
+        """max_backoffを超える巨大な指数バックオフも上限で丸める"""
+        result = _calculate_backoff(1025, 1.0, 2.0, 60.0)
+        assert result == 60.0
+
     def test_custom_base_interval(self):
         """カスタムのbase_interval"""
         # 2^1 * 2.0 = 4.0（ジッターなしの場合）
