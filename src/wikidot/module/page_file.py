@@ -246,7 +246,7 @@ class PageFileCollection(list["PageFile"]):
                 continue
 
             file_id_text = row_id_text.removeprefix("file-row-")
-            if not file_id_text.isdigit():
+            if re.fullmatch(r"[0-9]+", file_id_text) is None:
                 location = f"{context} " if context else ""
                 raise exceptions.NoElementException(
                     f"Page file row ID is malformed {location}(row={row_index}, field=id, value={row_id_text})"

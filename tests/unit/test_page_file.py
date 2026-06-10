@@ -838,6 +838,42 @@ class TestPageFileCollectionAcquire:
         ):
             PageFileCollection.acquire(page)
 
+    def test_acquire_rejects_non_ascii_digit_file_row_id(self):
+        """file-row IDはUnicode数字を通常IDへ正規化しない"""
+        page = _page()
+        page.id = 12345
+        page.fullname = "test-page"
+        site = MagicMock()
+        site.unix_name = "test-site"
+        site.url = "https://test.wikidot.com"
+        page.site = site
+
+        fullwidth_file_id = "\uff11\uff10\uff10"
+        response = MagicMock()
+        response.json.return_value = {
+            "body": f"""
+                <table class="page-files">
+                    <tbody>
+                        <tr id="file-row-{fullwidth_file_id}">
+                            <td><a href="/local--files/test-page/bad.txt">bad.txt</a></td>
+                            <td><span title="text/plain">TXT</span></td>
+                            <td>1 KB</td>
+                        </tr>
+                    </tbody>
+                </table>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page file row ID is malformed for site: test-site, page: test-page "
+                rf"\(row=1, field=id, value=file-row-{re.escape(fullwidth_file_id)}\)"
+            ),
+        ):
+            PageFileCollection.acquire(page)
+
     def test_acquire_empty(self):
         """ファイルなしの場合"""
         page = _page()
