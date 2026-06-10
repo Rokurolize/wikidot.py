@@ -811,6 +811,17 @@ class TestSitePagesAccessor:
         with pytest.raises(ValueError, match="page must be a Page"):
             PageSourceResult(page=page, source=None, error=NotFoundException("missing"))
 
+    def test_source_result_rejects_malformed_result_page_site(self, mock_site_no_http: Site) -> None:
+        """PageSourceResultのpage.siteはSiteだけ受け付ける"""
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page.site = cast(Any, {"unix_name": "test-site"})
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page\\.site must be a Site"):
+            PageSourceResult(page=page, source=None, error=NotFoundException("missing"))
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     @pytest.mark.parametrize("source", ["source", True, object()])
     def test_source_result_rejects_malformed_source(self, mock_site_no_http: Site, source: Any) -> None:
         """PageSourceResultのsourceはPageSourceまたはNoneだけ受け付ける"""
@@ -1500,6 +1511,24 @@ class TestSitePageAccessor:
                 parent_updated=False,
                 metas_updated=False,
             )
+
+    def test_publish_result_rejects_malformed_result_page_site(self, mock_site_no_http: Site) -> None:
+        """PagePublishResultのpage.siteはSiteだけ受け付ける"""
+        page = self._page(mock_site_no_http, "test-page", 12345)
+        page.site = cast(Any, {"unix_name": "test-site"})
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page\\.site must be a Site"):
+            PagePublishResult(
+                page=page,
+                page_id=12345,
+                source_matches=None,
+                tags_updated=False,
+                parent_updated=False,
+                metas_updated=False,
+            )
+
+        mock_site_no_http.amc_request.assert_not_called()
 
     @pytest.mark.parametrize("source_matches", ["false", 0, 1, []])
     def test_publish_result_rejects_malformed_source_matches(
