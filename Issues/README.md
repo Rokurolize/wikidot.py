@@ -758,6 +758,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [752-pr-validate-forum-post-pager-page-ascii-shape.md](752-pr-validate-forum-post-pager-page-ascii-shape.md): upstream PR draft for the committed forum post-list pager page ASCII-shape validation fix.
 - [753-pr-validate-forum-thread-pager-page-ascii-shape.md](753-pr-validate-forum-thread-pager-page-ascii-shape.md): upstream PR draft for the committed forum thread-list pager page ASCII-shape validation fix.
 - [754-pr-validate-listpages-pager-page-ascii-shape.md](754-pr-validate-listpages-pager-page-ascii-shape.md): upstream PR draft for the committed ListPages pager page ASCII-shape validation fix.
+- [755-pr-validate-recent-changes-pager-page-ascii-shape.md](755-pr-validate-recent-changes-pager-page-ascii-shape.md): upstream PR draft for the committed recent-changes pager page ASCII-shape validation fix.
 
 ## Local Evidence Index
 
@@ -1424,5 +1425,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 657: `efee046 fix(forum_post): validate pager page shape`
 - Local implementation commits, continued 658: `5d5d87e fix(forum_thread): validate pager page shape`
 - Local implementation commits, continued 659: `79b6b8d fix(page): validate listpages pager page shape`
+- Local implementation commits, continued 660: `e19e338 fix(site): validate recent changes pager page shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
