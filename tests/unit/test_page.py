@@ -4025,6 +4025,64 @@ class TestPageWriteMethods:
         assert mock_page_with_id.name == "test-page"
         assert mock_page_with_id._files is not None
 
+    @pytest.mark.parametrize("page_id", [True, False, "12345", 12345.0, []])
+    def test_rename_rejects_malformed_retained_page_ids_before_login(
+        self, mock_page_with_id: Page, page_id: object
+    ) -> None:
+        """rename時の保持済みpage id型異常はログイン確認前に拒否する"""
+        bad_page_id = page_id
+        cached_file = PageFile(
+            page=mock_page_with_id,
+            id=1,
+            name="cached.txt",
+            url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+            mime_type="text/plain",
+            size=10,
+        )
+        cached_files = PageFileCollection(mock_page_with_id, [cached_file])
+        mock_page_with_id._id = cast(Any, bad_page_id)
+        mock_page_with_id._files = cached_files
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be an integer"):
+            mock_page_with_id.rename("component:new-name")
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id is bad_page_id
+        assert mock_page_with_id.fullname == "test-page"
+        assert mock_page_with_id.category == "_default"
+        assert mock_page_with_id.name == "test-page"
+        assert mock_page_with_id._files is cached_files
+
+    def test_rename_rejects_negative_retained_page_id_before_login(self, mock_page_with_id: Page) -> None:
+        """rename時の負の保持済みpage idはログイン確認前に拒否する"""
+        cached_file = PageFile(
+            page=mock_page_with_id,
+            id=1,
+            name="cached.txt",
+            url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+            mime_type="text/plain",
+            size=10,
+        )
+        cached_files = PageFileCollection(mock_page_with_id, [cached_file])
+        mock_page_with_id._id = -1
+        mock_page_with_id._files = cached_files
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be non-negative"):
+            mock_page_with_id.rename("component:new-name")
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id == -1
+        assert mock_page_with_id.fullname == "test-page"
+        assert mock_page_with_id.category == "_default"
+        assert mock_page_with_id.name == "test-page"
+        assert mock_page_with_id._files is cached_files
+
     def test_vote_positive(self, mock_page_with_id: Page, page_ratepage_success: dict[str, Any]) -> None:
         """正の投票ができる"""
         mock_response = MagicMock()

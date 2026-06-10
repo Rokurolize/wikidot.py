@@ -3087,14 +3087,17 @@ class Page:
         """
         new_fullname = _validate_page_text_field("new_fullname", new_fullname)
         site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
         site.client.login_check()
+        if page_id is None:
+            page_id = self.id
         response = site.amc_request(
             [
                 {
                     "action": "WikiPageAction",
                     "event": "renamePage",
                     "moduleName": "Empty",
-                    "page_id": self.id,
+                    "page_id": page_id,
                     "new_name": new_fullname,
                 }
             ]
