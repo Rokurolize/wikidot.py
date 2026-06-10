@@ -20,6 +20,7 @@ from ..util.parser import user as user_parser
 from ._validation import validate_text_field
 
 if TYPE_CHECKING:
+    from .client import Client
     from .forum_category import ForumCategory
     from .forum_post import ForumPostCollection
     from .site import Site
@@ -109,6 +110,14 @@ def _validate_forum_thread_site(site: object) -> "Site":
     if not isinstance(site, Site):
         raise ValueError("site must be a Site")
     return site
+
+
+def _validate_forum_thread_site_client(site: "Site") -> "Client":
+    from .client import Client
+
+    if not isinstance(site.client, Client):
+        raise ValueError("client must be a Client")
+    return site.client
 
 
 def _validate_threads_belong_to_site(site: "Site", threads: list["ForumThread"]) -> None:
@@ -1077,7 +1086,8 @@ class ForumThread:
         parent_post_id = _validate_optional_post_id("parent_post_id", parent_post_id)
         site = _validate_forum_thread_site(self.site)
         thread_id = _validate_thread_id(self.id)
-        site.client.login_check()
+        client = _validate_forum_thread_site_client(site)
+        client.login_check()
         response = site.amc_request(
             [
                 {

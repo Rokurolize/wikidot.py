@@ -19,6 +19,7 @@ from ..util.parser import user as user_parser
 from ._validation import validate_text_field
 
 if TYPE_CHECKING:
+    from .client import Client
     from .forum_post_revision import ForumPostRevisionCollection
     from .forum_thread import ForumThread
     from .site import Site
@@ -44,6 +45,14 @@ def _validate_forum_thread_site(site: object) -> "Site":
     if not isinstance(site, Site):
         raise ValueError("site must be a Site")
     return site
+
+
+def _validate_forum_thread_site_client(site: "Site") -> "Client":
+    from .client import Client
+
+    if not isinstance(site.client, Client):
+        raise ValueError("client must be a Client")
+    return site.client
 
 
 def _validate_forum_thread_id(thread_id: object) -> int:
@@ -1127,7 +1136,8 @@ class ForumPost:
         site = _validate_forum_thread_site(thread.site)
         thread_id = _validate_forum_thread_id(thread.id)
         post_id = _validate_post_id(self.id)
-        site.client.login_check()
+        client = _validate_forum_thread_site_client(site)
+        client.login_check()
 
         # 現在のリビジョンIDを取得
         form_response = site.amc_request_with_retry(

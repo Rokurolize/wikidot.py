@@ -2300,6 +2300,33 @@ class TestForumThreadReply:
         bad_site.client.login_check.assert_not_called()
         bad_site.amc_request.assert_not_called()
 
+    def test_reply_rejects_mutated_site_client_before_login(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_category_no_http: ForumCategory,
+    ) -> None:
+        """返信実行時の保持済みsite.client不正値は副作用前に拒否する"""
+        mock_forum_thread_no_http.category = mock_forum_category_no_http
+        cached_posts = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_thread_no_http._posts = cached_posts
+        mock_forum_category_no_http.threads = cached_threads
+        initial_thread_post_count = mock_forum_thread_no_http.post_count
+        initial_category_post_count = mock_forum_category_no_http.posts_count
+        malformed_client = MagicMock()
+        mock_forum_thread_no_http.site.client = cast(Any, malformed_client)
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            mock_forum_thread_no_http.reply(source="Test reply")
+
+        malformed_client.login_check.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        assert mock_forum_thread_no_http.post_count == initial_thread_post_count
+        assert mock_forum_thread_no_http._posts is cached_posts
+        assert mock_forum_category_no_http.posts_count == initial_category_post_count
+        assert mock_forum_category_no_http._threads is cached_threads
+
     def test_reply_accepts_zero_retained_thread_id(
         self, mock_forum_thread_no_http: ForumThread, amc_ok_response: dict[str, Any]
     ) -> None:

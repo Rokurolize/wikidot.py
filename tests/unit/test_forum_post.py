@@ -2832,6 +2832,31 @@ class TestForumPostEdit:
         bad_site.amc_request.assert_not_called()
         assert mock_forum_post_no_http._source is None
 
+    def test_edit_rejects_mutated_site_client_before_login_or_form_fetch(
+        self,
+        mock_forum_post_no_http: ForumPost,
+    ) -> None:
+        """投稿編集時の保持済みsite.client不正値は副作用前に拒否する"""
+        cached_revisions = ForumPostRevisionCollection(mock_forum_post_no_http, [])
+        cached_posts = ForumPostCollection(mock_forum_post_no_http.thread, [mock_forum_post_no_http])
+        mock_forum_post_no_http._source = "Original source"
+        mock_forum_post_no_http._revisions = cached_revisions
+        mock_forum_post_no_http.thread._posts = cached_posts
+        malformed_client = MagicMock()
+        mock_forum_post_no_http.thread.site.client = cast(Any, malformed_client)
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            mock_forum_post_no_http.edit(source="Updated source")
+
+        malformed_client.login_check.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http._source == "Original source"
+        assert mock_forum_post_no_http._revisions is cached_revisions
+        assert mock_forum_post_no_http.thread._posts is cached_posts
+
     def test_edit_accepts_zero_retained_post_and_thread_ids(
         self,
         mock_forum_post_no_http: ForumPost,

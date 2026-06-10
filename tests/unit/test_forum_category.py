@@ -1281,6 +1281,29 @@ class TestForumCategoryCreateThread:
         assert mock_forum_category_no_http.id == -1
         assert mock_forum_category_no_http._threads is cached_threads
 
+    def test_create_thread_rejects_mutated_site_client_before_login(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """保持済みsite.client不正値はログイン確認やAMCリクエスト前に拒否する"""
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        malformed_client = MagicMock()
+        mock_forum_category_no_http.site.client = cast(Any, malformed_client)
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )
+
+        malformed_client.login_check.assert_not_called()
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        assert mock_forum_category_no_http._threads is cached_threads
+
     @pytest.mark.parametrize("response_body", [{}, {"threadId": "3001"}])
     def test_create_thread_missing_or_invalid_thread_id_raises(
         self,

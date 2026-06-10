@@ -18,6 +18,7 @@ from ._validation import validate_text_field
 from .forum_thread import ForumThread, ForumThreadCollection
 
 if TYPE_CHECKING:
+    from .client import Client
     from .site import Site
 
 
@@ -121,6 +122,14 @@ def _validate_forum_category_site(site: object) -> "Site":
     if not isinstance(site, Site):
         raise ValueError("site must be a Site")
     return site
+
+
+def _validate_forum_category_site_client(site: "Site") -> "Client":
+    from .client import Client
+
+    if not isinstance(site.client, Client):
+        raise ValueError("client must be a Client")
+    return site.client
 
 
 def _validate_forum_category_threads(value: object) -> ForumThreadCollection:
@@ -498,11 +507,13 @@ class ForumCategory:
         title = validate_text_field("title", title)
         description = validate_text_field("description", description)
         source = validate_text_field("source", source)
+        site = _validate_forum_category_site(self.site)
         category_id = _validate_forum_category_id(self.id)
-        self.site.client.login_check()
+        client = _validate_forum_category_site_client(site)
+        client.login_check()
 
         # 作成リクエスト
-        response = self.site.amc_request(
+        response = site.amc_request(
             [
                 {
                     "moduleName": "Empty",
@@ -519,13 +530,13 @@ class ForumCategory:
         # responseからthreadIdを取得
         thread_id = response.get("threadId")
         if not isinstance(thread_id, int) or isinstance(thread_id, bool):
-            raise NoElementException(f"Thread ID is not found for site: {self.site.unix_name}, category: {category_id}")
+            raise NoElementException(f"Thread ID is not found for site: {site.unix_name}, category: {category_id}")
         if thread_id < 0:
             raise NoElementException(
-                f"Thread ID must be non-negative for site: {self.site.unix_name}, category: {category_id}"
+                f"Thread ID must be non-negative for site: {site.unix_name}, category: {category_id}"
             )
 
         _require_forum_category_action_status(self, "newThread", response)
         self._threads = None
 
-        return ForumThread.get_from_id(self.site, thread_id, self)
+        return ForumThread.get_from_id(site, thread_id, self)
