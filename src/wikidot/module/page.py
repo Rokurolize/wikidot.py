@@ -281,9 +281,9 @@ def _validate_page_vote_entries(votes: PageVoteCollection) -> None:
 
 def _validate_votes_cache_belongs_to_page(page: "Page", votes: PageVoteCollection) -> None:
     message = "page.votes must belong to the page"
-    _validate_page_cache_owner(page, votes.page, message)
+    _validate_page_cache_owner(page, votes.page, message, "page.votes.page.fullname")
     for vote in votes:
-        _validate_page_cache_owner(page, vote.page, message)
+        _validate_page_cache_owner(page, vote.page, message, "page.votes.page.fullname")
 
 
 def _validate_page_votes(page: "Page", value: object) -> PageVoteCollection:

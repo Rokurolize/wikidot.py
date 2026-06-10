@@ -3151,6 +3151,42 @@ class TestPageProperties:
 
         assert mock_page_with_id.votes[0].value == 1
 
+    def test_votes_setter_rejects_malformed_retained_parent_page_fullname(self, mock_page_with_id: Page) -> None:
+        cached_vote = _cached_page_vote(mock_page_with_id)
+        mock_page_with_id.votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        votes_owner = _other_page_like(
+            mock_page_with_id, fullname=mock_page_with_id.fullname, page_id=mock_page_with_id.id
+        )
+        votes_owner.fullname = cast(Any, 371)
+        bad_votes = PageVoteCollection(votes_owner, [])
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match=r"page\.votes\.page\.fullname must be a string"):
+            mock_page_with_id.votes = bad_votes
+
+        assert mock_page_with_id.votes[0].value == 1
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    def test_votes_setter_rejects_malformed_retained_entry_page_fullname(self, mock_page_with_id: Page) -> None:
+        cached_vote = _cached_page_vote(mock_page_with_id)
+        mock_page_with_id.votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        votes_owner = _other_page_like(
+            mock_page_with_id, fullname=mock_page_with_id.fullname, page_id=mock_page_with_id.id
+        )
+        bad_votes = PageVoteCollection(votes_owner, [_cached_page_vote(votes_owner, -1)])
+        vote_page = _other_page_like(
+            mock_page_with_id, fullname=mock_page_with_id.fullname, page_id=mock_page_with_id.id
+        )
+        vote_page.fullname = cast(Any, 371)
+        bad_votes[0] = _cached_page_vote(vote_page, -1)
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with pytest.raises(ValueError, match=r"page\.votes\.page\.fullname must be a string"):
+            mock_page_with_id.votes = bad_votes
+
+        assert mock_page_with_id.votes[0].value == 1
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
     def test_latest_revision(self, mock_page_with_id: Page, page_revisionlist: dict[str, Any]) -> None:
         """最新リビジョンを取得できる"""
         mock_response = MagicMock()

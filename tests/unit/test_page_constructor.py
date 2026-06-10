@@ -577,6 +577,26 @@ class TestPageInit:
         with pytest.raises(ValueError, match=r"page\.votes must belong to the page"):
             _page(mock_site_no_http, _votes=votes)
 
+    def test_init_rejects_votes_cache_with_malformed_retained_parent_page_fullname(
+        self, mock_site_no_http: Any
+    ) -> None:
+        votes_owner = _page(mock_site_no_http, _id=371)
+        votes_owner.fullname = cast(Any, 371)
+        votes = PageVoteCollection(votes_owner, [])
+
+        with pytest.raises(ValueError, match=r"page\.votes\.page\.fullname must be a string"):
+            _page(mock_site_no_http, _id=371, _votes=votes)
+
+    def test_init_rejects_votes_cache_entry_with_malformed_retained_page_fullname(self, mock_site_no_http: Any) -> None:
+        votes_owner = _page(mock_site_no_http, _id=371)
+        votes: Any = PageVoteCollection(votes_owner, [_page_vote(votes_owner)])
+        vote_page = _page(mock_site_no_http, _id=371)
+        vote_page.fullname = cast(Any, 371)
+        votes[0] = _page_vote(vote_page, -1)
+
+        with pytest.raises(ValueError, match=r"page\.votes\.page\.fullname must be a string"):
+            _page(mock_site_no_http, _id=371, _votes=votes)
+
     def test_init_accepts_valid_optional_files(self, mock_site_no_http: Any) -> None:
         page_without_files = _page(mock_site_no_http)
         files_owner = _page(mock_site_no_http)
