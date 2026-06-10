@@ -794,6 +794,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [788-pr-validate-commit-tags-retained-page-id.md](788-pr-validate-commit-tags-retained-page-id.md): upstream PR draft for the committed direct tag-save retained page-ID validation fix.
 - [789-pr-validate-set-parent-retained-page-id.md](789-pr-validate-set-parent-retained-page-id.md): upstream PR draft for the committed direct parent-update retained page-ID validation fix.
 - [790-pr-validate-rename-retained-page-id.md](790-pr-validate-rename-retained-page-id.md): upstream PR draft for the committed page rename retained page-ID validation fix.
+- [791-pr-validate-vote-retained-page-id.md](791-pr-validate-vote-retained-page-id.md): upstream PR draft for the committed page vote retained page-ID validation fix.
 
 ## Local Evidence Index
 
@@ -1496,5 +1497,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 693: `e670224 fix(page): validate commit tags page id`
 - Local implementation commits, continued 694: `0fac08d fix(page): validate set parent page id`
 - Local implementation commits, continued 695: `ec4a0ba fix(page): validate rename page id`
+- Local implementation commits, continued 696: `6861565 fix(page): validate vote page id`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
