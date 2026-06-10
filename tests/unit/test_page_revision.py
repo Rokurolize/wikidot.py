@@ -1153,6 +1153,27 @@ class TestPageRevision:
         assert revision.source is source
         mock_page.site.amc_request_with_retry.assert_not_called()
 
+    def test_init_rejects_source_cache_with_malformed_retained_source_page_fullname(self, mock_page, mock_user) -> None:
+        """PageRevision初期sourceキャッシュは壊れたsource page名を所有判定に使わない"""
+        mock_page._id = 12345
+        source_owner = _page_on_same_site(mock_page, fullname=mock_page.fullname)
+        source_owner._id = 12345
+        source_owner.fullname = cast(Any, 12345)
+        source = PageSource(page=source_owner, wiki_text="cached revision source")
+
+        with pytest.raises(ValueError, match=r"revision\.source\.page\.fullname must be a string"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+                _source=source,
+            )
+
+        mock_page.site.amc_request_with_retry.assert_not_called()
+
     @pytest.mark.parametrize(
         "html",
         [True, 100, ["<p>Cached HTML</p>"], {"html": "<p>Cached HTML</p>"}, object()],
@@ -1356,6 +1377,21 @@ class TestPageRevision:
         sample_revision.source = source
 
         assert sample_revision.source is source
+        sample_revision.page.site.amc_request_with_retry.assert_not_called()
+
+    def test_source_setter_rejects_malformed_retained_source_page_fullname(self, sample_revision) -> None:
+        """sourceセッターは壊れたsource page名を所有判定に使わない"""
+        cached_source = PageSource(page=sample_revision.page, wiki_text="cached revision source")
+        sample_revision.source = cached_source
+        sample_revision.page._id = 12345
+        source_page = _page_on_same_site(sample_revision.page, fullname=sample_revision.page.fullname)
+        source_page._id = 12345
+        source_page.fullname = cast(Any, 12345)
+
+        with pytest.raises(ValueError, match=r"revision\.source\.page\.fullname must be a string"):
+            sample_revision.source = PageSource(source_page, "other revision source")
+
+        assert sample_revision._source is cached_source
         sample_revision.page.site.amc_request_with_retry.assert_not_called()
 
     def test_html_property_lazy_load(self, mock_page, sample_revision):

@@ -104,7 +104,7 @@ def _validate_revision_source(value: object) -> PageSource:
 
 
 def _validate_revision_source_belongs_to_page(page: "Page", source: PageSource) -> None:
-    from .page import Page, _validate_optional_page_constructor_id
+    from .page import Page, _validate_optional_page_constructor_id, _validate_page_text_field
 
     message = "revision.source must belong to the revision page"
     source_page = source.page
@@ -117,8 +117,10 @@ def _validate_revision_source_belongs_to_page(page: "Page", source: PageSource) 
     if page_id is not None and source_page_id is not None:
         if source_page_id != page_id:
             raise ValueError(message)
+        _validate_page_text_field("revision.source.page.fullname", source_page.fullname)
         return
-    if source_page.fullname != page.fullname:
+    source_page_fullname = _validate_page_text_field("revision.source.page.fullname", source_page.fullname)
+    if source_page_fullname != page.fullname:
         raise ValueError(message)
 
 
