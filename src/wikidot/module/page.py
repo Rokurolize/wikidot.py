@@ -989,6 +989,17 @@ class PageCollection(list["Page"]):
             return pager
         return None
 
+    @staticmethod
+    def _parse_listpages_pager_page(site: "Site", offset: int | None, page_text: str) -> int | None:
+        if re.fullmatch(r"[0-9]+", page_text) is not None:
+            return int(page_text)
+        if page_text.isdigit():
+            raise exceptions.NoElementException(
+                f"ListPages pager page is malformed for site: {site.unix_name}, offset: {offset} "
+                f"(field=page, value={page_text})"
+            )
+        return None
+
     def __init__(self, site: Optional["Site"] = None, pages: list["Page"] | None = None):
         """
         Initialize method
@@ -1344,8 +1355,9 @@ class PageCollection(list["Page"]):
             for pager_target in reversed(pager.select("span.target")):
                 pager_link = pager_target.select_one("a")
                 page_text = (pager_link or pager_target).get_text(strip=True)
-                if page_text.isdigit():
-                    total = int(page_text)
+                page = PageCollection._parse_listpages_pager_page(site, query.offset, page_text)
+                if page is not None:
+                    total = page
                     break
 
         if total > 1:

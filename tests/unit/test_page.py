@@ -797,6 +797,32 @@ class TestPageCollectionSearchPages:
         assert len(pages) == 1
         mock_site_no_http.amc_request.assert_called_once()
 
+    def test_search_pages_rejects_non_ascii_digit_pager_target(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """ListPagesのページ番号はASCII数字だけを受け付ける"""
+        fullwidth_page = "\uff12"
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            **page_listpages_single,
+            "body": page_listpages_single["body"]
+            + f'<div class="pager"><span class="target">1</span><span class="target">{fullwidth_page}</span></div>',
+        }
+        second_response = MagicMock()
+        second_response.json.return_value = page_listpages_single
+        mock_site_no_http.amc_request = MagicMock(return_value=[first_response])
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(second_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=rf"ListPages pager page is malformed for site: test-site, offset: 500 "
+            rf"\(field=page, value={fullwidth_page}\)",
+        ):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500, perPage=100))
+
+        mock_site_no_http.amc_request.assert_called_once()
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+
     def test_search_pages_ignores_field_value_pager_markup(
         self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
     ) -> None:
