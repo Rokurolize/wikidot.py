@@ -3050,6 +3050,41 @@ class TestPageProperties:
 
         assert mock_page_with_id.revisions[0].comment == "cached revision"
 
+    def test_revisions_setter_rejects_malformed_retained_parent_page_fullname(self, mock_page_with_id: Page) -> None:
+        """revisionsセッターは壊れたparent page名を所有判定に使わない"""
+        cached_revision = _cached_page_revision(mock_page_with_id)
+        cached_revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        mock_page_with_id.revisions = cached_revisions
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+        revisions_owner = _other_page_like(mock_page_with_id, fullname=mock_page_with_id.fullname)
+        revisions_owner._id = mock_page_with_id._id
+        revisions_owner.fullname = cast(Any, 12345)
+        revisions = PageRevisionCollection(revisions_owner, [])
+
+        with pytest.raises(ValueError, match=r"page\.revisions\.page\.fullname must be a string"):
+            mock_page_with_id.revisions = revisions
+
+        assert mock_page_with_id._revisions is cached_revisions
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    def test_revisions_setter_rejects_malformed_retained_entry_page_fullname(self, mock_page_with_id: Page) -> None:
+        """revisionsセッターは壊れたentry page名を所有判定に使わない"""
+        cached_revision = _cached_page_revision(mock_page_with_id)
+        cached_revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        mock_page_with_id.revisions = cached_revisions
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+        revision_page = _other_page_like(mock_page_with_id, fullname=mock_page_with_id.fullname)
+        revision_page._id = mock_page_with_id._id
+        revision_page.fullname = cast(Any, 12345)
+        bad_revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        bad_revisions[0] = _cached_page_revision(revision_page, "bad revision owner")
+
+        with pytest.raises(ValueError, match=r"page\.revisions\.page\.fullname must be a string"):
+            mock_page_with_id.revisions = bad_revisions
+
+        assert mock_page_with_id._revisions is cached_revisions
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
     def test_votes_property_includes_page_context_when_retry_is_exhausted(self, mock_page_with_id: Page) -> None:
         """投票取得リトライが尽きた場合は対象サイト名とページ名を含めて失敗する"""
         mock_page_with_id.site.amc_request = MagicMock()

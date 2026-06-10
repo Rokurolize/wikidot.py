@@ -518,6 +518,28 @@ class TestPageInit:
         with pytest.raises(ValueError, match=r"page\.revisions must belong to the page"):
             _page(mock_site_no_http, _revisions=revisions)
 
+    def test_init_rejects_revisions_cache_with_malformed_retained_parent_page_fullname(
+        self, mock_site_no_http: Any
+    ) -> None:
+        revisions_owner = _page(mock_site_no_http, _id=371)
+        revisions_owner.fullname = cast(Any, 371)
+        revisions = PageRevisionCollection(revisions_owner, [])
+
+        with pytest.raises(ValueError, match=r"page\.revisions\.page\.fullname must be a string"):
+            _page(mock_site_no_http, _id=371, _revisions=revisions)
+
+    def test_init_rejects_revisions_cache_entry_with_malformed_retained_page_fullname(
+        self, mock_site_no_http: Any
+    ) -> None:
+        revisions_owner = _page(mock_site_no_http, _id=371)
+        revisions: Any = PageRevisionCollection(revisions_owner, [_page_revision(revisions_owner)])
+        revision_page = _page(mock_site_no_http, _id=371)
+        revision_page.fullname = cast(Any, 371)
+        revisions[0] = _page_revision(revision_page, 101)
+
+        with pytest.raises(ValueError, match=r"page\.revisions\.page\.fullname must be a string"):
+            _page(mock_site_no_http, _id=371, _revisions=revisions)
+
     def test_init_accepts_valid_optional_votes(self, mock_site_no_http: Any) -> None:
         page_without_votes = _page(mock_site_no_http)
         votes_owner = _page(mock_site_no_http)

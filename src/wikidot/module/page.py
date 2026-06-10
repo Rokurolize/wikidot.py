@@ -242,9 +242,9 @@ def _validate_source_cache_belongs_to_page(page: "Page", source: PageSource) -> 
 def _validate_revisions_cache_belongs_to_page(page: "Page", revisions: PageRevisionCollection) -> None:
     message = "page.revisions must belong to the page"
     if revisions.page is not None:
-        _validate_page_cache_owner(page, revisions.page, message)
+        _validate_page_cache_owner(page, revisions.page, message, "page.revisions.page.fullname")
     for revision in revisions:
-        _validate_page_cache_owner(page, revision.page, message)
+        _validate_page_cache_owner(page, revision.page, message, "page.revisions.page.fullname")
 
 
 def _validate_page_revisions(page: "Page", value: object) -> PageRevisionCollection:
