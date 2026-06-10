@@ -258,7 +258,7 @@ def _parse_thread_list_thread_id(
         parse_context = _thread_list_parse_context(site, category, row_index, page, field="id", value=href_text)
         raise NoElementException(f"Thread ID is malformed {parse_context}")
 
-    thread_id_match = re.search(r"(?:^|/)t-(\d+)(?=[/?#]|$)", href_parts.path)
+    thread_id_match = re.search(r"(?:^|/)t-([0-9]+)(?=[/?#]|$)", href_parts.path)
     if thread_id_match is not None:
         return int(thread_id_match.group(1))
 

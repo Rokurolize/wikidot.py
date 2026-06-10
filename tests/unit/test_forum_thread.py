@@ -706,6 +706,30 @@ class TestForumThreadCollectionAcquireAll:
         ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
 
+    def test_acquire_all_rejects_non_ascii_digit_thread_href_id(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """スレッドhref内IDが非ASCII数字の場合は正規化して採用しない"""
+        fullwidth_thread_id = "\uff13\uff10\uff10\uff11"
+        href = f"/forum/t-{fullwidth_thread_id}/test-thread"
+        body = forum_threads_in_category["body"].replace(
+            '<a href="/forum/t-3001/test-thread">Test Thread</a>',
+            f'<a href="{href}">Test Thread</a>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Thread ID is malformed for site: test-site "
+                rf"\(category=1001, page=1, row=1, field=id, value={re.escape(href)}\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
     @pytest.mark.parametrize(
         "href",
         [
