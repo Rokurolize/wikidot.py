@@ -10,6 +10,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
+from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup, Tag
 from typing_extensions import Self
@@ -301,14 +302,21 @@ class PrivateMessageCollection(list["PrivateMessage"]):
     def _parse_message_list_message_id(module_name: str, page: int, row_index: int, data_href: object) -> int:
         data_href_text = str(data_href)
         parse_context = PrivateMessageCollection._message_list_parse_context(module_name, page, row_index)
-        message_id_match = re.search(r"(?:^|/)(\d+)/?(?:[?#].*)?$", data_href_text)
-        if message_id_match is not None:
-            return int(message_id_match.group(1))
-
-        if re.search(r"\d+", data_href_text) is not None:
+        data_href_parts = urlsplit(data_href_text)
+        data_href_host = data_href_parts.hostname.lower() if data_href_parts.hostname is not None else None
+        message_id_match = re.fullmatch(r"/?account/messages/view/(\d+)/?", data_href_parts.path)
+        if re.search(r"\d+", data_href_text) is not None and (
+            data_href_parts.scheme not in ("", "http", "https")
+            or (data_href_parts.scheme in ("http", "https") and data_href_parts.netloc == "")
+            or (data_href_parts.netloc != "" and data_href_host != "www.wikidot.com")
+            or message_id_match is None
+        ):
             raise exceptions.NoElementException(
                 f"Message ID is malformed in data-href: {data_href_text} {parse_context}"
             )
+
+        if message_id_match is not None:
+            return int(message_id_match.group(1))
 
         raise exceptions.NoElementException(f"Message ID is not found in data-href: {data_href_text} {parse_context}")
 

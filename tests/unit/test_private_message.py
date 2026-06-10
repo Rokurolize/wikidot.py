@@ -4,6 +4,7 @@
 PrivateMessage, PrivateMessageCollection, PrivateMessageInbox, PrivateMessageSentBoxクラスをテストする。
 """
 
+import re
 from datetime import datetime
 from typing import Any, cast
 from unittest.mock import MagicMock, create_autospec, patch
@@ -833,6 +834,54 @@ class TestPrivateMessageCollection:
             PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
 
         mock_from_ids.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "data_href",
+        [
+            "http://example.com/account/messages/view/123",
+            "https://other-site.wikidot.com/account/messages/view/123",
+            "http:account/messages/view/123",
+            "javascript:/account/messages/view/123",
+            "mailto:account/messages/view/123",
+            "/account/messages/read/123",
+            "/other/messages/view/123",
+        ],
+    )
+    def test_acquire_rejects_malformed_message_href_routes(self, mock_client, data_href: str):
+        """メッセージdata-hrefがWikidotダッシュボード閲覧経路でない場合は埋め込みIDを採用しない"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": f'<table><tr class="message" data-href="{data_href}"></tr></table>'}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(
+                NoElementException,
+                match=rf"Message ID is malformed in data-href: {re.escape(data_href)} "
+                r"for module: dashboard/messages/DMInboxModule \(page=1, row=1\)",
+            ),
+        ):
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+        mock_from_ids.assert_not_called()
+
+    def test_acquire_preserves_wikidot_absolute_message_href(self, mock_client):
+        """Wikidotダッシュボードの絶対URL data-href は既存どおりメッセージIDとして扱う"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": (
+                '<table><tr class="message" '
+                'data-href="https://www.wikidot.com/account/messages/view/123?from=list#row"></tr></table>'
+            )
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with patch.object(
+            PrivateMessageCollection, "from_ids", return_value=PrivateMessageCollection([])
+        ) as mock_from_ids:
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+        mock_from_ids.assert_called_once_with(mock_client, [123])
 
     def test_acquire_ignores_non_numeric_pager_targets(self, mock_client):
         """数値ページがないpagerでは単一ページとして扱う"""
