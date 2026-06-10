@@ -2240,6 +2240,59 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request.assert_not_called()
         assert mock_page_with_id._votes is None
 
+    def test_acquire_votes_accepts_ascii_integer_vote_value(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+        page_whorated: dict[str, Any],
+    ) -> None:
+        """WhoRatedのASCII整数vote値は従来通り採用する"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        body = page_whorated["body"].replace(
+            "+              </span>",
+            "5              </span>",
+            1,
+        )
+        response = self._json_response({**page_whorated, "body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection.get_page_votes()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._votes is not None
+        assert [vote.value for vote in mock_page_with_id._votes] == [5, 1, -1]
+
+    def test_acquire_votes_rejects_non_ascii_digit_vote_value(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+        page_whorated: dict[str, Any],
+    ) -> None:
+        """WhoRatedのvote値はUnicode数字を通常整数へ正規化しない"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        fullwidth_vote = "\uff11"
+        body = page_whorated["body"].replace(
+            "+              </span>",
+            f"{fullwidth_vote}              </span>",
+            1,
+        )
+        response = self._json_response({**page_whorated, "body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                rf"WhoRated vote value is malformed for site: test-site, page: test-page "
+                rf"\(id={mock_page_with_id.id}, field=vote_value, value={fullwidth_vote}\)"
+            ),
+        ):
+            collection.get_page_votes()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._votes is None
+
     def test_acquire_votes_malformed_user_includes_site_page_and_value_context(
         self,
         mock_site_no_http: Site,

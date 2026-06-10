@@ -554,6 +554,11 @@ def _parse_who_rated_vote_value(site: "Site", page: "Page", value: object) -> in
         return 1
     if value_text == "-":
         return -1
+    if re.fullmatch(r"[+-]?[0-9]+", value_text) is None:
+        raise exceptions.NoElementException(
+            f"WhoRated vote value is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, field=vote_value, value={value_text})"
+        )
     try:
         return int(value_text)
     except ValueError as exc:
