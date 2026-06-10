@@ -769,6 +769,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [763-pr-validate-forum-thread-list-post-count-ascii-shape.md](763-pr-validate-forum-thread-list-post-count-ascii-shape.md): upstream PR draft for the committed forum thread-list post-count ASCII-shape validation fix.
 - [764-pr-validate-quickmodule-user-id-ascii-shape.md](764-pr-validate-quickmodule-user-id-ascii-shape.md): upstream PR draft for the committed QuickModule user ID ASCII-shape validation fix.
 - [765-pr-validate-forum-post-edit-revision-ascii-shape.md](765-pr-validate-forum-post-edit-revision-ascii-shape.md): upstream PR draft for the committed forum post edit-form revision ID ASCII-shape validation fix.
+- [766-pr-validate-profile-id-href-ascii-shape.md](766-pr-validate-profile-id-href-ascii-shape.md): upstream PR draft for the committed profile ID href ASCII-shape validation fix.
 
 ## Local Evidence Index
 
@@ -1446,5 +1447,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 668: `e7f85be fix(forum_thread): validate list count ascii shape`
 - Local implementation commits, continued 669: `04a8af2 fix(quickmodule): validate user id ascii shape`
 - Local implementation commits, continued 670: `16ae334 fix(forum_post): validate edit revision ascii shape`
+- Local implementation commits, continued 671: `4135cb7 fix(user): validate profile id href ascii shape`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
