@@ -778,6 +778,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [772-pr-validate-whorated-vote-value-ascii-shape.md](772-pr-validate-whorated-vote-value-ascii-shape.md): upstream PR draft for the committed WhoRated vote-value ASCII-shape validation fix.
 - [773-pr-validate-rating-points-ascii-shape.md](773-pr-validate-rating-points-ascii-shape.md): upstream PR draft for the committed page rating points ASCII-shape validation fix.
 - [774-pr-validate-listpages-rating-percent-ascii-shape.md](774-pr-validate-listpages-rating-percent-ascii-shape.md): upstream PR draft for the committed ListPages rating-percent ASCII-shape validation fix.
+- [775-pr-validate-page-file-size-finite.md](775-pr-validate-page-file-size-finite.md): upstream PR draft for the committed page-file finite-size validation fix.
 
 ## Local Evidence Index
 
@@ -1464,5 +1465,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 677: `217e73e fix(page): reject non-ascii whorated vote digits`
 - Local implementation commits, continued 678: `5b8a8a0 fix(page): validate rating points ascii shape`
 - Local implementation commits, continued 679: `c040164 fix(page): validate rating percent ascii shape`
+- Local implementation commits, continued 680: `4bdb400 fix(page_file): validate finite file sizes`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
