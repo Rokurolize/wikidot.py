@@ -5769,6 +5769,23 @@ class TestPageCreateOrEdit:
         malformed_site.client.login_check.assert_not_called()
         malformed_site.amc_request.assert_not_called()
 
+    def test_create_or_edit_rejects_mutated_site_client_before_login(self, mock_site_no_http: Site) -> None:
+        """create_or_editは保持Siteのclient差し替えもログイン前に拒否する"""
+        malformed_client = MagicMock()
+        mock_site_no_http.client = cast(Any, malformed_client)
+        mock_site_no_http.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="client must be a Client"):
+            Page.create_or_edit(
+                mock_site_no_http,
+                "new-page",
+                title="New Page",
+                source="Page content",
+            )
+
+        malformed_client.login_check.assert_not_called()
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_edit_not_logged_in(self, mock_site_no_http: Site) -> None:
         """ログインしていない場合に例外"""
         mock_site_no_http.client.is_logged_in = False

@@ -981,8 +981,9 @@ class SitePageAccessor:
         comment = _validate_page_text_field("comment", comment)
         force_edit = _validate_page_bool_field("force_edit", force_edit)
         site = _validate_site_accessor_site(self.site)
+        client = _validate_site_client(site.client)
 
-        site.client.login_check()
+        client.login_check()
 
         if force_edit:
             existing_page = self.get(fullname, raise_when_not_found=False)
@@ -1117,8 +1118,9 @@ class SitePageAccessor:
         if parent_updated:
             parent_value = _normalize_parent_fullname(parent_fullname)
         site = _validate_site_accessor_site(self.site)
+        client = _validate_site_client(site.client)
 
-        site.client.login_check()
+        client.login_check()
 
         existing_page = self.get(fullname, raise_when_not_found=False)
         if existing_page is None:

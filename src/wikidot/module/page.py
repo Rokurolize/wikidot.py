@@ -24,6 +24,7 @@ from .page_source import PageSource, extract_page_source_text
 from .page_votes import PageVote, PageVoteCollection
 
 if TYPE_CHECKING:
+    from .client import Client
     from .forum_thread import ForumThread
     from .page_file import PageFileCollection
     from .site import Site
@@ -354,6 +355,14 @@ def _validate_page_site(site: object) -> "Site":
     if not isinstance(site, Site):
         raise ValueError("site must be a Site")
     return site
+
+
+def _validate_page_site_client(site: "Site") -> "Client":
+    from .client import Client
+
+    if not isinstance(site.client, Client):
+        raise ValueError("client must be a Client")
+    return site.client
 
 
 def _validate_page_collection_site(site: object) -> "Site":
@@ -2837,8 +2846,9 @@ class Page:
         force_edit = _validate_page_bool_field("force_edit", force_edit)
         raise_on_exists = _validate_page_bool_field("raise_on_exists", raise_on_exists)
         site = _validate_page_site(site)
+        client = _validate_page_site_client(site)
 
-        site.client.login_check()
+        client.login_check()
 
         # ページロックを取得しにいく
         page_lock_request_body = {
