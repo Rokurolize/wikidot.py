@@ -3042,14 +3042,17 @@ class Page:
         """
         parent_value = _normalize_parent_fullname(parent_fullname)
         site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
         site.client.login_check()
+        if page_id is None:
+            page_id = self.id
         response = site.amc_request(
             [
                 {
                     "action": "WikiPageAction",
                     "event": "setParentPage",
                     "moduleName": "Empty",
-                    "pageId": str(self.id),
+                    "pageId": str(page_id),
                     "parentName": parent_value or "",
                 }
             ]

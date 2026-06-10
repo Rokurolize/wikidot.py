@@ -3796,6 +3796,37 @@ class TestPageWriteMethods:
         malformed_site.amc_request.assert_not_called()
         assert mock_page_with_id.parent_fullname == "old-parent"
 
+    @pytest.mark.parametrize("invalid_page_id", [True, False, "12345", 12345.0, []])
+    def test_set_parent_rejects_malformed_retained_page_ids_before_login(
+        self, mock_page_with_id: Page, invalid_page_id: Any
+    ) -> None:
+        """親ページ更新時のretained page id型不正はログイン確認やAMC更新前に拒否する"""
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._id = cast(Any, invalid_page_id)
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be an integer"):
+            mock_page_with_id.set_parent("new-parent")
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.parent_fullname == "old-parent"
+
+    def test_set_parent_rejects_negative_retained_page_id_before_login(self, mock_page_with_id: Page) -> None:
+        """親ページ更新時の負のretained page idはログイン確認やAMC更新前に拒否する"""
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._id = -1
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be non-negative"):
+            mock_page_with_id.set_parent("new-parent")
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id.parent_fullname == "old-parent"
+
     def test_set_parent_missing_action_status_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
         """親ページ更新応答のstatus欠落は文脈付きで失敗しローカル状態を更新しない"""
         mock_page_with_id.parent_fullname = "old-parent"
