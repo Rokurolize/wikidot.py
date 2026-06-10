@@ -5,6 +5,7 @@ This module provides classes and functionality related to Wikidot site members.
 It enables operations such as retrieving member information and changing permissions.
 """
 
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -58,6 +59,19 @@ def _member_parse_context(
 
     detail_text = ", ".join([f"row: {row_index}", *(f"{key}={value}" for key, value in details.items())])
     return f"{context}, {detail_text}"
+
+
+def _parse_member_pager_page(site: "Site", group_label: str, page_text: str) -> int | None:
+    if re.fullmatch(r"[0-9]+", page_text) is not None:
+        return int(page_text)
+
+    if page_text.isdigit():
+        raise NoElementException(
+            "Site member pager page is malformed "
+            f"for site: {site.unix_name}, group: {group_label}, page: 1 (field=page, value={page_text})"
+        )
+
+    return None
 
 
 def _parse_member_user(
@@ -348,8 +362,9 @@ class SiteMember:
         last_page = 1
         for link in reversed(pager.select("a")):
             page_text = link.get_text(strip=True)
-            if page_text.isdigit():
-                last_page = int(page_text)
+            parsed_page = _parse_member_pager_page(site, group_label, page_text)
+            if parsed_page is not None:
+                last_page = parsed_page
                 break
         if last_page == 1:
             return members

@@ -641,6 +641,42 @@ class TestSiteMemberGet:
             site.amc_request.assert_not_called()
             site.amc_request_with_retry.assert_called_once()
 
+    def test_get_members_rejects_non_ascii_digit_pager_page(self):
+        """メンバー一覧pagerのページ番号はASCII数字だけを受け入れる"""
+        site = _site()
+        site.unix_name = "test-site"
+        fullwidth_page = "\uff12"
+        response = self._members_response(
+            f"""
+                <table>
+                    <tr>
+                        <td><span class="printuser">
+                            <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                        </span></td>
+                    </tr>
+                </table>
+                <div class="pager"><a href="#">1</a><a href="#">{fullwidth_page}</a></div>
+            """
+        )
+        site.amc_request_with_retry.return_value = (response,)
+
+        with (
+            patch("wikidot.module.site_member.user_parser") as mock_user_parser,
+            pytest.raises(
+                NoElementException,
+                match=(
+                    rf"Site member pager page is malformed for site: test-site, group: members, page: 1 "
+                    rf"\(field=page, value={fullwidth_page}\)"
+                ),
+            ),
+        ):
+            mock_user_parser.return_value = _member_user(client=site.client)
+            SiteMember.get(site, "")
+
+        site.amc_request.assert_not_called()
+        site.amc_request_with_retry.assert_called_once()
+        assert mock_user_parser.call_count == 1
+
     def test_get_members_ignores_member_row_pager_markup(self):
         """メンバー行内のpager風マークアップをページネーションとして扱わない"""
         site = _site()
