@@ -3141,14 +3141,17 @@ class Page:
         value = _validate_page_vote_value(value)
 
         site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
         site.client.login_check()
+        if page_id is None:
+            page_id = self.id
         response = site.amc_request(
             [
                 {
                     "action": "RateAction",
                     "event": "ratePage",
                     "moduleName": "Empty",
-                    "pageId": self.id,
+                    "pageId": page_id,
                     "points": value,
                     "force": "yes",
                 }
