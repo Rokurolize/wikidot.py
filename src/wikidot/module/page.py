@@ -2408,7 +2408,7 @@ class Page:
                 from .forum_thread import ForumThread
 
                 thread_id_value = match.group(1).strip()
-                if not thread_id_value.isdigit():
+                if re.fullmatch(r"[0-9]+", thread_id_value) is None:
                     raise exceptions.NoElementException(
                         f"Page discussion thread ID is malformed for site: {site.unix_name}, "
                         f"page: {self.fullname} "

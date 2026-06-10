@@ -345,7 +345,7 @@ def _parse_thread_detail_thread_id(
     site: "Site", thread_id: int | None, category: Optional["ForumCategory"], value: object
 ) -> int:
     value_text = str(value).strip()
-    if re.fullmatch(r"\d+", value_text) is None:
+    if re.fullmatch(r"[0-9]+", value_text) is None:
         parse_context = _thread_detail_parse_context(site, thread_id, category, field="thread_id", value=value_text)
         raise NoElementException(f"Forum thread detail ID is malformed {parse_context}")
     return int(value_text)

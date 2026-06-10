@@ -1210,6 +1210,30 @@ class TestForumThreadCollectionAcquireFromIds:
 
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_from_ids_rejects_non_ascii_digit_script_thread_id(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """スレッド詳細script内IDはUnicode数字を通常IDへ正規化しない"""
+        fullwidth_thread_id = "\uff13\uff10\uff10\uff11"
+        body = forum_thread_detail["body"].replace(
+            "WIKIDOT.forumThreadId = 3001;", f"WIKIDOT.forumThreadId = {fullwidth_thread_id};", 1
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread detail ID is malformed for site: test-site "
+                rf"\(thread=3001, field=thread_id, value={fullwidth_thread_id}\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_acquire_from_ids_malformed_user_includes_thread_and_value_context(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
     ) -> None:

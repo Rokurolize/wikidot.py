@@ -3017,6 +3017,31 @@ class TestPageProperties:
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id._discussion_checked is False
 
+    def test_discussion_rejects_non_ascii_digit_thread_id(
+        self, monkeypatch: pytest.MonkeyPatch, mock_page_with_id: Page
+    ) -> None:
+        """コメントスレッドIDはUnicode数字を通常IDへ正規化しない"""
+        from wikidot.module.forum_thread import ForumThread
+
+        fullwidth_thread_id = "\uff13\uff10\uff10\uff11"
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": f"WIKIDOT.forumThreadId = {fullwidth_thread_id};"}
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+        get_from_id = MagicMock()
+        monkeypatch.setattr(ForumThread, "get_from_id", get_from_id)
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=rf"Page discussion thread ID is malformed for site: test-site, page: test-page "
+            rf"\(id={mock_page_with_id.id}, field=thread_id, value={fullwidth_thread_id}\)",
+        ):
+            _ = mock_page_with_id.discussion
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        get_from_id.assert_not_called()
+        assert mock_page_with_id._discussion_checked is False
+
     def test_discussion_rejects_malformed_site_before_request(self, mock_page_with_id: Page) -> None:
         """discussionのsite型異常はAMCやchecked更新前に拒否する"""
         malformed_site = MagicMock()
