@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, call
 
@@ -704,6 +705,55 @@ class TestForumThreadCollectionAcquireAll:
             ),
         ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+    @pytest.mark.parametrize(
+        "href",
+        [
+            "http://example.com/forum/t-3001/test-thread",
+            "https://other-site.wikidot.com/forum/t-3001/test-thread",
+            "http:forum/t-3001/test-thread",
+            "javascript:/forum/t-3001/test-thread",
+            "mailto:forum/t-3001/test-thread",
+        ],
+    )
+    def test_acquire_all_rejects_malformed_thread_href_routes(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any], href: str
+    ) -> None:
+        """スレッドhrefが対象サイトのフォーラム経路でない場合は埋め込みIDを採用しない"""
+        body = forum_threads_in_category["body"].replace(
+            '<a href="/forum/t-3001/test-thread">Test Thread</a>',
+            f'<a href="{href}">Test Thread</a>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Thread ID is malformed for site: test-site "
+                rf"\(category=1001, page=1, row=1, field=id, value={re.escape(href)}\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+    def test_acquire_all_preserves_same_site_absolute_thread_href(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """同一サイトの絶対URLスレッドhrefは既存どおりスレッドIDとして扱う"""
+        body = forum_threads_in_category["body"].replace(
+            '<a href="/forum/t-3001/test-thread">Test Thread</a>',
+            '<a href="http://test-site.wikidot.com/forum/t-3001/test-thread?from=start#top">Test Thread</a>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        assert collection[0].id == 3001
 
     def test_acquire_all_missing_name_cell_class_includes_category_context(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]

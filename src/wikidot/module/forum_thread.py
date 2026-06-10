@@ -10,6 +10,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
+from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 
@@ -244,7 +245,20 @@ def _parse_thread_list_thread_id(
     site: "Site", category: Optional["ForumCategory"], row_index: int, page: int | None, href: object
 ) -> int:
     href_text = str(href)
-    thread_id_match = re.search(r"(?:^|/)t-(\d+)(?=[/?#]|$)", href_text)
+    thread_id_candidate = re.search(r"(?:^|/)t-\d+", href_text)
+    href_parts = urlsplit(href_text)
+    href_host = href_parts.hostname.lower() if href_parts.hostname is not None else None
+    site_domain = getattr(site, "domain", None)
+    site_host = site_domain.lower() if isinstance(site_domain, str) else None
+    if thread_id_candidate is not None and (
+        href_parts.scheme not in ("", "http", "https")
+        or (href_parts.scheme in ("http", "https") and href_parts.netloc == "")
+        or (href_parts.netloc != "" and href_host != site_host)
+    ):
+        parse_context = _thread_list_parse_context(site, category, row_index, page, field="id", value=href_text)
+        raise NoElementException(f"Thread ID is malformed {parse_context}")
+
+    thread_id_match = re.search(r"(?:^|/)t-(\d+)(?=[/?#]|$)", href_parts.path)
     if thread_id_match is not None:
         return int(thread_id_match.group(1))
 
