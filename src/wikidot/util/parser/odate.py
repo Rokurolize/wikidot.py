@@ -29,7 +29,7 @@ def odate_parse(odate_element: bs4.Tag) -> datetime:
             if not odate_class.startswith("time_"):
                 raise ValueError(f"odate unix time is malformed: {odate_class}")
             unix_timestamp = odate_class.removeprefix("time_")
-            if not unix_timestamp.isdecimal():
+            if not unix_timestamp.isascii() or not unix_timestamp.isdecimal():
                 raise ValueError(f"odate unix time is malformed: {odate_class}")
             unix_time = int(unix_timestamp)
             return datetime.fromtimestamp(unix_time)

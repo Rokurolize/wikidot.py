@@ -77,6 +77,16 @@ class TestOdateParse:
         with pytest.raises(ValueError, match=rf"odate unix time is malformed: {time_class}"):
             odate_parse(elem)
 
+    def test_parse_odate_with_non_ascii_decimal_time_payload_raises(self) -> None:
+        """Non-ASCII decimal glyphs are not valid generated timestamp payloads."""
+        time_class = "time_\uff11\uff17\uff10\uff12\uff18\uff11\uff14\uff14\uff10\uff10"
+        soup = BeautifulSoup(f'<span class="odate {time_class}">Dec 17 2023</span>', "lxml")
+        elem = soup.select_one("span.odate")
+        assert elem is not None
+
+        with pytest.raises(ValueError, match=rf"odate unix time is malformed: {time_class}"):
+            odate_parse(elem)
+
     def test_parse_odate_recent_timestamp(self, odate_html_factory: Callable[[int], str]) -> None:
         """最近のタイムスタンプをパースできる"""
         # 2024-01-01 00:00:00 UTC = 1704067200
