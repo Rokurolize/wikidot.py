@@ -1954,6 +1954,24 @@ class TestSitePageAccessor:
             mock_site_no_http.page.get.assert_not_called()
             create_or_edit.assert_not_called()
 
+    @pytest.mark.parametrize("invalid_interval", [float("nan"), float("inf")])
+    def test_publish_post_save_visibility_interval_must_be_finite_before_save(
+        self, mock_site_no_http: Site, invalid_interval: float
+    ) -> None:
+        """publishのvisibility待機間隔は保存前に有限値として検証する"""
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock()
+
+        with (
+            patch.object(Page, "create_or_edit") as create_or_edit,
+            pytest.raises(ValueError, match="post_save_visibility_interval must be non-negative"),
+        ):
+            mock_site_no_http.page.publish("new-page", post_save_visibility_interval=invalid_interval)
+
+        mock_site_no_http.client.login_check.assert_not_called()
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_not_called()
+
     @pytest.mark.parametrize(
         ("kwargs", "message"),
         [

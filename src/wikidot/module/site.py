@@ -1,3 +1,4 @@
+import math
 import re
 import sys
 import time
@@ -1000,9 +1001,10 @@ class SitePageAccessor:
     def _validate_post_save_visibility_interval(value: object) -> float:
         if not isinstance(value, int | float) or isinstance(value, bool):
             raise ValueError("post_save_visibility_interval must be a number")
-        if value < 0:
+        interval = float(value)
+        if not math.isfinite(interval) or interval < 0:
             raise ValueError("post_save_visibility_interval must be non-negative")
-        return float(value)
+        return interval
 
     def publish(
         self,
