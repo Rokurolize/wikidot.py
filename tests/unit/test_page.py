@@ -4908,6 +4908,56 @@ class TestPageWriteMethods:
         assert mock_page_with_id.parent_fullname == "old-parent"
         assert mock_page_with_id._metas == {"keep": "same"}
 
+    @pytest.mark.parametrize("page_id", [True, False, "12345", 12345.0, []])
+    def test_set_metadata_rejects_malformed_retained_page_ids_before_login(
+        self, mock_page_with_id: Page, page_id: object
+    ) -> None:
+        """metadata一括更新時の保持済みpage id型異常はログイン確認前に拒否する"""
+        bad_page_id = page_id
+        mock_page_with_id._id = cast(Any, bad_page_id)
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {"keep": "same"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be an integer"):
+            mock_page_with_id.set_metadata(
+                tags=["new-tag"],
+                parent_fullname="new-parent",
+                metas={"keep": "same", "add": "new"},
+            )
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id is bad_page_id
+        assert mock_page_with_id.tags == ["old-tag"]
+        assert mock_page_with_id.parent_fullname == "old-parent"
+        assert mock_page_with_id._metas == {"keep": "same"}
+
+    def test_set_metadata_rejects_negative_retained_page_id_before_login(self, mock_page_with_id: Page) -> None:
+        """metadata一括更新時の負の保持済みpage idはログイン確認前に拒否する"""
+        mock_page_with_id._id = -1
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {"keep": "same"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        with pytest.raises(ValueError, match="page.id must be non-negative"):
+            mock_page_with_id.set_metadata(
+                tags=["new-tag"],
+                parent_fullname="new-parent",
+                metas={"keep": "same", "add": "new"},
+            )
+
+        mock_page_with_id.site.client.login_check.assert_not_called()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._id == -1
+        assert mock_page_with_id.tags == ["old-tag"]
+        assert mock_page_with_id.parent_fullname == "old-parent"
+        assert mock_page_with_id._metas == {"keep": "same"}
+
     def test_set_metadata_can_clear_parent(self, mock_page_with_id: Page) -> None:
         """parent_fullname=Noneを明示すると親ページをクリアする"""
         mock_page_with_id.parent_fullname = "old-parent"

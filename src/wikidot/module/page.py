@@ -2625,44 +2625,51 @@ class Page:
 
         self._metas = dict(value)
 
-    def _meta_update_request_bodies(self, value: dict[str, str]) -> list[dict[str, Any]]:
+    def _meta_update_request_bodies(self, value: dict[str, str], page_id: int | None = None) -> list[dict[str, Any]]:
         current_metas = self.metas
         deleted_metas = {k: v for k, v in current_metas.items() if k not in value}
         added_metas = {k: v for k, v in value.items() if k not in current_metas}
         updated_metas = {k: v for k, v in value.items() if k in current_metas and current_metas[k] != v}
 
         request_bodies: list[dict[str, Any]] = []
+        request_page_id = page_id
         for name, _content in deleted_metas.items():
+            if request_page_id is None:
+                request_page_id = self.id
             request_bodies.append(
                 {
                     "metaName": name,
                     "action": "WikiPageAction",
                     "event": "deleteMetaTag",
-                    "pageId": self.id,
+                    "pageId": request_page_id,
                     "moduleName": "edit/EditMetaModule",
                 }
             )
 
         for name, content in added_metas.items():
+            if request_page_id is None:
+                request_page_id = self.id
             request_bodies.append(
                 {
                     "metaName": name,
                     "metaContent": content,
                     "action": "WikiPageAction",
                     "event": "saveMetaTag",
-                    "pageId": self.id,
+                    "pageId": request_page_id,
                     "moduleName": "edit/EditMetaModule",
                 }
             )
 
         for name, content in updated_metas.items():
+            if request_page_id is None:
+                request_page_id = self.id
             request_bodies.append(
                 {
                     "metaName": name,
                     "metaContent": content,
                     "action": "WikiPageAction",
                     "event": "saveMetaTag",
-                    "pageId": self.id,
+                    "pageId": request_page_id,
                     "moduleName": "edit/EditMetaModule",
                 }
             )
@@ -2709,33 +2716,42 @@ class Page:
             metas = _validate_metas(metas)
 
         site = _validate_page_site(self.site)
+        page_id = (
+            _validate_retained_page_id(self)
+            if tags is not None or parent_fullname is not _UNSET_PARENT or metas is not None
+            else None
+        )
         site.client.login_check()
 
         request_bodies: list[dict[str, Any]] = []
         if tags is not None:
+            if page_id is None:
+                page_id = self.id
             request_bodies.append(
                 {
                     "tags": " ".join(tags),
                     "action": "WikiPageAction",
                     "event": "saveTags",
-                    "pageId": self.id,
+                    "pageId": page_id,
                     "moduleName": "Empty",
                 }
             )
 
         if parent_fullname is not _UNSET_PARENT:
+            if page_id is None:
+                page_id = self.id
             request_bodies.append(
                 {
                     "action": "WikiPageAction",
                     "event": "setParentPage",
                     "moduleName": "Empty",
-                    "pageId": str(self.id),
+                    "pageId": str(page_id),
                     "parentName": parent_value or "",
                 }
             )
 
         if metas is not None:
-            request_bodies.extend(self._meta_update_request_bodies(metas))
+            request_bodies.extend(self._meta_update_request_bodies(metas, page_id))
 
         if request_bodies:
             responses = site.amc_request(request_bodies)
