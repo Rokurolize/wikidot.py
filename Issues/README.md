@@ -774,6 +774,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [768-pr-validate-listpages-rating-float-shape.md](768-pr-validate-listpages-rating-float-shape.md): upstream PR draft for the committed ListPages rating float-shape validation fix.
 - [769-pr-validate-odate-time-class-ascii-payload.md](769-pr-validate-odate-time-class-ascii-payload.md): upstream PR draft for the committed odate time-class ASCII-payload validation fix.
 - [770-pr-validate-publish-visibility-interval-finite.md](770-pr-validate-publish-visibility-interval-finite.md): upstream PR draft for the committed publish visibility interval finite-value validation fix.
+- [771-pr-cap-backoff-before-overflow.md](771-pr-cap-backoff-before-overflow.md): upstream PR draft for the committed retry backoff overflow capping fix.
 
 ## Local Evidence Index
 
@@ -1456,5 +1457,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 673: `391ed7e fix(page): validate listpages rating float shape`
 - Local implementation commits, continued 674: `2df1690 fix(odate): validate time class ascii payload`
 - Local implementation commits, continued 675: `c21549f fix(site): validate finite publish visibility interval`
+- Local implementation commits, continued 676: `f54cbcf fix(http): cap backoff after overflow`, `a496a64 fix(http): preserve capped backoff jitter`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
