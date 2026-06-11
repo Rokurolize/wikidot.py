@@ -67,6 +67,22 @@ class TestUserParserRegularUser:
 
         assert str(exc_info.value) == f"user id is malformed: {fullwidth_user_id}"
 
+    def test_parse_regular_user_rejects_trailing_onclick_action_text(self, mock_client_no_http: MagicMock) -> None:
+        """通常ユーザーのonclickは既知のuserInfo文だけを受け入れる"""
+        onclick = "WIKIDOT.page.listeners.userInfo(12345); return false; extraAction()"
+        html = (
+            '<span class="printuser"><a href="http://www.wikidot.com/user:info/trailing-user" '
+            f'onclick="{onclick}">trailing-user</a></span>'
+        )
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        with pytest.raises(ValueError) as exc_info:
+            user_parse(mock_client_no_http, elem)
+
+        assert str(exc_info.value) == f"user onclick is malformed: {onclick}"
+
     def test_parse_regular_user_preserves_display_name_text_spacing(self, mock_client_no_http: MagicMock) -> None:
         """装飾要素を含む表示名の語境界を保持する"""
         html = """

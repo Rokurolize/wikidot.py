@@ -82,13 +82,21 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
         raise ValueError(f"user href is malformed: {href}")
     user_unix = user_unix_match.group(1)
     onclick = str(_user.get("onclick", ""))
-    user_id_match = re.search(r"userInfo\(([0-9]+)\)", onclick)
+    user_id_match = re.fullmatch(
+        r"\s*(?:WIKIDOT\.page\.listeners\.)?userInfo\(([0-9]+)\)(?:\s*;\s*return false;?)?\s*",
+        onclick,
+    )
     if user_id_match is None:
-        malformed_user_id_match = re.search(r"userInfo\(([^)]*)\)", onclick)
+        malformed_user_id_match = re.fullmatch(
+            r"\s*(?:WIKIDOT\.page\.listeners\.)?userInfo\(([^)]*)\)(?:\s*;\s*return false;?)?\s*",
+            onclick,
+        )
         if malformed_user_id_match is not None:
             raw_user_id = malformed_user_id_match.group(1)
             if raw_user_id.strip() != "":
                 raise ValueError(f"user id is malformed: {raw_user_id}")
+        if "userInfo(" in onclick:
+            raise ValueError(f"user onclick is malformed: {onclick}")
         raise ValueError("user id is not found")
     user_id = int(user_id_match.group(1))
 
