@@ -525,7 +525,14 @@ class ForumPostCollection(list["ForumPost"]):
 
     @staticmethod
     def _source_response_body(response: Any, post: "ForumPost", post_id: int) -> str:
-        body = response.json().get("body")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise NoElementException(
+                "Forum post source response payload is malformed "
+                f"for site: {post.thread.site.unix_name}, post: {post_id} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        body = data.get("body")
         if body is None:
             raise NoElementException(
                 f"Forum post source response body is not found for site: {post.thread.site.unix_name}, post: {post_id}"

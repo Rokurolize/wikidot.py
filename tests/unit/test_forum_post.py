@@ -1727,6 +1727,29 @@ class TestForumPostCollectionGetSources:
         assert mock_forum_post_no_http._source is None
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_get_post_sources_malformed_response_payload_type_includes_site_post_and_type_context(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """投稿ソース応答のpayload型異常はsite/post/type付きで失敗する"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post source response payload is malformed for site: test-site, post: 5001 "
+                r"\(expected=dict, actual=list\)"
+            ),
+        ):
+            collection.get_post_sources()
+
+        assert mock_forum_post_no_http._source is None
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_get_post_sources_retries_transient_fetch_failures(
         self,
         mock_forum_thread_no_http: ForumThread,
