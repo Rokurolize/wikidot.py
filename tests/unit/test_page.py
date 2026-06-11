@@ -4338,6 +4338,30 @@ class TestPageWriteMethods:
         assert mock_page_with_id.rating == 10
         assert mock_page_with_id._votes is not None
 
+    def test_vote_malformed_action_response_type_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
+        """投票応答のトップレベル型異常はローカル状態を更新しない"""
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not-ok"]
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page rating action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=ratePage, expected=dict, actual=list\)"
+            ),
+        ):
+            mock_page_with_id.vote(1)
+
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is not None
+        assert mock_page_with_id.site.amc_request.call_count == 1
+        assert mock_response.json.call_count == 1
+
     def test_vote_malformed_action_status_type_does_not_update_local_state(self, mock_page_with_id: Page) -> None:
         """投票応答のstatus型異常はpointsがあってもローカル状態を更新しない"""
         cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
