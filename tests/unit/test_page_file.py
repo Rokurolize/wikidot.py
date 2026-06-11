@@ -521,6 +521,33 @@ class TestPageFileCollectionAcquire:
         site.amc_request.assert_not_called()
         site.amc_request_with_retry.assert_called_once_with([{"moduleName": "files/PageFilesModule", "page_id": 12345}])
 
+    def test_acquire_malformed_response_payload_type_includes_page_context(self):
+        """直接ファイル一覧応答payload型異常はsite/page/type付きで失敗する"""
+        page = _page()
+        page.id = 12345
+        page.fullname = "test-page"
+        page._files = None
+        site = MagicMock()
+        site.unix_name = "test-site"
+        page.site = site
+        response = MagicMock()
+        response.json.return_value = ["not", "a", "mapping"]
+        site.amc_request = MagicMock()
+        site.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page file list response payload is malformed for site: test-site, page: test-page "
+                "\\(expected=dict, actual=list\\)"
+            ),
+        ):
+            PageFileCollection.acquire(page)
+
+        assert page._files is None
+        site.amc_request.assert_not_called()
+        site.amc_request_with_retry.assert_called_once_with([{"moduleName": "files/PageFilesModule", "page_id": 12345}])
+
     def test_acquire_success(self):
         """ファイル取得成功"""
         page = _page()

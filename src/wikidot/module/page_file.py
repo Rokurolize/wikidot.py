@@ -367,7 +367,14 @@ class PageFileCollection(list["PageFile"]):
                 f"Cannot retrieve page files for site: {page.site.unix_name}, page: {page.fullname}"
             )
 
-        body = response.json().get("body")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise exceptions.NoElementException(
+                "Page file list response payload is malformed "
+                f"for site: {page.site.unix_name}, page: {page.fullname} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        body = data.get("body")
         if body is None:
             raise exceptions.NoElementException(
                 f"Page file list response body is not found for site: {page.site.unix_name}, page: {page.fullname}"
