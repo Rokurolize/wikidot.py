@@ -1009,6 +1009,27 @@ class TestForumPostCollectionAcquireAll:
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_first_page_response_payload_type_includes_thread_and_page_context(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """初回投稿一覧応答のpayload型異常はsite/thread/page/type付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post list response payload is malformed for site: test-site, thread: 3001, page: 1 "
+                r"\(expected=dict, actual=list\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        assert mock_forum_thread_no_http._posts is None
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_acquire_all_ignores_content_pager_markup(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
@@ -1318,6 +1339,36 @@ class TestForumPostCollectionAcquireAll:
         ):
             ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
 
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_acquire_all_malformed_paginated_response_payload_type_includes_thread_and_page_context(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """追加投稿一覧応答のpayload型異常はsite/thread/page/type付きで失敗する"""
+        body_with_pager = (
+            forum_posts_in_thread["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target">2</span></div>'
+        )
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+        second_response = MagicMock()
+        second_response.json.return_value = ["not", "a", "mapping"]
+
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(
+            side_effect=[(first_response,), (second_response,)]
+        )
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post list response payload is malformed for site: test-site, thread: 3001, page: 2 "
+                r"\(expected=dict, actual=list\)"
+            ),
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        assert mock_forum_thread_no_http._posts is None
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
 
