@@ -851,6 +851,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [845-pr-validate-private-message-retry-response-counts.md](845-pr-validate-private-message-retry-response-counts.md): upstream PR draft for the committed private-message retry response-count validation fix.
 - [846-pr-validate-site-amc-retry-response-counts.md](846-pr-validate-site-amc-retry-response-counts.md): upstream PR draft for the committed site AMC retry response-count validation fix.
 - [847-pr-validate-page-metadata-response-counts.md](847-pr-validate-page-metadata-response-counts.md): upstream PR draft for the committed page metadata response-count validation fix.
+- [848-pr-validate-forum-category-create-response-count.md](848-pr-validate-forum-category-create-response-count.md): upstream PR draft for the committed forum category create response-count validation fix.
 
 ## Local Evidence Index
 
@@ -1588,5 +1589,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 728: `03e5c2f fix(private_message): validate retry response counts`
 - Local implementation commits, continued 729: `3257ba6 fix(site): validate retry response counts`
 - Local implementation commits, continued 730: `f484bc5 fix(page): validate metadata response counts`
+- Local implementation commits, continued 731: `00b6bbd fix(forum): validate thread create response count`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
