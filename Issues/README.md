@@ -813,6 +813,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [807-pr-validate-private-message-send-response-payload.md](807-pr-validate-private-message-send-response-payload.md): upstream PR draft for the committed private-message send response-payload validation fix.
 - [808-pr-validate-page-save-response-payload.md](808-pr-validate-page-save-response-payload.md): upstream PR draft for the committed page save response-payload validation fix.
 - [809-pr-validate-page-action-response-payload.md](809-pr-validate-page-action-response-payload.md): upstream PR draft for the committed direct page action response-payload validation fix.
+- [810-pr-validate-page-rating-response-payload.md](810-pr-validate-page-rating-response-payload.md): upstream PR draft for the committed page rating action response-payload validation fix.
 
 ## Local Evidence Index
 
@@ -1534,5 +1535,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 712: `504ccef fix(private_message): validate send response payload`
 - Local implementation commits, continued 713: `5999930 fix(page): validate save response payload`
 - Local implementation commits, continued 714: `bdeb19f fix(page): validate action response payload`
+- Local implementation commits, continued 715: `f5240c0 fix(page): validate rating response payload`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
