@@ -1030,6 +1030,31 @@ class TestSiteMemberChangeGroup:
         assert site._moderators is cached_moderators
         assert site._admins is cached_admins
 
+    def test_change_group_rejects_action_response_count_mismatch_before_parsing(self):
+        """権限変更応答の件数異常はpayload解析前に文脈付きで失敗する"""
+        site = _site()
+        site.unix_name = "test-site"
+        cached_moderators = [object()]
+        cached_admins = [object()]
+        site._moderators = cached_moderators
+        site._admins = cached_admins
+        site.amc_request.return_value = []
+        user = self._user(client=site.client)
+        member = SiteMember(site=site, user=user, joined_at=None)
+
+        with pytest.raises(
+            UnexpectedException,
+            match=(
+                r"Site member action response count mismatch for site: test-site, user: TestUser "
+                r"\(id=12345, event=toModerators, expected=1, actual=0\)"
+            ),
+        ):
+            member.to_moderator()
+
+        assert site.amc_request.call_count == 1
+        assert site._moderators is cached_moderators
+        assert site._admins is cached_admins
+
     def test_change_group_not_logged_in_raises_before_request(self):
         """未ログイン時は権限変更リクエストを送らない"""
         site = _site()

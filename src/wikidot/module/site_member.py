@@ -6,6 +6,7 @@ It enables operations such as retrieving member information and changing permiss
 """
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
@@ -147,6 +148,18 @@ def _require_site_member_action_status(member: "SiteMember", event: str, data: o
             status,
         )
     return status
+
+
+def _require_site_member_action_response_count(
+    member: "SiteMember", event: str, responses: Sequence[object], expected_count: int
+) -> None:
+    actual_count = len(responses)
+    if actual_count != expected_count:
+        raise UnexpectedException(
+            f"Site member action response count mismatch for site: {member.site.unix_name}, "
+            f"user: {member.user.name} "
+            f"(id={member.user.id}, event={event}, expected={expected_count}, actual={actual_count})"
+        )
 
 
 def _validate_site_member_user(user: object) -> AbstractUser:
@@ -469,7 +482,7 @@ class SiteMember:
         client.login_check()
 
         try:
-            response = site.amc_request(
+            responses = site.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
@@ -478,7 +491,9 @@ class SiteMember:
                         "moduleName": "",
                     }
                 ]
-            )[0]
+            )
+            _require_site_member_action_response_count(self, event, responses, 1)
+            response = responses[0]
             _require_site_member_action_status(self, event, response.json())
             if event in ("toModerators", "removeModerator"):
                 site._moderators = None
