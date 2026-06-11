@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 
 import pytest
 from bs4 import BeautifulSoup
@@ -51,6 +52,23 @@ class TestOdateParse:
         """time_クラスがない場合はValueErrorを発生させる"""
         soup = BeautifulSoup(odate_html_no_time, "lxml")
         elem = soup.select_one("span.odate")
+        assert elem is not None
+
+        with pytest.raises(ValueError) as exc_info:
+            odate_parse(elem)
+
+        assert "valid unix time" in str(exc_info.value)
+
+    @pytest.mark.parametrize("odate_element", [None, "not-tag", 123, object()])
+    def test_parse_odate_rejects_non_tag_inputs(self, odate_element: Any) -> None:
+        """bs4.Tag以外の入力は属性アクセス前に拒否する"""
+        with pytest.raises(ValueError, match="odate_element must be bs4.Tag"):
+            odate_parse(odate_element)
+
+    def test_parse_odate_without_class_attribute_raises_value_error(self) -> None:
+        """class属性がないタグはraw KeyErrorではなくodateパーサーエラーにする"""
+        soup = BeautifulSoup("<span>Dec 17 2023</span>", "lxml")
+        elem = soup.select_one("span")
         assert elem is not None
 
         with pytest.raises(ValueError) as exc_info:

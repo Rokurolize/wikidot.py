@@ -22,7 +22,10 @@ def odate_parse(odate_element: bs4.Tag) -> datetime:
         If the odate element does not contain a valid unix time
 
     """
-    _odate_classes = odate_element["class"]
+    if not isinstance(odate_element, bs4.Tag):
+        raise ValueError("odate_element must be bs4.Tag")
+
+    _odate_classes = odate_element.get("class", [])
     for _odate_class in _odate_classes:
         odate_class = str(_odate_class)
         if "time_" in odate_class:
