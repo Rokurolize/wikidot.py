@@ -771,6 +771,27 @@ class TestForumPostRevisionCollectionAcquireAll:
             ]
         )
 
+    def test_acquire_all_malformed_response_payload_type_includes_site_post_and_type_context(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """リビジョン一覧レスポンスのpayload型異常はsite/post/type付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Forum post revision list response payload is malformed for site: test-site, post: 5001 "
+                "\\(expected=dict, actual=list\\)"
+            ),
+        ):
+            ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        assert mock_forum_post_no_http._revisions is None
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+
     def test_acquire_all_malformed_response_body_type_includes_site_post_and_type_context(
         self, mock_forum_post_no_http: ForumPost
     ) -> None:
