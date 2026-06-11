@@ -341,7 +341,13 @@ def _parse_post_list_created_at(
         raise NoElementException(f"Forum post {field} is malformed {parse_context}") from exc
 
 
-def _require_forum_post_action_status(post: "ForumPost", event: str, data: dict[str, Any]) -> str:
+def _require_forum_post_action_status(post: "ForumPost", event: str, data: object) -> str:
+    if not isinstance(data, dict):
+        raise NoElementException(
+            f"Forum post action response is malformed for site: {post.thread.site.unix_name}, post: {post.id} "
+            f"(event={event}, expected=dict, actual={type(data).__name__})"
+        )
+
     try:
         status = data["status"]
     except KeyError as exc:
