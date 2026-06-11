@@ -380,6 +380,33 @@ class TestPageRevisionCollection:
             [{"moduleName": "history/PageSourceModule", "revision_id": 100}]
         )
 
+    def test_get_sources_malformed_response_payload_type_includes_site_page_revision_and_type_context(
+        self, mock_page, sample_revision
+    ):
+        """source response payload型不正はsite、対象ページ、リビジョンID、型を含める"""
+        mock_page.site.unix_name = "test-site"
+        mock_page.fullname = "test-page"
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Page revision source response payload is malformed for site: test-site, page: test-page, "
+                r"revision: 100 \(expected=dict, actual=list\)"
+            ),
+        ):
+            collection.get_sources()
+
+        assert sample_revision._source is None
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "history/PageSourceModule", "revision_id": 100}]
+        )
+
     def test_get_sources_malformed_response_body_type_includes_site_page_revision_and_type_context(
         self, mock_page, sample_revision
     ):
@@ -628,6 +655,33 @@ class TestPageRevisionCollection:
         with pytest.raises(
             NoElementException,
             match=r"Page revision HTML response body is not found for site: test-site, page: test-page, revision: 100",
+        ):
+            collection.get_htmls()
+
+        assert sample_revision._html is None
+        mock_page.site.amc_request.assert_not_called()
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "history/PageVersionModule", "revision_id": 100}]
+        )
+
+    def test_get_htmls_malformed_response_payload_type_includes_site_page_revision_and_type_context(
+        self, mock_page, sample_revision
+    ):
+        """HTML response payload型不正はsite、対象ページ、リビジョンID、型を含める"""
+        mock_page.site.unix_name = "test-site"
+        mock_page.fullname = "test-page"
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Page revision HTML response payload is malformed for site: test-site, page: test-page, "
+                r"revision: 100 \(expected=dict, actual=list\)"
+            ),
         ):
             collection.get_htmls()
 

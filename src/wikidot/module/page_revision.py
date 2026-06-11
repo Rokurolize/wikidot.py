@@ -309,7 +309,14 @@ class PageRevisionCollection(list["PageRevision"]):
         def process_source_response(
             response: httpx.Response, page: "Page", revision_id: int
         ) -> Callable[["PageRevision"], None]:
-            body = response.json().get("body")
+            data = response.json()
+            if not isinstance(data, dict):
+                raise NoElementException(
+                    f"Page revision source response payload is malformed for site: {page.site.unix_name}, "
+                    f"page: {page.fullname}, revision: {revision_id} "
+                    f"(expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
             if body is None:
                 raise NoElementException(
                     f"Page revision source response body is not found for site: {page.site.unix_name}, "
@@ -386,7 +393,14 @@ class PageRevisionCollection(list["PageRevision"]):
         def process_html_response(
             response: httpx.Response, page: "Page", revision_id: int
         ) -> Callable[["PageRevision"], None]:
-            body = response.json().get("body")
+            data = response.json()
+            if not isinstance(data, dict):
+                raise NoElementException(
+                    f"Page revision HTML response payload is malformed for site: {page.site.unix_name}, "
+                    f"page: {page.fullname}, revision: {revision_id} "
+                    f"(expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
             if body is None:
                 raise NoElementException(
                     f"Page revision HTML response body is not found for site: {page.site.unix_name}, "
