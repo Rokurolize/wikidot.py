@@ -1348,7 +1348,13 @@ class PageCollection(list["Page"]):
 
     @staticmethod
     def _listpages_response_body(site: "Site", response: httpx.Response, offset: int | None) -> str:
-        body = response.json().get("body")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise exceptions.NoElementException(
+                f"ListPages response payload is malformed for site: {site.unix_name}, offset: {offset} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        body = data.get("body")
         if body is None:
             raise exceptions.NoElementException(
                 f"ListPages response body is not found for site: {site.unix_name}, offset: {offset}"
