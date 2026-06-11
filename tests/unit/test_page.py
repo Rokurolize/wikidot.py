@@ -5436,6 +5436,99 @@ class TestPageWriteMethods:
         assert mock_page_with_id.parent_fullname == "old-parent"
         assert mock_page_with_id._metas == {"old": "value"}
 
+    @pytest.mark.parametrize(
+        ("operation", "event"),
+        [
+            ("destroy", "deletePage"),
+            ("commit_tags", "saveTags"),
+            ("set_parent", "setParentPage"),
+            ("rename", "renamePage"),
+            ("vote", "ratePage"),
+            ("cancel_vote", "cancelVote"),
+        ],
+    )
+    def test_single_action_write_methods_reject_response_count_mismatch_before_parsing(
+        self,
+        mock_page_with_id: Page,
+        operation: str,
+        event: str,
+    ) -> None:
+        """直接write系メソッドの単一action応答数不一致は解析前に拒否する"""
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        cached_votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {"old": "value"}
+        mock_page_with_id._source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id._revisions = PageRevisionCollection(
+            mock_page_with_id,
+            [
+                PageRevision(
+                    page=mock_page_with_id,
+                    id=1,
+                    rev_no=1,
+                    created_by=_page_user(mock_page_with_id),
+                    created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
+                    comment="cached revision",
+                )
+            ],
+        )
+        mock_page_with_id._votes = cached_votes
+        mock_page_with_id._discussion = MagicMock()
+        mock_page_with_id._discussion_checked = True
+        mock_page_with_id._files = PageFileCollection(
+            mock_page_with_id,
+            [
+                PageFile(
+                    page=mock_page_with_id,
+                    id=1,
+                    name="cached.txt",
+                    url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+                    mime_type="text/plain",
+                    size=10,
+                )
+            ],
+        )
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[])
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                rf"Page action response count mismatch for site: test-site, page: test-page "
+                rf"\(id=12345, event={event}, expected=1, actual=0\)"
+            ),
+        ):
+            if operation == "destroy":
+                mock_page_with_id.destroy()
+            elif operation == "commit_tags":
+                mock_page_with_id.commit_tags()
+            elif operation == "set_parent":
+                mock_page_with_id.set_parent("new-parent")
+            elif operation == "rename":
+                mock_page_with_id.rename("component:new-name")
+            elif operation == "vote":
+                mock_page_with_id.vote(1)
+            elif operation == "cancel_vote":
+                mock_page_with_id.cancel_vote()
+            else:
+                raise AssertionError(f"unknown operation: {operation}")
+
+        mock_page_with_id.site.amc_request.assert_called_once()
+        assert mock_page_with_id.fullname == "test-page"
+        assert mock_page_with_id.category == "_default"
+        assert mock_page_with_id.name == "test-page"
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id.tags == ["old-tag"]
+        assert mock_page_with_id.parent_fullname == "old-parent"
+        assert mock_page_with_id._metas == {"old": "value"}
+        assert mock_page_with_id._source is not None
+        assert mock_page_with_id._revisions is not None
+        assert mock_page_with_id._votes is cached_votes
+        assert mock_page_with_id._discussion is not None
+        assert mock_page_with_id._discussion_checked is True
+        assert mock_page_with_id._files is not None
+
     def test_set_metadata_can_clear_parent(self, mock_page_with_id: Page) -> None:
         """parent_fullname=Noneを明示すると親ページをクリアする"""
         mock_page_with_id.parent_fullname = "old-parent"

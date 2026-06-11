@@ -669,6 +669,20 @@ def _require_page_write_response_count(
     return tuple(responses)
 
 
+def _require_page_action_response_count(site: "Site", page: "Page", event: str, responses: object) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            f"Page action response count mismatch for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, expected=1, actual={type(responses).__name__})"
+        )
+    if len(responses) != 1:
+        raise exceptions.UnexpectedException(
+            f"Page action response count mismatch for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, expected=1, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
 def _require_page_save_status(site: "Site", fullname: str, data: object) -> str:
     if not isinstance(data, dict):
         raise exceptions.NoElementException(
@@ -2636,15 +2650,20 @@ class Page:
         client.login_check()
         if page_id is None:
             page_id = self.id
-        response = site.amc_request(
-            [
-                {
-                    "action": "WikiPageAction",
-                    "event": "deletePage",
-                    "page_id": page_id,
-                    "moduleName": "Empty",
-                }
-            ]
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "deletePage",
+            site.amc_request(
+                [
+                    {
+                        "action": "WikiPageAction",
+                        "event": "deletePage",
+                        "page_id": page_id,
+                        "moduleName": "Empty",
+                    }
+                ]
+            ),
         )[0]
         _require_page_action_status(site, self, "deletePage", response.json())
         self._source = None
@@ -3180,16 +3199,21 @@ class Page:
         client.login_check()
         if page_id is None:
             page_id = self.id
-        response = site.amc_request(
-            [
-                {
-                    "tags": " ".join(tags),
-                    "action": "WikiPageAction",
-                    "event": "saveTags",
-                    "pageId": page_id,
-                    "moduleName": "Empty",
-                }
-            ]
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "saveTags",
+            site.amc_request(
+                [
+                    {
+                        "tags": " ".join(tags),
+                        "action": "WikiPageAction",
+                        "event": "saveTags",
+                        "pageId": page_id,
+                        "moduleName": "Empty",
+                    }
+                ]
+            ),
         )[0]
         _require_page_metadata_action_status(site, self, "saveTags", response.json())
         return self
@@ -3225,16 +3249,21 @@ class Page:
         client.login_check()
         if page_id is None:
             page_id = self.id
-        response = site.amc_request(
-            [
-                {
-                    "action": "WikiPageAction",
-                    "event": "setParentPage",
-                    "moduleName": "Empty",
-                    "pageId": str(page_id),
-                    "parentName": parent_value or "",
-                }
-            ]
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "setParentPage",
+            site.amc_request(
+                [
+                    {
+                        "action": "WikiPageAction",
+                        "event": "setParentPage",
+                        "moduleName": "Empty",
+                        "pageId": str(page_id),
+                        "parentName": parent_value or "",
+                    }
+                ]
+            ),
         )[0]
         _require_page_metadata_action_status(site, self, "setParentPage", response.json())
         self.parent_fullname = parent_value
@@ -3271,16 +3300,21 @@ class Page:
         client.login_check()
         if page_id is None:
             page_id = self.id
-        response = site.amc_request(
-            [
-                {
-                    "action": "WikiPageAction",
-                    "event": "renamePage",
-                    "moduleName": "Empty",
-                    "page_id": page_id,
-                    "new_name": new_fullname,
-                }
-            ]
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "renamePage",
+            site.amc_request(
+                [
+                    {
+                        "action": "WikiPageAction",
+                        "event": "renamePage",
+                        "moduleName": "Empty",
+                        "page_id": page_id,
+                        "new_name": new_fullname,
+                    }
+                ]
+            ),
         )[0]
         _require_page_action_status(site, self, "renamePage", response.json())
         self.fullname = new_fullname
@@ -3326,17 +3360,22 @@ class Page:
         client.login_check()
         if page_id is None:
             page_id = self.id
-        response = site.amc_request(
-            [
-                {
-                    "action": "RateAction",
-                    "event": "ratePage",
-                    "moduleName": "Empty",
-                    "pageId": page_id,
-                    "points": value,
-                    "force": "yes",
-                }
-            ]
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "ratePage",
+            site.amc_request(
+                [
+                    {
+                        "action": "RateAction",
+                        "event": "ratePage",
+                        "moduleName": "Empty",
+                        "pageId": page_id,
+                        "points": value,
+                        "force": "yes",
+                    }
+                ]
+            ),
         )[0]
         response_data = response.json()
         _require_page_rating_action_status(site, self, "ratePage", response_data)
@@ -3369,15 +3408,20 @@ class Page:
         client.login_check()
         if page_id is None:
             page_id = self.id
-        response = site.amc_request(
-            [
-                {
-                    "action": "RateAction",
-                    "event": "cancelVote",
-                    "moduleName": "Empty",
-                    "pageId": page_id,
-                }
-            ]
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "cancelVote",
+            site.amc_request(
+                [
+                    {
+                        "action": "RateAction",
+                        "event": "cancelVote",
+                        "moduleName": "Empty",
+                        "pageId": page_id,
+                    }
+                ]
+            ),
         )[0]
         response_data = response.json()
         _require_page_rating_action_status(site, self, "cancelVote", response_data)
