@@ -810,6 +810,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [804-pr-validate-listpages-site-client.md](804-pr-validate-listpages-site-client.md): upstream PR draft for the committed ListPages retained-client validation fix.
 - [805-pr-validate-stringutil-to-unix-input.md](805-pr-validate-stringutil-to-unix-input.md): upstream PR draft for the committed StringUtil UNIX conversion input validation fix.
 - [806-pr-validate-odate-parser-input.md](806-pr-validate-odate-parser-input.md): upstream PR draft for the committed odate parser element-input validation fix.
+- [807-pr-validate-private-message-send-response-payload.md](807-pr-validate-private-message-send-response-payload.md): upstream PR draft for the committed private-message send response-payload validation fix.
 
 ## Local Evidence Index
 
@@ -1528,5 +1529,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 709: `4bd4cb8 fix(page): validate listpages site client`
 - Local implementation commits, continued 710: `21d5427 fix(stringutil): validate unix conversion input`
 - Local implementation commits, continued 711: `a787fab fix(odate): validate parser element input`
+- Local implementation commits, continued 712: `504ccef fix(private_message): validate send response payload`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
