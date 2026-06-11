@@ -1922,7 +1922,15 @@ class PageCollection(list["Page"]):
         for page_id, response in zip(target_pages_by_id, responses, strict=True):
             if response is None:
                 continue
-            body = response.json().get("body")
+            data = response.json()
+            if not isinstance(data, dict):
+                first_page = target_pages_by_id[page_id][0]
+                raise exceptions.NoElementException(
+                    f"Page vote response payload is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
             if body is None:
                 first_page = target_pages_by_id[page_id][0]
                 raise exceptions.NoElementException(
