@@ -1558,5 +1558,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 724: `5c639c0 fix(forum_category): validate list response payload`
 - Local implementation commits, continued 725: `7dce039 fix(site_member): validate list response payload`
 - Local implementation commits, continued 726: `1bb2780 fix(forum_post_revision): validate list response payload`
+- Local implementation commits, continued 727: `cf79822 fix(site): validate amc body batches`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
