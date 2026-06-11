@@ -459,7 +459,13 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             parse_context = PrivateMessageCollection._message_detail_fetch_context(
                 message_detail_module_name, message_id
             )
-            response_body = response.json().get("body")
+            data = response.json()
+            if not isinstance(data, dict):
+                raise exceptions.NoElementException(
+                    f"Message response payload is malformed {parse_context} "
+                    f"(expected=dict, actual={type(data).__name__})"
+                )
+            response_body = data.get("body")
             if response_body is None:
                 raise exceptions.NoElementException(f"Message response body is not found {parse_context}")
             if not isinstance(response_body, str):

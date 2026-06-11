@@ -645,6 +645,23 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection.from_ids(mock_client, [1])
 
+    def test_from_ids_malformed_detail_response_payload_type_includes_module_message_and_type_context(
+        self, mock_client
+    ):
+        """メッセージ詳細レスポンスpayload型不正は文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Message response payload is malformed for module: dashboard/messages/DMViewMessageModule, "
+                r"message: 1 \(expected=dict, actual=list\)"
+            ),
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
     def test_from_ids_missing_odate_includes_module_message_and_field_context(self, mock_client):
         """メッセージ詳細の日時要素欠損はepoch補完ではなく文脈付きNoElementException"""
         mock_response = MagicMock()
