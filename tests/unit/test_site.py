@@ -2659,6 +2659,52 @@ class TestSiteAmcRequest:
         with pytest.raises(ValueError, match="return_exceptions must be a boolean"):
             site.amc_request([], return_exceptions=return_exceptions)
 
+    @pytest.mark.parametrize("bodies", [None, {}, (), "abc"])
+    def test_amc_request_rejects_non_list_bodies_before_client_request(self, bodies: Any) -> None:
+        """Site.amc_requestのbodiesはlistだけ受け付ける"""
+
+        class ClientWithoutAmc(Client):
+            @property
+            def amc_client(self):
+                raise AssertionError("malformed bodies should not read amc_client")
+
+        client_without_amc: Any = object.__new__(ClientWithoutAmc)
+        site = Site(
+            client=client_without_amc,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="bodies must be a list of dictionaries"):
+            site.amc_request(bodies)
+
+    @pytest.mark.parametrize(
+        ("bodies", "message"), [([123], "bodies\\[0\\]"), ([{"moduleName": "Test"}, 123], "bodies\\[1\\]")]
+    )
+    def test_amc_request_rejects_non_dict_body_entries_before_client_request(self, bodies: Any, message: str) -> None:
+        """Site.amc_requestのbody要素はdictだけ受け付ける"""
+
+        class ClientWithoutAmc(Client):
+            @property
+            def amc_client(self):
+                raise AssertionError("malformed body entries should not read amc_client")
+
+        client_without_amc: Any = object.__new__(ClientWithoutAmc)
+        site = Site(
+            client=client_without_amc,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match=message):
+            site.amc_request(bodies)
+
     @pytest.mark.parametrize(
         ("field_name", "bad_value", "message"),
         [
@@ -2744,6 +2790,54 @@ class TestSiteAmcRequest:
         )
 
         assert site.amc_request_with_retry([]) == ()
+
+    @pytest.mark.parametrize("bodies", [None, {}, (), "abc"])
+    def test_amc_request_with_retry_rejects_non_list_bodies_before_config(self, bodies: Any) -> None:
+        """Site.amc_request_with_retryのbodiesはlistだけ受け付ける"""
+
+        class ClientWithoutAmc(Client):
+            @property
+            def amc_client(self):
+                raise AssertionError("malformed bodies should not read amc_client")
+
+        client_without_amc: Any = object.__new__(ClientWithoutAmc)
+        site = Site(
+            client=client_without_amc,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="bodies must be a list of dictionaries"):
+            site.amc_request_with_retry(bodies)
+
+    @pytest.mark.parametrize(
+        ("bodies", "message"), [([123], "bodies\\[0\\]"), ([{"moduleName": "Test"}, 123], "bodies\\[1\\]")]
+    )
+    def test_amc_request_with_retry_rejects_non_dict_body_entries_before_config(
+        self, bodies: Any, message: str
+    ) -> None:
+        """Site.amc_request_with_retryのbody要素はdictだけ受け付ける"""
+
+        class ClientWithoutAmc(Client):
+            @property
+            def amc_client(self):
+                raise AssertionError("malformed body entries should not read amc_client")
+
+        client_without_amc: Any = object.__new__(ClientWithoutAmc)
+        site = Site(
+            client=client_without_amc,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match=message):
+            site.amc_request_with_retry(bodies)
 
     def test_amc_request_with_retry_empty_bodies_still_validates_explicit_batch_size(
         self,

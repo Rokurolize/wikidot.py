@@ -18,7 +18,7 @@ else:
 
 from ..common import exceptions
 from ..common.logger import logger
-from ..connector.ajax import AjaxModuleConnectorConfig
+from ..connector.ajax import AjaxModuleConnectorConfig, _validate_amc_request_bodies
 from ..util.http import sync_get_with_retry
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
@@ -1472,6 +1472,7 @@ class Site:
             List of responses, or exceptions if return_exceptions is True
         """
         return_exceptions = _validate_page_bool_field("return_exceptions", return_exceptions)
+        bodies = _validate_amc_request_bodies(bodies)
 
         if len(bodies) == 0:
             return ()
@@ -1514,6 +1515,7 @@ class Site:
             batch_size = _validate_amc_retry_batch_size(batch_size)
         if max_retries is not None:
             max_retries = _validate_amc_retry_max_retries(max_retries)
+        bodies = _validate_amc_request_bodies(bodies)
         if len(bodies) == 0:
             return ()
 
