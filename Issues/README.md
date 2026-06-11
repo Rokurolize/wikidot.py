@@ -853,6 +853,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [847-pr-validate-page-metadata-response-counts.md](847-pr-validate-page-metadata-response-counts.md): upstream PR draft for the committed page metadata response-count validation fix.
 - [848-pr-validate-forum-category-create-response-count.md](848-pr-validate-forum-category-create-response-count.md): upstream PR draft for the committed forum category create response-count validation fix.
 - [849-pr-validate-forum-thread-reply-response-count.md](849-pr-validate-forum-thread-reply-response-count.md): upstream PR draft for the committed forum thread reply response-count validation fix.
+- [850-pr-validate-forum-post-edit-response-count.md](850-pr-validate-forum-post-edit-response-count.md): upstream PR draft for the committed forum post edit response-count validation fix.
 
 ## Local Evidence Index
 
@@ -1592,5 +1593,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 730: `f484bc5 fix(page): validate metadata response counts`
 - Local implementation commits, continued 731: `00b6bbd fix(forum): validate thread create response count`
 - Local implementation commits, continued 732: `3972869 fix(forum): validate reply response count`
+- Local implementation commits, continued 733: `3a4f80e fix(forum): validate post edit response count`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
