@@ -2,6 +2,8 @@ import re
 
 from .table import char_table
 
+_SPECIAL_CHAR_TRANSLATION = str.maketrans(char_table.special_char_map)
+
 
 class StringUtil:
     SITE_UNIX_NAME_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
@@ -24,10 +26,8 @@ class StringUtil:
         if not isinstance(target_str, str):
             raise ValueError("target_str must be a string")
 
-        # 特殊文字の変換辞書の作成
-        table = str.maketrans(char_table.special_char_map)
         # 変換実施
-        target_str = target_str.translate(table)
+        target_str = target_str.translate(_SPECIAL_CHAR_TRANSLATION)
 
         # lowercaseへの変換
         target_str = target_str.lower()
