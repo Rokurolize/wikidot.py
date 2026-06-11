@@ -644,6 +644,15 @@ def _validate_page_edit_revision_id(site: "Site", fullname: str, data: dict[str,
     return value
 
 
+def _require_page_edit_lock_response_data(site: "Site", fullname: str, data: object) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} "
+            f"(module=edit/PageEditModule, expected=dict, actual={type(data).__name__})"
+        )
+    return data
+
+
 def _require_page_save_status(site: "Site", fullname: str, data: object) -> str:
     if not isinstance(data, dict):
         raise exceptions.NoElementException(
@@ -2940,7 +2949,11 @@ class Page:
             page_lock_request_body["force_lock"] = "yes"
 
         page_lock_response = site.amc_request([page_lock_request_body])[0]
-        page_lock_response_data = page_lock_response.json()
+        page_lock_response_data = _require_page_edit_lock_response_data(
+            site,
+            fullname,
+            page_lock_response.json(),
+        )
 
         is_locked = _validate_page_edit_locked_field(site, fullname, page_lock_response_data)
         if is_locked or page_lock_response_data.get("other_locks"):

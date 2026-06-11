@@ -5715,6 +5715,29 @@ class TestPageCreateOrEdit:
 
         mock_site_no_http.amc_request.assert_called_once()
 
+    def test_create_or_edit_malformed_lock_response_payload_type_fails_before_save(
+        self, mock_site_no_http: Site
+    ) -> None:
+        """編集ロックレスポンスのトップレベル型異常は保存前にsite/page/type付きで失敗する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = ["not", "a", "mapping"]
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_lock_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page edit lock response is malformed for site: test-site, page: new-page "
+                r"\(module=edit/PageEditModule, expected=dict, actual=list\)"
+            ),
+        ):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        mock_lock_response.json.assert_called_once()
+        mock_site_no_http.amc_request.assert_called_once()
+
     def test_edit_without_page_id(self, mock_site_no_http: Site) -> None:
         """既存ページ編集時にpage_idがないと例外"""
         mock_site_no_http.client.is_logged_in = True
