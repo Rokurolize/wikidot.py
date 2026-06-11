@@ -5029,6 +5029,37 @@ class TestPageWriteMethods:
 
         assert mock_page_with_id._metas == {"old": "value"}
 
+    def test_metas_setter_rejects_action_response_count_mismatch_before_parsing(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """metaタグsetter応答数の不一致は各応答の解析前に文脈付きで拒否する"""
+        mock_page_with_id._metas = {
+            "remove": "old",
+            "keep": "same",
+            "change": "old",
+        }
+        mock_page_with_id.site.client.login_check = MagicMock()
+        ok_response = MagicMock()
+        ok_response.json.return_value = {"status": "ok"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=(ok_response,))
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                r"Page metadata action response count mismatch for site: test-site, page: test-page "
+                r"\(id=12345, expected=3, actual=1\)"
+            ),
+        ):
+            mock_page_with_id.metas = {
+                "keep": "same",
+                "add": "new",
+                "change": "new",
+            }
+
+        ok_response.json.assert_not_called()
+        assert mock_page_with_id._metas == {"remove": "old", "keep": "same", "change": "old"}
+
     def test_metas_setter_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
         """metas setterのsite型異常はログイン確認やAMC前に拒否する"""
         mock_page_with_id._metas = {"old": "value"}
@@ -5220,6 +5251,33 @@ class TestPageWriteMethods:
         assert mock_page_with_id._metas == {"keep": "same"}
         mock_page_with_id.site.amc_request.assert_called_once()
         malformed_response.json.assert_called_once()
+
+    def test_set_metadata_rejects_action_response_count_mismatch_before_parsing(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """metadata一括更新応答数の不一致は各応答の解析前に文脈付きで拒否する"""
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {"keep": "same"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        ok_response = MagicMock()
+        ok_response.json.return_value = {"status": "ok"}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=(ok_response,))
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                r"Page metadata action response count mismatch for site: test-site, page: test-page "
+                r"\(id=12345, expected=2, actual=1\)"
+            ),
+        ):
+            mock_page_with_id.set_metadata(tags=["new-tag"], parent_fullname="new-parent")
+
+        ok_response.json.assert_not_called()
+        assert mock_page_with_id.tags == ["old-tag"]
+        assert mock_page_with_id.parent_fullname == "old-parent"
+        assert mock_page_with_id._metas == {"keep": "same"}
 
     def test_set_metadata_malformed_action_status_type_does_not_update_local_state(
         self,

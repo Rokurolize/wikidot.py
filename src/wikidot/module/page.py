@@ -785,6 +785,22 @@ def _require_page_metadata_action_status(site: "Site", page: "Page", event: str,
     return status
 
 
+def _require_page_metadata_action_response_count(
+    site: "Site", page: "Page", responses: object, expected_count: int
+) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            f"Page metadata action response count mismatch for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, expected={expected_count}, actual={type(responses).__name__})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            f"Page metadata action response count mismatch for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, expected={expected_count}, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
 class SearchPagesQueryParams(TypedDict, total=False):
     """
     A TypedDict defining page search query parameters
@@ -2712,7 +2728,9 @@ class Page:
         request_bodies = self._meta_update_request_bodies(value, page_id)
 
         if request_bodies:
-            responses = site.amc_request(request_bodies)
+            responses = _require_page_metadata_action_response_count(
+                site, self, site.amc_request(request_bodies), len(request_bodies)
+            )
             for request_body, response in zip(request_bodies, responses, strict=True):
                 _require_page_metadata_action_status(
                     site,
@@ -2853,7 +2871,9 @@ class Page:
             request_bodies.extend(self._meta_update_request_bodies(metas, page_id))
 
         if request_bodies:
-            responses = site.amc_request(request_bodies)
+            responses = _require_page_metadata_action_response_count(
+                site, self, site.amc_request(request_bodies), len(request_bodies)
+            )
             for request_body, response in zip(request_bodies, responses, strict=True):
                 _require_page_metadata_action_status(
                     site,
