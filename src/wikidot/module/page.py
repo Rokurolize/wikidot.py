@@ -644,7 +644,13 @@ def _validate_page_edit_revision_id(site: "Site", fullname: str, data: dict[str,
     return value
 
 
-def _require_page_save_status(site: "Site", fullname: str, data: dict[str, Any]) -> str:
+def _require_page_save_status(site: "Site", fullname: str, data: object) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Page save response is malformed for site: {site.unix_name}, page: {fullname} "
+            f"(event=savePage, expected=dict, actual={type(data).__name__})"
+        )
+
     try:
         status = data["status"]
     except KeyError as exc:

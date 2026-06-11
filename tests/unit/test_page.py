@@ -5750,6 +5750,32 @@ class TestPageCreateOrEdit:
         assert mock_save_response.json.call_count == 1
         assert mock_site_no_http.amc_request.call_count == 2
 
+    def test_create_or_edit_malformed_save_response_type_includes_site_page_event_and_type_context(
+        self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
+    ) -> None:
+        """保存レスポンスのトップレベル型異常はsite/page/event/type文脈付きで失敗する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_success
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = ["not-ok"]
+
+        mock_site_no_http.amc_request = MagicMock(side_effect=[[mock_lock_response], [mock_save_response]])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page save response is malformed for site: test-site, page: new-page "
+                r"\(event=savePage, expected=dict, actual=list\)"
+            ),
+        ):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        assert mock_save_response.json.call_count == 1
+        assert mock_site_no_http.amc_request.call_count == 2
+
     def test_create_or_edit_malformed_save_status_type_includes_site_page_and_type_context(
         self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
     ) -> None:
