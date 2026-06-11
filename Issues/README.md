@@ -1604,5 +1604,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 736: `adeffe0 fix(page): validate write response counts`
 - Local implementation commits, continued 737: `9928a87 fix(page): validate single action response counts`
 - Local implementation commits, continued 738: `f0782aa fix(page): validate listpages response count`
+- Local implementation commits, continued 739: `1bd370a fix(site): validate invite response count`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
