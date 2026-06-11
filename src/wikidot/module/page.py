@@ -382,6 +382,20 @@ def _validate_listpages_retry_max_retries(value: object) -> int:
     return value
 
 
+def _require_listpages_response_count(site: "Site", offset: int | None, responses: object) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            f"ListPages response count mismatch for site: {site.unix_name}, offset: {offset} "
+            f"(expected=1, actual={type(responses).__name__})"
+        )
+    if len(responses) != 1:
+        raise exceptions.UnexpectedException(
+            f"ListPages response count mismatch for site: {site.unix_name}, offset: {offset} "
+            f"(expected=1, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
 class PageConstants:
     """
     A class for centrally managing constants used in the page module
@@ -1377,9 +1391,11 @@ class PageCollection(list["Page"]):
         last_exception: Exception | None = None
         for _ in range(max_retries + 1):
             try:
-                response_or_exception = site.amc_request([query_dict], return_exceptions=True)[0]
+                responses = site.amc_request([query_dict], return_exceptions=True)
             except Exception as exc:
                 response_or_exception = exc
+            else:
+                response_or_exception = _require_listpages_response_count(site, offset, responses)[0]
 
             if not isinstance(response_or_exception, Exception):
                 return response_or_exception

@@ -776,6 +776,24 @@ class TestPageCollectionSearchPages:
 
         assert mock_site_no_http.amc_request.call_count == 2
 
+    def test_search_pages_rejects_first_page_response_count_mismatch_before_retry_exhaustion(
+        self, mock_site_no_http: Site
+    ) -> None:
+        """初回ListPages応答数不一致はretry枯渇扱いにせず文脈付きで拒否する"""
+        mock_site_no_http.client.amc_client.config.retry_max_retries = 3
+        mock_site_no_http.amc_request = MagicMock(return_value=[])
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                r"ListPages response count mismatch for site: test-site, offset: 500 "
+                r"\(expected=1, actual=0\)"
+            ),
+        ):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery(offset=500))
+
+        mock_site_no_http.amc_request.assert_called_once()
+
     @pytest.mark.parametrize("max_retries", [None, True, False, "1", -1, 1.5])
     def test_search_pages_rejects_invalid_retry_max_retries_before_request(
         self, mock_site_no_http: Site, max_retries: Any
