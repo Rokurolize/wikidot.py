@@ -747,7 +747,13 @@ def _require_page_rating_action_status(site: "Site", page: "Page", event: str, d
     return status
 
 
-def _require_page_metadata_action_status(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> str:
+def _require_page_metadata_action_status(site: "Site", page: "Page", event: str, data: object) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Page metadata action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, expected=dict, actual={type(data).__name__})"
+        )
+
     try:
         status = data["status"]
     except KeyError as exc:

@@ -5005,6 +5005,34 @@ class TestPageWriteMethods:
         assert mock_page_with_id.parent_fullname == "old-parent"
         assert mock_page_with_id._metas == {"keep": "same"}
 
+    def test_set_metadata_malformed_action_response_type_does_not_update_local_state(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """metadata更新応答がdict以外ならレスポンス形状異常として扱う"""
+        mock_page_with_id.tags = ["old-tag"]
+        mock_page_with_id.parent_fullname = "old-parent"
+        mock_page_with_id._metas = {"keep": "same"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = ["not-ok"]
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page metadata action response is malformed for site: test-site, page: test-page "
+                r"\(id=12345, event=saveTags, expected=dict, actual=list\)"
+            ),
+        ):
+            mock_page_with_id.set_metadata(tags=["new-tag"])
+
+        assert mock_page_with_id.tags == ["old-tag"]
+        assert mock_page_with_id.parent_fullname == "old-parent"
+        assert mock_page_with_id._metas == {"keep": "same"}
+        mock_page_with_id.site.amc_request.assert_called_once()
+        malformed_response.json.assert_called_once()
+
     def test_set_metadata_malformed_action_status_type_does_not_update_local_state(
         self,
         mock_page_with_id: Page,
