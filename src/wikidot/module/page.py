@@ -653,6 +653,22 @@ def _require_page_edit_lock_response_data(site: "Site", fullname: str, data: obj
     return data
 
 
+def _require_page_write_response_count(
+    site: "Site", fullname: str, responses: object, response_name: str, context: str, expected_count: int
+) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            f"Page {response_name} response count mismatch for site: {site.unix_name}, page: {fullname} "
+            f"({context}, expected={expected_count}, actual={type(responses).__name__})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            f"Page {response_name} response count mismatch for site: {site.unix_name}, page: {fullname} "
+            f"({context}, expected={expected_count}, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
 def _require_page_save_status(site: "Site", fullname: str, data: object) -> str:
     if not isinstance(data, dict):
         raise exceptions.NoElementException(
@@ -2968,7 +2984,15 @@ class Page:
         if force_edit:
             page_lock_request_body["force_lock"] = "yes"
 
-        page_lock_response = site.amc_request([page_lock_request_body])[0]
+        page_lock_responses = _require_page_write_response_count(
+            site,
+            fullname,
+            site.amc_request([page_lock_request_body]),
+            "edit lock",
+            "module=edit/PageEditModule",
+            1,
+        )
+        page_lock_response = page_lock_responses[0]
         page_lock_response_data = _require_page_edit_lock_response_data(
             site,
             fullname,
@@ -3011,7 +3035,15 @@ class Page:
             "source": source,
             "comments": comment,
         }
-        response = site.amc_request([edit_request_body])[0]
+        save_responses = _require_page_write_response_count(
+            site,
+            fullname,
+            site.amc_request([edit_request_body]),
+            "save",
+            "event=savePage",
+            1,
+        )
+        response = save_responses[0]
         response_data = response.json()
         save_status = _require_page_save_status(site, fullname, response_data)
 

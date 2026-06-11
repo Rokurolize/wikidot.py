@@ -5796,6 +5796,23 @@ class TestPageCreateOrEdit:
         mock_lock_response.json.assert_called_once()
         mock_site_no_http.amc_request.assert_called_once()
 
+    def test_create_or_edit_rejects_lock_response_count_mismatch_before_parsing(self, mock_site_no_http: Site) -> None:
+        """編集ロック応答の件数異常はpayload解析前に文脈付きで失敗する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.amc_request = MagicMock(return_value=[])
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                r"Page edit lock response count mismatch for site: test-site, page: new-page "
+                r"\(module=edit/PageEditModule, expected=1, actual=0\)"
+            ),
+        ):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        mock_site_no_http.amc_request.assert_called_once()
+
     def test_edit_without_page_id(self, mock_site_no_http: Site) -> None:
         """既存ページ編集時にpage_idがないと例外"""
         mock_site_no_http.client.is_logged_in = True
@@ -6114,6 +6131,29 @@ class TestPageCreateOrEdit:
             Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
 
         assert mock_save_response.json.call_count == 1
+
+    def test_create_or_edit_rejects_save_response_count_mismatch_before_parsing(
+        self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
+    ) -> None:
+        """保存応答の件数異常はpayload解析前に文脈付きで失敗する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_success
+        mock_site_no_http.amc_request = MagicMock(side_effect=[[mock_lock_response], []])
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                r"Page save response count mismatch for site: test-site, page: new-page "
+                r"\(event=savePage, expected=1, actual=0\)"
+            ),
+        ):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        mock_lock_response.json.assert_called_once()
+        assert mock_site_no_http.amc_request.call_count == 2
 
     def test_create_or_edit_missing_save_status_includes_site_page_and_field_context(
         self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
