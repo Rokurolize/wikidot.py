@@ -118,7 +118,13 @@ def _parse_recent_change_page_fullname(site: "Site", href: str, *, page_no: int,
     return page_fullname
 
 
-def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", event: str, data: dict[str, Any]) -> Any:
+def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", event: str, data: object) -> Any:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Site invitation action response is malformed for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, expected=dict, actual={type(data).__name__})"
+        )
+
     try:
         status = data["status"]
     except KeyError as exc:

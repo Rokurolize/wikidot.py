@@ -3132,6 +3132,35 @@ class TestSiteInviteUser:
 
         assert mock_response.json.call_count == 1
 
+    def test_invite_user_malformed_action_response_type_includes_site_user_event_and_type_context(self) -> None:
+        """招待応答のpayload型不正は文脈付きNoElementException"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not-ok"]
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        mock_user = User(client=mock_client, id=12345, name="test-user")
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site invitation action response is malformed for site: test, user: test-user "
+                r"\(id=12345, event=inviteMember, expected=dict, actual=list\)"
+            ),
+        ):
+            site.invite_user(mock_user, "Welcome message")
+
+        assert mock_response.json.call_count == 1
+
     def test_invite_user_already_invited(self, site_invite_member_already_invited: dict[str, Any]) -> None:
         """既に招待済みでTargetErrorException"""
         mock_client = create_mock_client(is_logged_in=True)
