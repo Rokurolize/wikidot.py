@@ -4066,6 +4066,30 @@ Real edit comment
         ):
             site.get_recent_changes()
 
+    def test_get_recent_changes_first_page_malformed_response_payload_type_includes_site_context(self) -> None:
+        """変更履歴初回レスポンスのpayload型異常はサイト名・ページ番号・型を含める"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Recent changes response payload is malformed for site: test, page: 1 "
+                r"\(expected=dict, actual=list\)"
+            ),
+        ):
+            site.get_recent_changes()
+
     def test_get_recent_changes_paginated_retry_exhaustion_includes_site_context(self) -> None:
         """変更履歴の後続ページ取得失敗はサイト名とページ番号を含める"""
         mock_client = create_mock_client()
@@ -4163,6 +4187,42 @@ Real edit comment
                 match=(
                     r"Recent changes response body is malformed for site: test, page: 2 "
                     r"\(field=body, expected=str, actual=list\)"
+                ),
+            ):
+                site.get_recent_changes()
+
+    def test_get_recent_changes_paginated_malformed_response_payload_type_includes_site_context(self) -> None:
+        """変更履歴後続レスポンスのpayload型異常はサイト名・ページ番号・型を含める"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        first_page_response = self._site_change_response(1, last_page=2)
+        second_page_response = MagicMock()
+        second_page_response.json.return_value = ["not", "a", "mapping"]
+
+        def request_side_effect(bodies: list[dict[str, Any]], *_args: Any) -> tuple[MagicMock, ...]:
+            pages = [int(body["page"]) for body in bodies]
+            if pages == [1]:
+                return (first_page_response,)
+            if pages == [2]:
+                return (second_page_response,)
+            raise AssertionError(f"Unexpected recent changes pages: {pages}")
+
+        mock_client.amc_client.request.side_effect = request_side_effect
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+            with pytest.raises(
+                NoElementException,
+                match=(
+                    r"Recent changes response payload is malformed for site: test, page: 2 "
+                    r"\(expected=dict, actual=list\)"
                 ),
             ):
                 site.get_recent_changes()

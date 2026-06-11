@@ -1917,18 +1917,30 @@ class Site:
                 "options": "{'all':true}",
             }
 
+        def response_body(response: Any, page_no: int) -> str:
+            data = response.json()
+            if not isinstance(data, dict):
+                raise NoElementException(
+                    f"Recent changes response payload is malformed for site: {self.unix_name}, page: {page_no} "
+                    f"(expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
+            if body is None:
+                raise NoElementException(
+                    f"Recent changes response body is not found for site: {self.unix_name}, page: {page_no}"
+                )
+            if not isinstance(body, str):
+                raise NoElementException(
+                    f"Recent changes response body is malformed for site: {self.unix_name}, page: {page_no} "
+                    f"(field=body, expected=str, actual={type(body).__name__})"
+                )
+            return body
+
         response = self.amc_request_with_retry([request_body(1)])[0]
         if response is None:
             raise exceptions.UnexpectedException(f"Cannot retrieve recent changes for site: {self.unix_name}, page: 1")
 
-        body = response.json().get("body")
-        if body is None:
-            raise NoElementException(f"Recent changes response body is not found for site: {self.unix_name}, page: 1")
-        if not isinstance(body, str):
-            raise NoElementException(
-                f"Recent changes response body is malformed for site: {self.unix_name}, page: 1 "
-                f"(field=body, expected=str, actual={type(body).__name__})"
-            )
+        body = response_body(response, 1)
         html = BeautifulSoup(body, "lxml")
         page_changes = list(iter_changes(html, 1))
         if not page_changes:
@@ -1957,16 +1969,7 @@ class Site:
                     f"Cannot retrieve recent changes for site: {self.unix_name}, page: {page_no}"
                 )
 
-            body = response.json().get("body")
-            if body is None:
-                raise NoElementException(
-                    f"Recent changes response body is not found for site: {self.unix_name}, page: {page_no}"
-                )
-            if not isinstance(body, str):
-                raise NoElementException(
-                    f"Recent changes response body is malformed for site: {self.unix_name}, page: {page_no} "
-                    f"(field=body, expected=str, actual={type(body).__name__})"
-                )
+            body = response_body(response, page_no)
             html = BeautifulSoup(body, "lxml")
             page_changes = list(iter_changes(html, page_no))
             if not page_changes:
