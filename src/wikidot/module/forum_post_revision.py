@@ -405,14 +405,18 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
             if revision_link is None:
                 continue
 
-            onclick = revision_link.get("onclick", "")
-            match = re.search(r"showRevision\s*\(\s*event\s*,\s*([0-9]+)\s*\)", str(onclick))
+            onclick = str(revision_link.get("onclick", ""))
+            match = re.fullmatch(
+                r"(?:WIKIDOT\.modules\.ForumViewThreadModule\.listeners\.)?"
+                r"showRevision\s*\(\s*event\s*,\s*([0-9]+)\s*\)",
+                onclick,
+            )
             if match is None:
                 parse_context = _revision_list_parse_context(
                     post,
                     row_index,
                     field="revision_id",
-                    value=str(onclick),
+                    value=onclick,
                 )
                 raise exceptions.NoElementException(f"Forum post revision ID is malformed {parse_context}")
 
