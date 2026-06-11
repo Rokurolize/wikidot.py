@@ -858,6 +858,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [852-pr-validate-site-member-action-response-count.md](852-pr-validate-site-member-action-response-count.md): upstream PR draft for the committed site member action response-count validation fix.
 - [853-pr-validate-page-write-response-counts.md](853-pr-validate-page-write-response-counts.md): upstream PR draft for the committed page write response-count validation fix.
 - [854-pr-validate-page-single-action-response-counts.md](854-pr-validate-page-single-action-response-counts.md): upstream PR draft for the committed page single-action response-count validation fix.
+- [855-pr-validate-listpages-response-count.md](855-pr-validate-listpages-response-count.md): upstream PR draft for the committed ListPages response-count validation fix.
 
 ## Local Evidence Index
 
@@ -1602,5 +1603,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 735: `404a5c9 fix(site_member): validate action response count`
 - Local implementation commits, continued 736: `adeffe0 fix(page): validate write response counts`
 - Local implementation commits, continued 737: `9928a87 fix(page): validate single action response counts`
+- Local implementation commits, continued 738: `f0782aa fix(page): validate listpages response count`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
