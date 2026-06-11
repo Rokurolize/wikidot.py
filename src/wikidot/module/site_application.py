@@ -125,8 +125,16 @@ def _require_site_application_action_status(
     application: "SiteApplication",
     event: str,
     action: str,
-    data: dict[str, Any],
+    data: object,
 ) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Site application action response is malformed for site: {_site_name(application.site)}, "
+            f"user: {application.user.name} "
+            f"(id={application.user.id}, event={event}, type={action}, "
+            f"expected=dict, actual={type(data).__name__})"
+        )
+
     try:
         status = data["status"]
     except KeyError as exc:
