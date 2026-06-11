@@ -894,6 +894,30 @@ class TestSiteApplicationProcess:
         assert mock_response.json.call_count == 1
         assert site._members is cached_members
 
+    def test_accept_rejects_action_response_count_mismatch_before_parsing(self):
+        """申請承認応答の件数異常はpayload解析前に文脈付きで失敗する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        site.unix_name = "test-site"
+        cached_members = [object()]
+        site._members = cached_members
+        site.amc_request.return_value = []
+        user = User(client=mock_client, id=12345, name="TestUser")
+
+        app = SiteApplication(site=site, user=user, text="")
+
+        with pytest.raises(
+            UnexpectedException,
+            match=(
+                r"Site application action response count mismatch for site: test-site, user: TestUser "
+                r"\(id=12345, event=acceptApplication, type=accept, expected=1, actual=0\)"
+            ),
+        ):
+            app.accept()
+
+        assert site.amc_request.call_count == 1
+        assert site._members is cached_members
+
     def test_accept_explicit_non_ok_action_status_raises_status_exception(self):
         """申請承認応答の非ok statusは成功扱いしない"""
         mock_client = create_mock_client(is_logged_in=True)

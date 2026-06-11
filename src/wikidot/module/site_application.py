@@ -5,6 +5,7 @@ This module provides classes and functionality related to site join applications
 It enables operations such as retrieving, accepting, and declining applications.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -160,6 +161,23 @@ def _require_site_application_action_status(
             status,
         )
     return status
+
+
+def _require_site_application_action_response_count(
+    application: "SiteApplication",
+    event: str,
+    action: str,
+    responses: Sequence[object],
+    expected_count: int,
+) -> None:
+    actual_count = len(responses)
+    if actual_count != expected_count:
+        raise exceptions.UnexpectedException(
+            f"Site application action response count mismatch for site: {_site_name(application.site)}, "
+            f"user: {application.user.name} "
+            f"(id={application.user.id}, event={event}, type={action}, "
+            f"expected={expected_count}, actual={actual_count})"
+        )
 
 
 @dataclass
@@ -342,7 +360,7 @@ class SiteApplication:
         event = "acceptApplication"
 
         try:
-            response = site.amc_request(
+            responses = site.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
@@ -353,7 +371,9 @@ class SiteApplication:
                         "moduleName": "Empty",
                     }
                 ]
-            )[0]
+            )
+            _require_site_application_action_response_count(self, event, action, responses, 1)
+            response = responses[0]
             _require_site_application_action_status(self, event, action, response.json())
             if action == "accept":
                 site._members = None
