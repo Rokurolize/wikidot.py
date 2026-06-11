@@ -21,6 +21,8 @@ class StringUtil:
             Converted string
         """
         # MEMO: legacy wikidotの実装に合わせている
+        if not isinstance(target_str, str):
+            raise ValueError("target_str must be a string")
 
         # 特殊文字の変換辞書の作成
         table = str.maketrans(char_table.special_char_map)

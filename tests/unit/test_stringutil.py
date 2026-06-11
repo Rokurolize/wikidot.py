@@ -76,6 +76,12 @@ class TestStringUtilToUnix:
         """空文字列のテスト"""
         assert StringUtil.to_unix("") == ""
 
+    @pytest.mark.parametrize("target_str", [None, True, 123, ["page"], {"page": "name"}])
+    def test_rejects_non_string_values(self, target_str: Any) -> None:
+        """文字列以外はtranslateに渡す前に拒否する"""
+        with pytest.raises(ValueError, match="target_str must be a string"):
+            StringUtil.to_unix(target_str)
+
     def test_complex_cases(self):
         """複合的なケースのテスト"""
         assert StringUtil.to_unix("SCP-001-JP") == "scp-001-jp"
