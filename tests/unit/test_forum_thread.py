@@ -1462,6 +1462,26 @@ class TestForumThreadCollectionAcquireFromIds:
 
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_acquire_from_ids_malformed_response_payload_type_includes_thread_context(
+        self, mock_site_no_http: Site
+    ) -> None:
+        """スレッド詳細のpayload型異常はsite/thread/type付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread detail response payload is malformed for site: test-site, thread: 3001 "
+                r"\(expected=dict, actual=list\)"
+            ),
+        ):
+            ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        mock_site_no_http.amc_request.assert_not_called()
+
     def test_site_get_threads_retries_transient_fetch_failures(
         self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
     ) -> None:

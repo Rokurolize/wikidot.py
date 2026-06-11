@@ -949,7 +949,13 @@ class ForumThreadCollection(list["ForumThread"]):
 
     @staticmethod
     def _thread_detail_response_body(response: Any, site: "Site", thread_id: int) -> str:
-        body = response.json().get("body")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise NoElementException(
+                f"Forum thread detail response payload is malformed for site: {_site_name(site)}, thread: {thread_id} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        body = data.get("body")
         if body is None:
             raise NoElementException(
                 f"Forum thread detail response body is not found for site: {_site_name(site)}, thread: {thread_id}"
