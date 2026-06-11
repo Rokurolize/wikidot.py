@@ -3446,6 +3446,23 @@ class TestPageProperties:
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id._discussion_checked is False
 
+    def test_discussion_malformed_response_payload_type_includes_page_context(self, mock_page_with_id: Page) -> None:
+        """コメントスレッドIDレスポンスのpayload型異常はsite/page/id/type付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=rf"Page discussion response payload is malformed for site: test-site, page: test-page "
+            rf"\(id={mock_page_with_id.id}, expected=dict, actual=list\)",
+        ):
+            _ = mock_page_with_id.discussion
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._discussion_checked is False
+
     def test_discussion_malformed_response_body_type_includes_page_context(self, mock_page_with_id: Page) -> None:
         """コメントスレッドIDレスポンスのbody型異常はsite/page/id/type付きで失敗する"""
         mock_response = MagicMock()
@@ -4854,6 +4871,24 @@ class TestPageWriteMethods:
         with pytest.raises(
             exceptions.NoElementException,
             match="Page metas response body is not found for site: test-site, page: test-page",
+        ):
+            _ = mock_page_with_id.metas
+
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._metas is None
+
+    def test_metas_getter_malformed_response_payload_type_includes_page_context(self, mock_page_with_id: Page) -> None:
+        """metaタグレスポンスのpayload型異常はsite/page/id/type付きで失敗する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_page_with_id._metas = None
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=rf"Page metas response payload is malformed for site: test-site, page: test-page "
+            rf"\(id={mock_page_with_id.id}, expected=dict, actual=list\)",
         ):
             _ = mock_page_with_id.metas
 

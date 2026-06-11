@@ -2514,7 +2514,14 @@ class Page:
                     f"Cannot retrieve page discussion for site: {site.unix_name}, page: {self.fullname}"
                 )
 
-            body = response.json().get("body")
+            data = response.json()
+            if not isinstance(data, dict):
+                raise exceptions.NoElementException(
+                    f"Page discussion response payload is malformed for site: {site.unix_name}, "
+                    f"page: {self.fullname} "
+                    f"(id={self.id}, expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
             if body is None:
                 raise exceptions.NoElementException(
                     f"Page discussion response body is not found for site: {site.unix_name}, page: {self.fullname}"
@@ -2640,7 +2647,14 @@ class Page:
                 )
 
             # レスポンス解析
-            body = response.json().get("body")
+            data = response.json()
+            if not isinstance(data, dict):
+                raise exceptions.NoElementException(
+                    f"Page metas response payload is malformed for site: {site.unix_name}, "
+                    f"page: {self.fullname} "
+                    f"(id={self.id}, expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
             if body is None:
                 raise exceptions.NoElementException(
                     f"Page metas response body is not found for site: {site.unix_name}, page: {self.fullname}"
