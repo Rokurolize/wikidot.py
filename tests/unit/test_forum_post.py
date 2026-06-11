@@ -3303,6 +3303,33 @@ class TestForumPostEdit:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         assert mock_forum_post_no_http._source is None
 
+    def test_edit_malformed_form_response_payload_type_includes_site_post_and_type_context(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """編集フォーム応答のpayload型異常時はsite/post/type付きで保存せず失敗する"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http.title = "Original Title"
+        mock_forum_post_no_http._source = "Original source"
+
+        form_response = MagicMock()
+        form_response.json.return_value = ["not", "a", "mapping"]
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post edit form response payload is malformed for site: test-site, post: 5001 "
+                r"\(expected=dict, actual=list\)"
+            ),
+        ):
+            mock_forum_post_no_http.edit(source="Updated source", title="New Title")
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http.title == "Original Title"
+        assert mock_forum_post_no_http._source == "Original source"
+
     def test_edit_missing_save_action_status_does_not_update_local_state(
         self,
         mock_forum_post_no_http: ForumPost,

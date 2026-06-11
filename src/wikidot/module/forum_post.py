@@ -1106,7 +1106,14 @@ class ForumPost:
 
     @staticmethod
     def _edit_form_response_body(response: Any, post: "ForumPost") -> str:
-        body = response.json().get("body")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise NoElementException(
+                "Forum post edit form response payload is malformed "
+                f"for site: {post.thread.site.unix_name}, post: {post.id} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        body = data.get("body")
         if body is None:
             raise NoElementException(
                 f"Forum post edit form response body is not found for site: {post.thread.site.unix_name}, post: {post.id}"
