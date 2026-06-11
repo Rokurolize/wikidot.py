@@ -195,7 +195,13 @@ def _revision_list_response_body(response: Any, post: "ForumPost") -> str:
     return body
 
 
-def _revision_html_content(revision: "ForumPostRevision", data: dict[str, object]) -> str:
+def _revision_html_content(revision: "ForumPostRevision", data: object) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            "Forum post revision HTML response payload is malformed "
+            f"{_revision_html_context(revision)} "
+            f"(expected=dict, actual={type(data).__name__})"
+        )
     content = data.get("content")
     if content is None:
         raise exceptions.NoElementException(
