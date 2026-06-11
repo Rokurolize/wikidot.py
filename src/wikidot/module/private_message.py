@@ -107,7 +107,13 @@ def _validate_private_message_retry_max_retries(value: object) -> int:
     return value
 
 
-def _require_private_message_send_action_status(recipient: "User", event: str, data: dict[str, Any]) -> str:
+def _require_private_message_send_action_status(recipient: "User", event: str, data: object) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Private message send action response is malformed for recipient: {recipient.name} "
+            f"(id={recipient.id}, event={event}, expected=dict, actual={type(data).__name__})"
+        )
+
     try:
         status = data["status"]
     except KeyError as exc:
