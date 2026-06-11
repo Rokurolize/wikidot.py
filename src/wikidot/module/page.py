@@ -2064,7 +2064,14 @@ class PageCollection(list["Page"]):
             first_page = target_pages_by_id[page_id][0]
             if response is None:
                 continue
-            body = response.json().get("body")
+            data = response.json()
+            if not isinstance(data, dict):
+                raise exceptions.NoElementException(
+                    f"Page file response payload is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
             if body is None:
                 raise exceptions.NoElementException(
                     f"Page file response body is not found for site: {site.unix_name}, "

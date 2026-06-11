@@ -2671,6 +2671,28 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request.assert_not_called()
         assert mock_page_with_id._files is None
 
+    def test_acquire_files_malformed_response_payload_type_includes_site_page_and_type_context(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        """file応答payloadが辞書でない場合はsite/page/id/type文脈付きで失敗する"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = ["not", "a", "mapping"]
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(malformed_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                rf"Page file response payload is malformed for site: test-site, "
+                rf"page: test-page \(id={mock_page_with_id.id}, expected=dict, actual=list\)"
+            ),
+        ):
+            collection.get_page_files()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._files is None
+
     def test_acquire_files_malformed_response_body_type_includes_site_page_and_type_context(
         self, mock_site_no_http: Site, mock_page_with_id: Page
     ) -> None:
