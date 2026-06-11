@@ -787,6 +787,28 @@ class TestPrivateMessageCollection:
 
         mock_from_ids.assert_not_called()
 
+    def test_acquire_malformed_first_page_response_payload_type_includes_module_page_and_type_context(
+        self, mock_client
+    ):
+        """一覧初回ページレスポンスpayload型不正は文脈付きNoElementException"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not", "a", "mapping"]
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(
+                NoElementException,
+                match=(
+                    r"Message list response payload is malformed for module: dashboard/messages/DMInboxModule, "
+                    r"page: 1 \(expected=dict, actual=list\)"
+                ),
+            ),
+        ):
+            PrivateMessageInbox.acquire(mock_client)
+
+        mock_from_ids.assert_not_called()
+
     def test_acquire_missing_message_href_raises(self, mock_client):
         """メッセージ行のdata-href欠損はNoElementException"""
         mock_response = MagicMock()

@@ -332,7 +332,14 @@ class PrivateMessageCollection(list["PrivateMessage"]):
 
     @staticmethod
     def _message_list_response_body(response: Any, module_name: str, page: int) -> str:
-        response_body = response.json().get("body")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise exceptions.NoElementException(
+                "Message list response payload is malformed "
+                f"{PrivateMessageCollection._message_list_fetch_context(module_name, page)} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        response_body = data.get("body")
         if response_body is None:
             raise exceptions.NoElementException(
                 "Message list response body is not found "
