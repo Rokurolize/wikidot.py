@@ -865,7 +865,14 @@ class ForumThreadCollection(list["ForumThread"]):
 
     @staticmethod
     def _thread_list_response_body(response: Any, category: "ForumCategory", page: int) -> str:
-        body = response.json().get("body")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise NoElementException(
+                "Forum thread list response payload is malformed "
+                f"for site: {category.site.unix_name}, category: {category.id}, page: {page} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        body = data.get("body")
         if body is None:
             raise NoElementException(
                 "Forum thread list response body is not found "
