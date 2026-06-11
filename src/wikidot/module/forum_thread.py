@@ -427,6 +427,20 @@ def _require_forum_thread_action_status(thread: "ForumThread", event: str, data:
     return status
 
 
+def _require_forum_thread_action_response_count(
+    thread: "ForumThread",
+    event: str,
+    responses: tuple[object, ...],
+    expected_count: int,
+) -> None:
+    actual_count = len(responses)
+    if actual_count != expected_count:
+        raise UnexpectedException(
+            f"Forum thread action response count mismatch for site: {thread.site.unix_name}, "
+            f"thread: {thread.id}, event: {event}, expected: {expected_count}, actual: {actual_count}"
+        )
+
+
 class ForumThreadCollection(list["ForumThread"]):
     """
     Class representing a collection of forum threads
@@ -1107,7 +1121,7 @@ class ForumThread:
         thread_id = _validate_thread_id(self.id)
         client = _validate_forum_thread_site_client(site)
         client.login_check()
-        response = site.amc_request(
+        responses = site.amc_request(
             [
                 {
                     "threadId": str(thread_id),
@@ -1119,7 +1133,9 @@ class ForumThread:
                     "moduleName": "Empty",
                 }
             ]
-        )[0]
+        )
+        _require_forum_thread_action_response_count(self, "savePost", responses, 1)
+        response = responses[0]
         _require_forum_thread_action_status(self, "savePost", response.json())
         # キャッシュをクリアして次回アクセス時に再取得
         self._posts = None
