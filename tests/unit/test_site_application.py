@@ -455,6 +455,31 @@ class TestSiteApplicationAcquireAll:
 
         site.amc_request.assert_not_called()
 
+    def test_acquire_all_malformed_response_payload_type_includes_site_context(self):
+        """申請リスト応答のpayload型異常はサイト名と型付きで失敗する"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        site.unix_name = "test-site"
+
+        response = MagicMock()
+        response.json.return_value = ["not", "a", "mapping"]
+        site.amc_request_with_retry.return_value = (response,)
+
+        with (
+            patch("wikidot.module.site_application.user_parser") as mock_user_parser,
+            pytest.raises(
+                NoElementException,
+                match=(
+                    "Site application list response payload is malformed for site: test-site "
+                    "\\(expected=dict, actual=list\\)"
+                ),
+            ),
+        ):
+            SiteApplication.acquire_all(site)
+
+        site.amc_request.assert_not_called()
+        mock_user_parser.assert_not_called()
+
     def test_acquire_all_malformed_response_body_type_includes_site_context(self):
         """申請リスト応答のbody型異常はサイト名と型付きで失敗する"""
         mock_client = create_mock_client(is_logged_in=True)

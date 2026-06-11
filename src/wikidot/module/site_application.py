@@ -288,7 +288,14 @@ class SiteApplication:
 
     @staticmethod
     def _application_list_response_body(response: Any, site: "Site") -> str:
-        body = response.json().get("body")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise exceptions.NoElementException(
+                "Site application list response payload is malformed "
+                f"for site: {_site_name(site)} (expected=dict, actual={type(data).__name__})"
+            )
+
+        body = data.get("body")
         if body is None:
             raise exceptions.NoElementException(
                 f"Site application list response body is not found for site: {_site_name(site)}"
