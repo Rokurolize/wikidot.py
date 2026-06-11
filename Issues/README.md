@@ -824,6 +824,7 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [818-pr-validate-site-application-list-response-payload.md](818-pr-validate-site-application-list-response-payload.md): upstream PR draft for the committed site application list response-payload validation fix.
 - [819-pr-validate-forum-category-list-response-payload.md](819-pr-validate-forum-category-list-response-payload.md): upstream PR draft for the committed forum category list response-payload validation fix.
 - [820-pr-validate-site-member-list-response-payload.md](820-pr-validate-site-member-list-response-payload.md): upstream PR draft for the committed site member list response-payload validation fix.
+- [821-pr-validate-forum-post-revision-list-response-payload.md](821-pr-validate-forum-post-revision-list-response-payload.md): upstream PR draft for the committed forum post revision list response-payload validation fix.
 
 ## Local Evidence Index
 
@@ -1556,5 +1557,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 723: `a1870ef fix(site_application): validate list response payload`
 - Local implementation commits, continued 724: `5c639c0 fix(forum_category): validate list response payload`
 - Local implementation commits, continued 725: `7dce039 fix(site_member): validate list response payload`
+- Local implementation commits, continued 726: `1bb2780 fix(forum_post_revision): validate list response payload`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
