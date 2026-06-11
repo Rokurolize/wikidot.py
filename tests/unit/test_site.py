@@ -3306,6 +3306,30 @@ class TestSiteInviteUser:
 
         assert mock_response.json.call_count == 1
 
+    def test_invite_user_rejects_response_count_mismatch_before_parsing(self) -> None:
+        """招待actionの応答件数不一致はpayload解析前に文脈付きUnexpectedException"""
+        mock_client = create_mock_client(is_logged_in=True)
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_client.amc_client.request.return_value = ()
+        mock_user = User(client=mock_client, id=12345, name="test-user")
+
+        with pytest.raises(
+            UnexpectedException,
+            match=(
+                r"Site invitation action response count mismatch for site: test, user: test-user "
+                r"\(id=12345, event=inviteMember, expected=1, actual=0\)"
+            ),
+        ):
+            site.invite_user(mock_user, "Welcome message")
+
     def test_invite_user_already_invited(self, site_invite_member_already_invited: dict[str, Any]) -> None:
         """既に招待済みでTargetErrorException"""
         mock_client = create_mock_client(is_logged_in=True)

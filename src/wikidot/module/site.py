@@ -147,6 +147,22 @@ def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", e
     return status
 
 
+def _require_site_invitation_action_response_count(
+    site: "Site", user: "AbstractUser", event: str, responses: object, expected_count: int
+) -> tuple[Any, ...]:
+    if not isinstance(responses, (list, tuple)):
+        raise exceptions.UnexpectedException(
+            f"Site invitation action response count mismatch for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, expected={expected_count}, actual={type(responses).__name__})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            f"Site invitation action response count mismatch for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, expected={expected_count}, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
 def _validate_site_invitation_user(user: object) -> User:
     if not isinstance(user, User):
         raise ValueError("user must be a User")
@@ -1643,7 +1659,7 @@ class Site:
         client = _validate_site_client(self.client)
         client.login_check()
         try:
-            response = self.amc_request(
+            responses = self.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
@@ -1653,7 +1669,8 @@ class Site:
                         "moduleName": "Empty",
                     }
                 ]
-            )[0]
+            )
+            response = _require_site_invitation_action_response_count(self, user, "inviteMember", responses, 1)[0]
             _require_site_invitation_action_status(self, user, "inviteMember", response.json())
         except exceptions.WikidotStatusCodeException as e:
             if e.status_code == "already_invited":
