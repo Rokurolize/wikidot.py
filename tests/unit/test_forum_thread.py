@@ -2554,6 +2554,42 @@ class TestForumThreadReply:
         assert mock_forum_thread_no_http.site.amc_request.call_count == 1
         assert malformed_response.json.call_count == 1
 
+    def test_reply_malformed_action_response_type_preserves_cache_and_counts(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        mock_forum_category_no_http: ForumCategory,
+    ) -> None:
+        """返信応答の辞書でないpayloadは状態更新前にレスポンス形状異常として扱う"""
+        mock_forum_thread_no_http.category = mock_forum_category_no_http
+        cached_posts = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_thread_no_http._posts = cached_posts
+        mock_forum_category_no_http.threads = cached_threads
+        initial_thread_post_count = mock_forum_thread_no_http.post_count
+        initial_category_post_count = mock_forum_category_no_http.posts_count
+        mock_forum_thread_no_http.site.client.is_logged_in = True
+        mock_forum_thread_no_http.site.client.login_check = MagicMock()
+
+        malformed_response = MagicMock()
+        malformed_response.json.return_value = ["not-ok"]
+        mock_forum_thread_no_http.site.amc_request = MagicMock(return_value=[malformed_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum thread action response is malformed for site: test-site, thread: 3001 "
+                r"\(event=savePost, expected=dict, actual=list\)"
+            ),
+        ):
+            mock_forum_thread_no_http.reply(source="Test reply")
+
+        assert mock_forum_thread_no_http.post_count == initial_thread_post_count
+        assert mock_forum_thread_no_http._posts is cached_posts
+        assert mock_forum_category_no_http.posts_count == initial_category_post_count
+        assert mock_forum_category_no_http._threads is cached_threads
+        assert mock_forum_thread_no_http.site.amc_request.call_count == 1
+        assert malformed_response.json.call_count == 1
+
     def test_reply_explicit_non_ok_action_status_preserves_cache_and_counts(
         self,
         mock_forum_thread_no_http: ForumThread,
