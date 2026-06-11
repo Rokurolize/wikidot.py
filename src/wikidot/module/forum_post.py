@@ -6,7 +6,7 @@ It enables operations such as retrieving post information and display.
 """
 
 import re
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
@@ -369,6 +369,17 @@ def _require_forum_post_action_status(post: "ForumPost", event: str, data: objec
             status,
         )
     return status
+
+
+def _require_forum_post_action_response_count(
+    post: "ForumPost", event: str, responses: Sequence[object], expected_count: int
+) -> None:
+    actual_count = len(responses)
+    if actual_count != expected_count:
+        raise UnexpectedException(
+            f"Forum post action response count mismatch for site: {post.thread.site.unix_name}, post: {post.id}, "
+            f"event: {event}, expected: {expected_count}, actual: {actual_count}"
+        )
 
 
 class ForumPostCollection(list["ForumPost"]):
@@ -1207,7 +1218,7 @@ class ForumPost:
             )
 
         # 編集を保存
-        save_response = site.amc_request(
+        save_responses = site.amc_request(
             [
                 {
                     "action": "ForumAction",
@@ -1219,7 +1230,9 @@ class ForumPost:
                     "source": source,
                 }
             ]
-        )[0]
+        )
+        _require_forum_post_action_response_count(self, "saveEditPost", save_responses, 1)
+        save_response = save_responses[0]
         _require_forum_post_action_status(self, "saveEditPost", save_response.json())
 
         # ローカル状態を更新

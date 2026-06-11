@@ -3364,6 +3364,41 @@ class TestForumPostEdit:
         assert mock_forum_post_no_http._source == "Original source"
         assert mock_forum_post_no_http.thread._posts is cached_posts
 
+    def test_edit_rejects_action_response_count_mismatch_before_parsing(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_editpost_form: dict[str, Any],
+    ) -> None:
+        """編集保存応答の件数異常はpayload解析前に文脈付きで失敗する"""
+        mock_forum_post_no_http.thread.site.client.is_logged_in = True
+        mock_forum_post_no_http.thread.site.client.login_check = MagicMock()
+        mock_forum_post_no_http.title = "Original Title"
+        mock_forum_post_no_http._source = "Original source"
+        cached_revisions = ForumPostRevisionCollection(mock_forum_post_no_http, [])
+        cached_posts = ForumPostCollection(mock_forum_post_no_http.thread, [mock_forum_post_no_http])
+        mock_forum_post_no_http._revisions = cached_revisions
+        mock_forum_post_no_http.thread._posts = cached_posts
+
+        form_response = MagicMock()
+        form_response.json.return_value = forum_editpost_form
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(form_response,))
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock(return_value=[])
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                r"Forum post action response count mismatch for site: test-site, post: 5001, "
+                r"event: saveEditPost, expected: 1, actual: 0"
+            ),
+        ):
+            mock_forum_post_no_http.edit(source="Updated source", title="New Title")
+
+        assert mock_forum_post_no_http.title == "Original Title"
+        assert mock_forum_post_no_http._source == "Original source"
+        assert mock_forum_post_no_http._revisions is cached_revisions
+        assert mock_forum_post_no_http.thread._posts is cached_posts
+        assert mock_forum_post_no_http.thread.site.amc_request.call_count == 1
+
     def test_edit_malformed_action_status_type_preserves_local_state_and_caches(
         self,
         mock_forum_post_no_http: ForumPost,
