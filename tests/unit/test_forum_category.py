@@ -1328,6 +1328,41 @@ class TestForumCategoryCreateThread:
                 source="Test content",
             )
 
+    def test_create_thread_malformed_action_response_type_preserves_cache_and_does_not_fetch_created_thread(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+        forum_thread_detail: dict[str, Any],
+    ) -> None:
+        """スレッド作成応答がdict以外なら文脈付きで失敗し作成済みスレッドを取得しない"""
+        mock_forum_category_no_http.site.client.is_logged_in = True
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+
+        create_response = MagicMock()
+        create_response.json.return_value = ["not-ok"]
+        detail_response = MagicMock()
+        detail_response.json.return_value = forum_thread_detail
+        mock_forum_category_no_http.site.amc_request = MagicMock(side_effect=[[create_response], [detail_response]])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum category action response is malformed for site: test-site, category: 1001 "
+                r"\(event=newThread, expected=dict, actual=list\)"
+            ),
+        ):
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )
+
+        assert mock_forum_category_no_http.site.amc_request.call_count == 1
+        assert mock_forum_category_no_http._threads is cached_threads
+        assert create_response.json.call_count == 1
+
     def test_create_thread_boolean_thread_id_is_malformed_and_preserves_cache(
         self,
         mock_forum_category_no_http: ForumCategory,

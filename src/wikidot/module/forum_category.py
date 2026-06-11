@@ -527,6 +527,12 @@ class ForumCategory:
             ]
         )[0].json()
 
+        if not isinstance(response, dict):
+            raise NoElementException(
+                f"Forum category action response is malformed for site: {site.unix_name}, "
+                f"category: {category_id} (event=newThread, expected=dict, actual={type(response).__name__})"
+            )
+
         # responseからthreadIdを取得
         thread_id = response.get("threadId")
         if not isinstance(thread_id, int) or isinstance(thread_id, bool):
