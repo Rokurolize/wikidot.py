@@ -410,7 +410,15 @@ class SiteMember:
 
     @staticmethod
     def _member_list_response_body(response: Any, site: "Site", group_label: str, page: int) -> str:
-        body = response.json().get("body")
+        data = response.json()
+        if not isinstance(data, dict):
+            raise NoElementException(
+                "Site member list response payload is malformed "
+                f"for site: {site.unix_name}, group: {group_label}, page: {page} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+
+        body = data.get("body")
         if body is None:
             raise NoElementException(
                 "Site member list response body is not found "

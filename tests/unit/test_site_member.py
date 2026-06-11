@@ -415,6 +415,29 @@ class TestSiteMemberGet:
         site.amc_request.assert_not_called()
         mock_user_parser.assert_not_called()
 
+    def test_get_members_malformed_response_payload_type_includes_context(self):
+        """初回ページのpayload型異常はsite/group/page/type付きで失敗する"""
+        site = _site()
+        site.unix_name = "test-site"
+        response = MagicMock()
+        response.json.return_value = ["not", "a", "mapping"]
+        site.amc_request_with_retry.return_value = (response,)
+
+        with (
+            patch("wikidot.module.site_member.user_parser") as mock_user_parser,
+            pytest.raises(
+                NoElementException,
+                match=(
+                    "Site member list response payload is malformed for site: test-site, "
+                    "group: members, page: 1 \\(expected=dict, actual=list\\)"
+                ),
+            ),
+        ):
+            SiteMember.get(site, "")
+
+        site.amc_request.assert_not_called()
+        mock_user_parser.assert_not_called()
+
     def test_get_members_malformed_response_body_type_includes_context(self):
         """初回ページのbody型異常はsite/group/page/type付きで失敗する"""
         site = _site()
