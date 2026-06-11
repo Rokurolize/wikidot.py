@@ -825,6 +825,30 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - [819-pr-validate-forum-category-list-response-payload.md](819-pr-validate-forum-category-list-response-payload.md): upstream PR draft for the committed forum category list response-payload validation fix.
 - [820-pr-validate-site-member-list-response-payload.md](820-pr-validate-site-member-list-response-payload.md): upstream PR draft for the committed site member list response-payload validation fix.
 - [821-pr-validate-forum-post-revision-list-response-payload.md](821-pr-validate-forum-post-revision-list-response-payload.md): upstream PR draft for the committed forum post revision list response-payload validation fix.
+- [822-pr-validate-private-message-list-response-payload.md](822-pr-validate-private-message-list-response-payload.md): upstream PR draft for the committed private-message list response-payload validation fix.
+- [823-pr-validate-private-message-detail-response-payload.md](823-pr-validate-private-message-detail-response-payload.md): upstream PR draft for the committed private-message detail response-payload validation fix.
+- [824-pr-validate-page-file-list-response-payload.md](824-pr-validate-page-file-list-response-payload.md): upstream PR draft for the committed page-file list response-payload validation fix.
+- [825-pr-validate-forum-thread-list-response-payload.md](825-pr-validate-forum-thread-list-response-payload.md): upstream PR draft for the committed forum thread-list response-payload validation fix.
+- [826-pr-validate-forum-thread-detail-response-payload.md](826-pr-validate-forum-thread-detail-response-payload.md): upstream PR draft for the committed forum thread detail response-payload validation fix.
+- [827-pr-validate-forum-post-list-response-payload.md](827-pr-validate-forum-post-list-response-payload.md): upstream PR draft for the committed forum post-list response-payload validation fix.
+- [828-pr-validate-forum-post-source-response-payload.md](828-pr-validate-forum-post-source-response-payload.md): upstream PR draft for the committed forum post source response-payload validation fix.
+- [829-pr-validate-forum-post-edit-form-response-payload.md](829-pr-validate-forum-post-edit-form-response-payload.md): upstream PR draft for the committed forum post edit-form response-payload validation fix.
+- [830-pr-validate-recent-changes-response-payload.md](830-pr-validate-recent-changes-response-payload.md): upstream PR draft for the committed recent-changes response-payload validation fix.
+- [831-pr-validate-page-revision-response-payloads.md](831-pr-validate-page-revision-response-payloads.md): upstream PR draft for the committed page revision response-payload validation fix.
+- [832-pr-validate-listpages-response-payload.md](832-pr-validate-listpages-response-payload.md): upstream PR draft for the committed ListPages response-payload validation fix.
+- [833-pr-validate-page-source-response-payload.md](833-pr-validate-page-source-response-payload.md): upstream PR draft for the committed page source response-payload validation fix.
+- [834-pr-validate-page-revision-list-response-payload.md](834-pr-validate-page-revision-list-response-payload.md): upstream PR draft for the committed page revision-list response-payload validation fix.
+- [835-pr-validate-page-vote-response-payload.md](835-pr-validate-page-vote-response-payload.md): upstream PR draft for the committed page vote response-payload validation fix.
+- [836-pr-validate-page-file-response-payload.md](836-pr-validate-page-file-response-payload.md): upstream PR draft for the committed page-file response-payload validation fix.
+- [837-pr-validate-page-auxiliary-response-payloads.md](837-pr-validate-page-auxiliary-response-payloads.md): upstream PR draft for the committed page auxiliary response-payload validation fix.
+- [838-pr-validate-page-edit-lock-response-payload.md](838-pr-validate-page-edit-lock-response-payload.md): upstream PR draft for the committed page edit-lock response-payload validation fix.
+- [839-pr-validate-forum-post-revision-html-response-payload.md](839-pr-validate-forum-post-revision-html-response-payload.md): upstream PR draft for the committed forum post revision HTML response-payload validation fix.
+- [840-pr-validate-forum-post-revision-action-shape.md](840-pr-validate-forum-post-revision-action-shape.md): upstream PR draft for the committed forum post revision action-shape validation fix.
+- [841-pr-validate-regular-user-onclick-action-shape.md](841-pr-validate-regular-user-onclick-action-shape.md): upstream PR draft for the committed regular-user onclick action-shape validation fix.
+- [842-pr-cache-stringutil-translation-table.md](842-pr-cache-stringutil-translation-table.md): upstream PR draft for the committed StringUtil translation table cache improvement.
+- [843-pr-validate-forum-post-revision-html-content-type.md](843-pr-validate-forum-post-revision-html-content-type.md): upstream PR draft for the committed forum post revision HTML content-type validation fix.
+- [844-pr-validate-site-amc-body-batches.md](844-pr-validate-site-amc-body-batches.md): upstream PR draft for the committed site AMC body-batch validation fix.
+- [845-pr-validate-private-message-retry-response-counts.md](845-pr-validate-private-message-retry-response-counts.md): upstream PR draft for the committed private-message retry response-count validation fix.
 
 ## Local Evidence Index
 
@@ -1559,5 +1583,6 @@ These are local-only drafts prepared from Codex rollout evidence. They are not f
 - Local implementation commits, continued 725: `7dce039 fix(site_member): validate list response payload`
 - Local implementation commits, continued 726: `1bb2780 fix(forum_post_revision): validate list response payload`
 - Local implementation commits, continued 727: `cf79822 fix(site): validate amc body batches`
+- Local implementation commits, continued 728: `03e5c2f fix(private_message): validate retry response counts`
 
 Do not paste private rollout paths, credentials, or local account names into upstream issues. Use the upstream-safe summaries in each draft.
