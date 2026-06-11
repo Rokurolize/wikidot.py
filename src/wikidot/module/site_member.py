@@ -117,7 +117,14 @@ def _parse_member_joined_at(
         raise NoElementException(f"Site member joined_at is malformed {parse_context}") from exc
 
 
-def _require_site_member_action_status(member: "SiteMember", event: str, data: dict[str, Any]) -> Any:
+def _require_site_member_action_status(member: "SiteMember", event: str, data: object) -> Any:
+    if not isinstance(data, dict):
+        raise NoElementException(
+            f"Site member action response is malformed for site: {member.site.unix_name}, "
+            f"user: {member.user.name} (id={member.user.id}, event={event}, "
+            f"expected=dict, actual={type(data).__name__})"
+        )
+
     try:
         status = data["status"]
     except KeyError as exc:

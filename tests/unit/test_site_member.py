@@ -980,6 +980,33 @@ class TestSiteMemberChangeGroup:
         assert site._moderators is cached_moderators
         assert site._admins is cached_admins
 
+    def test_change_group_malformed_action_response_type_includes_site_user_event_and_type_context(self):
+        """権限変更応答のpayload型不正は文脈付きNoElementException"""
+        site = _site()
+        site.unix_name = "test-site"
+        cached_moderators = [object()]
+        cached_admins = [object()]
+        site._moderators = cached_moderators
+        site._admins = cached_admins
+        mock_response = MagicMock()
+        mock_response.json.return_value = ["not-ok"]
+        site.amc_request.return_value = (mock_response,)
+        user = self._user(client=site.client)
+        member = SiteMember(site=site, user=user, joined_at=None)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site member action response is malformed for site: test-site, user: TestUser "
+                r"\(id=12345, event=toModerators, expected=dict, actual=list\)"
+            ),
+        ):
+            member.to_moderator()
+
+        assert mock_response.json.call_count == 1
+        assert site._moderators is cached_moderators
+        assert site._admins is cached_admins
+
     def test_change_group_not_logged_in_raises_before_request(self):
         """未ログイン時は権限変更リクエストを送らない"""
         site = _site()
