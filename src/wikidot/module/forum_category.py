@@ -95,6 +95,20 @@ def _require_forum_category_action_status(category: "ForumCategory", event: str,
     return status
 
 
+def _require_forum_category_action_response_count(
+    category: "ForumCategory",
+    event: str,
+    responses: tuple[object, ...],
+    expected_count: int,
+) -> None:
+    actual_count = len(responses)
+    if actual_count != expected_count:
+        raise UnexpectedException(
+            f"Forum category action response count mismatch for site: {category.site.unix_name}, "
+            f"category: {category.id}, event: {event}, expected: {expected_count}, actual: {actual_count}"
+        )
+
+
 def _validate_forum_category_collection_categories(categories: object) -> list["ForumCategory"]:
     if categories is None:
         return []
@@ -520,7 +534,7 @@ class ForumCategory:
         client.login_check()
 
         # 作成リクエスト
-        response = site.amc_request(
+        responses = site.amc_request(
             [
                 {
                     "moduleName": "Empty",
@@ -532,7 +546,9 @@ class ForumCategory:
                     "source": source,
                 }
             ]
-        )[0].json()
+        )
+        _require_forum_category_action_response_count(self, "newThread", responses, 1)
+        response = responses[0].json()
 
         if not isinstance(response, dict):
             raise NoElementException(

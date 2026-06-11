@@ -1379,6 +1379,34 @@ class TestForumCategoryCreateThread:
         assert mock_forum_category_no_http._threads is cached_threads
         assert create_response.json.call_count == 1
 
+    def test_create_thread_rejects_action_response_count_mismatch_before_parsing(
+        self,
+        mock_forum_category_no_http: ForumCategory,
+        mock_forum_thread_no_http: ForumThread,
+    ) -> None:
+        """スレッド作成応答件数異常はレスポンス解析前に文脈付きで失敗する"""
+        mock_forum_category_no_http.site.client.is_logged_in = True
+        mock_forum_category_no_http.site.client.login_check = MagicMock()
+        cached_threads = ForumThreadCollection(mock_forum_category_no_http.site, [mock_forum_thread_no_http])
+        mock_forum_category_no_http.threads = cached_threads
+        mock_forum_category_no_http.site.amc_request = MagicMock(return_value=[])
+
+        with pytest.raises(
+            UnexpectedException,
+            match=(
+                r"Forum category action response count mismatch for site: test-site, category: 1001, "
+                r"event: newThread, expected: 1, actual: 0"
+            ),
+        ):
+            mock_forum_category_no_http.create_thread(
+                title="Test Thread",
+                description="Test description",
+                source="Test content",
+            )
+
+        assert mock_forum_category_no_http.site.amc_request.call_count == 1
+        assert mock_forum_category_no_http._threads is cached_threads
+
     def test_create_thread_boolean_thread_id_is_malformed_and_preserves_cache(
         self,
         mock_forum_category_no_http: ForumCategory,
