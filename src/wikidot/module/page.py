@@ -1631,7 +1631,17 @@ class PageCollection(list["Page"]):
             if response is None:
                 continue
             target_pages_for_id = target_pages_by_id[page_id]
-            body = response.json().get("body")
+            data = response.json()
+            if not isinstance(data, dict):
+                if source_error is None:
+                    first_page = target_pages_for_id[0]
+                    source_error = exceptions.NoElementException(
+                        f"Page source response payload is malformed for site: {site.unix_name}, "
+                        f"page: {first_page.fullname} "
+                        f"(id={first_page.id}, expected=dict, actual={type(data).__name__})"
+                    )
+                continue
+            body = data.get("body")
             if body is None:
                 if source_error is None:
                     first_page = target_pages_for_id[0]
