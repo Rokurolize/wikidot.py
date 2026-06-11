@@ -539,6 +539,24 @@ class TestPrivateMessageCollection:
 
         mock_client.amc_client.request.assert_not_called()
 
+    def test_from_ids_mismatched_retry_response_count_includes_batch_context(self, mock_client):
+        """リトライ結果件数が要求件数と違う場合はbatch文脈付きで失敗する"""
+        mock_client.amc_client.config.retry_batch_size = 2
+        mock_client.amc_client.config.retry_max_retries = 1
+        mock_client.amc_client.request.side_effect = [
+            (RuntimeError("temporary-1"), RuntimeError("temporary-2")),
+            (MagicMock(),),
+        ]
+
+        with pytest.raises(
+            UnexpectedException,
+            match=(
+                r"Private message retry response count mismatch "
+                r"\(expected=2, actual=1, batch_start=0, attempt=1\)"
+            ),
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1, 2])
+
     def test_from_ids_uses_retry_defaults_when_config_attrs_are_missing(self, mock_client, mock_user):
         """リトライ設定属性がないconfigでは既存のデフォルト値を使う"""
         mock_client.amc_client.config = object()

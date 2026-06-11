@@ -107,6 +107,25 @@ def _validate_private_message_retry_max_retries(value: object) -> int:
     return value
 
 
+def _require_private_message_retry_response_count(
+    responses: object,
+    expected_count: int,
+    batch_start: int,
+    attempt: int,
+) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            "Private message retry response count mismatch "
+            f"(expected={expected_count}, actual={type(responses).__name__}, batch_start={batch_start}, attempt={attempt})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            "Private message retry response count mismatch "
+            f"(expected={expected_count}, actual={len(responses)}, batch_start={batch_start}, attempt={attempt})"
+        )
+    return tuple(responses)
+
+
 def _require_private_message_send_action_status(recipient: "User", event: str, data: object) -> str:
     if not isinstance(data, dict):
         raise exceptions.NoElementException(
@@ -257,7 +276,12 @@ class PrivateMessageCollection(list["PrivateMessage"]):
 
         for batch_start in range(0, len(bodies), batch_size):
             batch = bodies[batch_start : batch_start + batch_size]
-            responses = client.amc_client.request(batch, return_exceptions=True)
+            responses = _require_private_message_retry_response_count(
+                client.amc_client.request(batch, return_exceptions=True),
+                len(batch),
+                batch_start,
+                0,
+            )
             batch_results: list[Any | None] = []
             failed_indices: list[int] = []
 
@@ -273,6 +297,12 @@ class PrivateMessageCollection(list["PrivateMessage"]):
                 retry_responses = client.amc_client.request(
                     [batch[index] for index in failed_indices],
                     return_exceptions=True,
+                )
+                retry_responses = _require_private_message_retry_response_count(
+                    retry_responses,
+                    len(failed_indices),
+                    batch_start,
+                    _attempt + 1,
                 )
                 still_failed_indices: list[int] = []
 
