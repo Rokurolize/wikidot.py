@@ -207,7 +207,13 @@ def _revision_html_content(revision: "ForumPostRevision", data: object) -> str:
         raise exceptions.NoElementException(
             f"Forum post revision HTML response content is not found {_revision_html_context(revision)}, field=content"
         )
-    return str(content)
+    if not isinstance(content, str):
+        raise exceptions.NoElementException(
+            "Forum post revision HTML response content is malformed "
+            f"{_revision_html_context(revision)} "
+            f"(field=content, expected=str, actual={type(content).__name__})"
+        )
+    return content
 
 
 def _validate_revision_html_targets(revisions: list["ForumPostRevision"]) -> None:

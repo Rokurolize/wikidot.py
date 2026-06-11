@@ -1950,6 +1950,37 @@ class TestForumPostRevisionCollectionGetHtmls:
         assert revision.is_html_acquired() is False
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
 
+    def test_get_htmls_malformed_response_content_type_includes_site_post_revision_context(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """リビジョンHTMLレスポンスのcontent型異常はsite/post/revision/type付きで失敗する"""
+        revision = ForumPostRevision(
+            post=mock_forum_post_no_http,
+            id=9001,
+            rev_no=0,
+            created_by=_user(mock_forum_post_no_http.thread.site.client),
+            created_at=datetime.now(tz=timezone.utc),
+        )
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [revision])
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"content": ["not-html"]}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Forum post revision HTML response content is malformed "
+                r"for site: test-site, post: 5001, revision: 9001 "
+                r"\(field=content, expected=str, actual=list\)"
+            ),
+        ):
+            collection.get_htmls()
+
+        assert revision.is_html_acquired() is False
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+
     def test_get_htmls_deduplicates_duplicate_revision_ids(
         self, mock_forum_post_no_http: ForumPost, forum_post_revision_content: dict[str, Any]
     ) -> None:
