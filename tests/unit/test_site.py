@@ -2955,6 +2955,57 @@ class TestSiteAmcRequest:
 
         mock_client.amc_client.request.assert_not_called()
 
+    def test_amc_request_with_retry_rejects_initial_response_count_mismatch(self) -> None:
+        """初回AMC retry batchの応答数が要求数と異なる場合は位置対応前に拒否する"""
+        mock_client = create_mock_client()
+        mock_response = MagicMock()
+        mock_client.amc_client.request.return_value = (mock_response,)
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(
+            UnexpectedException,
+            match=(
+                r"Site AMC retry response count mismatch "
+                r"\(expected=2, actual=1, batch_start=0, attempt=0\)"
+            ),
+        ):
+            site.amc_request_with_retry([{"moduleName": "First"}, {"moduleName": "Second"}], batch_size=2)
+
+    def test_amc_request_with_retry_rejects_retry_response_count_mismatch(self) -> None:
+        """再試行AMC batchの応答数が失敗要求数と異なる場合は位置対応前に拒否する"""
+        mock_client = create_mock_client()
+        mock_response = MagicMock()
+        mock_client.amc_client.request.side_effect = [
+            (RuntimeError("temporary-1"), RuntimeError("temporary-2")),
+            (mock_response,),
+        ]
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(
+            UnexpectedException,
+            match=(
+                r"Site AMC retry response count mismatch "
+                r"\(expected=2, actual=1, batch_start=0, attempt=1\)"
+            ),
+        ):
+            site.amc_request_with_retry(
+                [{"moduleName": "First"}, {"moduleName": "Second"}], batch_size=2, max_retries=1
+            )
+
 
 class TestSiteInviteUser:
     """Site.invite_user のテスト"""

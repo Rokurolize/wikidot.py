@@ -329,6 +329,25 @@ def _validate_amc_retry_max_retries(value: object) -> int:
     return value
 
 
+def _require_site_amc_retry_response_count(
+    responses: object,
+    expected_count: int,
+    batch_start: int,
+    attempt: int,
+) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            "Site AMC retry response count mismatch "
+            f"(expected={expected_count}, actual={type(responses).__name__}, batch_start={batch_start}, attempt={attempt})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            "Site AMC retry response count mismatch "
+            f"(expected={expected_count}, actual={len(responses)}, batch_start={batch_start}, attempt={attempt})"
+        )
+    return tuple(responses)
+
+
 def _validate_publish_result_source_matches(value: object) -> None:
     if value is not None and not isinstance(value, bool):
         raise ValueError("source_matches must be a boolean or None")
@@ -1531,7 +1550,12 @@ class Site:
         for batch_start in range(0, len(bodies), batch_size):
             batch = bodies[batch_start : batch_start + batch_size]
 
-            responses = self.amc_request(batch, return_exceptions=True)
+            responses = _require_site_amc_retry_response_count(
+                self.amc_request(batch, return_exceptions=True),
+                expected_count=len(batch),
+                batch_start=batch_start,
+                attempt=0,
+            )
             batch_results: list[httpx.Response | None] = []
             failed_indices: list[int] = []
 
@@ -1553,7 +1577,12 @@ class Site:
                     attempt + 1,
                     max_retries,
                 )
-                retry_responses = self.amc_request(retry_bodies, return_exceptions=True)
+                retry_responses = _require_site_amc_retry_response_count(
+                    self.amc_request(retry_bodies, return_exceptions=True),
+                    expected_count=len(retry_bodies),
+                    batch_start=batch_start,
+                    attempt=attempt + 1,
+                )
 
                 still_failed_indices: list[int] = []
                 for j, retry_resp in enumerate(retry_responses):
