@@ -4572,6 +4572,32 @@ class TestPageWriteMethods:
         assert mock_page_with_id.rating == 10
         assert mock_page_with_id._votes is not None
 
+    def test_vote_wraps_live_not_ok_with_page_actor_and_cause_context(self, mock_page_with_id: Page) -> None:
+        """ライブ投票拒否はsite/page/pageId/actor/原因候補が分かる例外にする"""
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_page_with_id.site.client.username = "vote-user"
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock(
+            side_effect=exceptions.WikidotStatusCodeException('AMC is respond error status: "not_ok"', "not_ok")
+        )
+
+        with pytest.raises(exceptions.WikidotStatusCodeException) as exc_info:
+            mock_page_with_id.vote(1)
+
+        message = str(exc_info.value)
+        assert exc_info.value.status_code == "not_ok"
+        assert "Failed to complete page rating action" in message
+        assert "site: test-site" in message
+        assert "page: test-page" in message
+        assert "id=12345" in message
+        assert "event=ratePage" in message
+        assert "actor=vote-user" in message
+        assert "requested_points=1" in message
+        assert "rating permission" in message
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is not None
+
     def test_vote_invalid_value_raises(self, mock_page_with_id: Page) -> None:
         """1/-1以外の投票値は送信前に拒否する"""
         mock_page_with_id.site.amc_request = MagicMock()
@@ -4786,6 +4812,31 @@ class TestPageWriteMethods:
             mock_page_with_id.cancel_vote()
 
         assert exc_info.value.status_code == "not_ok"
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is not None
+
+    def test_cancel_vote_wraps_live_not_ok_with_page_actor_and_cause_context(self, mock_page_with_id: Page) -> None:
+        """ライブ投票取消拒否はsite/page/pageId/actor/原因候補が分かる例外にする"""
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        mock_page_with_id.site.client.username = "vote-user"
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock(
+            side_effect=exceptions.WikidotStatusCodeException('AMC is respond error status: "not_ok"', "not_ok")
+        )
+
+        with pytest.raises(exceptions.WikidotStatusCodeException) as exc_info:
+            mock_page_with_id.cancel_vote()
+
+        message = str(exc_info.value)
+        assert exc_info.value.status_code == "not_ok"
+        assert "Failed to complete page rating action" in message
+        assert "site: test-site" in message
+        assert "page: test-page" in message
+        assert "id=12345" in message
+        assert "event=cancelVote" in message
+        assert "actor=vote-user" in message
+        assert "rating permission" in message
         assert mock_page_with_id.rating == 10
         assert mock_page_with_id._votes is not None
 
@@ -5696,6 +5747,43 @@ class TestPageCreateOrEdit:
         assert page.title == "New Page Title"
         assert page.source.wiki_text == "Page content"
 
+    def test_create_new_page_accepts_numeric_live_lock_id(
+        self,
+        mock_site_no_http: Site,
+        page_pageedit_success: dict[str, Any],
+        page_savepage_success: dict[str, Any],
+        page_listpages_empty: dict[str, Any],
+    ) -> None:
+        """実Wikidotが返す数値lock_idを保存リクエスト用に文字列化する"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = {**page_pageedit_success, "lock_id": 12345678}
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = page_savepage_success
+        mock_search_response = MagicMock()
+        mock_search_response.json.return_value = page_listpages_empty
+        mock_site_no_http.amc_request = MagicMock(
+            side_effect=[
+                [mock_lock_response],
+                [mock_save_response],
+                [mock_search_response],
+                [mock_search_response],
+            ]
+        )
+
+        page = Page.create_or_edit(
+            mock_site_no_http,
+            "new-page",
+            title="New Page Title",
+            source="Page content",
+        )
+
+        save_request = mock_site_no_http.amc_request.call_args_list[1].args[0][0]
+        assert save_request["lock_id"] == "12345678"
+        assert page.fullname == "new-page"
+
     def test_create_new_page_returns_saved_page_when_search_is_stale(
         self,
         mock_site_no_http: Site,
@@ -5985,7 +6073,7 @@ class TestPageCreateOrEdit:
         mock_site_no_http.amc_request.assert_called_once()
 
     @pytest.mark.parametrize("field", ["lock_id", "lock_secret"])
-    @pytest.mark.parametrize("value", [None, True, False, 100, 100.0, [], {}])
+    @pytest.mark.parametrize("value", [None, True, False, 100.0, [], {}])
     def test_create_or_edit_malformed_lock_field_value_fails_before_save(
         self,
         mock_site_no_http: Site,
@@ -6020,6 +6108,28 @@ class TestPageCreateOrEdit:
             match=(
                 "Page edit lock response is malformed for site: test-site, page: new-page "
                 rf"\(field={field}\)"
+            ),
+        ):
+            Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")
+
+        mock_site_no_http.amc_request.assert_called_once()
+
+    def test_create_or_edit_rejects_numeric_lock_secret_before_save(
+        self, mock_site_no_http: Site, page_pageedit_success: dict[str, Any]
+    ) -> None:
+        """lock_secretは秘密文字列なので数値値を受け付けない"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = {**page_pageedit_success, "lock_secret": 100}
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_lock_response])
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                "Page edit lock response is malformed for site: test-site, page: new-page "
+                r"\(field=lock_secret\)"
             ),
         ):
             Page.create_or_edit(mock_site_no_http, "new-page", title="New Page", source="Page content")

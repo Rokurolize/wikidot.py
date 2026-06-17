@@ -341,6 +341,9 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         data_href_parts = urlsplit(data_href_text)
         data_href_host = data_href_parts.hostname.lower() if data_href_parts.hostname is not None else None
         message_id_match = re.fullmatch(r"/?account/messages/view/([0-9]+)/?", data_href_parts.path)
+        hash_message_id_match = re.fullmatch(r"/(?:sent|inbox)/([0-9]+)", data_href_parts.fragment)
+        if hash_message_id_match is not None:
+            return int(hash_message_id_match.group(1))
         if re.search(r"\d+", data_href_text) is not None and (
             data_href_parts.scheme not in ("", "http", "https")
             or (data_href_parts.scheme in ("http", "https") and data_href_parts.netloc == "")
@@ -512,14 +515,14 @@ class PrivateMessageCollection(list["PrivateMessage"]):
             if header_element is None:
                 raise exceptions.NoElementException(f"Message header element is not found {parse_context}")
 
-            user_elements = header_element.select(":scope > span.printuser")
+            user_elements = header_element.select("span.printuser")
             if len(user_elements) != 2:
                 raise exceptions.NoElementException(f"Expected sender and recipient elements {parse_context}")
             sender, recipient = user_elements
 
-            subject_element = header_element.select_one(":scope > span.subject")
+            subject_element = header_element.select_one("span.subject")
             body_element = message_element.select_one(":scope > div.body")
-            odate_element = header_element.select_one(":scope > span.odate")
+            odate_element = header_element.select_one("span.odate")
             if subject_element is None:
                 raise exceptions.NoElementException(
                     f"Message subject element is not found {parse_context}, field=subject"

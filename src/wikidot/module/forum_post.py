@@ -935,7 +935,12 @@ class ForumPostCollection(list["ForumPost"]):
             html = BeautifulSoup(ForumPostCollection._source_response_body(response, post, post_id), "lxml")
             edit_form = html.select_one("form#edit-post-form")
             source_elem = (
-                edit_form.select_one(":scope > textarea[name='source']") if isinstance(edit_form, Tag) else None
+                (
+                    edit_form.select_one("textarea#np-text[name='source']")
+                    or edit_form.select_one("textarea[name='source']")
+                )
+                if isinstance(edit_form, Tag)
+                else None
             )
             if source_elem is None:
                 raise NoElementException(

@@ -291,6 +291,41 @@ class TestPrivateMessageCollection:
                 assert len(result) == 1
                 assert result[0].id == 1
 
+    def test_from_ids_accepts_live_nested_header_metadata(self, mock_client, sender_user, recipient_user):
+        """実Wikidotのheader内ネスト構造から送受信者・件名・日時を取得する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "body": """
+            <div class="pmessage">
+                <div class="header">
+                    <div>
+                        <span class="printuser"><a href="http://www.wikidot.com/user:info/sender" onclick="WIKIDOT.page.listeners.userInfo(11111); return false;">sender</a></span>
+                        <span class="printuser"><a href="http://www.wikidot.com/user:info/recipient" onclick="WIKIDOT.page.listeners.userInfo(22222); return false;">recipient</a></span>
+                    </div>
+                    <div>
+                        <span class="subject">Nested Subject</span>
+                        <span class="odate time_1234567890">01 Jan 2023 12:00</span>
+                    </div>
+                </div>
+                <div class="body">Nested Body</div>
+            </div>
+            """
+        }
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with (
+            patch("wikidot.module.private_message.user_parser", side_effect=[sender_user, recipient_user]),
+            patch("wikidot.module.private_message.odate_parser") as mock_odate_parser,
+        ):
+            mock_odate_parser.return_value = datetime(2023, 1, 1, 12, 0, 0)
+
+            result = PrivateMessageCollection.from_ids(mock_client, [1])
+
+        assert result[0].sender == sender_user
+        assert result[0].recipient == recipient_user
+        assert result[0].subject == "Nested Subject"
+        assert result[0].body == "Nested Body"
+
     def test_from_ids_accepts_zero_message_id(self, mock_client, mock_user):
         """ゼロのメッセージIDは整数IDとして扱う"""
         mock_response = MagicMock()
@@ -937,6 +972,20 @@ class TestPrivateMessageCollection:
             PrivateMessageCollection, "from_ids", return_value=PrivateMessageCollection([])
         ) as mock_from_ids:
             PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMInboxModule")
+
+        mock_from_ids.assert_called_once_with(mock_client, [123])
+
+    @pytest.mark.parametrize("data_href", ["#/sent/123", "#/inbox/123"])
+    def test_acquire_accepts_live_hash_message_href(self, mock_client, data_href: str):
+        """実Wikidotのhash形式data-hrefからメッセージIDを取得する"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": f'<table><tr class="message" data-href="{data_href}"></tr></table>'}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with patch.object(
+            PrivateMessageCollection, "from_ids", return_value=PrivateMessageCollection([])
+        ) as mock_from_ids:
+            PrivateMessageCollection._acquire(mock_client, "dashboard/messages/DMSentModule")
 
         mock_from_ids.assert_called_once_with(mock_client, [123])
 

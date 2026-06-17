@@ -621,6 +621,9 @@ def _require_page_edit_lock_field(site: "Site", fullname: str, data: dict[str, A
             f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} (field={field})"
         ) from exc
 
+    if field == "lock_id" and isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+
     if not isinstance(value, str) or value.strip() == "":
         raise exceptions.NoElementException(
             f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} (field={field})"
@@ -771,6 +774,24 @@ def _parse_page_rating_points(site: "Site", page: "Page", event: str, data: dict
         ) from exc
 
 
+def _page_rating_failure_message(
+    site: "Site",
+    page: "Page",
+    event: str,
+    status: str,
+    *,
+    requested_points: int | None = None,
+) -> str:
+    client = _validate_page_site_client(site)
+    actor = client.username if client.username is not None else "unknown"
+    points_context = "" if requested_points is None else f", requested_points={requested_points}"
+    return (
+        f"Failed to complete page rating action for site: {site.unix_name}, page: {page.fullname} "
+        f"(id={page.id}, event={event}, status={status}, actor={actor}{points_context}). "
+        "Wikidot may return this status when the page or site rating permission/settings reject the action."
+    )
+
+
 def _require_page_rating_action_status(site: "Site", page: "Page", event: str, data: object) -> str:
     if not isinstance(data, dict):
         raise exceptions.NoElementException(
@@ -794,7 +815,7 @@ def _require_page_rating_action_status(site: "Site", page: "Page", event: str, d
 
     if status != "ok":
         raise exceptions.WikidotStatusCodeException(
-            f"Failed to complete page rating action for site: {site.unix_name}, page: {page.fullname}, event: {event}",
+            _page_rating_failure_message(site, page, event, status),
             status,
         )
     return status
@@ -3376,22 +3397,26 @@ class Page:
         client.login_check()
         if page_id is None:
             page_id = self.id
+        request_body = {
+            "action": "RateAction",
+            "event": "ratePage",
+            "moduleName": "Empty",
+            "pageId": page_id,
+            "points": value,
+            "force": "yes",
+        }
+        try:
+            responses = site.amc_request([request_body])
+        except exceptions.WikidotStatusCodeException as exc:
+            raise exceptions.WikidotStatusCodeException(
+                _page_rating_failure_message(site, self, "ratePage", exc.status_code, requested_points=value),
+                exc.status_code,
+            ) from exc
         response = _require_page_action_response_count(
             site,
             self,
             "ratePage",
-            site.amc_request(
-                [
-                    {
-                        "action": "RateAction",
-                        "event": "ratePage",
-                        "moduleName": "Empty",
-                        "pageId": page_id,
-                        "points": value,
-                        "force": "yes",
-                    }
-                ]
-            ),
+            responses,
         )[0]
         response_data = response.json()
         _require_page_rating_action_status(site, self, "ratePage", response_data)
@@ -3424,20 +3449,24 @@ class Page:
         client.login_check()
         if page_id is None:
             page_id = self.id
+        request_body = {
+            "action": "RateAction",
+            "event": "cancelVote",
+            "moduleName": "Empty",
+            "pageId": page_id,
+        }
+        try:
+            responses = site.amc_request([request_body])
+        except exceptions.WikidotStatusCodeException as exc:
+            raise exceptions.WikidotStatusCodeException(
+                _page_rating_failure_message(site, self, "cancelVote", exc.status_code),
+                exc.status_code,
+            ) from exc
         response = _require_page_action_response_count(
             site,
             self,
             "cancelVote",
-            site.amc_request(
-                [
-                    {
-                        "action": "RateAction",
-                        "event": "cancelVote",
-                        "moduleName": "Empty",
-                        "pageId": page_id,
-                    }
-                ]
-            ),
+            responses,
         )[0]
         response_data = response.json()
         _require_page_rating_action_status(site, self, "cancelVote", response_data)

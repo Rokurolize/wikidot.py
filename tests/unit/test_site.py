@@ -3979,6 +3979,35 @@ Real edit comment
         ):
             site.get_recent_changes()
 
+    def test_get_recent_changes_accepts_new_revision_marker_as_zero(self, site_changes: dict[str, Any]) -> None:
+        """実Wikidotの新規作成行に出る(new)をrevision_no=0として扱う"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = re.sub(
+            r'<td class="revision-no"[^>]*>\s*\(rev\. 3\)\s*</td>',
+            '<td class="revision-no">(new)</td>',
+            site_changes["body"],
+            count=1,
+        )
+        assert body != site_changes["body"]
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+
+            changes = site.get_recent_changes()
+
+        assert changes[0].revision_no == 0
+
     def test_get_recent_changes_rejects_revision_number_with_trailing_text(self, site_changes: dict[str, Any]) -> None:
         """変更履歴revision番号は埋め込み数字ではなく構造的なrev値だけ受け付ける"""
         mock_client = create_mock_client()
