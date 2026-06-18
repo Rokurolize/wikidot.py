@@ -27,6 +27,7 @@ class TestPageVotes:
         assert page is not None
 
         votes = page.votes
+        assert votes is not None
         # 投票がある場合はプロパティを確認
         if len(votes) == 0:
             pytest.skip("No votes found on existing integration page")

@@ -51,7 +51,12 @@ class TestSetupConsoleHandler:
         file_handler = logging.FileHandler(tmp_path / "wikidot.log")
         logger.addHandler(file_handler)
 
-        setup_console_handler(logger)
+        try:
+            setup_console_handler(logger)
 
-        assert file_handler in logger.handlers
-        assert any(type(handler) is logging.StreamHandler for handler in logger.handlers)
+            assert file_handler in logger.handlers
+            assert any(type(handler) is logging.StreamHandler for handler in logger.handlers)
+        finally:
+            for handler in logger.handlers[:]:
+                logger.removeHandler(handler)
+                handler.close()
