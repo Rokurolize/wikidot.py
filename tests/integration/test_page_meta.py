@@ -7,6 +7,27 @@ import pytest
 from .conftest import generate_page_name, wait_for_condition
 
 
+def _meta_equals(page, key: str, expected: str) -> bool:
+    try:
+        return page is not None and page.metas.get(key) == expected
+    except Exception:
+        return False
+
+
+def _meta_absent(page, key: str) -> bool:
+    try:
+        return page is not None and key not in page.metas
+    except Exception:
+        return False
+
+
+def _metas_match(page, expected: dict[str, str]) -> bool:
+    try:
+        return page is not None and all(page.metas.get(key) == value for key, value in expected.items())
+    except Exception:
+        return False
+
+
 class TestPageMeta:
     """ページメタ操作テスト"""
 
@@ -46,8 +67,8 @@ class TestPageMeta:
 
         # 再取得して確認
         updated_page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: "description" in page.metas and page.metas["description"] == "Test description",
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: _meta_equals(page, "description", "Test description"),
             max_retries=10,
             interval=2.0,
         )
@@ -62,8 +83,8 @@ class TestPageMeta:
 
         # 再取得
         updated_page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: "keywords" in page.metas and page.metas["keywords"] == "test, integration",
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: _meta_equals(page, "keywords", "test, integration"),
             max_retries=10,
             interval=2.0,
         )
@@ -81,8 +102,8 @@ class TestPageMeta:
 
         # 再取得
         self.page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: page.metas.get("description") == "Original description",
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: _meta_equals(page, "description", "Original description"),
             max_retries=10,
             interval=2.0,
         )
@@ -94,8 +115,8 @@ class TestPageMeta:
 
         # 確認
         updated_page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: page.metas.get("description") == "Updated description",
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: _meta_equals(page, "description", "Updated description"),
             max_retries=10,
             interval=2.0,
         )
@@ -109,8 +130,8 @@ class TestPageMeta:
 
         # 再取得
         self.page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: page.metas.get("description") == "To be deleted",
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: _meta_equals(page, "description", "To be deleted"),
             max_retries=10,
             interval=2.0,
         )
@@ -122,8 +143,8 @@ class TestPageMeta:
 
         # 確認
         updated_page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: "description" not in page.metas,
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: _meta_absent(page, "description"),
             max_retries=10,
             interval=2.0,
         )
@@ -140,10 +161,15 @@ class TestPageMeta:
 
         # 確認
         updated_page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: page.metas.get("description") == "Page description"
-            and page.metas.get("keywords") == "keyword1, keyword2"
-            and page.metas.get("author") == "Test Author",
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: _metas_match(
+                page,
+                {
+                    "description": "Page description",
+                    "keywords": "keyword1, keyword2",
+                    "author": "Test Author",
+                },
+            ),
             max_retries=10,
             interval=2.0,
         )

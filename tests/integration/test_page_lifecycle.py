@@ -17,6 +17,13 @@ def fetch_page_document_title(url: str) -> str:
     return title_element.get_text(strip=True)
 
 
+def _has_source_text(page, expected: str) -> bool:
+    try:
+        return page is not None and page.source is not None and page.source.wiki_text == expected
+    except Exception:
+        return False
+
+
 class TestPageLifecycle:
     """ページライフサイクルテスト
 
@@ -95,7 +102,7 @@ class TestPageLifecycle:
         )
         self.page = wait_for_condition(
             lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
-            lambda page: page is not None and page.source.wiki_text == "This is test content.",
+            lambda page: _has_source_text(page, "This is test content."),
             max_retries=10,
             interval=2.0,
         )
@@ -115,7 +122,7 @@ class TestPageLifecycle:
         )
         self.page = wait_for_condition(
             lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
-            lambda page: page is not None and page.source.wiki_text == "Original content.",
+            lambda page: _has_source_text(page, "Original content."),
             max_retries=10,
             interval=2.0,
         )
@@ -131,8 +138,8 @@ class TestPageLifecycle:
         # ListPagesModule can keep stale title metadata briefly; source and
         # rendered HTML reflect the saved edit more reliably.
         updated_page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: page.source.wiki_text == "Updated content.",
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: _has_source_text(page, "Updated content."),
             max_retries=10,
             interval=2.0,
         )
