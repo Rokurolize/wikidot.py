@@ -3,7 +3,7 @@ name: Publish to PyPI
 on:
   # 新規リリースの作成時に実行
   release:
-    types: [ published ]
+    types: [published]
 jobs:
   publish:
     runs-on: ubuntu-latest

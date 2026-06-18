@@ -54,6 +54,10 @@ class TestClient:
             Client(username="test-user", password="test-password")
 
         mock_logout.assert_called_once()
+        failed_client = mock_logout.call_args.args[0]
+        assert failed_client.is_logged_in is False
+        assert failed_client.username is None
+        assert failed_client.me is None
 
     @pytest.mark.parametrize(
         ("username", "password"),

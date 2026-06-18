@@ -40,20 +40,21 @@ class TestHTTPAuthentication:
         mock_response.text = "Login successful"
         mock_response.cookies = {"WIKIDOT_SESSION_ID": "test-session-id"}
 
-        with patch("wikidot.module.auth.httpx.post", return_value=mock_response) as mock_post:
+        with patch("wikidot.module.auth.sync_post_with_retry", return_value=mock_response) as mock_post:
             HTTPAuthentication.login(mock_client, "test-user", "test-password")
 
-        mock_post.assert_called_once_with(
-            "https://www.wikidot.com/default--flow/login__LoginPopupScreen",
-            data={
-                "login": "test-user",
-                "password": "test-password",
-                "action": "Login2Action",
-                "event": "login",
-            },
-            headers={},
-            timeout=mock_client.amc_client.config.request_timeout,
-        )
+        mock_post.assert_called_once()
+        kwargs = mock_post.call_args.kwargs
+        assert kwargs["url"] == "https://www.wikidot.com/default--flow/login__LoginPopupScreen"
+        assert kwargs["data"] == {
+            "login": "test-user",
+            "password": "test-password",
+            "action": "Login2Action",
+            "event": "login",
+        }
+        assert kwargs["headers"] == {}
+        assert kwargs["timeout"] == mock_client.amc_client.config.request_timeout
+        assert kwargs["raise_for_status"] is False
         mock_client.amc_client.header.set_cookie.assert_called_once_with("WIKIDOT_SESSION_ID", "test-session-id")
 
     @pytest.mark.parametrize(

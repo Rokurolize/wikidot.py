@@ -51,7 +51,7 @@ release: check-version
 		echo "Unexpected release changes found; review and commit them before releasing."; \
 		exit 1; \
 	fi
-	@if git diff -U0 -- src/wikidot/__init__.py | awk '/^[+-][^+-]/ && $$0 !~ /^[+-]__version__ = "/ { found=1 } END { exit found ? 0 : 1 }'; then \
+	@if git diff -U0 -- src/wikidot/__init__.py | awk '/^[-+]/ && $$0 !~ /^(---|\+\+\+|[-+]__version__ = ")/ { found=1 } END { exit found ? 0 : 1 }'; then \
 		echo "Unexpected non-version changes found in src/wikidot/__init__.py."; \
 		exit 1; \
 	fi

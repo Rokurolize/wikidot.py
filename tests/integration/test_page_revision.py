@@ -7,6 +7,20 @@ import pytest
 from .conftest import generate_page_name, wait_for_condition
 
 
+def _has_revisions(page) -> bool:
+    try:
+        return len(page.revisions) >= 1
+    except Exception:
+        return False
+
+
+def _has_latest_revision(page) -> bool:
+    try:
+        return page.latest_revision is not None
+    except Exception:
+        return False
+
+
 class TestPageRevision:
     """ページリビジョン操作テスト"""
 
@@ -50,8 +64,8 @@ class TestPageRevision:
         """1. リビジョン一覧取得"""
         # 再取得
         page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: len(page.revisions) >= 1,
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: page is not None and _has_revisions(page),
             max_retries=10,
             interval=2.0,
         )
@@ -65,8 +79,8 @@ class TestPageRevision:
     def test_2_revision_properties(self):
         """2. リビジョンプロパティ確認"""
         page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: len(page.revisions) >= 1,
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: page is not None and _has_revisions(page),
             max_retries=10,
             interval=2.0,
         )
@@ -83,8 +97,8 @@ class TestPageRevision:
     def test_3_get_latest_revision(self):
         """3. 最新リビジョン取得"""
         page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: page.latest_revision is not None,
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: page is not None and _has_latest_revision(page),
             max_retries=10,
             interval=2.0,
         )
@@ -96,8 +110,8 @@ class TestPageRevision:
     def test_4_revision_source(self):
         """4. リビジョンソース取得"""
         page = wait_for_condition(
-            lambda: self.site.page.get(self.page_name),
-            lambda page: len(page.revisions) >= 1,
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: page is not None and _has_revisions(page),
             max_retries=10,
             interval=2.0,
         )
