@@ -1,144 +1,569 @@
 """
-Wikidotのプライベートメッセージを扱うモジュール
+Module for handling Wikidot private messages
 
-このモジュールは、Wikidotのプライベートメッセージ（PM）に関連するクラスや機能を提供する。
-メッセージの送信、受信箱・送信箱の取得、メッセージの閲覧などの操作が可能。
+This module provides classes and functionality related to Wikidot private messages (PM).
+It enables operations such as sending messages, retrieving inbox/sent box, and viewing messages.
 """
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
+from urllib.parse import urlsplit
 
-import httpx
-from bs4 import BeautifulSoup, ResultSet, Tag
+from bs4 import BeautifulSoup, Tag
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 from ..common import exceptions
 from ..common.decorators import login_required
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ._validation import validate_text_field
+from .user import User
 
 if TYPE_CHECKING:
     from .client import Client
-    from .user import AbstractUser, User
+    from .user import AbstractUser
+
+
+def _validate_private_message_recipient(recipient: object) -> User:
+    if not isinstance(recipient, User):
+        raise ValueError("recipient must be a User")
+    if not isinstance(recipient.id, int) or isinstance(recipient.id, bool):
+        raise ValueError("recipient.id must be an integer")
+    if recipient.id < 0:
+        raise ValueError("recipient.id must be non-negative")
+    if not isinstance(recipient.name, str):
+        raise ValueError("recipient.name must be a string")
+    return recipient
+
+
+def _validate_private_message_id(message_id: object) -> int:
+    if not isinstance(message_id, int) or isinstance(message_id, bool):
+        raise ValueError("message_id must be an integer")
+    if message_id < 0:
+        raise ValueError("message_id must be non-negative")
+    return message_id
+
+
+def _validate_private_message_user(field: str, user: object) -> "AbstractUser":
+    from .user import AbstractUser
+
+    if not isinstance(user, AbstractUser):
+        raise ValueError(f"{field} must be an AbstractUser")
+    _validate_private_message_user_id(field, user.id)
+    return user
+
+
+def _validate_private_message_user_id(field: str, user_id: object) -> int | None:
+    if user_id is None:
+        return None
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        raise ValueError(f"{field}.id must be an integer or None")
+    if user_id < 0:
+        raise ValueError(f"{field}.id must be non-negative or None")
+    return user_id
+
+
+def _validate_private_message_user_client(client: "Client", field: str, user: "AbstractUser") -> None:
+    if user.client is not client:
+        raise ValueError(f"{field} must belong to the client")
+
+
+def _validate_private_message_created_at(created_at: object) -> datetime:
+    if not isinstance(created_at, datetime):
+        raise ValueError("created_at must be a datetime")
+    return created_at
+
+
+def _validate_private_message_ids(message_ids: object) -> list[int]:
+    if not isinstance(message_ids, list):
+        raise ValueError("message_ids must be a list")
+    if any(not isinstance(message_id, int) or isinstance(message_id, bool) for message_id in message_ids):
+        raise ValueError("message_ids list entries must be integers")
+    if any(message_id < 0 for message_id in message_ids):
+        raise ValueError("message_ids list entries must be non-negative")
+    return cast(list[int], message_ids)
+
+
+def _validate_private_message_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
+def _validate_private_message_retry_batch_size(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+        raise ValueError(f"batch_size must be a positive integer, got {value}")
+    return value
+
+
+def _validate_private_message_retry_max_retries(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(f"max_retries must be a non-negative integer, got {value}")
+    return value
+
+
+def _require_private_message_retry_response_count(
+    responses: object,
+    expected_count: int,
+    batch_start: int,
+    attempt: int,
+) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            "Private message retry response count mismatch "
+            f"(expected={expected_count}, actual={type(responses).__name__}, batch_start={batch_start}, attempt={attempt})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            "Private message retry response count mismatch "
+            f"(expected={expected_count}, actual={len(responses)}, batch_start={batch_start}, attempt={attempt})"
+        )
+    return tuple(responses)
+
+
+def _require_private_message_send_action_status(recipient: "User", event: str, data: object) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Private message send action response is malformed for recipient: {recipient.name} "
+            f"(id={recipient.id}, event={event}, expected=dict, actual={type(data).__name__})"
+        )
+
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Private message send action response is malformed for recipient: {recipient.name} "
+            f"(id={recipient.id}, event={event}, field=status)"
+        ) from exc
+
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Private message send action response is malformed for recipient: {recipient.name} "
+            f"(id={recipient.id}, event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            f"Failed to send private message to recipient: {recipient.name}, event: {event}",
+            status,
+        )
+    return status
+
+
+def _validate_private_message_collection_messages(messages: object) -> list["PrivateMessage"]:
+    if messages is None:
+        return []
+    if not isinstance(messages, list):
+        raise ValueError("messages must be a list or None")
+    if any(not isinstance(message, PrivateMessage) for message in messages):
+        raise ValueError("messages list entries must be PrivateMessage")
+    return cast(list["PrivateMessage"], messages)
+
+
+def _odate_class_value(odate_element: Tag) -> str:
+    class_attr = odate_element.get("class", [])
+    if class_attr is None:
+        return ""
+    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+
+
+def _user_onclick_value(user_element: Tag) -> str:
+    link_element = user_element.find("a", recursive=False)
+    if isinstance(link_element, Tag):
+        onclick = link_element.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_element.get_text(" ", strip=True)
+
+
+def _parse_message_user(client: "Client", user_element: Tag, parse_context: str, field: str) -> Any:
+    try:
+        return user_parser(client, user_element)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Message {field} user is malformed {parse_context}, "
+            f"field={field}, value={_user_onclick_value(user_element)}"
+        ) from exc
 
 
 class PrivateMessageCollection(list["PrivateMessage"]):
     """
-    プライベートメッセージのコレクションを表す基底クラス
+    Base class representing a collection of private messages
 
-    複数のプライベートメッセージを格納し、一括して操作するためのリスト拡張クラス。
-    受信箱や送信箱など、特定のメッセージグループを表現するために継承される。
+    A list extension class for storing multiple private messages and performing batch operations.
+    Inherited to represent specific message groups such as inbox or sent box.
     """
 
-    def __str__(self):
+    def __init__(self, messages: list["PrivateMessage"] | None = None):
         """
-        オブジェクトの文字列表現
+        Initialization method
+
+        Parameters
+        ----------
+        messages : list[PrivateMessage] | None, default None
+            List of private messages to store
+        """
+        super().__init__(_validate_private_message_collection_messages(messages))
+
+    def __str__(self) -> str:
+        """
+        String representation of the object
 
         Returns
         -------
         str
-            メッセージコレクションの文字列表現
+            String representation of the message collection
         """
         return f"{self.__class__.__name__}({len(self)} messages)"
 
     def __iter__(self) -> Iterator["PrivateMessage"]:
         """
-        コレクション内のメッセージを順に返すイテレータ
+        Iterator that returns messages in the collection sequentially
 
         Returns
         -------
         Iterator[PrivateMessage]
-            メッセージオブジェクトのイテレータ
+            Iterator of message objects
         """
         return super().__iter__()
 
     def find(self, id: int) -> Optional["PrivateMessage"]:
         """
-        指定IDのメッセージを取得する
+        Retrieve a message with the specified ID
 
         Parameters
         ----------
         id : int
-            取得するメッセージのID
+            The ID of the message to retrieve
 
         Returns
         -------
         PrivateMessage | None
-            取得したメッセージオブジェクト。見つからない場合はNone
+            The retrieved message object, or None if not found
         """
+        if not isinstance(id, int) or isinstance(id, bool):
+            raise ValueError("id must be an integer")
+
         for message in self:
-            if message.id == id:
+            if _validate_private_message_id(message.id) == id:
                 return message
 
         return None
 
     @staticmethod
-    @login_required
+    def _amc_request_with_retry(client: "Client", bodies: list[dict[str, Any]]) -> tuple[Any | None, ...]:
+        config = getattr(client.amc_client, "config", None)
+        batch_size = _validate_private_message_retry_batch_size(getattr(config, "retry_batch_size", 50))
+        max_retries = _validate_private_message_retry_max_retries(getattr(config, "retry_max_retries", 3))
+
+        def should_retry(response: Any) -> bool:
+            if not isinstance(response, Exception):
+                return False
+            return not (
+                isinstance(response, exceptions.ForbiddenException)
+                or (
+                    isinstance(response, exceptions.WikidotStatusCodeException) and response.status_code == "no_message"
+                )
+            )
+
+        all_results: list[Any | None] = []
+
+        for batch_start in range(0, len(bodies), batch_size):
+            batch = bodies[batch_start : batch_start + batch_size]
+            responses = _require_private_message_retry_response_count(
+                client.amc_client.request(batch, return_exceptions=True),
+                len(batch),
+                batch_start,
+                0,
+            )
+            batch_results: list[Any | None] = []
+            failed_indices: list[int] = []
+
+            for index, response in enumerate(responses):
+                batch_results.append(response)
+                if should_retry(response):
+                    failed_indices.append(index)
+
+            for _attempt in range(max_retries):
+                if not failed_indices:
+                    break
+
+                retry_responses = client.amc_client.request(
+                    [batch[index] for index in failed_indices],
+                    return_exceptions=True,
+                )
+                retry_responses = _require_private_message_retry_response_count(
+                    retry_responses,
+                    len(failed_indices),
+                    batch_start,
+                    _attempt + 1,
+                )
+                still_failed_indices: list[int] = []
+
+                for retry_index, retry_response in enumerate(retry_responses):
+                    result_index = failed_indices[retry_index]
+                    batch_results[result_index] = retry_response
+                    if should_retry(retry_response):
+                        still_failed_indices.append(result_index)
+
+                failed_indices = still_failed_indices
+
+            for index in failed_indices:
+                batch_results[index] = None
+
+            all_results.extend(batch_results)
+
+        return tuple(all_results)
+
+    @staticmethod
+    def _is_inside_message_row(element: Tag) -> bool:
+        for ancestor in element.parents:
+            if not isinstance(ancestor, Tag):
+                continue
+            if ancestor.name == "tr" and "message" in ancestor.get("class", []):
+                return True
+        return False
+
+    @staticmethod
+    def _message_list_parse_context(module_name: str, page: int, row_index: int) -> str:
+        return f"for module: {module_name} (page={page}, row={row_index})"
+
+    @staticmethod
+    def _parse_message_list_message_id(module_name: str, page: int, row_index: int, data_href: object) -> int:
+        data_href_text = str(data_href)
+        parse_context = PrivateMessageCollection._message_list_parse_context(module_name, page, row_index)
+        data_href_parts = urlsplit(data_href_text)
+        data_href_host = data_href_parts.hostname.lower() if data_href_parts.hostname is not None else None
+        message_id_match = re.fullmatch(r"/?account/messages/view/([0-9]+)/?", data_href_parts.path)
+        hash_message_id_match = re.fullmatch(r"/(?:sent|inbox)/([0-9]+)", data_href_parts.fragment)
+        if hash_message_id_match is not None:
+            return int(hash_message_id_match.group(1))
+        if re.search(r"\d+", data_href_text) is not None and (
+            data_href_parts.scheme not in ("", "http", "https")
+            or (data_href_parts.scheme in ("http", "https") and data_href_parts.netloc == "")
+            or (data_href_parts.netloc != "" and data_href_host != "www.wikidot.com")
+            or message_id_match is None
+        ):
+            raise exceptions.NoElementException(
+                f"Message ID is malformed in data-href: {data_href_text} {parse_context}"
+            )
+
+        if message_id_match is not None:
+            return int(message_id_match.group(1))
+
+        raise exceptions.NoElementException(f"Message ID is not found in data-href: {data_href_text} {parse_context}")
+
+    @staticmethod
+    def _message_list_fetch_context(module_name: str, page: int) -> str:
+        return f"for module: {module_name}, page: {page}"
+
+    @staticmethod
+    def _message_list_response_body(response: Any, module_name: str, page: int) -> str:
+        data = response.json()
+        if not isinstance(data, dict):
+            raise exceptions.NoElementException(
+                "Message list response payload is malformed "
+                f"{PrivateMessageCollection._message_list_fetch_context(module_name, page)} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        response_body = data.get("body")
+        if response_body is None:
+            raise exceptions.NoElementException(
+                "Message list response body is not found "
+                f"{PrivateMessageCollection._message_list_fetch_context(module_name, page)}"
+            )
+        if not isinstance(response_body, str):
+            raise exceptions.NoElementException(
+                "Message list response body is malformed "
+                f"{PrivateMessageCollection._message_list_fetch_context(module_name, page)} "
+                f"(field=body, expected=str, actual={type(response_body).__name__})"
+            )
+        return response_body
+
+    @staticmethod
+    def _parse_message_list_pager_page(module_name: str, page_text: str) -> int | None:
+        if re.fullmatch(r"[0-9]+", page_text) is not None:
+            return int(page_text)
+
+        if page_text.isdigit():
+            raise exceptions.NoElementException(
+                "Message list pager page is malformed "
+                f"{PrivateMessageCollection._message_list_fetch_context(module_name, 1)} "
+                f"(field=page, value={page_text})"
+            )
+
+        return None
+
+    @staticmethod
+    def _message_detail_fetch_context(module_name: str, message_id: int) -> str:
+        return f"for module: {module_name}, message: {message_id}"
+
+    @staticmethod
+    def _pager_targets_from_html(html: BeautifulSoup) -> list[Tag]:
+        for pager in html.select("div.pager"):
+            if PrivateMessageCollection._is_inside_message_row(pager):
+                continue
+            return list(pager.select("span.target"))
+        return []
+
+    @staticmethod
     def from_ids(client: "Client", message_ids: list[int]) -> "PrivateMessageCollection":
         """
-        メッセージIDのリストからメッセージオブジェクトのコレクションを取得する
+        Retrieve a collection of message objects from a list of message IDs
 
-        指定されたIDのメッセージを一括で取得し、コレクションとして返す。
+        Batch retrieves messages with the specified IDs and returns them as a collection.
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
         message_ids : list[int]
-            取得するメッセージIDのリスト
+            List of message IDs to retrieve
 
         Returns
         -------
         PrivateMessageCollection
-            取得したメッセージのコレクション
+            Collection of retrieved messages
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         ForbiddenException
-            メッセージにアクセスする権限がない場合
+            If no permission to access the message
         """
+        message_ids = _validate_private_message_ids(message_ids)
+        if len(message_ids) == 0:
+            return PrivateMessageCollection([])
+        client = _validate_private_message_client(client)
+
+        client.login_check()
+
+        unique_message_ids: list[int] = []
+        seen_message_ids: set[int] = set()
+        for message_id in message_ids:
+            if message_id in seen_message_ids:
+                continue
+            seen_message_ids.add(message_id)
+            unique_message_ids.append(message_id)
+
+        message_detail_module_name = "dashboard/messages/DMViewMessageModule"
         bodies = []
 
-        for message_id in message_ids:
+        for message_id in unique_message_ids:
             bodies.append(
                 {
                     "item": message_id,
-                    "moduleName": "dashboard/messages/DMViewMessageModule",
+                    "moduleName": message_detail_module_name,
                 }
             )
 
-        responses: tuple[httpx.Response | Exception] = client.amc_client.request(bodies, return_exceptions=True)
+        responses = PrivateMessageCollection._amc_request_with_retry(client, bodies)
 
-        messages = []
+        responses_by_id: dict[int, Any] = {}
 
         for index, response in enumerate(responses):
+            message_id = unique_message_ids[index]
+            fetch_context = PrivateMessageCollection._message_detail_fetch_context(
+                message_detail_module_name, message_id
+            )
+
             if isinstance(response, exceptions.WikidotStatusCodeException):
                 if response.status_code == "no_message":
-                    raise exceptions.ForbiddenException(f"Failed to get message: {message_ids[index]}") from response
+                    raise exceptions.ForbiddenException(f"Failed to get private message {fetch_context}") from response
+
+            if response is None:
+                raise exceptions.UnexpectedException(f"Cannot retrieve private message {fetch_context}")
 
             if isinstance(response, Exception):
                 raise response
 
-            html = BeautifulSoup(response.json()["body"], "lxml")
+            responses_by_id[message_id] = response
 
-            sender, recipient = html.select("div.pmessage div.header span.printuser")
+        parsed_messages_by_id: dict[int, tuple[Any, Any, str, str, datetime]] = {}
+        for message_id in unique_message_ids:
+            response = responses_by_id[message_id]
+            parse_context = PrivateMessageCollection._message_detail_fetch_context(
+                message_detail_module_name, message_id
+            )
+            data = response.json()
+            if not isinstance(data, dict):
+                raise exceptions.NoElementException(
+                    f"Message response payload is malformed {parse_context} "
+                    f"(expected=dict, actual={type(data).__name__})"
+                )
+            response_body = data.get("body")
+            if response_body is None:
+                raise exceptions.NoElementException(f"Message response body is not found {parse_context}")
+            if not isinstance(response_body, str):
+                raise exceptions.NoElementException(
+                    f"Message response body is malformed {parse_context} "
+                    f"(field=body, expected=str, actual={type(response_body).__name__})"
+                )
+            html = BeautifulSoup(response_body, "lxml")
 
-            subject_element = html.select_one("div.pmessage div.header span.subject")
-            body_element = html.select_one("div.pmessage div.body")
-            odate_element = html.select_one("div.header span.odate")
+            message_element = html.select_one("div.pmessage")
+            if message_element is None:
+                raise exceptions.NoElementException(f"Message element is not found {parse_context}")
+            header_element = message_element.select_one(":scope > div.header")
+            if header_element is None:
+                raise exceptions.NoElementException(f"Message header element is not found {parse_context}")
 
+            user_elements = header_element.select("span.printuser")
+            if len(user_elements) != 2:
+                raise exceptions.NoElementException(f"Expected sender and recipient elements {parse_context}")
+            sender, recipient = user_elements
+
+            subject_element = header_element.select_one("span.subject")
+            body_element = message_element.select_one(":scope > div.body")
+            odate_element = header_element.select_one("span.odate")
+            if subject_element is None:
+                raise exceptions.NoElementException(
+                    f"Message subject element is not found {parse_context}, field=subject"
+                )
+            if body_element is None:
+                raise exceptions.NoElementException(f"Message body element is not found {parse_context}, field=body")
+            if odate_element is None:
+                raise exceptions.NoElementException(f"Message odate element is not found {parse_context}, field=odate")
+
+            try:
+                created_at = odate_parser(odate_element)
+            except ValueError as exc:
+                raise exceptions.NoElementException(
+                    f"Message odate value is malformed {parse_context}, "
+                    f"field=odate, value={_odate_class_value(odate_element)}"
+                ) from exc
+
+            parsed_messages_by_id[message_id] = (
+                _parse_message_user(client, sender, parse_context, "sender"),
+                _parse_message_user(client, recipient, parse_context, "recipient"),
+                subject_element.get_text(" ", strip=True),
+                body_element.get_text(" ", strip=True),
+                created_at,
+            )
+
+        messages = []
+        for message_id in message_ids:
+            sender, recipient, subject, body, created_at = parsed_messages_by_id[message_id]
             messages.append(
                 PrivateMessage(
                     client=client,
-                    id=message_ids[index],
-                    sender=user_parser(client, sender),
-                    recipient=user_parser(client, recipient),
-                    subject=subject_element.get_text() if subject_element else "",
-                    body=body_element.get_text() if body_element else "",
-                    created_at=(odate_parser(odate_element) if odate_element else datetime.fromtimestamp(0)),
+                    id=message_id,
+                    sender=sender,
+                    recipient=recipient,
+                    subject=subject,
+                    body=body,
+                    created_at=created_at,
                 )
             )
 
@@ -146,183 +571,270 @@ class PrivateMessageCollection(list["PrivateMessage"]):
 
     @staticmethod
     @login_required
-    def _acquire(client: "Client", module_name: str):
+    def _acquire(client: "Client", module_name: str) -> "PrivateMessageCollection":
         """
-        特定のモジュールからプライベートメッセージを取得する内部メソッド
+        Internal method to retrieve private messages from a specific module
 
-        受信箱や送信箱などのメッセージ一覧を取得するための共通メソッド。
-        ページネーションが存在する場合は、すべてのページから取得する。
+        Common method for retrieving message lists such as inbox or sent box.
+        If pagination exists, retrieves from all pages.
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
         module_name : str
-            メッセージを取得するモジュール名
+            Module name to retrieve messages from
 
         Returns
         -------
         PrivateMessageCollection
-            取得したメッセージのコレクション
+            Collection of retrieved messages
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         """
         # pager取得
-        response: httpx.Response = cast(httpx.Response, client.amc_client.request([{"moduleName": module_name}])[0])
+        first_response = PrivateMessageCollection._amc_request_with_retry(client, [{"moduleName": module_name}])[0]
+        if first_response is None:
+            raise exceptions.UnexpectedException(
+                f"Cannot retrieve private messages {PrivateMessageCollection._message_list_fetch_context(module_name, 1)}"
+            )
+        if isinstance(first_response, Exception):
+            raise first_response
 
-        html = BeautifulSoup(response.json()["body"], "lxml")
+        first_body = PrivateMessageCollection._message_list_response_body(first_response, module_name, 1)
+        first_html = BeautifulSoup(first_body, "lxml")
         # pagerの最後から2番目の要素を取得
         # pageが存在しない場合は1ページのみ
-        pager: ResultSet[Tag] = html.select("div.pager span.target")
-        max_page: int = int(pager[-2].get_text()) if len(pager) > 2 else 1
+        pager = PrivateMessageCollection._pager_targets_from_html(first_html)
+        max_page = 1
+        for pager_target in reversed(pager):
+            page_text = pager_target.get_text(strip=True)
+            parsed_page = PrivateMessageCollection._parse_message_list_pager_page(module_name, page_text)
+            if parsed_page is not None:
+                max_page = parsed_page
+                break
 
         if max_page > 1:
             # メッセージ取得
-            bodies = [{"page": page, "moduleName": module_name} for page in range(1, max_page + 1)]
-
-            responses: tuple[httpx.Response] = cast(
-                tuple[httpx.Response],
-                client.amc_client.request(bodies, return_exceptions=False),
+            page_numbers = list(range(2, max_page + 1))
+            additional_responses = PrivateMessageCollection._amc_request_with_retry(
+                client,
+                [{"page": page, "moduleName": module_name} for page in page_numbers],
             )
+            responses = (first_response, *additional_responses)
+            response_pages = (1, *page_numbers)
         else:
-            responses = (response,)
+            responses = (first_response,)
+            response_pages = (1,)
 
         message_ids = []
-        for response in responses:
-            html = BeautifulSoup(response.json()["body"], "lxml")
-            # tr.messageのdata-href末尾の数字を取得
-            message_ids.extend([int(str(tr["data-href"]).split("/")[-1]) for tr in html.select("tr.message")])
+        seen_message_ids: set[int] = set()
+        for page, response in zip(response_pages, responses, strict=True):
+            if response is None:
+                raise exceptions.UnexpectedException(
+                    "Cannot retrieve private messages "
+                    f"{PrivateMessageCollection._message_list_fetch_context(module_name, page)}"
+                )
+            if isinstance(response, Exception):
+                raise response
+            if page == 1:
+                html = first_html
+            else:
+                body = PrivateMessageCollection._message_list_response_body(response, module_name, page)
+                html = BeautifulSoup(body, "lxml")
+            row_index = 0
+            for message_row in html.select("tr.message"):
+                if PrivateMessageCollection._is_inside_message_row(message_row):
+                    continue
+
+                row_index += 1
+                parse_context = PrivateMessageCollection._message_list_parse_context(module_name, page, row_index)
+                data_href = message_row.get("data-href")
+                if data_href is None:
+                    raise exceptions.NoElementException(f"Message data-href attribute is not found {parse_context}")
+
+                message_id = PrivateMessageCollection._parse_message_list_message_id(
+                    module_name, page, row_index, data_href
+                )
+                if message_id in seen_message_ids:
+                    continue
+                seen_message_ids.add(message_id)
+                message_ids.append(message_id)
 
         return PrivateMessageCollection.from_ids(client, message_ids)
+
+    @classmethod
+    def _factory_from_ids(cls, client: "Client", message_ids: list[int]) -> Self:
+        """
+        Generic factory method to retrieve message collection from a list of message IDs
+
+        Parameters
+        ----------
+        client : Client
+            Client instance
+        message_ids : list[int]
+            List of message IDs to retrieve
+
+        Returns
+        -------
+        cls
+            Instance of the calling class
+        """
+        return cls(PrivateMessageCollection.from_ids(client, message_ids))
+
+    @classmethod
+    def _factory_acquire(cls, client: "Client", module_name: str) -> Self:
+        """
+        Generic factory method to retrieve messages from a specified module
+
+        Parameters
+        ----------
+        client : Client
+            Client instance
+        module_name : str
+            Module name to use for retrieval
+
+        Returns
+        -------
+        cls
+            Instance of the calling class
+
+        Raises
+        ------
+        LoginRequiredException
+            If not logged in
+        """
+        client = _validate_private_message_client(client)
+        return cls(PrivateMessageCollection._acquire(client, module_name))
 
 
 class PrivateMessageInbox(PrivateMessageCollection):
     """
-    受信したプライベートメッセージのコレクションを表すクラス
+    Class representing a collection of received private messages
 
-    受信箱内のプライベートメッセージを格納し、操作するための
-    PrivateMessageCollectionの特殊化クラス。
+    A specialized class of PrivateMessageCollection for storing and operating
+    on private messages in the inbox.
     """
 
-    @staticmethod
-    def from_ids(client: "Client", message_ids: list[int]) -> "PrivateMessageInbox":
+    @classmethod
+    def from_ids(cls, client: "Client", message_ids: list[int]) -> "PrivateMessageInbox":
         """
-        メッセージIDのリストから受信箱のメッセージコレクションを取得する
+        Retrieve inbox message collection from a list of message IDs
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
         message_ids : list[int]
-            取得するメッセージIDのリスト
+            List of message IDs to retrieve
 
         Returns
         -------
         PrivateMessageInbox
-            受信箱メッセージのコレクション
+            Collection of inbox messages
         """
-        return PrivateMessageInbox(PrivateMessageCollection.from_ids(client, message_ids))
+        return cls._factory_from_ids(client, message_ids)
 
-    @staticmethod
-    def acquire(client: "Client"):
+    @classmethod
+    def acquire(cls, client: "Client") -> "PrivateMessageInbox":
         """
-        ログイン中のユーザーの受信箱メッセージをすべて取得する
+        Retrieve all inbox messages for the logged-in user
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
 
         Returns
         -------
         PrivateMessageInbox
-            受信箱メッセージのコレクション
+            Collection of inbox messages
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         """
-        return PrivateMessageInbox(PrivateMessageCollection._acquire(client, "dashboard/messages/DMInboxModule"))
+        return cls._factory_acquire(client, "dashboard/messages/DMInboxModule")
 
 
 class PrivateMessageSentBox(PrivateMessageCollection):
     """
-    送信したプライベートメッセージのコレクションを表すクラス
+    Class representing a collection of sent private messages
 
-    送信箱内のプライベートメッセージを格納し、操作するための
-    PrivateMessageCollectionの特殊化クラス。
+    A specialized class of PrivateMessageCollection for storing and operating
+    on private messages in the sent box.
     """
 
-    @staticmethod
-    def from_ids(client: "Client", message_ids: list[int]) -> "PrivateMessageSentBox":
+    @classmethod
+    def from_ids(cls, client: "Client", message_ids: list[int]) -> "PrivateMessageSentBox":
         """
-        メッセージIDのリストから送信箱のメッセージコレクションを取得する
+        Retrieve sent box message collection from a list of message IDs
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
         message_ids : list[int]
-            取得するメッセージIDのリスト
+            List of message IDs to retrieve
 
         Returns
         -------
         PrivateMessageSentBox
-            送信箱メッセージのコレクション
+            Collection of sent box messages
         """
-        return PrivateMessageSentBox(PrivateMessageCollection.from_ids(client, message_ids))
+        return cls._factory_from_ids(client, message_ids)
 
-    @staticmethod
-    def acquire(client: "Client") -> "PrivateMessageSentBox":
+    @classmethod
+    def acquire(cls, client: "Client") -> "PrivateMessageSentBox":
         """
-        ログイン中のユーザーの送信箱メッセージをすべて取得する
+        Retrieve all sent box messages for the logged-in user
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
 
         Returns
         -------
         PrivateMessageSentBox
-            送信箱メッセージのコレクション
+            Collection of sent box messages
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         """
-        return PrivateMessageSentBox(PrivateMessageCollection._acquire(client, "dashboard/messages/DMSentModule"))
+        return cls._factory_acquire(client, "dashboard/messages/DMSentModule")
 
 
 @dataclass
 class PrivateMessage:
     """
-    Wikidotプライベートメッセージを表すクラス
+    Class representing a Wikidot private message
 
-    ユーザー間でやりとりされるプライベートメッセージの情報を保持する。
-    メッセージの送信者、受信者、件名、本文などの基本情報を提供する。
+    Holds information about private messages exchanged between users.
+    Provides basic information such as sender, recipient, subject, and body.
 
     Attributes
     ----------
     client : Client
-        クライアントインスタンス
+        Client instance
     id : int
-        メッセージID
+        Message ID
     sender : AbstractUser
-        メッセージの送信者
+        Sender of the message
     recipient : AbstractUser
-        メッセージの受信者
+        Recipient of the message
     subject : str
-        メッセージの件名
+        Subject of the message
     body : str
-        メッセージの本文
+        Body of the message
     created_at : datetime
-        メッセージの作成日時
+        Creation date and time of the message
     """
 
     client: "Client"
@@ -333,68 +845,86 @@ class PrivateMessage:
     body: str
     created_at: datetime
 
-    def __str__(self):
+    def __post_init__(self) -> None:
+        self.id = _validate_private_message_id(self.id)
+        self.client = _validate_private_message_client(self.client)
+        self.sender = _validate_private_message_user("sender", self.sender)
+        self.recipient = _validate_private_message_user("recipient", self.recipient)
+        _validate_private_message_user_client(self.client, "sender", self.sender)
+        _validate_private_message_user_client(self.client, "recipient", self.recipient)
+        self.subject = validate_text_field("subject", self.subject)
+        self.body = validate_text_field("body", self.body)
+        self.created_at = _validate_private_message_created_at(self.created_at)
+
+    def __str__(self) -> str:
         """
-        オブジェクトの文字列表現
+        String representation of the object
 
         Returns
         -------
         str
-            メッセージの文字列表現
+            String representation of the message
         """
         return f"PrivateMessage(id={self.id}, sender={self.sender}, recipient={self.recipient}, subject={self.subject})"
 
     @staticmethod
     def from_id(client: "Client", message_id: int) -> "PrivateMessage":
         """
-        メッセージIDからメッセージオブジェクトを取得する
+        Retrieve a message object from a message ID
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
         message_id : int
-            取得するメッセージID
+            Message ID to retrieve
 
         Returns
         -------
         PrivateMessage
-            取得したメッセージオブジェクト
+            Retrieved message object
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         ForbiddenException
-            メッセージにアクセスする権限がない場合
+            If no permission to access the message
         IndexError
-            メッセージが見つからない場合
+            If message not found
         """
+        message_id = _validate_private_message_id(message_id)
         return PrivateMessageCollection.from_ids(client, [message_id])[0]
 
     @staticmethod
-    @login_required
     def send(client: "Client", recipient: "User", subject: str, body: str) -> None:
         """
-        プライベートメッセージを送信する
+        Send a private message
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
         recipient : User
-            メッセージの受信者
+            Recipient of the message
         subject : str
-            メッセージの件名
+            Subject of the message
         body : str
-            メッセージの本文
+            Body of the message
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         """
-        client.amc_client.request(
+        subject = validate_text_field("subject", subject)
+        body = validate_text_field("body", body)
+        recipient = _validate_private_message_recipient(recipient)
+        client = _validate_private_message_client(client)
+        _validate_private_message_user_client(client, "recipient", recipient)
+        client.login_check()
+
+        response = client.amc_client.request(
             [
                 {
                     "source": body,
@@ -405,4 +935,5 @@ class PrivateMessage:
                     "moduleName": "Empty",
                 }
             ]
-        )
+        )[0]
+        _require_private_message_send_action_status(recipient, "send", response.json())

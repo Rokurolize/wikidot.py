@@ -1,11 +1,33 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/"
     schedule:
       interval: "daily"
-    target-branch: "develop"
+    target-branch: "main"
     assignees:
       - "ukwhatn"
-    reviewers:
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+      testing:
+        patterns:
+          - "pytest*"
+      linting:
+        patterns:
+          - "ruff"
+          - "mypy"
+    cooldown:
+      default-days: 3
+      semver-patch-days: 1
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    assignees:
       - "ukwhatn"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

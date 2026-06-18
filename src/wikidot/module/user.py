@@ -1,6 +1,7 @@
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from bs4 import BeautifulSoup
 
@@ -12,52 +13,163 @@ if TYPE_CHECKING:
     from .client import Client
 
 
+_PROFILE_ID_HREF_PATTERNS = (
+    re.compile(r"(?:https?://www\.wikidot\.com)?/userkarma\.php/([0-9]+)(?:[?#].*)?"),
+    re.compile(r"(?:https?://www\.wikidot\.com)?/account/messages#/new/([0-9]+)(?:[?#].*)?"),
+)
+
+
+def _validate_user_name(field: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    if value.strip() == "":
+        raise ValueError(f"{field} must not be empty")
+    return value
+
+
+def _validate_user_names(names: object) -> list[str]:
+    if not isinstance(names, list):
+        raise ValueError("names must be a list")
+    if any(not isinstance(name, str) for name in names):
+        raise ValueError("names list entries must be strings")
+    validated_names = cast(list[str], names)
+    if any(name.strip() == "" for name in validated_names):
+        raise ValueError("names list entries must not be empty")
+    return validated_names
+
+
+def _validate_raise_when_not_found(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError("raise_when_not_found must be a boolean")
+    return value
+
+
+def _validate_user_lookup_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
+def _parse_profile_user_id_href(href: str) -> int | None:
+    for pattern in _PROFILE_ID_HREF_PATTERNS:
+        match = pattern.fullmatch(href)
+        if match is not None:
+            return int(match.group(1))
+    return None
+
+
+def _validate_user_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
+def _validate_user_id_field(field: str, value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer or None")
+    if value < 0:
+        raise ValueError(f"{field} must be non-negative or None")
+    return value
+
+
+def _validate_user_optional_text_field(field: str, value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string or None")
+    return value
+
+
+def _validate_user_expected_field(field: str, value: object, expected: object) -> None:
+    if value != expected:
+        raise ValueError(f"{field} must be {expected}")
+
+
+def _validate_user_collection_users(users: object) -> list["AbstractUser"]:
+    if users is None:
+        return []
+    if not isinstance(users, list):
+        raise ValueError("users must be a list or None")
+    if any(not isinstance(user, AbstractUser) for user in users):
+        raise ValueError("users list entries must be AbstractUser")
+    return cast(list["AbstractUser"], users)
+
+
+def _profile_parse_context(name: str, index: int, **details: object) -> str:
+    context = [f"index={index}"]
+    context.extend(f"{key}={value}" for key, value in details.items())
+    return f"for requested user: {StringUtil.to_unix(name)} ({', '.join(context)})"
+
+
 class UserCollection(list["AbstractUser"]):
     """
-    ユーザーオブジェクトのコレクションを表すクラス
+    A class representing a collection of user objects
 
-    複数のユーザーオブジェクトを格納・操作するためのリスト拡張クラス。
-    イテレーション操作やユーザー名からの一括取得などの機能を提供する。
+    A list extension class for storing and manipulating multiple user objects.
+    Provides functionality for iteration operations and bulk retrieval from usernames.
     """
+
+    def __init__(self, users: list["AbstractUser"] | None = None):
+        """
+        Initialize a user collection
+
+        Parameters
+        ----------
+        users : list[AbstractUser] | None, default None
+            Initial list of user objects
+        """
+        super().__init__(_validate_user_collection_users(users))
 
     def __iter__(self) -> Iterator["AbstractUser"]:
         """
-        コレクション内のユーザーオブジェクトを順に返すイテレータ
+        An iterator that returns user objects in the collection sequentially
 
         Returns
         -------
         Iterator[AbstractUser]
-            ユーザーオブジェクトのイテレータ
+            Iterator of user objects
         """
         return super().__iter__()
 
     @staticmethod
     def from_names(client: "Client", names: list[str], raise_when_not_found: bool = False) -> "UserCollection":
         """
-        ユーザー名のリストからユーザーオブジェクトのコレクションを取得する
+        Get a collection of user objects from a list of usernames
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
         names : list[str]
-            検索対象のユーザー名リスト
+            List of usernames to search for
         raise_when_not_found : bool, default False
-            ユーザーが見つからない場合に例外を送出するかどうか (True: 送出する, False: 送出しない)
-            デフォルトでは送出せず、該当ユーザーは結果に含めない
+            Whether to raise an exception when a user is not found (True: raise, False: do not raise)
+            By default, does not raise and excludes the user from results
 
         Returns
         -------
         UserCollection
-            ユーザーオブジェクトのコレクション
+            Collection of user objects
 
         Raises
         ------
         NotFoundException
-            raise_when_not_foundがTrueで、ユーザーが見つからない場合
+            When raise_when_not_found is True and a user is not found
         NoElementException
-            ユーザーページの解析中に必要な要素が見つからない場合
+            When required elements are not found during user page parsing
         """
+        names = _validate_user_names(names)
+        raise_when_not_found = _validate_raise_when_not_found(raise_when_not_found)
+        if len(names) == 0:
+            return UserCollection([])
+
+        client = _validate_user_lookup_client(client)
         responses = RequestUtil.request(
             client,
             "GET",
@@ -66,10 +178,11 @@ class UserCollection(list["AbstractUser"]):
 
         users: list[AbstractUser] = []
 
-        for response in responses:
+        for index, (name, response) in enumerate(zip(names, responses, strict=True), start=1):
             if isinstance(response, Exception):
                 raise response
 
+            parse_context = _profile_parse_context(name, index)
             html = BeautifulSoup(response.text, "lxml")
 
             # 存在チェック
@@ -82,14 +195,23 @@ class UserCollection(list["AbstractUser"]):
             # id取得
             user_id_elem = html.select_one("a.btn.btn-default.btn-xs")
             if user_id_elem is None:
-                raise NoElementException("User ID element not found")
-            user_id = int(str(user_id_elem["href"]).split("/")[-1])
+                raise NoElementException(f"User ID element not found {parse_context}")
+            user_id_href = user_id_elem.get("href")
+            user_id_href_text = "" if user_id_href is None else str(user_id_href).strip()
+            if not user_id_href_text:
+                raise NoElementException(f"User ID is not found {parse_context}")
+            user_id = _parse_profile_user_id_href(user_id_href_text)
+            if user_id is None:
+                parse_context = _profile_parse_context(name, index, field="user_id", value=user_id_href_text)
+                raise NoElementException(f"User ID is malformed {parse_context}")
 
             # name取得
             name_elem = html.select_one("h1.profile-title")
             if name_elem is None:
-                raise NoElementException("User name element not found")
-            name = name_elem.get_text(strip=True)
+                raise NoElementException(f"User name element not found {parse_context}")
+            name = name_elem.get_text(" ", strip=True)
+            if name == "":
+                raise NoElementException(f"User name is not found {parse_context}")
 
             # avatar_url取得
             avatar_url = f"https://www.wikidot.com/avatar.php?userid={user_id}"
@@ -110,25 +232,25 @@ class UserCollection(list["AbstractUser"]):
 @dataclass
 class AbstractUser:
     """
-    ユーザーオブジェクトの抽象基底クラス
+    Abstract base class for user objects
 
-    すべてのユーザータイプの共通属性と機能を定義する。
-    このクラスを直接インスタンス化せず、派生クラスを使用する。
+    Defines common attributes and functionality for all user types.
+    Do not instantiate this class directly; use derived classes instead.
 
     Attributes
     ----------
     client : Client
-        クライアントインスタンス
+        Client instance
     id : int | None
-        ユーザーID
+        User ID
     name : str | None
-        ユーザー名
+        Username
     unix_name : str | None
-        ユーザーのURLで使用されるUNIX形式の名前
+        UNIX-formatted name used in user URLs
     avatar_url : str | None
-        ユーザーアバター画像のURL
+        URL of the user's avatar image
     ip : str | None
-        ユーザーのIPアドレス（匿名ユーザーの場合のみ設定される）
+        User's IP address (only set for anonymous users)
     """
 
     client: "Client"
@@ -138,14 +260,22 @@ class AbstractUser:
     avatar_url: str | None = None
     ip: str | None = None
 
-    def __str__(self):
+    def __post_init__(self) -> None:
+        self.id = _validate_user_id_field("id", self.id)
+        self.name = _validate_user_optional_text_field("name", self.name)
+        self.unix_name = _validate_user_optional_text_field("unix_name", self.unix_name)
+        self.avatar_url = _validate_user_optional_text_field("avatar_url", self.avatar_url)
+        self.ip = _validate_user_optional_text_field("ip", self.ip)
+        self.client = _validate_user_client(self.client)
+
+    def __str__(self) -> str:
         """
-        オブジェクトの文字列表現
+        String representation of the object
 
         Returns
         -------
         str
-            ユーザーオブジェクトの文字列表現
+            String representation of the user object
         """
         return f"{self.__class__.__name__}(id={self.id}, name={self.name}, unix_name={self.unix_name})"
 
@@ -153,24 +283,24 @@ class AbstractUser:
 @dataclass
 class User(AbstractUser):
     """
-    一般のWikidotユーザーを表すクラス
+    A class representing a regular Wikidot user
 
-    登録済みの通常Wikidotユーザーを表現する。ユーザーIDやユーザー名などの基本情報を保持する。
+    Represents a registered normal Wikidot user. Holds basic information such as user ID and username.
 
     Attributes
     ----------
     client : Client
-        クライアントインスタンス
+        Client instance
     id : int | None
-        ユーザーID
+        User ID
     name : str | None
-        ユーザー名
+        Username
     unix_name : str | None
-        ユーザーのURLで使用されるUNIX形式の名前
+        UNIX-formatted name used in user URLs
     avatar_url : str | None
-        ユーザーアバター画像のURL
+        URL of the user's avatar image
     ip : None
-        ユーザーのIPアドレス（通常ユーザーでは取得できないためNone）
+        User's IP address (None for regular users as it cannot be obtained)
     """
 
     # client: 'Client'
@@ -180,35 +310,41 @@ class User(AbstractUser):
     # avatar_url: str | None
     ip: str | None = None
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("ip", self.ip, None)
+
     @staticmethod
     def from_name(client: "Client", name: str, raise_when_not_found: bool = False) -> Optional["AbstractUser"]:
         """
-        ユーザー名からユーザーオブジェクトを取得する
+        Get a user object from a username
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
         name : str
-            検索対象のユーザー名
+            Username to search for
         raise_when_not_found : bool, default False
-            ユーザーが見つからない場合に例外を送出するかどうか (True: 送出する, False: 送出しない)
-            デフォルトでは送出せずにNoneを返す
+            Whether to raise an exception when a user is not found (True: raise, False: do not raise)
+            By default, returns None without raising
 
         Returns
         -------
         AbstractUser
-            ユーザーオブジェクト
+            User object
 
         Raises
         ------
         NotFoundException
-            raise_when_not_foundがTrueで、ユーザーが見つからない場合
+            When raise_when_not_found is True and the user is not found
         NoElementException
-            ユーザーページの解析中に必要な要素が見つからない場合
+            When required elements are not found during user page parsing
         IndexError
-            ユーザーが見つからない場合（raise_when_not_foundがFalseの場合）
+            When the user is not found (when raise_when_not_found is False)
         """
+        name = _validate_user_name("name", name)
+        raise_when_not_found = _validate_raise_when_not_found(raise_when_not_found)
         result = UserCollection.from_names(client, [name], raise_when_not_found)
         if len(result) == 0:
             if raise_when_not_found:
@@ -222,25 +358,25 @@ class User(AbstractUser):
 @dataclass
 class DeletedUser(AbstractUser):
     """
-    削除されたWikidotユーザーを表すクラス
+    A class representing a deleted Wikidot user
 
-    すでに削除されたユーザーアカウントを表現する。
-    削除されたユーザーには固定の「account deleted」という名前が割り当てられる。
+    Represents a user account that has been deleted.
+    Deleted users are assigned a fixed name of "account deleted".
 
     Attributes
     ----------
     client : Client
-        クライアントインスタンス
+        Client instance
     id : int | None
-        ユーザーID
+        User ID
     name : str
-        ユーザー名（削除されたため"account deleted"固定）
+        Username (fixed as "account deleted" because the account is deleted)
     unix_name : str
-        ユーザーのUNIX名（削除されたため"account_deleted"固定）
+        UNIX name of the user (fixed as "account_deleted" because the account is deleted)
     avatar_url : None
-        ユーザーアバターのURL（削除されたユーザーのためNone）
+        URL of the user's avatar (None for deleted users)
     ip : None
-        ユーザーのIPアドレス（取得できないためNone）
+        User's IP address (None as it cannot be obtained)
     """
 
     id: int | None = None
@@ -249,29 +385,36 @@ class DeletedUser(AbstractUser):
     avatar_url: str | None = None
     ip: str | None = None
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("name", self.name, "account deleted")
+        _validate_user_expected_field("unix_name", self.unix_name, "account_deleted")
+        _validate_user_expected_field("avatar_url", self.avatar_url, None)
+        _validate_user_expected_field("ip", self.ip, None)
+
 
 @dataclass
 class AnonymousUser(AbstractUser):
     """
-    匿名（非登録）のWikidotユーザーを表すクラス
+    A class representing an anonymous (unregistered) Wikidot user
 
-    登録せずに投稿した匿名ユーザーを表現する。
-    IPアドレスのみを識別情報として持つ。
+    Represents an anonymous user who posted without registering.
+    Has only an IP address as identification information.
 
     Attributes
     ----------
     client : Client
-        クライアントインスタンス
+        Client instance
     id : None
-        ユーザーID（匿名ユーザーのためNone）
+        User ID (None for anonymous users)
     name : str
-        ユーザー名（匿名ユーザーのため"Anonymous"固定）
+        Username (fixed as "Anonymous" for anonymous users)
     unix_name : str
-        ユーザーのUNIX名（匿名ユーザーのため"anonymous"固定）
+        UNIX name of the user (fixed as "anonymous" for anonymous users)
     avatar_url : None
-        ユーザーアバターのURL（匿名ユーザーのためNone）
+        URL of the user's avatar (None for anonymous users)
     ip : str
-        ユーザーのIPアドレス
+        User's IP address
     """
 
     id: int | None = None
@@ -280,29 +423,36 @@ class AnonymousUser(AbstractUser):
     avatar_url: str | None = None
     ip: str | None = None
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("id", self.id, None)
+        _validate_user_expected_field("name", self.name, "Anonymous")
+        _validate_user_expected_field("unix_name", self.unix_name, "anonymous")
+        _validate_user_expected_field("avatar_url", self.avatar_url, None)
+
 
 @dataclass
 class GuestUser(AbstractUser):
     """
-    ゲスト投稿したWikidotユーザーを表すクラス
+    A class representing a guest Wikidot user who posted as a guest
 
-    名前とメールアドレスのみを入力して投稿したゲストユーザーを表現する。
-    ユーザー名は任意だが、IDやUNIX名は持たない。
+    Represents a guest user who posted by entering only a name and email address.
+    The username is optional but does not have an ID or UNIX name.
 
     Attributes
     ----------
     client : Client
-        クライアントインスタンス
+        Client instance
     id : None
-        ユーザーID（ゲストユーザーのためNone）
+        User ID (None for guest users)
     name : str | None
-        ユーザー名（ゲスト投稿時に指定した名前）
+        Username (name specified when posting as a guest)
     unix_name : None
-        ユーザーのUNIX名（ゲストユーザーのためNone）
+        UNIX name of the user (None for guest users)
     avatar_url : str | None
-        ユーザーアバターのURL（Gravatarの場合あり）
+        URL of the user's avatar (may be from Gravatar)
     ip : None
-        ユーザーのIPアドレス（取得できないためNone）
+        User's IP address (None as it cannot be obtained)
     """
 
     id: int | None = None
@@ -311,29 +461,35 @@ class GuestUser(AbstractUser):
     avatar_url: str | None = None
     ip: str | None = None
 
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("id", self.id, None)
+        _validate_user_expected_field("unix_name", self.unix_name, None)
+        _validate_user_expected_field("ip", self.ip, None)
+
 
 @dataclass
 class WikidotUser(AbstractUser):
     """
-    Wikidotシステムユーザーを表すクラス
+    A class representing the Wikidot system user
 
-    Wikidotシステムによる自動投稿や通知を表現するための特殊ユーザー。
-    "Wikidot"という固定の名前を持つ。
+    A special user for representing automatic posts and notifications by the Wikidot system.
+    Has a fixed name of "Wikidot".
 
     Attributes
     ----------
     client : Client
-        クライアントインスタンス
+        Client instance
     id : None
-        ユーザーID（システムユーザーのためNone）
+        User ID (None for system users)
     name : str
-        ユーザー名（システムユーザーのため"Wikidot"固定）
+        Username (fixed as "Wikidot" for system users)
     unix_name : str
-        ユーザーのUNIX名（システムユーザーのため"wikidot"固定）
+        UNIX name of the user (fixed as "wikidot" for system users)
     avatar_url : None
-        ユーザーアバターのURL（システムユーザーのためNone）
+        URL of the user's avatar (None for system users)
     ip : None
-        ユーザーのIPアドレス（取得できないためNone）
+        User's IP address (None as it cannot be obtained)
     """
 
     id: int | None = None
@@ -341,3 +497,11 @@ class WikidotUser(AbstractUser):
     unix_name: str | None = "wikidot"
     avatar_url: str | None = None
     ip: str | None = None
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        _validate_user_expected_field("id", self.id, None)
+        _validate_user_expected_field("name", self.name, "Wikidot")
+        _validate_user_expected_field("unix_name", self.unix_name, "wikidot")
+        _validate_user_expected_field("avatar_url", self.avatar_url, None)
+        _validate_user_expected_field("ip", self.ip, None)

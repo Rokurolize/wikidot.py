@@ -1,23 +1,413 @@
+import html as html_lib
+import math
 import re
+import sys
 from collections.abc import Iterator
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import httpx
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
+
+if sys.version_info >= (3, 12):
+    from typing import TypedDict, Unpack
+else:
+    from typing_extensions import TypedDict, Unpack
 
 from ..common import exceptions
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 from ..util.requestutil import RequestUtil
 from .page_revision import PageRevision, PageRevisionCollection
-from .page_source import PageSource
+from .page_source import PageSource, extract_page_source_text
 from .page_votes import PageVote, PageVoteCollection
 
 if TYPE_CHECKING:
+    from .client import Client
+    from .forum_thread import ForumThread
+    from .page_file import PageFileCollection
     from .site import Site
-    from .user import User
+    from .user import AbstractUser, User
+
+
+class _UnsetParentType:
+    pass
+
+
+_UNSET_PARENT = _UnsetParentType()
+
+
+def _normalize_parent_fullname(parent_fullname: object) -> str | None:
+    if parent_fullname is not None and not isinstance(parent_fullname, str):
+        raise ValueError("parent_fullname must be a string or None")
+    return parent_fullname or None
+
+
+def _validate_metas(metas: object) -> dict[str, str]:
+    if not isinstance(metas, dict):
+        raise ValueError("metas must be a dictionary")
+    if any(not isinstance(name, str) for name in metas):
+        raise ValueError("metas keys must be strings")
+    if any(not isinstance(content, str) for content in metas.values()):
+        raise ValueError("metas values must be strings")
+    return cast(dict[str, str], metas)
+
+
+def _validate_optional_metas(metas: object) -> dict[str, str] | None:
+    if metas is None:
+        return None
+    return _validate_metas(metas)
+
+
+def _validate_optional_page_discussion(discussion: object) -> "ForumThread | None":
+    if discussion is None:
+        return None
+    from .forum_thread import ForumThread
+
+    if not isinstance(discussion, ForumThread):
+        raise ValueError("page.discussion must be ForumThread or None")
+    return discussion
+
+
+def _validate_discussion_cache_belongs_to_page_site(page: "Page", discussion: "ForumThread") -> None:
+    discussion_site = _validate_page_site(discussion.site)
+    if discussion_site is not page.site:
+        raise ValueError("page.discussion must belong to the page site")
+
+
+def _validate_page_text_field(field: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    return value
+
+
+def _validate_page_integer_field(field: str, value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field} must be an integer")
+    return value
+
+
+def _validate_page_non_negative_integer_field(field: str, value: object) -> int:
+    value = _validate_page_integer_field(field, value)
+    if value < 0:
+        raise ValueError(f"{field} must be non-negative")
+    return value
+
+
+def _validate_page_metadata_user_id(field: str, value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError(f"{field}.id must be an integer or None")
+    if value < 0:
+        raise ValueError(f"{field}.id must be non-negative or None")
+    return value
+
+
+def _validate_page_rating_field(value: object) -> int | float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("rating must be an integer or float")
+    return value
+
+
+def _validate_page_rating_percent_field(value: object) -> int | float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("rating_percent must be an integer, float, or None")
+    if not math.isfinite(value) or not 0 <= value <= 1:
+        raise ValueError("rating_percent must be between 0.0 and 1.0, or None")
+    return value
+
+
+def _validate_page_tags(tags: object) -> list[str]:
+    if not isinstance(tags, list):
+        raise ValueError("tags must be a list")
+    if any(not isinstance(tag, str) for tag in tags):
+        raise ValueError("tags list entries must be strings")
+    return cast(list[str], tags)
+
+
+def _validate_optional_page_user_field(field: str, value: object) -> "AbstractUser | None":
+    if value is None:
+        return None
+
+    from .user import AbstractUser
+
+    if not isinstance(value, AbstractUser):
+        raise ValueError(f"{field} must be an AbstractUser or None")
+    _validate_page_metadata_user_id(field, value.id)
+    return value
+
+
+def _validate_optional_page_user_belongs_to_site(site: "Site", field: str, user: "AbstractUser | None") -> None:
+    if user is not None and user.client is not site.client:
+        raise ValueError(f"{field} must belong to the site")
+
+
+def _validate_optional_page_datetime_field(field: str, value: object) -> datetime | None:
+    if value is None:
+        return None
+    if not isinstance(value, datetime):
+        raise ValueError(f"{field} must be a datetime or None")
+    return value
+
+
+def _validate_page_bool_field(field: str, value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{field} must be a boolean")
+    return value
+
+
+def _validate_optional_page_id(value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("page_id must be an integer or None")
+    if value < 0:
+        raise ValueError("page_id must be non-negative or None")
+    return value
+
+
+def _validate_optional_page_constructor_id(value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("page.id must be an integer or None")
+    if value < 0:
+        raise ValueError("page.id must be non-negative or None")
+    return value
+
+
+def _validate_page_id(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("page.id must be an integer")
+    if value < 0:
+        raise ValueError("page.id must be non-negative")
+    return value
+
+
+def _validate_retained_page_id(page: "Page") -> int | None:
+    if page._id is None:
+        return None
+    return _validate_page_id(page._id)
+
+
+def _validate_page_source_object(value: object) -> PageSource:
+    if not isinstance(value, PageSource):
+        raise ValueError("page.source must be PageSource")
+    return value
+
+
+def _validate_optional_page_source_object(value: object) -> PageSource | None:
+    if value is None:
+        return None
+    return _validate_page_source_object(value)
+
+
+def _validate_page_revision_entries(revisions: list[object] | PageRevisionCollection) -> None:
+    if any(not isinstance(revision, PageRevision) for revision in revisions):
+        raise ValueError("page.revisions list entries must be PageRevision")
+
+
+def _validate_page_cache_owner(
+    page: "Page", candidate_page: object, message: str, candidate_fullname_field: str | None = None
+) -> None:
+    if not isinstance(candidate_page, Page):
+        raise ValueError(message)
+    candidate_site = _validate_page_site(candidate_page.site)
+    if candidate_site is not page.site:
+        raise ValueError(message)
+    page_id = _validate_optional_page_constructor_id(page._id)
+    candidate_page_id = _validate_optional_page_constructor_id(candidate_page._id)
+    if page_id is not None and candidate_page_id is not None:
+        if candidate_page_id != page_id:
+            raise ValueError(message)
+        if candidate_fullname_field is not None:
+            _validate_page_text_field(candidate_fullname_field, candidate_page.fullname)
+        return
+    candidate_fullname = (
+        _validate_page_text_field(candidate_fullname_field, candidate_page.fullname)
+        if candidate_fullname_field is not None
+        else candidate_page.fullname
+    )
+    if candidate_fullname != page.fullname:
+        raise ValueError(message)
+
+
+def _validate_source_cache_belongs_to_page(page: "Page", source: PageSource) -> None:
+    _validate_page_cache_owner(page, source.page, "page.source must belong to the page", "page.source.page.fullname")
+
+
+def _validate_revisions_cache_belongs_to_page(page: "Page", revisions: PageRevisionCollection) -> None:
+    message = "page.revisions must belong to the page"
+    if revisions.page is not None:
+        _validate_page_cache_owner(page, revisions.page, message, "page.revisions.page.fullname")
+    for revision in revisions:
+        _validate_page_cache_owner(page, revision.page, message, "page.revisions.page.fullname")
+
+
+def _validate_page_revisions(page: "Page", value: object) -> PageRevisionCollection:
+    if isinstance(value, PageRevisionCollection):
+        _validate_page_revision_entries(value)
+        revisions = value
+    elif isinstance(value, list):
+        _validate_page_revision_entries(value)
+        try:
+            revisions = PageRevisionCollection(page, cast(list[PageRevision], value))
+        except ValueError as exc:
+            if str(exc) == "revisions must belong to the collection page":
+                raise ValueError("page.revisions must belong to the page") from exc
+            raise
+    else:
+        raise ValueError("page.revisions must be a list or PageRevisionCollection")
+    _validate_revisions_cache_belongs_to_page(page, revisions)
+    return revisions
+
+
+def _validate_optional_page_revision_collection(value: object) -> PageRevisionCollection | None:
+    if value is None:
+        return None
+    if not isinstance(value, PageRevisionCollection):
+        raise ValueError("page.revisions must be PageRevisionCollection or None")
+    _validate_page_revision_entries(value)
+    return value
+
+
+def _validate_page_vote_entries(votes: PageVoteCollection) -> None:
+    if any(not isinstance(vote, PageVote) for vote in votes):
+        raise ValueError("page.votes list entries must be PageVote")
+
+
+def _validate_votes_cache_belongs_to_page(page: "Page", votes: PageVoteCollection) -> None:
+    message = "page.votes must belong to the page"
+    _validate_page_cache_owner(page, votes.page, message, "page.votes.page.fullname")
+    for vote in votes:
+        _validate_page_cache_owner(page, vote.page, message, "page.votes.page.fullname")
+
+
+def _validate_page_votes(page: "Page", value: object) -> PageVoteCollection:
+    if not isinstance(value, PageVoteCollection):
+        raise ValueError("page.votes must be PageVoteCollection")
+    _validate_page_vote_entries(value)
+    _validate_votes_cache_belongs_to_page(page, value)
+    return value
+
+
+def _validate_optional_page_vote_collection(value: object) -> PageVoteCollection | None:
+    if value is None:
+        return None
+    if not isinstance(value, PageVoteCollection):
+        raise ValueError("page.votes must be PageVoteCollection or None")
+    _validate_page_vote_entries(value)
+    return value
+
+
+def _validate_page_file_entries(files: "PageFileCollection") -> None:
+    from .page_file import PageFile
+
+    if any(not isinstance(file, PageFile) for file in files):
+        raise ValueError("page.files list entries must be PageFile")
+
+
+def _validate_optional_page_file_collection(value: object) -> "PageFileCollection | None":
+    if value is None:
+        return None
+
+    from .page_file import PageFileCollection
+
+    if not isinstance(value, PageFileCollection):
+        raise ValueError("page.files must be PageFileCollection or None")
+    _validate_page_file_entries(value)
+    return value
+
+
+def _validate_files_cache_belongs_to_page(page: "Page", files: "PageFileCollection") -> None:
+    message = "page.files must belong to the page"
+    if files.page is not None:
+        _validate_page_cache_owner(page, files.page, message, "page.files.page.fullname")
+    for file in files:
+        _validate_page_cache_owner(page, file.page, message, "page.files.page.fullname")
+
+
+def _validate_page_vote_value(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value not in (1, -1):
+        raise ValueError("Vote value must be 1 or -1")
+    return value
+
+
+def _validate_page_source(source: object) -> str:
+    return _validate_page_text_field("source", source)
+
+
+def _validate_pages(pages: object) -> list["Page"]:
+    if not isinstance(pages, list):
+        raise ValueError("pages must be a list")
+    if any(not isinstance(page, Page) for page in pages):
+        raise ValueError("pages list entries must be Page")
+    return cast(list["Page"], pages)
+
+
+def _validate_page_site(site: object) -> "Site":
+    from .site import Site
+
+    if not isinstance(site, Site):
+        raise ValueError("site must be a Site")
+    return site
+
+
+def _validate_page_site_client(site: "Site") -> "Client":
+    from .client import Client
+
+    if not isinstance(site.client, Client):
+        raise ValueError("client must be a Client")
+    return site.client
+
+
+def _validate_page_collection_site(site: object) -> "Site":
+    return _validate_page_site(site)
+
+
+def _validate_pages_belong_to_collection_site(site: "Site", pages: list["Page"]) -> None:
+    for page in pages:
+        page_site = _validate_page_site(page.site)
+        if page_site is not site:
+            raise ValueError("pages must belong to the collection site")
+
+
+def _validate_listpages_retry_max_retries(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(f"retry_max_retries must be a non-negative integer, got {value}")
+    return value
+
+
+def _require_listpages_response_count(site: "Site", offset: int | None, responses: object) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            f"ListPages response count mismatch for site: {site.unix_name}, offset: {offset} "
+            f"(expected=1, actual={type(responses).__name__})"
+        )
+    if len(responses) != 1:
+        raise exceptions.UnexpectedException(
+            f"ListPages response count mismatch for site: {site.unix_name}, offset: {offset} "
+            f"(expected=1, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
+class PageConstants:
+    """
+    A class for centrally managing constants used in the page module
+
+    Attributes
+    ----------
+    DEFAULT_PER_PAGE : int
+        Default number of items per page for ListPagesModule
+    """
+
+    DEFAULT_PER_PAGE: int = 250
+
 
 DEFAULT_MODULE_BODY = [
     "fullname",  # ページのフルネーム(str)
@@ -43,234 +433,955 @@ DEFAULT_MODULE_BODY = [
 ]
 
 
-@dataclass
+def _parse_revision_row_id(site: "Site", page: "Page", value: object) -> int:
+    value_text = str(value)
+    raw_id = value_text.removeprefix("revision-row-")
+    if value_text == raw_id or re.fullmatch(r"[0-9]+", raw_id) is None:
+        raise exceptions.NoElementException(
+            f"Revision ID is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, field=revision_row_id, value={value_text})"
+        )
+    return int(raw_id)
+
+
+def _parse_revision_number(site: "Site", page: "Page", rev_id: int, value: object) -> int:
+    value_text = str(value).strip()
+    raw_rev_no = value_text.removesuffix(".")
+    if re.fullmatch(r"-?[0-9]+", raw_rev_no) is None:
+        raise exceptions.NoElementException(
+            f"Revision number is malformed for site: {site.unix_name}, page: {page.fullname}, "
+            f"revision: {rev_id} (id={page.id}, field=revision_number, value={value_text})"
+        )
+    rev_no = int(raw_rev_no)
+    if rev_no < 0:
+        raise exceptions.NoElementException(
+            f"Revision number must be non-negative for site: {site.unix_name}, page: {page.fullname}, "
+            f"revision: {rev_id} (id={page.id}, field=revision_number, value={value_text})"
+        )
+    return rev_no
+
+
+def _user_onclick_value(user_elem: Tag) -> str:
+    link_elems = [link_elem for link_elem in user_elem.find_all("a", recursive=False) if isinstance(link_elem, Tag)]
+    link_elem = link_elems[-1] if link_elems else None
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
+def _parse_revision_created_by(site: "Site", page: "Page", rev_id: int, user_elem: Tag) -> Any:
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Page revision user is malformed for site: {site.unix_name}, page: {page.fullname}, "
+            f"revision: {rev_id} (id={page.id}, field=created_by, value={_user_onclick_value(user_elem)})"
+        ) from exc
+
+
+def _odate_class_value(odate_elem: Tag) -> str:
+    class_attr = odate_elem.get("class", [])
+    if class_attr is None:
+        return ""
+
+    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+
+
+def _parse_revision_created_at(site: "Site", page: "Page", rev_id: int, odate_elem: Tag) -> datetime:
+    try:
+        return odate_parser(odate_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Page revision timestamp is malformed for site: {site.unix_name}, page: {page.fullname}, "
+            f"revision: {rev_id} (id={page.id}, field=created_at, value={_odate_class_value(odate_elem)})"
+        ) from exc
+
+
+def _parse_listpages_integer_field(site: "Site", page_name: str, key: str, value: object) -> int:
+    value_text = str(value).strip()
+    if re.fullmatch(r"-?[0-9]+", value_text) is None:
+        raise exceptions.NoElementException(
+            f"ListPages integer field is malformed for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={value_text})"
+        )
+    return int(value_text)
+
+
+def _parse_listpages_non_negative_integer_field(site: "Site", page_name: str, key: str, value: object) -> int:
+    parsed = _parse_listpages_integer_field(site, page_name, key, value)
+    if parsed < 0:
+        value_text = str(value).strip()
+        raise exceptions.NoElementException(
+            f"ListPages integer field must be non-negative for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={value_text})"
+        )
+    return parsed
+
+
+def _parse_listpages_float_field(site: "Site", page_name: str, key: str, value: object) -> float:
+    value_text = str(value).strip()
+    try:
+        return float(value_text)
+    except ValueError as exc:
+        raise _listpages_float_field_error(site, page_name, key, value_text) from exc
+
+
+def _listpages_float_field_error(
+    site: "Site", page_name: str, key: str, value_text: str
+) -> exceptions.NoElementException:
+    return exceptions.NoElementException(
+        f"ListPages float field is malformed for site: {site.unix_name}, page: {page_name} "
+        f"(field={key}, value={value_text})"
+    )
+
+
+def _parse_listpages_finite_ascii_float_field(site: "Site", page_name: str, key: str, value: object) -> float:
+    value_text = str(value).strip()
+    try:
+        parsed = float(value_text)
+    except ValueError as exc:
+        raise _listpages_float_field_error(site, page_name, key, value_text) from exc
+    if not value_text.isascii() or not math.isfinite(parsed):
+        raise _listpages_float_field_error(site, page_name, key, value_text)
+    return parsed
+
+
+def _parse_listpages_percentage_field(site: "Site", page_name: str, key: str, value: object) -> float:
+    value_text = str(value).strip()
+    if not value_text.isascii():
+        raise _listpages_float_field_error(site, page_name, key, value_text)
+
+    parsed = _parse_listpages_float_field(site, page_name, key, value_text)
+    if not math.isfinite(parsed) or not 0 <= parsed <= 100:
+        raise exceptions.NoElementException(
+            f"ListPages percentage field must be between 0.0 and 100.0 "
+            f"for site: {site.unix_name}, page: {page_name} (field={key}, value={value_text})"
+        )
+    return parsed
+
+
+def _parse_listpages_odate_field(site: "Site", page_name: str, key: str, odate_elem: Tag) -> datetime:
+    try:
+        return odate_parser(odate_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"ListPages odate field is malformed for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={_odate_class_value(odate_elem)})"
+        ) from exc
+
+
+def _parse_listpages_user_field(site: "Site", page_name: str, key: str, user_elem: Tag) -> Any:
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"ListPages user field is malformed for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={_user_onclick_value(user_elem)})"
+        ) from exc
+
+
+def _parse_who_rated_vote_value(site: "Site", page: "Page", value: object) -> int:
+    value_text = str(value).strip()
+    if value_text == "+":
+        return 1
+    if value_text == "-":
+        return -1
+    if re.fullmatch(r"[+-]?[0-9]+", value_text) is None:
+        raise exceptions.NoElementException(
+            f"WhoRated vote value is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, field=vote_value, value={value_text})"
+        )
+    try:
+        return int(value_text)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"WhoRated vote value is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, field=vote_value, value={value_text})"
+        ) from exc
+
+
+def _parse_who_rated_user(site: "Site", page: "Page", user_elem: Tag) -> Any:
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"WhoRated user is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, field=user, value={_user_onclick_value(user_elem)})"
+        ) from exc
+
+
+def _require_page_edit_lock_field(site: "Site", fullname: str, data: dict[str, Any], field: str) -> str:
+    try:
+        value = data[field]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} (field={field})"
+        ) from exc
+
+    if field == "lock_id" and isinstance(value, int) and not isinstance(value, bool):
+        return str(value)
+
+    if not isinstance(value, str) or value.strip() == "":
+        raise exceptions.NoElementException(
+            f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} (field={field})"
+        )
+    return value
+
+
+def _validate_page_edit_locked_field(site: "Site", fullname: str, data: dict[str, Any]) -> bool:
+    if "locked" not in data:
+        return False
+
+    value = data["locked"]
+    if not isinstance(value, bool):
+        raise exceptions.NoElementException(
+            f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} (field=locked)"
+        )
+    return value
+
+
+def _validate_page_edit_revision_id(site: "Site", fullname: str, data: dict[str, Any]) -> int | None:
+    if "page_revision_id" not in data:
+        return None
+
+    value = data["page_revision_id"]
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise exceptions.NoElementException(
+            f"Page edit lock response page_revision_id is malformed for site: {site.unix_name}, page: {fullname} "
+            f"(field=page_revision_id, value={value})"
+        )
+    if value < 0:
+        raise exceptions.NoElementException(
+            f"Page edit lock response page_revision_id must be non-negative for site: {site.unix_name}, "
+            f"page: {fullname} (field=page_revision_id, value={value})"
+        )
+    return value
+
+
+def _require_page_edit_lock_response_data(site: "Site", fullname: str, data: object) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Page edit lock response is malformed for site: {site.unix_name}, page: {fullname} "
+            f"(module=edit/PageEditModule, expected=dict, actual={type(data).__name__})"
+        )
+    return data
+
+
+def _require_page_write_response_count(
+    site: "Site", fullname: str, responses: object, response_name: str, context: str, expected_count: int
+) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            f"Page {response_name} response count mismatch for site: {site.unix_name}, page: {fullname} "
+            f"({context}, expected={expected_count}, actual={type(responses).__name__})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            f"Page {response_name} response count mismatch for site: {site.unix_name}, page: {fullname} "
+            f"({context}, expected={expected_count}, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
+def _require_page_action_response_count(site: "Site", page: "Page", event: str, responses: object) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            f"Page action response count mismatch for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, expected=1, actual={type(responses).__name__})"
+        )
+    if len(responses) != 1:
+        raise exceptions.UnexpectedException(
+            f"Page action response count mismatch for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, expected=1, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
+def _require_page_save_status(site: "Site", fullname: str, data: object) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Page save response is malformed for site: {site.unix_name}, page: {fullname} "
+            f"(event=savePage, expected=dict, actual={type(data).__name__})"
+        )
+
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page save response is malformed for site: {site.unix_name}, page: {fullname} (field=status)"
+        ) from exc
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Page save response status is malformed for site: {site.unix_name}, page: {fullname} "
+            f"(field=status, expected=str, actual={type(status).__name__})"
+        )
+    return status
+
+
+def _require_page_action_status(site: "Site", page: "Page", event: str, data: object) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Page action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, expected=dict, actual={type(data).__name__})"
+        )
+
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status)"
+        ) from exc
+
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Page action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            f"Failed to complete page action for site: {site.unix_name}, page: {page.fullname}, event: {event}",
+            status,
+        )
+    return status
+
+
+def _parse_page_rating_points(site: "Site", page: "Page", event: str, data: dict[str, Any]) -> int:
+    try:
+        value = data["points"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=points)"
+        ) from exc
+
+    value_text = str(value).strip()
+    if re.fullmatch(r"[+-]?[0-9]+", value_text) is None:
+        raise exceptions.NoElementException(
+            f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=points, value={value_text})"
+        )
+    try:
+        return int(value_text)
+    except (TypeError, ValueError) as exc:
+        raise exceptions.NoElementException(
+            f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=points, value={value_text})"
+        ) from exc
+
+
+def _page_rating_failure_message(
+    site: "Site",
+    page: "Page",
+    event: str,
+    status: str,
+    *,
+    requested_points: int | None = None,
+) -> str:
+    client = _validate_page_site_client(site)
+    actor = client.username if client.username is not None else "unknown"
+    points_context = "" if requested_points is None else f", requested_points={requested_points}"
+    return (
+        f"Failed to complete page rating action for site: {site.unix_name}, page: {page.fullname} "
+        f"(id={page.id}, event={event}, status={status}, actor={actor}{points_context}). "
+        "Wikidot may return this status when the page or site rating permission/settings reject the action."
+    )
+
+
+def _require_page_rating_action_status(site: "Site", page: "Page", event: str, data: object) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Page rating action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, expected=dict, actual={type(data).__name__})"
+        )
+
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page rating action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status)"
+        ) from exc
+
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Page rating action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            _page_rating_failure_message(site, page, event, status),
+            status,
+        )
+    return status
+
+
+def _require_page_metadata_action_status(site: "Site", page: "Page", event: str, data: object) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Page metadata action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, expected=dict, actual={type(data).__name__})"
+        )
+
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Page metadata action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status)"
+        ) from exc
+
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Page metadata action response is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            f"Failed to set page metadata for site: {site.unix_name}, page: {page.fullname}, event: {event}",
+            status,
+        )
+    return status
+
+
+def _require_page_metadata_action_response_count(
+    site: "Site", page: "Page", responses: object, expected_count: int
+) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            f"Page metadata action response count mismatch for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, expected={expected_count}, actual={type(responses).__name__})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            f"Page metadata action response count mismatch for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, expected={expected_count}, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
+class SearchPagesQueryParams(TypedDict, total=False):
+    """
+    A TypedDict defining page search query parameters
+
+    Used for type definition of keyword arguments in SitePagesAccessor.search()
+    and SearchPagesQuery.__init__(). Enables IDE autocomplete and type checking.
+
+    Attributes
+    ----------
+    pagetype : str
+        Page type (e.g., "normal", "admin", etc.). Default: "*"
+    category : str
+        Category name. Default: "*"
+    tags : str | list[str] | None
+        Tags to search for (string, list of strings, or None)
+    parent : str
+        Parent page name
+    link_to : str
+        Linked page name
+    created_at : str
+        Creation date condition (e.g., "> -86400 86400")
+    updated_at : str
+        Update date condition
+    created_by : AbstractUser | str
+        Filter by creator
+    rating : str
+        Filter by rating value
+    votes : str
+        Filter by vote count
+    name : str
+        Filter by page name
+    fullname : str
+        Filter by fullname (exact match)
+    range : str
+        Range specification
+    order : str
+        Sort order (e.g., "created_at desc", "title asc"). Default: "created_at desc"
+    offset : int
+        Starting position for retrieval. Default: 0
+    limit : int | None
+        Limit on number of items to retrieve
+    perPage : int
+        Number of items displayed per page. Default: 250
+    separate : str
+        Whether to display separately. Default: "no"
+    wrapper : str
+        Whether to display wrapper element. Default: "no"
+    """
+
+    pagetype: str
+    category: str
+    tags: "str | list[str] | None"
+    parent: str
+    link_to: str
+    created_at: str
+    updated_at: str
+    created_by: "AbstractUser | str"
+    rating: str
+    votes: str
+    name: str
+    fullname: str
+    range: str
+    order: str
+    offset: int
+    limit: int | None
+    perPage: int
+    separate: str
+    wrapper: str
+
+
 class SearchPagesQuery:
     """
-    ページ検索クエリを表すクラス
+    A class representing a page search query
 
-    Wikidotのページ検索に使用される各種検索条件を定義する。
-    ListPagesModuleに渡すためのクエリパラメータをカプセル化している。
+    Defines various search conditions used for Wikidot page searches.
+    Encapsulates query parameters to pass to ListPagesModule.
 
     Attributes
     ----------
     pagetype : str, default "*"
-        ページタイプ（例: "normal", "admin"等）
+        Page type (e.g., "normal", "admin", etc.)
     category : str, default "*"
-        カテゴリ名
+        Category name
     tags : str | list[str] | None, default None
-        検索対象のタグ（文字列または文字列のリスト）
+        Tags to search for (string or list of strings)
     parent : str | None, default None
-        親ページ名
+        Parent page name
     link_to : str | None, default None
-        リンク先ページ名
+        Linked page name
     created_at : str | None, default None
-        作成日時の条件
+        Creation date condition
     updated_at : str | None, default None
-        更新日時の条件
-    created_by : User | str | None, default None
-        作成者による絞り込み
+        Update date condition
+    created_by : AbstractUser | str | None, default None
+        Filter by creator
     rating : str | None, default None
-        評価値による絞り込み
+        Filter by rating value
     votes : str | None, default None
-        投票数による絞り込み
+        Filter by vote count
     name : str | None, default None
-        ページ名による絞り込み
+        Filter by page name
     fullname : str | None, default None
-        フルネームによる絞り込み（完全一致）
+        Filter by fullname (exact match)
     range : str | None, default None
-        範囲指定
+        Range specification
     order : str, default "created_at desc"
-        ソート順（例: "created_at desc", "title asc"等）
+        Sort order (e.g., "created_at desc", "title asc", etc.)
     offset : int, default 0
-        取得開始位置
+        Starting position for retrieval
     limit : int | None, default None
-        取得件数制限
+        Limit on number of items to retrieve
     perPage : int, default 250
-        1ページあたりの表示件数
+        Number of items displayed per page
     separate : str, default "no"
-        個別表示するかどうか
+        Whether to display separately
     wrapper : str, default "no"
-        ラッパー要素を表示するかどうか
+        Whether to display wrapper element
+
+    Raises
+    ------
+    ValueError
+        When invalid keyword arguments are passed
     """
 
-    # selecting pages
-    pagetype: Optional[str] = "*"
-    category: Optional[str] = "*"
-    tags: Optional[str | list[str]] = None
-    parent: Optional[str] = None
-    link_to: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    created_by: Optional[Union["User", str]] = None
-    rating: Optional[str] = None
-    votes: Optional[str] = None
-    name: Optional[str] = None
-    fullname: Optional[str] = None
-    range: Optional[str] = None
+    # 有効なフィールド名のセット
+    _VALID_FIELDS = {
+        "pagetype",
+        "category",
+        "tags",
+        "parent",
+        "link_to",
+        "created_at",
+        "updated_at",
+        "created_by",
+        "rating",
+        "votes",
+        "name",
+        "fullname",
+        "range",
+        "order",
+        "offset",
+        "limit",
+        "perPage",
+        "separate",
+        "wrapper",
+    }
 
-    # ordering
-    order: str = "created_at desc"
+    @staticmethod
+    def _validate_optional_integer(field: str, value: object) -> int | None:
+        if value is None:
+            return None
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError(f"{field} must be an integer or None")
+        return value
 
-    # pagination
-    offset: Optional[int] = 0
-    limit: Optional[int] = None
-    perPage: Optional[int] = 250
-    # layout
-    separate: Optional[str] = "no"
-    wrapper: Optional[str] = "no"
+    @staticmethod
+    def _validate_optional_string(field: str, value: object) -> str | None:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError(f"{field} must be a string or None")
+        return value
+
+    @staticmethod
+    def _validate_optional_created_by(value: object) -> "AbstractUser | str | None":
+        if value is None or isinstance(value, str):
+            return value
+
+        from .user import AbstractUser
+
+        if not isinstance(value, AbstractUser):
+            raise ValueError("created_by must be an AbstractUser, string, or None")
+        return value
+
+    def __init__(self, **kwargs: Unpack[SearchPagesQueryParams]) -> None:
+        """
+        Initialize SearchPagesQuery
+
+        Parameters
+        ----------
+        **kwargs : Unpack[SearchPagesQueryParams]
+            Search condition keyword arguments. See SearchPagesQueryParams for details.
+
+        Raises
+        ------
+        ValueError
+            When invalid keyword arguments are included
+        """
+        # 無効なキーのチェック
+        invalid_keys = set(kwargs.keys()) - self._VALID_FIELDS
+        if invalid_keys:
+            raise ValueError(
+                f"Invalid query parameters: {', '.join(sorted(invalid_keys))}. "
+                f"Valid parameters are: {', '.join(sorted(self._VALID_FIELDS))}"
+            )
+
+        # デフォルト値の設定
+        # selecting pages
+        self.pagetype: str | None = self._validate_optional_string("pagetype", kwargs.get("pagetype", "*"))
+        self.category: str | None = self._validate_optional_string("category", kwargs.get("category", "*"))
+        self.tags: str | list[str] | None = kwargs.get("tags")
+        self.parent: str | None = self._validate_optional_string("parent", kwargs.get("parent"))
+        self.link_to: str | None = self._validate_optional_string("link_to", kwargs.get("link_to"))
+        self.created_at: str | None = self._validate_optional_string("created_at", kwargs.get("created_at"))
+        self.updated_at: str | None = self._validate_optional_string("updated_at", kwargs.get("updated_at"))
+        self.created_by: AbstractUser | str | None = self._validate_optional_created_by(kwargs.get("created_by"))
+        self.rating: str | None = self._validate_optional_string("rating", kwargs.get("rating"))
+        self.votes: str | None = self._validate_optional_string("votes", kwargs.get("votes"))
+        self.name: str | None = self._validate_optional_string("name", kwargs.get("name"))
+        self.fullname: str | None = self._validate_optional_string("fullname", kwargs.get("fullname"))
+        self.range: str | None = self._validate_optional_string("range", kwargs.get("range"))
+
+        # ordering
+        self.order: str | None = self._validate_optional_string("order", kwargs.get("order", "created_at desc"))
+
+        # pagination
+        self.offset = self._validate_optional_integer("offset", kwargs.get("offset", 0))
+        self.limit = self._validate_optional_integer("limit", kwargs.get("limit"))
+        self.perPage = self._validate_optional_integer("perPage", kwargs.get("perPage", PageConstants.DEFAULT_PER_PAGE))
+        if self.offset is not None and self.offset < 0:
+            raise ValueError("offset must be non-negative")
+        if self.perPage is not None and self.perPage <= 0:
+            raise ValueError("perPage must be positive")
+        # layout
+        self.separate: str | None = self._validate_optional_string("separate", kwargs.get("separate", "no"))
+        self.wrapper: str | None = self._validate_optional_string("wrapper", kwargs.get("wrapper", "no"))
 
     def as_dict(self) -> dict[str, Any]:
         """
-        クエリパラメータを辞書形式に変換する
+        Convert query parameters to dictionary format
 
-        タグがリスト形式の場合は空白区切りの文字列に変換する。
+        If tags are in list format, converts them to a space-separated string.
+        If created_by is a user object, converts it to the user's Wikidot
+        unix name because ListPagesModule expects a scalar form field.
 
         Returns
         -------
         dict[str, Any]
-            APIリクエスト用の辞書形式パラメータ
+            Dictionary format parameters for API requests
         """
-        res = {k: v for k, v in asdict(self).items() if v is not None}
-        if "tags" in res and isinstance(res["tags"], list):
-            res["tags"] = " ".join(res["tags"])
+        res = {k: v for k, v in self.__dict__.items() if v is not None and k in self._VALID_FIELDS}
+
+        if "tags" in res:
+            if isinstance(res["tags"], list):
+                if any(not isinstance(tag, str) for tag in res["tags"]):
+                    raise ValueError("tags list entries must be strings")
+                res["tags"] = " ".join(res["tags"])
+            elif not isinstance(res["tags"], str):
+                raise ValueError("tags must be a string, list, or None")
+        if "created_by" in res and not isinstance(res["created_by"], str):
+            user_name = getattr(res["created_by"], "unix_name", None)
+            if not isinstance(user_name, str) or user_name == "":
+                raise ValueError("created_by user must have a unix_name")
+            res["created_by"] = user_name
         return res
 
 
 class PageCollection(list["Page"]):
     """
-    ページオブジェクトのコレクションを表すクラス
+    A class representing a collection of page objects
 
-    複数のページオブジェクトを格納し、一括して操作するための機能を提供する。
-    ページの検索、一括取得、一括操作などの機能を集約している。
+    Stores multiple page objects and provides functionality for batch operations.
+    Consolidates features such as page search, batch retrieval, and batch operations.
     """
 
-    def __init__(self, site: Optional["Site"] = None, pages: Optional[list["Page"]] = None):
+    site: "Site | None"
+
+    @staticmethod
+    def _is_inside_listpages_result(element: Tag) -> bool:
+        for ancestor in element.parents:
+            if not isinstance(ancestor, Tag):
+                continue
+            if ancestor.name == "div" and "page" in ancestor.get("class", []):
+                return True
+        return False
+
+    @staticmethod
+    def _pager_from_listpages_html(html_body: BeautifulSoup) -> Tag | None:
+        for pager in html_body.select("div.pager"):
+            if PageCollection._is_inside_listpages_result(pager):
+                continue
+            return pager
+        return None
+
+    @staticmethod
+    def _parse_listpages_pager_page(site: "Site", offset: int | None, page_text: str) -> int | None:
+        if re.fullmatch(r"[0-9]+", page_text) is not None:
+            return int(page_text)
+        if page_text.isdigit():
+            raise exceptions.NoElementException(
+                f"ListPages pager page is malformed for site: {site.unix_name}, offset: {offset} "
+                f"(field=page, value={page_text})"
+            )
+        return None
+
+    def __init__(self, site: Optional["Site"] = None, pages: list["Page"] | None = None):
         """
-        初期化メソッド
+        Initialize method
 
         Parameters
         ----------
         site : Site | None, default None
-            ページが属するサイト。Noneの場合は最初のページから推測する
+            Site to which pages belong. If None, inferred from the first page
         pages : list[Page] | None, default None
-            格納するページのリスト
+            List of pages to store
         """
-        super().__init__(pages or [])
-
+        validated_pages = [] if pages is None else _validate_pages(pages)
         if site is not None:
-            self.site = site
+            collection_site = _validate_page_collection_site(site)
+            _validate_pages_belong_to_collection_site(collection_site, validated_pages)
+        elif len(validated_pages) == 0:
+            collection_site = None
         else:
-            self.site = self[0].site
+            collection_site = _validate_page_collection_site(validated_pages[0].site)
+            _validate_pages_belong_to_collection_site(collection_site, validated_pages)
+
+        super().__init__(validated_pages)
+        self.site = collection_site
+
+    def _get_site_for_batch(self) -> "Site | None":
+        if self.site is None:
+            if len(self) > 0:
+                raise ValueError("site must be a Site")
+            return None
+        site = _validate_page_collection_site(self.site)
+        _validate_pages_belong_to_collection_site(site, _validate_pages(self))
+        return site
 
     def __iter__(self) -> Iterator["Page"]:
         """
-        コレクション内のページを順に返すイテレータ
+        An iterator that returns pages in the collection sequentially
 
         Returns
         -------
         Iterator[Page]
-            ページオブジェクトのイテレータ
+            Iterator of page objects
         """
         return super().__iter__()
 
     def find(self, fullname: str) -> Optional["Page"]:
         """
-        指定したフルネームのページを取得する
+        Get a page with the specified fullname
 
         Parameters
         ----------
         fullname : str
-            取得するページのフルネーム
+            Fullname of the page to retrieve
 
         Returns
         -------
         Page | None
-            指定したフルネームのページ。存在しない場合はNone
+            Page with the specified fullname. None if it does not exist
         """
+        fullname = _validate_page_text_field("fullname", fullname)
         for page in self:
-            if page.fullname == fullname:
+            if _validate_page_text_field("fullname", page.fullname) == fullname:
                 return page
         return None
 
     @staticmethod
-    def _parse(site: "Site", html_body: BeautifulSoup):
+    def _split_fullname(fullname: str) -> tuple[str, str]:
+        fullname = _validate_page_text_field("fullname", fullname)
+        if ":" in fullname:
+            category, name = fullname.split(":", 1)
+            return category, name
+        return "_default", fullname
+
+    @staticmethod
+    def get_by_fullname(site: "Site", fullname: str) -> Optional["Page"]:
         """
-        ListPagesModuleのレスポンスをパースしてページオブジェクトのリストを生成する
+        Get a page by fullname.
+
+        Some Wikidot sites do not return default-category pages when
+        ListPagesModule is queried with ``fullname``. Prefer the equivalent
+        category/name query while keeping the public API based on fullnames.
+        """
+        category, name = PageCollection._split_fullname(fullname)
+        pages = PageCollection.search_pages(site, SearchPagesQuery(category=category, name=name))
+        if len(pages) > 0:
+            return pages.find(fullname) or pages[0]
+
+        pages = PageCollection.search_pages(site, SearchPagesQuery(fullname=fullname))
+        if len(pages) > 0:
+            return pages.find(fullname) or pages[0]
+
+        return None
+
+    @staticmethod
+    def _current_user_or_placeholder(site: "Site") -> "User":
+        from .user import User
+
+        current_user = getattr(site.client, "me", None)
+        if isinstance(current_user, User):
+            return current_user
+
+        username = getattr(site.client, "username", None)
+        return User(
+            client=site.client,
+            name=username if isinstance(username, str) else None,
+            unix_name=None,
+            avatar_url=None,
+        )
+
+    @staticmethod
+    def _parse(site: "Site", html_body: BeautifulSoup) -> "PageCollection":
+        """
+        Parse ListPagesModule responses and generate a list of page objects
 
         Parameters
         ----------
         site : Site
-            ページが属するサイト
+            Site to which pages belong
         html_body : BeautifulSoup
-            パース対象のHTML
+            HTML to parse
 
         Returns
         -------
         PageCollection
-            パース結果のページコレクション
+            Page collection from parsing results
 
         Raises
         ------
         NoElementException
-            必要な要素が見つからない場合
+            When required elements are not found
         """
         pages = []
 
-        for page_element in html_body.select("div.page"):
-            page_params = {}
+        page_container = html_body.body if html_body.body is not None else html_body
+        for page_element in page_container.find_all("div", class_="page", recursive=False):
+            page_params: dict[str, Any] = {}
+            set_container = page_element.find("p", recursive=False)
+            if not isinstance(set_container, Tag):
+                set_container = page_element
+            set_elements = [
+                set_element
+                for set_element in set_container.find_all("span", class_="set", recursive=False)
+                if isinstance(set_element, Tag)
+            ]
 
             # レーティング方式を判定
-            is_5star_rating = page_element.select_one("span.rating span.page-rate-list-pages-start") is not None
+            is_5star_rating = any(
+                "rating" in set_element.get("class", [])
+                and set_element.find("span", class_="page-rate-list-pages-start", recursive=False) is not None
+                for set_element in set_elements
+            )
 
             # 各値を取得
-            for set_element in page_element.select("span.set"):
-                key_element = set_element.select_one("span.name")
+            for field_index, set_element in enumerate(set_elements, start=1):
+                key_element = set_element.find("span", class_="name", recursive=False)
                 if key_element is None:
-                    raise exceptions.NoElementException("Cannot find key element")
+                    page_name = page_params.get("fullname", "unknown")
+                    raise exceptions.NoElementException(
+                        "Cannot find key element in set "
+                        f"for site: {site.unix_name}, page: {page_name}, field: {field_index}"
+                    )
                 key = key_element.text.strip()
-                value_element = set_element.select_one("span.value")
+                value_element = set_element.find("span", class_="value", recursive=False)
 
                 if value_element is None:
-                    value: Any = None
+                    # Wikidot omits the value span for an empty page title in
+                    # ListPages output. Page.title is still a required string,
+                    # so preserve the blank value instead of passing None.
+                    value: Any = "" if key == "title" else None
 
                 elif key in ["created_at", "updated_at", "commented_at"]:
-                    odate_element = value_element.select_one("span.odate")
-                    if odate_element is None:
+                    odate_element = (
+                        value_element.find("span", class_="odate", recursive=False)
+                        if isinstance(value_element, Tag)
+                        else None
+                    )
+                    if not isinstance(odate_element, Tag):
                         value = None
                     else:
-                        value = odate_parser(odate_element)
+                        page_name = str(page_params.get("fullname", "unknown"))
+                        value = _parse_listpages_odate_field(site, page_name, key, odate_element)
 
                 elif key in [
                     "created_by_linked",
                     "updated_by_linked",
                     "commented_by_linked",
                 ]:
-                    printuser_element = value_element.select_one("span.printuser")
-                    if printuser_element is None:
+                    printuser_element = (
+                        value_element.find("span", class_="printuser", recursive=False)
+                        if isinstance(value_element, Tag)
+                        else None
+                    )
+                    if not isinstance(printuser_element, Tag):
                         value = None
                     else:
-                        value = user_parser(site.client, printuser_element)
+                        page_name = str(page_params.get("fullname", "unknown"))
+                        value = _parse_listpages_user_field(site, page_name, key, printuser_element)
 
                 elif key in ["tags", "_tags"]:
                     value = value_element.text.split()
 
-                elif key in ["rating_votes", "comments", "size", "revisions"]:
-                    value = int(value_element.text.strip())
+                elif key in ["rating_votes", "comments", "size", "children", "revisions"]:
+                    page_name = str(page_params.get("fullname", "unknown"))
+                    value = _parse_listpages_non_negative_integer_field(site, page_name, key, value_element.text)
 
                 elif key in ["rating"]:
+                    page_name = str(page_params.get("fullname", "unknown"))
                     if is_5star_rating:
-                        value = float(value_element.text.strip())
+                        value = _parse_listpages_finite_ascii_float_field(site, page_name, key, value_element.text)
                     else:
-                        value = int(value_element.text.strip())
+                        value = _parse_listpages_integer_field(site, page_name, key, value_element.text)
 
                 elif key in ["rating_percent"]:
                     if is_5star_rating:
-                        value = float(value_element.text.strip()) / 100
+                        page_name = str(page_params.get("fullname", "unknown"))
+                        percent_text = value_element.text.strip().removesuffix("%")
+                        value = _parse_listpages_percentage_field(site, page_name, key, percent_text) / 100
                     else:
                         value = None
 
                 else:
-                    value = value_element.text.strip()
+                    value = value_element.get_text(" ", strip=True)
 
                 # keyを変換
                 if "_linked" in key:
@@ -296,34 +1407,97 @@ class PageCollection(list["Page"]):
         return PageCollection(site, pages)
 
     @staticmethod
-    def search_pages(site: "Site", query: SearchPagesQuery = SearchPagesQuery()):
-        """
-        サイト内のページを検索する
+    def _request_listpages_page(site: "Site", query_dict: dict[str, Any], offset: int | None) -> httpx.Response:
+        client = _validate_page_site_client(site)
+        config = client.amc_client.config
+        max_retries = _validate_listpages_retry_max_retries(getattr(config, "retry_max_retries", 3))
 
-        指定されたクエリに基づいてサイト内のページを検索し、結果を返す。
-        Wikidotの「ListPagesModule」を使用して検索を実行する。
+        last_exception: Exception | None = None
+        for _ in range(max_retries + 1):
+            try:
+                responses = site.amc_request([query_dict], return_exceptions=True)
+            except Exception as exc:
+                response_or_exception = exc
+            else:
+                response_or_exception = _require_listpages_response_count(site, offset, responses)[0]
+
+            if not isinstance(response_or_exception, Exception):
+                return response_or_exception
+
+            if isinstance(response_or_exception, exceptions.ForbiddenException):
+                raise response_or_exception
+
+            if isinstance(response_or_exception, exceptions.WikidotStatusCodeException):
+                if response_or_exception.status_code == "not_ok":
+                    raise exceptions.ForbiddenException("Failed to get pages, target site may be private") from (
+                        response_or_exception
+                    )
+                if response_or_exception.status_code != "try_again":
+                    raise response_or_exception
+
+            last_exception = response_or_exception
+
+        raise exceptions.UnexpectedException(
+            f"Failed to get ListPages page for site: {site.unix_name}, offset: {offset}"
+        ) from last_exception
+
+    @staticmethod
+    def _listpages_response_body(site: "Site", response: httpx.Response, offset: int | None) -> str:
+        data = response.json()
+        if not isinstance(data, dict):
+            raise exceptions.NoElementException(
+                f"ListPages response payload is malformed for site: {site.unix_name}, offset: {offset} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        body = data.get("body")
+        if body is None:
+            raise exceptions.NoElementException(
+                f"ListPages response body is not found for site: {site.unix_name}, offset: {offset}"
+            )
+        if not isinstance(body, str):
+            raise exceptions.NoElementException(
+                f"ListPages response body is malformed for site: {site.unix_name}, offset: {offset} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
+            )
+        return body
+
+    @staticmethod
+    def search_pages(site: "Site", query: SearchPagesQuery | None = None) -> "PageCollection":
+        """
+        Search for pages within a site
+
+        Searches for pages within a site based on the specified query and returns the results.
+        Executes the search using Wikidot's "ListPagesModule".
 
         Parameters
         ----------
         site : Site
-            検索対象のサイト
-        query : SearchPagesQuery, default SearchPagesQuery()
-            検索条件
+            Site to search
+        query : SearchPagesQuery | None, default None
+            Search conditions. If None, default search conditions are used.
 
         Returns
         -------
         PageCollection
-            検索結果のページコレクション
+            Page collection of search results
 
         Raises
         ------
         ForbiddenException
-            プライベートサイトでアクセスが拒否された場合
+            When access is denied on a private site
         WikidotStatusCodeException
-            その他のAPIエラーが発生した場合
+            When other API errors occur
         NoElementException
-            レスポンスからページ情報を抽出できない場合
+            When page information cannot be extracted from the response
         """
+        site = _validate_page_collection_site(site)
+        if query is None:
+            query = SearchPagesQuery()
+        elif not isinstance(query, SearchPagesQuery):
+            raise ValueError("query must be a SearchPagesQuery or None")
+        if query.limit is not None and query.limit <= 0:
+            return PageCollection(site, [])
+
         # 初回実行
         query_dict = query.as_dict()
         query_dict["moduleName"] = "list/ListPagesModule"
@@ -341,382 +1515,756 @@ class PageCollection(list["Page"]):
             + "\n[[/div]]"
         )
 
-        try:
-            response = site.amc_request([query_dict])[0]
-        except exceptions.WikidotStatusCodeException as e:
-            if e.status_code == "not_ok":
-                raise exceptions.ForbiddenException("Failed to get pages, target site may be private") from e
-            raise e
+        response = PageCollection._request_listpages_page(site, query_dict, query.offset)
 
-        body = response.json()["body"]
+        body = PageCollection._listpages_response_body(site, response, query.offset)
 
         first_page_html_body = BeautifulSoup(body, "lxml")
 
         total = 1
         html_bodies = [first_page_html_body]
-        # pagerが存在する
-        if first_page_html_body.select_one("div.pager") is not None:
-            # span.target[-2] > a から最大ページ数を取得
-            last_pager_element = first_page_html_body.select("div.pager span.target")[-2]
-            last_pager_link_element = last_pager_element.select_one("a")
-            if last_pager_link_element is None:
-                raise exceptions.NoElementException("Cannot find last pager link")
-            total = int(last_pager_link_element.text.strip())
+        pager = PageCollection._pager_from_listpages_html(first_page_html_body)
+        if pager is not None:
+            for pager_target in reversed(pager.select("span.target")):
+                pager_link = pager_target.select_one("a")
+                page_text = (pager_link or pager_target).get_text(strip=True)
+                page = PageCollection._parse_listpages_pager_page(site, query.offset, page_text)
+                if page is not None:
+                    total = page
+                    break
 
         if total > 1:
             request_bodies = []
-            for i in range(1, total):
+            base_offset = query.offset or 0
+            per_page = query.perPage or PageConstants.DEFAULT_PER_PAGE
+            page_count = total
+            if query.limit is not None:
+                remaining_limit = query.limit - per_page
+                page_count = 1
+                if remaining_limit > 0:
+                    page_count += (remaining_limit + per_page - 1) // per_page
+                page_count = min(total, page_count)
+
+            for i in range(1, page_count):
                 _query_dict = query_dict.copy()
-                _query_dict["offset"] = i * (query.perPage or 250)
+                _query_dict["offset"] = base_offset + i * per_page
                 request_bodies.append(_query_dict)
 
-            responses = site.amc_request(request_bodies)
-            html_bodies.extend([BeautifulSoup(response.json()["body"], "lxml") for response in responses])
+            if request_bodies:
+                responses = site.amc_request_with_retry(request_bodies)
+                for index, additional_response in enumerate(responses):
+                    offset = request_bodies[index].get("offset")
+                    if additional_response is None:
+                        raise exceptions.UnexpectedException(
+                            f"Failed to get ListPages page for site: {site.unix_name}, offset: {offset}"
+                        )
+                    body = PageCollection._listpages_response_body(site, additional_response, offset)
+                    html_bodies.append(BeautifulSoup(body, "lxml"))
 
-        pages = []
+        pages: list[Page] = []
         for html_body in html_bodies:
             pages.extend(PageCollection._parse(site, html_body))
+
+        if query.limit is not None:
+            pages = pages[: query.limit]
 
         return PageCollection(site, pages)
 
     @staticmethod
-    def _acquire_page_ids(site: "Site", pages: list["Page"]):
+    def _acquire_page_ids(site: "Site", pages: list["Page"]) -> list["Page"]:
         """
-        ページIDを取得する内部メソッド
+        Internal method to retrieve page IDs
 
-        未取得のページIDを一括で取得する。norender/noredirectオプション付きで
-        ページにアクセスし、ページソースからIDを抽出する。
+        Batch retrieves unacquired page IDs. Accesses pages with norender/noredirect options
+        and extracts IDs from page source.
 
         Parameters
         ----------
         site : Site
-            ページが属するサイト
+            Site to which pages belong
         pages : list[Page]
-            対象ページのリスト
+            List of target pages
 
         Returns
         -------
         list[Page]
-            ID情報が更新されたページのリスト
+            List of pages with updated ID information
 
         Raises
         ------
+        NotFoundException
+            When page ID is not found
         UnexpectedException
-            ページIDが見つからない場合や、予期しないレスポンスタイプの場合
+            When response type is unexpected
         """
-        # pagesからidが設定されていないものを抽出
-        target_pages = [page for page in pages if not page.is_id_acquired()]
+        pages = _validate_pages(pages)
+        acquired_ids_by_url: dict[str, int] = {}
+        for page in pages:
+            retained_page_id = _validate_retained_page_id(page)
+            if retained_page_id is not None:
+                request_url = f"{page.get_url()}/norender/true/noredirect/true"
+                acquired_ids_by_url.setdefault(request_url, retained_page_id)
+
+        target_pages: list[Page] = []
+        for page in pages:
+            if page.is_id_acquired():
+                continue
+            request_url = f"{page.get_url()}/norender/true/noredirect/true"
+            acquired_id = acquired_ids_by_url.get(request_url)
+            if acquired_id is not None:
+                page.id = acquired_id
+                continue
+            target_pages.append(page)
 
         # なければ終了
         if len(target_pages) == 0:
             return pages
 
+        target_pages_by_url: dict[str, list[Page]] = {}
+        for page in target_pages:
+            request_url = f"{page.get_url()}/norender/true/noredirect/true"
+            target_pages_by_url.setdefault(request_url, []).append(page)
+
         # norender, noredirectでアクセス
-        responses = RequestUtil.request(
-            site.client,
-            "GET",
-            [f"{page.get_url()}/norender/true/noredirect/true" for page in target_pages],
-        )
+        request_urls = list(target_pages_by_url)
+        responses = RequestUtil.request(site.client, "GET", request_urls)
 
         # "WIKIREQUEST.info.pageId = xxx;"の値をidに設定
         for index, response in enumerate(responses):
+            target_pages_for_url = target_pages_by_url[request_urls[index]]
             if not isinstance(response, httpx.Response):
-                raise exceptions.UnexpectedException(f"Unexpected response type: {type(response)}")
+                raise exceptions.UnexpectedException(
+                    f"Unexpected response type for site: {site.unix_name}, "
+                    f"page: {target_pages_for_url[0].fullname}, type: {type(response)}"
+                )
             source = response.text
 
-            id_match = re.search(r"WIKIREQUEST\.info\.pageId = (\d+);", source)
+            id_match = re.search(r"WIKIREQUEST\.info\.pageId\s*=\s*([^;]*);", source)
             if id_match is None:
-                raise exceptions.UnexpectedException(f"Cannot find page id: {target_pages[index].fullname}")
-            target_pages[index].id = int(id_match.group(1))
+                raise exceptions.NotFoundException(
+                    f"Cannot find page id for site: {site.unix_name}, page: {target_pages_for_url[0].fullname}"
+                )
+            page_id_text = id_match.group(1).strip()
+            if re.fullmatch(r"[0-9]+", page_id_text) is None:
+                raise exceptions.NoElementException(
+                    f"Page ID is malformed for site: {site.unix_name}, page: {target_pages_for_url[0].fullname} "
+                    f"(field=page_id, value={page_id_text})"
+                )
+            page_id = int(page_id_text)
+            for page in target_pages_for_url:
+                page.id = page_id
 
         return pages
 
-    def get_page_ids(self):
+    def get_page_ids(self) -> "PageCollection":
         """
-        コレクション内の全ページのIDを取得する
+        Get IDs for all pages in the collection
 
-        IDが設定されていないページについて、一括でIDを取得する。
+        Batch retrieves IDs for pages that do not have IDs set.
 
         Returns
         -------
         PageCollection
-            自身（メソッドチェーン用）
+            Self (for method chaining)
         """
-        return PageCollection._acquire_page_ids(self.site, self)
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_ids(site, self)
+        return self
 
     @staticmethod
-    def _acquire_page_sources(site: "Site", pages: list["Page"]):
+    def _acquire_page_sources(site: "Site", pages: list["Page"]) -> list["Page"]:
         """
-        ページソースを取得する内部メソッド
+        Internal method to retrieve page sources
 
-        指定されたページのソースコード（Wikidot記法）を一括で取得する。
+        Batch retrieves source code (Wikidot markup) for specified pages.
 
         Parameters
         ----------
         site : Site
-            ページが属するサイト
+            Site to which pages belong
         pages : list[Page]
-            対象ページのリスト
+            List of target pages
 
         Returns
         -------
         list[Page]
-            ソース情報が更新されたページのリスト
+            List of pages with updated source information
 
         Raises
         ------
         NoElementException
-            ソース要素が見つからない場合
+            When source elements are not found
         """
-        if len(pages) == 0:
+        pages = _validate_pages(pages)
+        target_pages = [page for page in pages if page._source is None]
+        if len(target_pages) == 0:
             return pages
 
-        responses = site.amc_request(
-            [{"moduleName": "viewsource/ViewSourceModule", "page_id": page.id} for page in pages]
+        PageCollection._acquire_page_ids(site, target_pages)
+        acquired_source_text_by_id = {
+            page.id: page._source.wiki_text for page in pages if page._source is not None and page._id is not None
+        }
+        target_pages_by_id: dict[int, list[Page]] = {}
+        for page in target_pages:
+            acquired_source_text = acquired_source_text_by_id.get(page.id)
+            if acquired_source_text is not None:
+                page.source = PageSource(page, acquired_source_text)
+                continue
+            target_pages_by_id.setdefault(page.id, []).append(page)
+
+        if len(target_pages_by_id) == 0:
+            return pages
+
+        responses = site.amc_request_with_retry(
+            [{"moduleName": "viewsource/ViewSourceModule", "page_id": page_id} for page_id in target_pages_by_id]
         )
 
-        for page, responses in zip(pages, responses):
-            body = responses.json()["body"]
+        source_error: exceptions.NoElementException | None = None
+        for page_id, response in zip(target_pages_by_id, responses, strict=True):
+            if response is None:
+                continue
+            target_pages_for_id = target_pages_by_id[page_id]
+            data = response.json()
+            if not isinstance(data, dict):
+                if source_error is None:
+                    first_page = target_pages_for_id[0]
+                    source_error = exceptions.NoElementException(
+                        f"Page source response payload is malformed for site: {site.unix_name}, "
+                        f"page: {first_page.fullname} "
+                        f"(id={first_page.id}, expected=dict, actual={type(data).__name__})"
+                    )
+                continue
+            body = data.get("body")
+            if body is None:
+                if source_error is None:
+                    first_page = target_pages_for_id[0]
+                    source_error = exceptions.NoElementException(
+                        f"Page source response body is not found for site: {site.unix_name}, "
+                        f"page: {first_page.fullname} (id={first_page.id})"
+                    )
+                continue
+            if not isinstance(body, str):
+                if source_error is None:
+                    first_page = target_pages_for_id[0]
+                    source_error = exceptions.NoElementException(
+                        f"Page source response body is malformed for site: {site.unix_name}, "
+                        f"page: {first_page.fullname} "
+                        f"(id={first_page.id}, field=body, expected=str, actual={type(body).__name__})"
+                    )
+                continue
             # nbspをスペースに置換
             body = body.replace("&nbsp;", " ")
             html = BeautifulSoup(body, "lxml")
             source_element = html.select_one("div.page-source")
             if source_element is None:
-                raise exceptions.NoElementException("Cannot find source element")
-            source = source_element.get_text().strip().removeprefix("\t")
-            page.source = PageSource(page, source)
+                if source_error is None:
+                    first_page = target_pages_for_id[0]
+                    source_error = exceptions.NoElementException(
+                        f"Cannot find source element for site: {site.unix_name}, page: {first_page.fullname} "
+                        f"(id={first_page.id})"
+                    )
+                continue
+            source = extract_page_source_text(source_element)
+            for page in target_pages_for_id:
+                page.source = PageSource(page, source)
+        if source_error is not None:
+            raise source_error
         return pages
 
-    def get_page_sources(self):
+    def get_page_sources(self) -> "PageCollection":
         """
-        コレクション内の全ページのソースコードを取得する
+        Get source code for all pages in the collection
 
-        ページのソースコード（Wikidot記法）を一括で取得し、各ページのsourceプロパティに設定する。
+        Batch retrieves source code (Wikidot markup) for pages and sets the source property for each page.
 
         Returns
         -------
         PageCollection
-            自身（メソッドチェーン用）
+            Self (for method chaining)
         """
-        return PageCollection._acquire_page_sources(self.site, self)
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_sources(site, self)
+        return self
 
     @staticmethod
-    def _acquire_page_revisions(site: "Site", pages: list["Page"]):
+    def _acquire_page_revisions(site: "Site", pages: list["Page"]) -> list["Page"]:
         """
-        ページリビジョン履歴を取得する内部メソッド
+        Internal method to retrieve page revision history
 
-        指定されたページのリビジョン（編集履歴）を一括で取得する。
+        Batch retrieves revisions (edit history) for specified pages.
 
         Parameters
         ----------
         site : Site
-            ページが属するサイト
+            Site to which pages belong
         pages : list[Page]
-            対象ページのリスト
+            List of target pages
 
         Returns
         -------
         list[Page]
-            リビジョン情報が更新されたページのリスト
+            List of pages with updated revision information
 
         Raises
         ------
         NoElementException
-            必要な要素が見つからない場合
+            When required elements are not found
         """
-        if len(pages) == 0:
+        pages = _validate_pages(pages)
+        target_pages = [page for page in pages if page._revisions is None]
+        if len(target_pages) == 0:
             return pages
 
-        responses = site.amc_request(
+        PageCollection._acquire_page_ids(site, target_pages)
+
+        def clone_revisions(page: Page, revisions: PageRevisionCollection) -> PageRevisionCollection:
+            cloned_revisions = []
+            for revision in revisions:
+                cloned_revision = PageRevision(
+                    page=page,
+                    id=revision.id,
+                    rev_no=revision.rev_no,
+                    created_by=revision.created_by,
+                    created_at=revision.created_at,
+                    comment=revision.comment,
+                )
+                if revision._source is not None:
+                    cloned_revision._source = PageSource(page, revision._source.wiki_text)
+                cloned_revision._html = revision._html
+                cloned_revisions.append(cloned_revision)
+            return PageRevisionCollection(page, cloned_revisions)
+
+        acquired_revisions_by_id: dict[int, PageRevisionCollection] = {}
+        for page in pages:
+            if page._id is not None and page._revisions is not None:
+                acquired_revisions_by_id[page.id] = page._revisions
+
+        target_pages_by_id: dict[int, list[Page]] = {}
+        for page in target_pages:
+            acquired_revisions = acquired_revisions_by_id.get(page.id)
+            if acquired_revisions is not None:
+                page.revisions = clone_revisions(page, acquired_revisions)
+                continue
+            target_pages_by_id.setdefault(page.id, []).append(page)
+
+        if len(target_pages_by_id) == 0:
+            return pages
+
+        responses = site.amc_request_with_retry(
             [
                 {
                     "moduleName": "history/PageRevisionListModule",
-                    "page_id": page.id,
+                    "page_id": page_id,
                     "options": {"all": True},
                     "perpage": 100000000,  # pagerを使わずに全て取得
                 }
-                for page in pages
+                for page_id in target_pages_by_id
             ]
         )
 
-        for page, response in zip(pages, responses):
-            body = response.json()["body"]
-            revs = []
-            body_html = BeautifulSoup(body, "lxml")
-            for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
-                rev_id = int(str(rev_element["id"]).removeprefix("revision-row-"))
-
-                tds = rev_element.select("td")
-                rev_no = int(tds[0].text.strip().removesuffix("."))
-                created_by_elem = tds[4].select_one("span.printuser")
-                if created_by_elem is None:
-                    raise exceptions.NoElementException("Cannot find created by element")
-                created_by = user_parser(page.site.client, created_by_elem)
-
-                created_at_elem = tds[5].select_one("span.odate")
-                if created_at_elem is None:
-                    raise exceptions.NoElementException("Cannot find created at element")
-                created_at = odate_parser(created_at_elem)
-
-                comment = tds[6].text.strip()
-
-                revs.append(
-                    PageRevision(
-                        page=page,
-                        id=rev_id,
-                        rev_no=rev_no,
-                        created_by=created_by,
-                        created_at=created_at,
-                        comment=comment,
-                    )
+        for page_id, response in zip(target_pages_by_id, responses, strict=True):
+            if response is None:
+                continue
+            target_pages_for_id = target_pages_by_id[page_id]
+            first_page = target_pages_for_id[0]
+            data = response.json()
+            if not isinstance(data, dict):
+                raise exceptions.NoElementException(
+                    f"Page revision list response payload is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, expected=dict, actual={type(data).__name__})"
                 )
-            page.revisions = PageRevisionCollection(page, revs)
+            body = data.get("body")
+            if body is None:
+                raise exceptions.NoElementException(
+                    f"Page revision list response body is not found for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} (id={first_page.id})"
+                )
+            if not isinstance(body, str):
+                raise exceptions.NoElementException(
+                    f"Page revision list response body is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, field=body, expected=str, actual={type(body).__name__})"
+                )
+            body_html = BeautifulSoup(body, "lxml")
+            parsed_revisions: list[tuple[int, int, Any, datetime, str]] = []
+            for rev_element in body_html.select("table.page-history > tr[id^=revision-row-]"):
+                rev_id = _parse_revision_row_id(site, first_page, rev_element["id"])
+
+                tds = [
+                    td_element
+                    for td_element in rev_element.find_all("td", recursive=False)
+                    if isinstance(td_element, Tag)
+                ]
+                if len(tds) < 7:
+                    raise exceptions.NoElementException(
+                        f"Cannot find revision cells for site: {site.unix_name}, "
+                        f"page: {first_page.fullname}, revision: {rev_id}"
+                    )
+                rev_no = _parse_revision_number(site, first_page, rev_id, tds[0].text)
+                created_by_elem = tds[4].find("span", class_="printuser", recursive=False)
+                if not isinstance(created_by_elem, Tag):
+                    raise exceptions.NoElementException(
+                        f"Cannot find created by element for site: {site.unix_name}, "
+                        f"page: {first_page.fullname}, revision: {rev_id}"
+                    )
+                created_by = _parse_revision_created_by(site, first_page, rev_id, created_by_elem)
+
+                created_at_elem = tds[5].find("span", class_="odate", recursive=False)
+                if not isinstance(created_at_elem, Tag):
+                    raise exceptions.NoElementException(
+                        f"Cannot find created at element for site: {site.unix_name}, "
+                        f"page: {first_page.fullname}, revision: {rev_id}"
+                    )
+                created_at = _parse_revision_created_at(site, first_page, rev_id, created_at_elem)
+
+                comment = tds[6].get_text(" ", strip=True)
+                parsed_revisions.append((rev_id, rev_no, created_by, created_at, comment))
+
+            for page in target_pages_for_id:
+                page.revisions = PageRevisionCollection(
+                    page,
+                    [
+                        PageRevision(
+                            page=page,
+                            id=rev_id,
+                            rev_no=rev_no,
+                            created_by=created_by,
+                            created_at=created_at,
+                            comment=comment,
+                        )
+                        for rev_id, rev_no, created_by, created_at, comment in parsed_revisions
+                    ],
+                )
 
         return pages
 
-    def get_page_revisions(self):
+    def get_page_revisions(self) -> "PageCollection":
         """
-        コレクション内の全ページのリビジョン履歴を取得する
+        Get revision history for all pages in the collection
 
-        ページのリビジョン（編集履歴）を一括で取得し、各ページのrevisionsプロパティに設定する。
+        Batch retrieves revisions (edit history) for pages and sets the revisions property for each page.
 
         Returns
         -------
         PageCollection
-            自身（メソッドチェーン用）
+            Self (for method chaining)
         """
-        return PageCollection._acquire_page_revisions(self.site, self)
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_revisions(site, self)
+        return self
 
     @staticmethod
-    def _acquire_page_votes(site: "Site", pages: list["Page"]):
+    def _acquire_page_votes(site: "Site", pages: list["Page"]) -> list["Page"]:
         """
-        ページへの投票情報を取得する内部メソッド
+        Internal method to retrieve vote information for pages
 
-        指定されたページへの投票（レーティング）情報を一括で取得する。
+        Batch retrieves vote (rating) information for specified pages.
 
         Parameters
         ----------
         site : Site
-            ページが属するサイト
+            Site to which pages belong
         pages : list[Page]
-            対象ページのリスト
+            List of target pages
 
         Returns
         -------
         list[Page]
-            投票情報が更新されたページのリスト
+            List of pages with updated vote information
 
         Raises
         ------
         UnexpectedException
-            ユーザー要素と投票値要素の数が一致しない場合
+            When the number of user elements and vote value elements do not match
         """
-        if len(pages) == 0:
+        pages = _validate_pages(pages)
+        target_pages = [page for page in pages if page._votes is None]
+        if len(target_pages) == 0:
             return pages
 
-        responses = site.amc_request(
-            [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": page.id} for page in pages]
+        PageCollection._acquire_page_ids(site, target_pages)
+
+        def clone_votes(page: Page, votes: PageVoteCollection) -> PageVoteCollection:
+            return PageVoteCollection(page, [PageVote(page, vote.user, vote.value) for vote in votes])
+
+        acquired_votes_by_id: dict[int, PageVoteCollection] = {}
+        for page in pages:
+            if page._id is not None and page._votes is not None:
+                acquired_votes_by_id[page.id] = page._votes
+
+        target_pages_by_id: dict[int, list[Page]] = {}
+        for page in target_pages:
+            acquired_votes = acquired_votes_by_id.get(page.id)
+            if acquired_votes is not None:
+                page._votes = clone_votes(page, acquired_votes)
+                continue
+            target_pages_by_id.setdefault(page.id, []).append(page)
+
+        if len(target_pages_by_id) == 0:
+            return pages
+
+        responses = site.amc_request_with_retry(
+            [{"moduleName": "pagerate/WhoRatedPageModule", "pageId": page_id} for page_id in target_pages_by_id]
         )
 
-        for page, response in zip(pages, responses):
-            body = response.json()["body"]
+        for page_id, response in zip(target_pages_by_id, responses, strict=True):
+            if response is None:
+                continue
+            data = response.json()
+            if not isinstance(data, dict):
+                first_page = target_pages_by_id[page_id][0]
+                raise exceptions.NoElementException(
+                    f"Page vote response payload is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
+            if body is None:
+                first_page = target_pages_by_id[page_id][0]
+                raise exceptions.NoElementException(
+                    f"Page vote response body is not found for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} (id={first_page.id})"
+                )
+            if not isinstance(body, str):
+                first_page = target_pages_by_id[page_id][0]
+                raise exceptions.NoElementException(
+                    f"Page vote response body is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, field=body, expected=str, actual={type(body).__name__})"
+                )
             html = BeautifulSoup(body, "lxml")
-            user_elems = html.select("span.printuser")
-            value_elems = html.select("span[style^='color']")
+            vote_container: Tag | None = None
+            for element in html.find_all("div"):
+                if not isinstance(element, Tag):
+                    continue
+                style = element.get("style")
+                if isinstance(style, str) and "column-count" in style:
+                    vote_container = element
+                    break
+            user_elems: list[Tag] = []
+            value_elems: list[Tag] = []
+            if vote_container is not None:
+                for span in vote_container.find_all("span", recursive=False):
+                    if not isinstance(span, Tag):
+                        continue
+                    classes = span.get("class", [])
+                    if isinstance(classes, str):
+                        class_names = [classes]
+                    elif isinstance(classes, list):
+                        class_names = classes
+                    else:
+                        class_names = []
+                    if "printuser" in class_names:
+                        user_elems.append(span)
+                        continue
+                    style = span.get("style")
+                    if isinstance(style, str) and style.lstrip().startswith("color"):
+                        value_elems.append(span)
 
             if len(user_elems) != len(value_elems):
-                raise exceptions.UnexpectedException("User and value count mismatch")
+                first_page = target_pages_by_id[page_id][0]
+                raise exceptions.UnexpectedException(
+                    "User and value count mismatch for site: "
+                    f"{site.unix_name}, page: {first_page.fullname} "
+                    f"(users={len(user_elems)}, values={len(value_elems)})"
+                )
 
-            users = [user_parser(site.client, user_elem) for user_elem in user_elems]
-            values = []
-            for value in value_elems:
-                _v = value.text.strip()
-                if _v == "+":
-                    values.append(1)
-                elif _v == "-":
-                    values.append(-1)
-                else:
-                    values.append(int(_v))
+            first_page = target_pages_by_id[page_id][0]
+            users = [_parse_who_rated_user(site, first_page, user_elem) for user_elem in user_elems]
+            values = [_parse_who_rated_vote_value(site, first_page, value.text) for value in value_elems]
 
-            votes = [PageVote(page, user, vote) for user, vote in zip(users, values)]
-            page._votes = PageVoteCollection(page, votes)
+            for page in target_pages_by_id[page_id]:
+                votes = [PageVote(page, user, vote) for user, vote in zip(users, values, strict=True)]
+                page._votes = PageVoteCollection(page, votes)
 
         return pages
 
-    def get_page_votes(self):
+    def get_page_votes(self) -> "PageCollection":
         """
-        コレクション内の全ページの投票情報を取得する
+        Get vote information for all pages in the collection
 
-        ページへの投票（レーティング）情報を一括で取得し、各ページのvotesプロパティに設定する。
+        Batch retrieves vote (rating) information for pages and sets the votes property for each page.
 
         Returns
         -------
         PageCollection
-            自身（メソッドチェーン用）
+            Self (for method chaining)
         """
-        return PageCollection._acquire_page_votes(self.site, self)
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_votes(site, self)
+        return self
+
+    @staticmethod
+    def _acquire_page_files(site: "Site", pages: list["Page"]) -> list["Page"]:
+        """
+        Internal method to retrieve file attachments for pages
+
+        Batch retrieves file attachments for specified pages.
+
+        Parameters
+        ----------
+        site : Site
+            Site to which pages belong
+        pages : list[Page]
+            List of target pages
+
+        Returns
+        -------
+        list[Page]
+            List of pages with updated file information
+        """
+        pages = _validate_pages(pages)
+        target_pages = [page for page in pages if page._files is None]
+        if len(target_pages) == 0:
+            return pages
+
+        PageCollection._acquire_page_ids(site, target_pages)
+
+        from .page_file import PageFileCollection
+
+        def clone_files(page: Page, files: PageFileCollection) -> PageFileCollection:
+            file_fields = [(file.id, file.name, file.url, file.mime_type, file.size) for file in files]
+            return PageFileCollection(page=page, files=PageFileCollection._build_page_files(page, file_fields))
+
+        acquired_files_by_id: dict[int, PageFileCollection] = {}
+        for page in pages:
+            if page._id is not None and page._files is not None:
+                acquired_files_by_id[page.id] = page._files
+
+        target_pages_by_id: dict[int, list[Page]] = {}
+        for page in target_pages:
+            acquired_files = acquired_files_by_id.get(page.id)
+            if acquired_files is not None:
+                page._files = clone_files(page, acquired_files)
+                continue
+            target_pages_by_id.setdefault(page.id, []).append(page)
+
+        if len(target_pages_by_id) == 0:
+            return pages
+
+        responses = site.amc_request_with_retry(
+            [{"moduleName": "files/PageFilesModule", "page_id": page_id} for page_id in target_pages_by_id]
+        )
+
+        for page_id, response in zip(target_pages_by_id, responses, strict=True):
+            first_page = target_pages_by_id[page_id][0]
+            if response is None:
+                continue
+            data = response.json()
+            if not isinstance(data, dict):
+                raise exceptions.NoElementException(
+                    f"Page file response payload is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
+            if body is None:
+                raise exceptions.NoElementException(
+                    f"Page file response body is not found for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} (id={first_page.id})"
+                )
+            if not isinstance(body, str):
+                raise exceptions.NoElementException(
+                    f"Page file response body is malformed for site: {site.unix_name}, "
+                    f"page: {first_page.fullname} "
+                    f"(id={first_page.id}, field=body, expected=str, actual={type(body).__name__})"
+                )
+            html = BeautifulSoup(body, "lxml")
+            context = f"for site: {site.unix_name}, page: {first_page.fullname}"
+            file_fields = PageFileCollection._parse_file_fields_from_html(site.url, html, context=context)
+            for page in target_pages_by_id[page_id]:
+                files = PageFileCollection._build_page_files(page, file_fields)
+                page._files = PageFileCollection(page=page, files=files)
+
+        return pages
+
+    def get_page_files(self) -> "PageCollection":
+        """
+        Get file attachments for all pages in the collection
+
+        Batch retrieves file attachments for pages and sets the files property for each page.
+
+        Returns
+        -------
+        PageCollection
+            Self (for method chaining)
+        """
+        site = self._get_site_for_batch()
+        if site is None:
+            return self
+        PageCollection._acquire_page_files(site, self)
+        return self
 
 
 @dataclass
 class Page:
     """
-    Wikidotページを表すクラス
+    A class representing a Wikidot page
 
-    Wikidotサイト内の単一ページに関する情報と操作機能を提供する。
-    ページの基本情報、メタデータ、履歴、評価などを管理する。
+    Provides information and operation functions for a single page within a Wikidot site.
+    Manages page basic information, metadata, history, ratings, etc.
 
     Attributes
     ----------
     site : Site
-        ページが存在するサイト
+        Site where the page exists
     fullname : str
-        ページのフルネーム（例: "コンポーネント:scp-173"）
+        Fullname of the page (e.g., "component:scp-173")
     name : str
-        ページ名（例: "scp-173"）
+        Page name (e.g., "scp-173")
     category : str
-        カテゴリ（例: "コンポーネント"）
+        Category (e.g., "component")
     title : str
-        ページのタイトル
+        Title of the page
     children_count : int
-        子ページの数
+        Number of child pages
     comments_count : int
-        コメント数
+        Number of comments
     size : int
-        ページのサイズ（バイト数）
+        Size of the page (in bytes)
     rating : int | float
-        レーティング（+/-評価の場合はint、5つ星評価の場合はfloat）
+        Rating (int for +/- rating, float for 5-star rating)
     votes_count : int
-        投票数
-    rating_percent : float
-        5つ星評価システムにおけるパーセンテージ値（0.0～1.0）
+        Number of votes
+    rating_percent : int | float | None
+        Percentage value in 5-star rating system (0.0 to 1.0), or None if unavailable
     revisions_count : int
-        リビジョン（編集履歴）の数
+        Number of revisions (edit history)
     parent_fullname : str | None
-        親ページのフルネーム（親がない場合はNone）
+        Fullname of parent page (None if no parent)
     tags : list[str]
-        付けられたタグのリスト
-    created_by : User
-        ページの作成者
-    created_at : datetime
-        ページの作成日時
-    updated_by : User
-        最終更新者
-    updated_at : datetime
-        最終更新日時
-    commented_by : User | None
-        最後にコメントしたユーザー（コメントがない場合はNone）
+        List of tags attached
+    created_by : AbstractUser | None
+        Creator of the page (None if unavailable)
+    created_at : datetime | None
+        Date and time the page was created (None if unavailable)
+    updated_by : AbstractUser | None
+        Last updater (None if unavailable)
+    updated_at : datetime | None
+        Last update date and time (None if unavailable)
+    commented_by : AbstractUser | None
+        User who last commented (None if no comments)
     commented_at : datetime | None
-        最後のコメント日時（コメントがない場合はNone）
+        Date and time of last comment (None if no comments)
     _id : int | None
-        ページのID（内部識別子）
+        Page ID (internal identifier)
     _source : PageSource | None
-        ページのソースコード（要求時に取得）
+        Source code of the page (retrieved on request)
     _revisions : PageRevisionCollection | None
-        ページのリビジョン履歴（要求時に取得）
+        Revision history of the page (retrieved on request)
     _votes : PageVoteCollection | None
-        ページへの投票情報（要求時に取得）
+        Vote information for the page (retrieved on request)
     _metas : dict[str, str] | None
-        ページのメタタグ情報（要求時に取得）
+        Meta tag information for the page (retrieved on request)
     """
 
     site: "Site"
@@ -729,328 +2277,694 @@ class Page:
     size: int
     rating: int | float
     votes_count: int
-    rating_percent: float
+    rating_percent: int | float | None
     revisions_count: int
     parent_fullname: str | None
     tags: list[str]
-    created_by: "User"
-    created_at: datetime
-    updated_by: "User"
-    updated_at: datetime
-    commented_by: Optional["User"]
-    commented_at: Optional[datetime]
-    _id: Optional[int] = None
-    _source: Optional[PageSource] = None
-    _revisions: Optional[PageRevisionCollection] = None
-    _votes: Optional[PageVoteCollection] = None
-    _metas: Optional[dict[str, str]] = None
+    created_by: Optional["AbstractUser"]
+    created_at: datetime | None
+    updated_by: Optional["AbstractUser"]
+    updated_at: datetime | None
+    commented_by: Optional["AbstractUser"]
+    commented_at: datetime | None
+    _id: int | None = None
+    _source: PageSource | None = None
+    _revisions: PageRevisionCollection | None = None
+    _votes: PageVoteCollection | None = None
+    _metas: dict[str, str] | None = None
+    _discussion: Optional["ForumThread"] = None
+    _discussion_checked: bool = False
+    _files: Optional["PageFileCollection"] = None
+
+    def __post_init__(self) -> None:
+        self.site = _validate_page_site(self.site)
+        self.fullname = _validate_page_text_field("fullname", self.fullname)
+        self.name = _validate_page_text_field("name", self.name)
+        self.category = _validate_page_text_field("category", self.category)
+        self.title = _validate_page_text_field("title", self.title)
+        self.children_count = _validate_page_non_negative_integer_field("children_count", self.children_count)
+        self.comments_count = _validate_page_non_negative_integer_field("comments_count", self.comments_count)
+        self.size = _validate_page_non_negative_integer_field("size", self.size)
+        self.rating = _validate_page_rating_field(self.rating)
+        self.votes_count = _validate_page_non_negative_integer_field("votes_count", self.votes_count)
+        self.rating_percent = _validate_page_rating_percent_field(self.rating_percent)
+        self.revisions_count = _validate_page_non_negative_integer_field("revisions_count", self.revisions_count)
+        self.parent_fullname = _normalize_parent_fullname(self.parent_fullname)
+        self.tags = _validate_page_tags(self.tags)
+        self.created_by = _validate_optional_page_user_field("created_by", self.created_by)
+        self.created_at = _validate_optional_page_datetime_field("created_at", self.created_at)
+        self.updated_by = _validate_optional_page_user_field("updated_by", self.updated_by)
+        self.updated_at = _validate_optional_page_datetime_field("updated_at", self.updated_at)
+        self.commented_by = _validate_optional_page_user_field("commented_by", self.commented_by)
+        self.commented_at = _validate_optional_page_datetime_field("commented_at", self.commented_at)
+        _validate_optional_page_user_belongs_to_site(self.site, "created_by", self.created_by)
+        _validate_optional_page_user_belongs_to_site(self.site, "updated_by", self.updated_by)
+        _validate_optional_page_user_belongs_to_site(self.site, "commented_by", self.commented_by)
+        self._id = _validate_optional_page_constructor_id(self._id)
+        self._source = _validate_optional_page_source_object(self._source)
+        if self._source is not None:
+            _validate_source_cache_belongs_to_page(self, self._source)
+        self._revisions = _validate_optional_page_revision_collection(self._revisions)
+        if self._revisions is not None:
+            _validate_revisions_cache_belongs_to_page(self, self._revisions)
+        self._votes = _validate_optional_page_vote_collection(self._votes)
+        if self._votes is not None:
+            _validate_votes_cache_belongs_to_page(self, self._votes)
+        self._metas = _validate_optional_metas(self._metas)
+        self._discussion = _validate_optional_page_discussion(self._discussion)
+        if self._discussion is not None:
+            _validate_discussion_cache_belongs_to_page_site(self, self._discussion)
+        self._discussion_checked = _validate_page_bool_field("page.discussion_checked", self._discussion_checked)
+        self._files = _validate_optional_page_file_collection(self._files)
+        if self._files is not None:
+            _validate_files_cache_belongs_to_page(self, self._files)
 
     def get_url(self) -> str:
         """
-        ページの完全なURLを取得する
+        Get the full URL of the page
 
-        サイトのURLとページ名から完全なページURLを生成する。
+        Generates the full page URL from the site URL and page name.
 
         Returns
         -------
         str
-            ページの完全なURL
+            Full URL of the page
         """
-        return f"{self.site.url}/{self.fullname}"
+        site = _validate_page_site(self.site)
+        fullname = _validate_page_text_field("fullname", self.fullname)
+        return f"{site.url}/{fullname}"
 
     @property
     def id(self) -> int:
         """
-        ページIDを取得する
+        Get the page ID
 
-        IDが未取得の場合は自動的に取得処理を行う。
+        Automatically performs retrieval processing if the ID has not been acquired.
 
         Returns
         -------
         int
-            ページID
+            Page ID
 
         Raises
         ------
         NotFoundException
-            ページIDが見つからない場合
+            When the page ID is not found
         """
         if not self.is_id_acquired():
             PageCollection(self.site, [self]).get_page_ids()
 
         if self._id is None:
-            raise exceptions.NotFoundException("Cannot find page id")
+            raise exceptions.NotFoundException(
+                f"Cannot find page id for site: {self.site.unix_name}, page: {self.fullname}"
+            )
 
-        return self._id
+        return _validate_page_id(self._id)
 
     @id.setter
-    def id(self, value: int):
+    def id(self, value: int) -> None:
         """
-        ページIDを設定する
+        Set the page ID
 
         Parameters
         ----------
         value : int
-            設定するページID
+            Page ID to set
         """
-        self._id = value
+        self._id = _validate_page_id(value)
 
     def is_id_acquired(self) -> bool:
         """
-        ページIDが既に取得済みかどうかを確認する
+        Check whether the page ID has already been acquired
 
         Returns
         -------
         bool
-            IDが取得済みの場合はTrue、未取得の場合はFalse
+            True if the ID has been acquired, False if not acquired
         """
         return self._id is not None
+
+    def _source_not_found_exception(self) -> exceptions.NotFoundException:
+        return exceptions.NotFoundException(
+            f"Cannot find page source for site: {self.site.unix_name}, page: {self.fullname}"
+        )
 
     @property
     def source(self) -> PageSource:
         """
-        ページのソースコードを取得する
+        Get the source code of the page
 
-        ソースコードが未取得の場合は自動的に取得処理を行う。
+        Automatically performs retrieval processing if the source code has not been acquired.
 
         Returns
         -------
         PageSource
-            ページのソースコードオブジェクト
+            Source code object of the page
 
         Raises
         ------
         NotFoundException
-            ページソースが見つからない場合
+            When the page source is not found
         """
         if self._source is None:
             PageCollection(self.site, [self]).get_page_sources()
 
         if self._source is None:
-            raise exceptions.NotFoundException("Cannot find page source")
+            raise self._source_not_found_exception()
 
         return self._source
 
     @source.setter
-    def source(self, value: PageSource):
+    def source(self, value: PageSource) -> None:
         """
-        ページのソースコードを設定する
+        Set the source code of the page
 
         Parameters
         ----------
         value : PageSource
-            設定するソースコードオブジェクト
+            Source code object to set
         """
-        self._source = value
+        source = _validate_page_source_object(value)
+        _validate_source_cache_belongs_to_page(self, source)
+        self._source = source
+
+    def refresh_source(self) -> PageSource:
+        """
+        Force retrieval of the current remote source code
+
+        Returns
+        -------
+        PageSource
+            Freshly retrieved source code object of the page
+
+        Raises
+        ------
+        NotFoundException
+            When the page source is not found
+        """
+        site = _validate_page_site(self.site)
+        self._source = None
+        PageCollection(site, [self]).get_page_sources()
+
+        if self._source is None:
+            raise self._source_not_found_exception()
+
+        return self._source
 
     @property
     def revisions(self) -> PageRevisionCollection:
         """
-        ページのリビジョン履歴を取得する
+        Get the revision history of the page
 
-        リビジョン履歴が未取得の場合は自動的に取得処理を行う。
+        Automatically performs retrieval processing if the revision history has not been acquired.
 
         Returns
         -------
         PageRevisionCollection
-            ページのリビジョン履歴コレクション
+            Revision history collection of the page
 
         Raises
         ------
         NotFoundException
-            リビジョン履歴が見つからない場合
+            When the revision history is not found
         """
         if self._revisions is None:
             PageCollection(self.site, [self]).get_page_revisions()
-        return PageRevisionCollection(self, self._revisions)
+
+        if self._revisions is None:
+            raise exceptions.NotFoundException(
+                f"Cannot find page revisions for site: {self.site.unix_name}, page: {self.fullname}"
+            )
+
+        return self._revisions
 
     @revisions.setter
-    def revisions(self, value: list["PageRevision"] | PageRevisionCollection):
+    def revisions(self, value: list["PageRevision"] | PageRevisionCollection) -> None:
         """
-        ページのリビジョン履歴を設定する
+        Set the revision history of the page
 
         Parameters
         ----------
         value : list[PageRevision] | PageRevisionCollection
-            設定するリビジョンのリストまたはコレクション
+            List or collection of revisions to set
         """
-        if isinstance(value, list):
-            self._revisions = PageRevisionCollection(self, value)
-        else:
-            self._revisions = value
+        self._revisions = _validate_page_revisions(self, value)
 
     @property
     def latest_revision(self) -> PageRevision:
         """
-        ページの最新リビジョンを取得する
+        Get the latest revision of the page
 
-        revision_countとrev_noが一致するリビジョンを最新として返す。
+        Returns the revision where revision_count and rev_no match as the latest.
 
         Returns
         -------
         PageRevision
-            最新のリビジョンオブジェクト
+            Latest revision object
 
         Raises
         ------
         NotFoundException
-            最新リビジョンが見つからない場合
+            When the latest revision is not found
         """
         # revision_countとrev_noが一致するものを取得
         for revision in self.revisions:
             if revision.rev_no == self.revisions_count:
                 return revision
 
-        raise exceptions.NotFoundException("Cannot find latest revision")
+        raise exceptions.NotFoundException(
+            f"Cannot find latest revision for site: {self.site.unix_name}, page: {self.fullname} "
+            f"(rev_no={self.revisions_count})"
+        )
 
     @property
     def votes(self) -> PageVoteCollection:
         """
-        ページへの投票情報を取得する
+        Get vote information for the page
 
-        投票情報が未取得の場合は自動的に取得処理を行う。
+        Automatically performs retrieval processing if the vote information has not been acquired.
 
         Returns
         -------
         PageVoteCollection
-            ページへの投票情報コレクション
+            Vote information collection for the page
 
         Raises
         ------
         NotFoundException
-            投票情報が見つからない場合
+            When the vote information is not found
         """
         if self._votes is None:
             PageCollection(self.site, [self]).get_page_votes()
 
         if self._votes is None:
-            raise exceptions.NotFoundException("Cannot find page votes")
+            raise exceptions.NotFoundException(
+                f"Cannot find page votes for site: {self.site.unix_name}, page: {self.fullname}"
+            )
 
         return self._votes
 
     @votes.setter
-    def votes(self, value: PageVoteCollection):
+    def votes(self, value: PageVoteCollection) -> None:
         """
-        ページへの投票情報を設定する
+        Set vote information for the page
 
         Parameters
         ----------
         value : PageVoteCollection
-            設定する投票情報コレクション
+            Vote information collection to set
         """
-        self._votes = value
+        self._votes = _validate_page_votes(self, value)
 
-    def destroy(self):
+    @property
+    def discussion(self) -> Optional["ForumThread"]:
         """
-        ページを削除する
+        Get the discussion thread for the page
 
-        ログイン状態でのみ実行可能。ページの完全削除を行う。
+        Retrieves the forum thread (comments section) associated with the page.
+        Returns None if the discussion does not exist.
+
+        Returns
+        -------
+        ForumThread | None
+            Discussion thread. None if it does not exist
+
+        Raises
+        ------
+        UnexpectedException
+            When the discussion module cannot be retrieved after retries
+        """
+        if not self._discussion_checked:
+            site = _validate_page_site(self.site)
+            response = site.amc_request_with_retry(
+                [
+                    {
+                        "moduleName": "forum/ForumCommentsListModule",
+                        "pageId": self.id,
+                    }
+                ]
+            )[0]
+            if response is None:
+                raise exceptions.UnexpectedException(
+                    f"Cannot retrieve page discussion for site: {site.unix_name}, page: {self.fullname}"
+                )
+
+            data = response.json()
+            if not isinstance(data, dict):
+                raise exceptions.NoElementException(
+                    f"Page discussion response payload is malformed for site: {site.unix_name}, "
+                    f"page: {self.fullname} "
+                    f"(id={self.id}, expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
+            if body is None:
+                raise exceptions.NoElementException(
+                    f"Page discussion response body is not found for site: {site.unix_name}, page: {self.fullname}"
+                )
+            if not isinstance(body, str):
+                raise exceptions.NoElementException(
+                    f"Page discussion response body is malformed for site: {site.unix_name}, "
+                    f"page: {self.fullname} "
+                    f"(id={self.id}, field=body, expected=str, actual={type(body).__name__})"
+                )
+            match = re.search(r"WIKIDOT\.forumThreadId\s*=\s*([^;]*);", body)
+            if match is not None:
+                from .forum_thread import ForumThread
+
+                thread_id_value = match.group(1).strip()
+                if re.fullmatch(r"[0-9]+", thread_id_value) is None:
+                    raise exceptions.NoElementException(
+                        f"Page discussion thread ID is malformed for site: {site.unix_name}, "
+                        f"page: {self.fullname} "
+                        f"(id={self.id}, field=thread_id, value={thread_id_value})"
+                    )
+                thread_id = int(thread_id_value)
+                self._discussion = ForumThread.get_from_id(site, thread_id)
+            self._discussion_checked = True
+
+        return self._discussion
+
+    @property
+    def files(self) -> "PageFileCollection":
+        """
+        Get a list of files attached to the page
+
+        Automatically performs retrieval processing if the file list has not been acquired.
+
+        Returns
+        -------
+        PageFileCollection
+            Collection of files attached to the page
+
+        Raises
+        ------
+        NotFoundException
+            When the file list is not found
+        """
+        if self._files is None:
+            PageCollection(self.site, [self]).get_page_files()
+
+        if self._files is None:
+            raise exceptions.NotFoundException(
+                f"Cannot find page files for site: {self.site.unix_name}, page: {self.fullname}"
+            )
+
+        return self._files
+
+    def destroy(self) -> None:
+        """
+        Delete the page
+
+        Can only be executed while logged in. Performs complete deletion of the page.
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            When not logged in
         WikidotStatusCodeException
-            削除に失敗した場合
+            When deletion fails
         """
-        self.site.client.login_check()
-        self.site.amc_request(
-            [
-                {
-                    "action": "WikiPageAction",
-                    "event": "deletePage",
-                    "page_id": self.id,
-                    "moduleName": "Empty",
-                }
-            ]
-        )
+        site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
+        client = _validate_page_site_client(site)
+        client.login_check()
+        if page_id is None:
+            page_id = self.id
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "deletePage",
+            site.amc_request(
+                [
+                    {
+                        "action": "WikiPageAction",
+                        "event": "deletePage",
+                        "page_id": page_id,
+                        "moduleName": "Empty",
+                    }
+                ]
+            ),
+        )[0]
+        _require_page_action_status(site, self, "deletePage", response.json())
+        self._source = None
+        self._revisions = None
+        self._votes = None
+        self._metas = None
+        self._discussion = None
+        self._discussion_checked = False
+        self._files = None
 
     @property
     def metas(self) -> dict[str, str]:
         """
-        ページのメタタグ情報を取得する
+        Get meta tag information for the page
 
-        メタタグ情報が未取得の場合は自動的に取得処理を行う。
+        Automatically performs retrieval processing if the meta tag information has not been acquired.
 
         Returns
         -------
         dict[str, str]
-            メタタグ名とその内容の辞書
+            Dictionary of meta tag names and their contents
+
+        Raises
+        ------
+        UnexpectedException
+            When meta tag information cannot be retrieved after retries
         """
         if self._metas is None:
-            response = self.site.amc_request(
+            site = _validate_page_site(self.site)
+            response = site.amc_request_with_retry(
                 [
                     {
                         "pageId": self.id,
                         "moduleName": "edit/EditMetaModule",
                     }
                 ]
-            )
+            )[0]
+            if response is None:
+                raise exceptions.UnexpectedException(
+                    f"Cannot retrieve page metas for site: {site.unix_name}, page: {self.fullname}"
+                )
 
             # レスポンス解析
-            body = response[0].json()["body"]
+            data = response.json()
+            if not isinstance(data, dict):
+                raise exceptions.NoElementException(
+                    f"Page metas response payload is malformed for site: {site.unix_name}, "
+                    f"page: {self.fullname} "
+                    f"(id={self.id}, expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
+            if body is None:
+                raise exceptions.NoElementException(
+                    f"Page metas response body is not found for site: {site.unix_name}, page: {self.fullname}"
+                )
+            if not isinstance(body, str):
+                raise exceptions.NoElementException(
+                    f"Page metas response body is malformed for site: {site.unix_name}, "
+                    f"page: {self.fullname} "
+                    f"(id={self.id}, field=body, expected=str, actual={type(body).__name__})"
+                )
 
-            # <meta name="xxx" content="yyy"/> を正規表現で取得
+            # タグ境界だけを戻してからHTMLとして解析し、属性値は取得後に復号する
+            body = body.replace("&lt;", "<").replace("&gt;", ">").replace("&LT;", "<").replace("&GT;", ">")
             metas = {}
-            for meta in re.findall(r'&lt;meta name="([^"]+)" content="([^"]+)"/&gt;', body):
-                metas[meta[0]] = meta[1]
+            for meta in BeautifulSoup(body, "lxml").select("meta[name][content]"):
+                metas[html_lib.unescape(str(meta["name"]))] = html_lib.unescape(str(meta["content"]))
 
             self._metas = metas
 
         return self._metas
 
     @metas.setter
-    def metas(self, value: dict[str, str]):
+    def metas(self, value: dict[str, str]) -> None:
         """
-        ページのメタタグ情報を設定する
+        Set meta tag information for the page
 
-        現在のメタタグと比較し、削除されたものは削除、追加されたものは追加する。
+        Compares with current meta tags, deletes removed ones, and saves added/updated ones.
 
         Parameters
         ----------
         value : dict[str, str]
-            設定するメタタグ名とその内容の辞書
+            Dictionary of meta tag names and their contents to set
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            When not logged in
         WikidotStatusCodeException
-            メタタグの設定に失敗した場合
+            When setting meta tags fails
         """
-        self.site.client.login_check()
+        value = _validate_metas(value)
+        site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
+        client = _validate_page_site_client(site)
+        client.login_check()
+        request_bodies = self._meta_update_request_bodies(value, page_id)
+
+        if request_bodies:
+            responses = _require_page_metadata_action_response_count(
+                site, self, site.amc_request(request_bodies), len(request_bodies)
+            )
+            for request_body, response in zip(request_bodies, responses, strict=True):
+                _require_page_metadata_action_status(
+                    site,
+                    self,
+                    str(request_body.get("event", "unknown")),
+                    response.json(),
+                )
+
+        self._metas = dict(value)
+
+    def _meta_update_request_bodies(self, value: dict[str, str], page_id: int | None = None) -> list[dict[str, Any]]:
         current_metas = self.metas
         deleted_metas = {k: v for k, v in current_metas.items() if k not in value}
         added_metas = {k: v for k, v in value.items() if k not in current_metas}
+        updated_metas = {k: v for k, v in value.items() if k in current_metas and current_metas[k] != v}
 
-        for name, content in deleted_metas.items():
-            self.site.amc_request(
-                [
-                    {
-                        "metaName": name,
-                        "action": "WikiPageAction",
-                        "event": "deleteMetaTag",
-                        "pageId": self.id,
-                        "moduleName": "edit/EditMetaModule",
-                    }
-                ]
+        request_bodies: list[dict[str, Any]] = []
+        request_page_id = page_id
+        for name, _content in deleted_metas.items():
+            if request_page_id is None:
+                request_page_id = self.id
+            request_bodies.append(
+                {
+                    "metaName": name,
+                    "action": "WikiPageAction",
+                    "event": "deleteMetaTag",
+                    "pageId": request_page_id,
+                    "moduleName": "edit/EditMetaModule",
+                }
             )
 
         for name, content in added_metas.items():
-            self.site.amc_request(
-                [
-                    {
-                        "metaName": name,
-                        "metaContent": content,
-                        "action": "WikiPageAction",
-                        "event": "saveMetaTag",
-                        "pageId": self.id,
-                        "moduleName": "edit/EditMetaModule",
-                    }
-                ]
+            if request_page_id is None:
+                request_page_id = self.id
+            request_bodies.append(
+                {
+                    "metaName": name,
+                    "metaContent": content,
+                    "action": "WikiPageAction",
+                    "event": "saveMetaTag",
+                    "pageId": request_page_id,
+                    "moduleName": "edit/EditMetaModule",
+                }
             )
 
-        self._metas = value
+        for name, content in updated_metas.items():
+            if request_page_id is None:
+                request_page_id = self.id
+            request_bodies.append(
+                {
+                    "metaName": name,
+                    "metaContent": content,
+                    "action": "WikiPageAction",
+                    "event": "saveMetaTag",
+                    "pageId": request_page_id,
+                    "moduleName": "edit/EditMetaModule",
+                }
+            )
+
+        return request_bodies
+
+    def set_metadata(
+        self,
+        *,
+        tags: list[str] | None = None,
+        parent_fullname: str | None | _UnsetParentType = _UNSET_PARENT,
+        metas: dict[str, str] | None = None,
+    ) -> "Page":
+        """
+        Set page tags, parent page, and meta tags in one AMC batch when possible
+
+        Parameters
+        ----------
+        tags : list[str] | None, default None
+            Tags to save. None leaves tags unchanged; an empty list clears tags.
+        parent_fullname : str | None, optional
+            Parent fullname to set. Passing None clears the parent. Omitting this argument leaves the parent unchanged.
+        metas : dict[str, str] | None, default None
+            Meta tags to save. None leaves meta tags unchanged; an empty dict deletes existing meta tags.
+
+        Returns
+        -------
+        Page
+            Self (for method chaining)
+
+        Raises
+        ------
+        LoginRequiredException
+            When not logged in
+        WikidotStatusCodeException
+            When setting metadata fails
+        """
+        parent_value: str | None = None
+        if tags is not None:
+            tags = _validate_page_tags(tags)
+        if parent_fullname is not _UNSET_PARENT:
+            parent_value = _normalize_parent_fullname(parent_fullname)
+        if metas is not None:
+            metas = _validate_metas(metas)
+
+        site = _validate_page_site(self.site)
+        page_id = (
+            _validate_retained_page_id(self)
+            if tags is not None or parent_fullname is not _UNSET_PARENT or metas is not None
+            else None
+        )
+        client = _validate_page_site_client(site)
+        client.login_check()
+
+        request_bodies: list[dict[str, Any]] = []
+        if tags is not None:
+            if page_id is None:
+                page_id = self.id
+            request_bodies.append(
+                {
+                    "tags": " ".join(tags),
+                    "action": "WikiPageAction",
+                    "event": "saveTags",
+                    "pageId": page_id,
+                    "moduleName": "Empty",
+                }
+            )
+
+        if parent_fullname is not _UNSET_PARENT:
+            if page_id is None:
+                page_id = self.id
+            request_bodies.append(
+                {
+                    "action": "WikiPageAction",
+                    "event": "setParentPage",
+                    "moduleName": "Empty",
+                    "pageId": str(page_id),
+                    "parentName": parent_value or "",
+                }
+            )
+
+        if metas is not None:
+            request_bodies.extend(self._meta_update_request_bodies(metas, page_id))
+
+        if request_bodies:
+            responses = _require_page_metadata_action_response_count(
+                site, self, site.amc_request(request_bodies), len(request_bodies)
+            )
+            for request_body, response in zip(request_bodies, responses, strict=True):
+                _require_page_metadata_action_status(
+                    site,
+                    self,
+                    str(request_body.get("event", "unknown")),
+                    response.json(),
+                )
+
+        if tags is not None:
+            self.tags = list(tags)
+        if parent_fullname is not _UNSET_PARENT:
+            self.parent_fullname = parent_value
+        if metas is not None:
+            self._metas = dict(metas)
+
+        return self
 
     @staticmethod
     def create_or_edit(
@@ -1064,51 +2978,61 @@ class Page:
         raise_on_exists: bool = False,
     ) -> "Page":
         """
-        ページを作成または編集する
+        Create or edit a page
 
-        新規ページの作成または既存ページの編集を行う。
-        編集の場合はページロックの取得とページ保存の処理を行う。
+        Creates a new page or edits an existing page.
+        For editing, acquires page lock and performs page save processing.
 
         Parameters
         ----------
         site : Site
-            ページが属するサイト
+            Site to which the page belongs
         fullname : str
-            ページのフルネーム
+            Fullname of the page
         page_id : int | None, default None
-            編集する場合のページID（新規作成時はNone）
+            Page ID when editing (None when creating new)
         title : str, default ""
-            ページのタイトル
+            Title of the page
         source : str, default ""
-            ページのソースコード（Wikidot記法）
+            Source code of the page (Wikidot markup)
         comment : str, default ""
-            編集コメント
+            Edit comment
         force_edit : bool, default False
-            他のユーザーによるロックを強制的に解除するかどうか
+            Whether to forcibly release locks by other users
         raise_on_exists : bool, default False
-            ページが既に存在する場合に例外を送出するかどうか
+            Whether to raise an exception if the page already exists
 
         Returns
         -------
         Page
-            作成または編集されたページオブジェクト
+            Created or edited page object
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            When not logged in
         TargetErrorException
-            ページがロックされている場合
+            When the page is locked
         TargetExistsException
-            ページが既に存在し、raise_on_existsがTrueの場合
+            When the page already exists and raise_on_exists is True
         ValueError
-            既存ページの編集時にpage_idが指定されていない場合
+            When page_id is not specified when editing an existing page
         WikidotStatusCodeException
-            ページの保存に失敗した場合
+            When saving the page fails
         NotFoundException
-            ページの作成後に検索できない場合
+            When the page cannot be found after creation
         """
-        site.client.login_check()
+        fullname = _validate_page_text_field("fullname", fullname)
+        title = _validate_page_text_field("title", title)
+        source = _validate_page_source(source)
+        comment = _validate_page_text_field("comment", comment)
+        page_id = _validate_optional_page_id(page_id)
+        force_edit = _validate_page_bool_field("force_edit", force_edit)
+        raise_on_exists = _validate_page_bool_field("raise_on_exists", raise_on_exists)
+        site = _validate_page_site(site)
+        client = _validate_page_site_client(site)
+
+        client.login_check()
 
         # ページロックを取得しにいく
         page_lock_request_body = {
@@ -1119,16 +3043,31 @@ class Page:
         if force_edit:
             page_lock_request_body["force_lock"] = "yes"
 
-        page_lock_response = site.amc_request([page_lock_request_body])[0]
-        page_lock_response_data = page_lock_response.json()
+        page_lock_responses = _require_page_write_response_count(
+            site,
+            fullname,
+            site.amc_request([page_lock_request_body]),
+            "edit lock",
+            "module=edit/PageEditModule",
+            1,
+        )
+        page_lock_response = page_lock_responses[0]
+        page_lock_response_data = _require_page_edit_lock_response_data(
+            site,
+            fullname,
+            page_lock_response.json(),
+        )
 
-        if "locked" in page_lock_response_data or "other_locks" in page_lock_response_data:
+        is_locked = _validate_page_edit_locked_field(site, fullname, page_lock_response_data)
+        if is_locked or page_lock_response_data.get("other_locks"):
             raise exceptions.TargetErrorException(
                 f"Page {fullname} is locked or other locks exist",
             )
 
+        page_revision_id = _validate_page_edit_revision_id(site, fullname, page_lock_response_data)
+
         # ページが存在するか（page_revision_idがあるか）確認
-        is_exist = "page_revision_id" in page_lock_response_data
+        is_exist = page_revision_id is not None
 
         if raise_on_exists and is_exist:
             raise exceptions.TargetExistsException(f"Page {fullname} already exists")
@@ -1136,10 +3075,9 @@ class Page:
         if is_exist and page_id is None:
             raise ValueError("page_id must be specified when editing existing page")
 
-        # lock_idとlock_secret、page_revision_id（あれば）を取得
-        lock_id = page_lock_response_data["lock_id"]
-        lock_secret = page_lock_response_data["lock_secret"]
-        page_revision_id = page_lock_response_data.get("page_revision_id")
+        # lock_idとlock_secretを取得
+        lock_id = _require_page_edit_lock_field(site, fullname, page_lock_response_data, "lock_id")
+        lock_secret = _require_page_edit_lock_field(site, fullname, page_lock_response_data, "lock_secret")
 
         # ページの作成または編集
         edit_request_body = {
@@ -1156,94 +3094,386 @@ class Page:
             "source": source,
             "comments": comment,
         }
-        response = site.amc_request([edit_request_body])[0]
+        save_responses = _require_page_write_response_count(
+            site,
+            fullname,
+            site.amc_request([edit_request_body]),
+            "save",
+            "event=savePage",
+            1,
+        )
+        response = save_responses[0]
+        response_data = response.json()
+        save_status = _require_page_save_status(site, fullname, response_data)
 
-        if response.json()["status"] != "ok":
-            raise exceptions.WikidotStatusCodeException(
-                f"Failed to create or edit page: {fullname}", response.json()["status"]
+        if save_status != "ok":
+            raise exceptions.WikidotStatusCodeException(f"Failed to create or edit page: {fullname}", save_status)
+
+        page = PageCollection.get_by_fullname(site, fullname)
+        if page is None:
+            category, name = PageCollection._split_fullname(fullname)
+            now = datetime.now()
+            page = Page(
+                site=site,
+                fullname=fullname,
+                name=name,
+                category=category,
+                title=title,
+                children_count=0,
+                comments_count=0,
+                size=len(source.encode("utf-8")),
+                rating=0,
+                votes_count=0,
+                rating_percent=0.0,
+                revisions_count=1,
+                parent_fullname=None,
+                tags=[],
+                created_by=PageCollection._current_user_or_placeholder(site),
+                created_at=now,
+                updated_by=PageCollection._current_user_or_placeholder(site),
+                updated_at=now,
+                commented_by=None,
+                commented_at=None,
+                _id=page_id,
             )
 
-        res = PageCollection.search_pages(site, SearchPagesQuery(fullname=fullname))
-        if len(res) == 0:
-            raise exceptions.NotFoundException(f"Page creation failed: {fullname}")
-
-        return res[0]
+        if page_id is not None or title:
+            page.title = title
+        page.source = PageSource(page, source)
+        return page
 
     def edit(
         self,
-        title: Optional[str] = None,
-        source: Optional[str] = None,
-        comment: Optional[str] = None,
+        title: str | None = None,
+        source: str | None = None,
+        comment: str | None = None,
         force_edit: bool = False,
     ) -> "Page":
         """
-        このページを編集する
+        Edit this page
 
-        既存ページの内容を更新する。指定されていないパラメータは現在の値を維持する。
+        Updates the contents of an existing page. Parameters not specified maintain their current values.
 
         Parameters
         ----------
         title : str | None, default None
-            新しいタイトル（Noneの場合は現在のタイトルを維持）
+            New title (maintains current title if None)
         source : str | None, default None
-            新しいソースコード（Noneの場合は現在のソースを維持）
+            New source code (maintains current source if None)
         comment : str | None, default None
-            編集コメント
+            Edit comment
         force_edit : bool, default False
-            他のユーザーによるロックを強制的に解除するかどうか
+            Whether to forcibly release locks by other users
 
         Returns
         -------
         Page
-            編集後のページオブジェクト
+            Edited page object
 
         Raises
         ------
-        同上（create_or_editメソッドと同様）
+        Same as above (same as create_or_edit method)
         """
-        # Noneならそのままにする
-        title = title or self.title
-        source = source or self.source.wiki_text
-        comment = comment or ""
+        if title is not None:
+            title = _validate_page_text_field("title", title)
+        if source is not None:
+            source = _validate_page_source(source)
+        if comment is not None:
+            comment = _validate_page_text_field("comment", comment)
+        force_edit = _validate_page_bool_field("force_edit", force_edit)
 
-        return Page.create_or_edit(
-            self.site,
-            self.fullname,
-            self.id,
+        site = _validate_page_site(self.site)
+        fullname = _validate_page_text_field("fullname", self.fullname)
+        page_id = _validate_retained_page_id(self)
+        if title is None:
+            title = _validate_page_text_field("title", self.title)
+        client = _validate_page_site_client(site)
+        client.login_check()
+
+        # Noneならそのままにする
+        if source is None:
+            source = self.source.wiki_text
+        if comment is None:
+            comment = ""
+        if page_id is None:
+            page_id = self.id
+
+        page = Page.create_or_edit(
+            site,
+            fullname,
+            page_id,
             title,
             source,
             comment,
             force_edit,
         )
+        self.title = page.title
+        if page.revisions_count > self.revisions_count:
+            self.revisions_count = page.revisions_count
+        self._revisions = None
+        self.source = PageSource(self, source)
+        return page
 
-    def commit_tags(self):
+    def commit_tags(self) -> "Page":
         """
-        ページのタグ情報を保存する
+        Save tag information for the page
 
-        現在のtagsプロパティの内容をWikidotに保存する。
+        Saves the contents of the current tags property to Wikidot.
 
         Returns
         -------
         Page
-            自身（メソッドチェーン用）
+            Self (for method chaining)
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            When not logged in
         WikidotStatusCodeException
-            タグの保存に失敗した場合
+            When saving tags fails
         """
-        self.site.client.login_check()
-        self.site.amc_request(
-            [
-                {
-                    "tags": " ".join(self.tags),
-                    "action": "WikiPageAction",
-                    "event": "saveTags",
-                    "pageId": self.id,
-                    "moduleName": "Empty",
-                }
-            ]
-        )
+        tags = _validate_page_tags(self.tags)
+        site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
+        client = _validate_page_site_client(site)
+        client.login_check()
+        if page_id is None:
+            page_id = self.id
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "saveTags",
+            site.amc_request(
+                [
+                    {
+                        "tags": " ".join(tags),
+                        "action": "WikiPageAction",
+                        "event": "saveTags",
+                        "pageId": page_id,
+                        "moduleName": "Empty",
+                    }
+                ]
+            ),
+        )[0]
+        _require_page_metadata_action_status(site, self, "saveTags", response.json())
         return self
+
+    def set_parent(self, parent_fullname: str | None) -> "Page":
+        """
+        Set the parent page
+
+        Sets the specified parent page as the parent of this page.
+        Specifying None or an empty string removes the parent page setting.
+
+        Parameters
+        ----------
+        parent_fullname : str | None
+            Fullname of the parent page. None or empty string removes the parent
+
+        Returns
+        -------
+        Page
+            Self (for method chaining)
+
+        Raises
+        ------
+        LoginRequiredException
+            When not logged in
+        WikidotStatusCodeException
+            When setting the parent page fails
+        """
+        parent_value = _normalize_parent_fullname(parent_fullname)
+        site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
+        client = _validate_page_site_client(site)
+        client.login_check()
+        if page_id is None:
+            page_id = self.id
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "setParentPage",
+            site.amc_request(
+                [
+                    {
+                        "action": "WikiPageAction",
+                        "event": "setParentPage",
+                        "moduleName": "Empty",
+                        "pageId": str(page_id),
+                        "parentName": parent_value or "",
+                    }
+                ]
+            ),
+        )[0]
+        _require_page_metadata_action_status(site, self, "setParentPage", response.json())
+        self.parent_fullname = parent_value
+        return self
+
+    def rename(self, new_fullname: str) -> "Page":
+        """
+        Rename the page
+
+        Changes the page's fullname to a new name.
+        Must specify the complete fullname including category.
+
+        Parameters
+        ----------
+        new_fullname : str
+            New fullname (e.g., "component:new-name")
+
+        Returns
+        -------
+        Page
+            Self (for method chaining)
+
+        Raises
+        ------
+        LoginRequiredException
+            When not logged in
+        WikidotStatusCodeException
+            When renaming the page fails (e.g., when a page with the same name exists)
+        """
+        new_fullname = _validate_page_text_field("new_fullname", new_fullname)
+        site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
+        client = _validate_page_site_client(site)
+        client.login_check()
+        if page_id is None:
+            page_id = self.id
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "renamePage",
+            site.amc_request(
+                [
+                    {
+                        "action": "WikiPageAction",
+                        "event": "renamePage",
+                        "moduleName": "Empty",
+                        "page_id": page_id,
+                        "new_name": new_fullname,
+                    }
+                ]
+            ),
+        )[0]
+        _require_page_action_status(site, self, "renamePage", response.json())
+        self.fullname = new_fullname
+        if ":" in new_fullname:
+            self.category, self.name = new_fullname.split(":", 1)
+        else:
+            self.category = "_default"
+            self.name = new_fullname
+        self._files = None
+        return self
+
+    def vote(self, value: int) -> int:
+        """
+        Vote on the page
+
+        Casts a +1 or -1 vote on the page.
+        Overwrites if already voted.
+
+        Parameters
+        ----------
+        value : int
+            Vote value (1 or -1)
+
+        Returns
+        -------
+        int
+            New rating value after voting
+
+        Raises
+        ------
+        LoginRequiredException
+            When not logged in
+        ValueError
+            When value is not 1 or -1
+        WikidotStatusCodeException
+            When voting fails
+        """
+        value = _validate_page_vote_value(value)
+
+        site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
+        client = _validate_page_site_client(site)
+        client.login_check()
+        if page_id is None:
+            page_id = self.id
+        request_body = {
+            "action": "RateAction",
+            "event": "ratePage",
+            "moduleName": "Empty",
+            "pageId": page_id,
+            "points": value,
+            "force": "yes",
+        }
+        try:
+            responses = site.amc_request([request_body])
+        except exceptions.WikidotStatusCodeException as exc:
+            raise exceptions.WikidotStatusCodeException(
+                _page_rating_failure_message(site, self, "ratePage", exc.status_code, requested_points=value),
+                exc.status_code,
+            ) from exc
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "ratePage",
+            responses,
+        )[0]
+        response_data = response.json()
+        _require_page_rating_action_status(site, self, "ratePage", response_data)
+        new_rating = _parse_page_rating_points(site, self, "ratePage", response_data)
+        self.rating = new_rating
+        self._votes = None
+        return new_rating
+
+    def cancel_vote(self) -> int:
+        """
+        Cancel the vote
+
+        Cancels your vote on this page.
+
+        Returns
+        -------
+        int
+            New rating value after cancellation
+
+        Raises
+        ------
+        LoginRequiredException
+            When not logged in
+        WikidotStatusCodeException
+            When vote cancellation fails
+        """
+        site = _validate_page_site(self.site)
+        page_id = _validate_retained_page_id(self)
+        client = _validate_page_site_client(site)
+        client.login_check()
+        if page_id is None:
+            page_id = self.id
+        request_body = {
+            "action": "RateAction",
+            "event": "cancelVote",
+            "moduleName": "Empty",
+            "pageId": page_id,
+        }
+        try:
+            responses = site.amc_request([request_body])
+        except exceptions.WikidotStatusCodeException as exc:
+            raise exceptions.WikidotStatusCodeException(
+                _page_rating_failure_message(site, self, "cancelVote", exc.status_code),
+                exc.status_code,
+            ) from exc
+        response = _require_page_action_response_count(
+            site,
+            self,
+            "cancelVote",
+            responses,
+        )[0]
+        response_data = response.json()
+        _require_page_rating_action_status(site, self, "cancelVote", response_data)
+        new_rating = _parse_page_rating_points(site, self, "cancelVote", response_data)
+        self.rating = new_rating
+        self._votes = None
+        return new_rating

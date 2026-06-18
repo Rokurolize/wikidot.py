@@ -1,0 +1,473 @@
+"""
+Clientモジュールのユニットテスト
+
+Client, ClientUserAccessor, ClientPrivateMessageAccessor, ClientSiteAccessorクラスをテストする。
+"""
+
+from typing import Any
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from wikidot.common.exceptions import LoginRequiredException
+from wikidot.module.client import (
+    Client,
+    ClientPrivateMessageAccessor,
+    ClientSiteAccessor,
+    ClientUserAccessor,
+)
+
+
+class TestClient:
+    """Clientクラスのテスト"""
+
+    def test_init_without_credentials(self):
+        """認証情報なしでの初期化"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            assert client.is_logged_in is False
+            assert client.username is None
+
+    def test_init_with_credentials(self):
+        """認証情報ありでの初期化"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login") as mock_login,
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+        ):
+            mock_from_name.return_value = MagicMock()
+            client = Client(username="test-user", password="test-password")
+
+            mock_login.assert_called_once_with(client, "test-user", "test-password")
+            assert client.is_logged_in is True
+            assert client.username == "test-user"
+
+    def test_init_logs_out_when_user_lookup_fails_after_login(self):
+        """ログイン後のユーザー取得失敗時はセッションを破棄して元例外を送出する"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.HTTPAuthentication.logout") as mock_logout,
+            patch("wikidot.module.client.User.from_name", side_effect=RuntimeError("lookup failed")),
+            pytest.raises(RuntimeError, match="lookup failed"),
+        ):
+            Client(username="test-user", password="test-password")
+
+        mock_logout.assert_called_once()
+        failed_client = mock_logout.call_args.args[0]
+        assert failed_client.is_logged_in is False
+        assert failed_client.username is None
+        assert failed_client.me is None
+
+    @pytest.mark.parametrize(
+        ("username", "password"),
+        [
+            ("test-user", None),
+            (None, "test-password"),
+        ],
+    )
+    def test_init_rejects_partial_credentials_before_client_setup(
+        self, username: str | None, password: str | None
+    ) -> None:
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient") as mock_amc_client,
+            patch("wikidot.module.client.HTTPAuthentication.login") as mock_login,
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+            pytest.raises(ValueError, match="username and password must be provided together"),
+        ):
+            Client(username=username, password=password)
+
+        mock_amc_client.assert_not_called()
+        mock_login.assert_not_called()
+        mock_from_name.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("username", "password", "message"),
+        [
+            (123, "test-password", "username must be a string"),
+            (True, "test-password", "username must be a string"),
+            ("test-user", 123, "password must be a string"),
+            ("test-user", True, "password must be a string"),
+        ],
+    )
+    def test_init_rejects_malformed_credentials_before_client_setup(
+        self, username: object, password: object, message: str
+    ) -> None:
+        bad_username: Any = username
+        bad_password: Any = password
+
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient") as mock_amc_client,
+            patch("wikidot.module.client.HTTPAuthentication.login") as mock_login,
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+            pytest.raises(ValueError, match=message),
+        ):
+            Client(username=bad_username, password=bad_password)
+
+        mock_amc_client.assert_not_called()
+        mock_login.assert_not_called()
+        mock_from_name.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("username", "password", "message"),
+        [
+            ("", "test-password", "username must not be empty"),
+            ("   ", "test-password", "username must not be empty"),
+            ("test-user", "", "password must not be empty"),
+            ("test-user", "   ", "password must not be empty"),
+        ],
+    )
+    def test_init_rejects_blank_credentials_before_client_setup(
+        self, username: str, password: str, message: str
+    ) -> None:
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient") as mock_amc_client,
+            patch("wikidot.module.client.HTTPAuthentication.login") as mock_login,
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+            pytest.raises(ValueError, match=message),
+        ):
+            Client(username=username, password=password)
+
+        mock_amc_client.assert_not_called()
+        mock_login.assert_not_called()
+        mock_from_name.assert_not_called()
+
+    @pytest.mark.parametrize("amc_config", [True, "config", {}, object()])
+    def test_init_rejects_malformed_amc_config_before_client_setup(self, amc_config: object) -> None:
+        bad_amc_config: Any = amc_config
+
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient") as mock_amc_client,
+            patch("wikidot.module.client.HTTPAuthentication.login") as mock_login,
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+            pytest.raises(ValueError, match="config must be AjaxModuleConnectorConfig"),
+        ):
+            Client(amc_config=bad_amc_config)
+
+        mock_amc_client.assert_not_called()
+        mock_login.assert_not_called()
+        mock_from_name.assert_not_called()
+
+    @pytest.mark.parametrize("logging_level", [None, True, False, 1.5, object(), [], {}])
+    def test_init_rejects_malformed_logging_level_before_client_setup(self, logging_level: Any) -> None:
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient") as mock_amc_client,
+            pytest.raises(ValueError, match="logging level must be a string or integer"),
+        ):
+            Client(logging_level=logging_level)
+
+        mock_amc_client.assert_not_called()
+
+    def test_context_manager_protocol(self):
+        """with文でのコンテキストマネージャプロトコル"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"), Client() as client:
+            assert isinstance(client, Client)
+
+    def test_context_manager_cleanup_on_exit(self):
+        """with文終了時にクリーンアップが呼ばれる"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.HTTPAuthentication.logout") as mock_logout,
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+        ):
+            mock_from_name.return_value = MagicMock()
+            with Client(username="test-user", password="test-password"):
+                pass
+
+            mock_logout.assert_called_once()
+
+    def test_context_manager_clears_cached_identity_on_exit(self):
+        """with文終了時にログイン状態とユーザーキャッシュをクリアする"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.HTTPAuthentication.logout"),
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+        ):
+            mock_from_name.return_value = MagicMock()
+            with Client(username="test-user", password="test-password") as client:
+                assert client.me is not None
+
+            assert client.is_logged_in is False
+            assert client.username is None
+            assert client.me is None
+
+    def test_login_check_raises_when_not_logged_in(self):
+        """未ログイン時にlogin_checkが例外を送出する"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with pytest.raises(LoginRequiredException):
+                client.login_check()
+
+    def test_login_check_passes_when_logged_in(self):
+        """ログイン時にlogin_checkが例外を送出しない"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+        ):
+            mock_from_name.return_value = MagicMock()
+            client = Client(username="test-user", password="test-password")
+            # 例外が送出されないことを確認
+            client.login_check()
+
+    def test_str_representation(self):
+        """文字列表現のテスト"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            assert "Client(" in str(client)
+            assert "username_set=False" in str(client)
+            assert "is_logged_in=False" in str(client)
+
+    def test_str_representation_masks_logged_in_username(self):
+        """ログイン済みクライアントの文字列表現はユーザー名を露出しない"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+        ):
+            mock_from_name.return_value = MagicMock()
+            client = Client(username="private-user", password="test-password")
+
+            text = str(client)
+
+            assert "private-user" not in text
+            assert "username_set=True" in text
+            assert "is_logged_in=True" in text
+
+    def test_close_called_only_when_logged_in(self):
+        """close()はログイン時のみログアウトを呼ぶ"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.logout") as mock_logout,
+        ):
+            client = Client()
+            client.close()
+            mock_logout.assert_not_called()
+
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.HTTPAuthentication.logout") as mock_logout,
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+        ):
+            mock_from_name.return_value = MagicMock()
+            client = Client(username="test-user", password="test-password")
+            client.close()
+            mock_logout.assert_called_once()
+            assert client.is_logged_in is False
+            assert client.username is None
+            assert client.me is None
+
+    def test_accessors_are_initialized(self):
+        """各アクセサが初期化される"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            assert isinstance(client.user, ClientUserAccessor)
+            assert isinstance(client.private_message, ClientPrivateMessageAccessor)
+            assert isinstance(client.site, ClientSiteAccessor)
+
+
+class TestClientUserAccessor:
+    """ClientUserAccessorクラスのテスト"""
+
+    def test_get_user_by_name(self):
+        """ユーザー名からユーザーを取得する"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with patch("wikidot.module.client.User.from_name") as mock_from_name:
+                mock_user = MagicMock()
+                mock_from_name.return_value = mock_user
+
+                result = client.user.get("test-user")
+
+                mock_from_name.assert_called_once_with(client, "test-user", False)
+                assert result == mock_user
+
+    def test_get_user_by_name_with_raise(self):
+        """ユーザーが見つからない場合に例外を送出"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with patch("wikidot.module.client.User.from_name") as mock_from_name:
+                mock_from_name.return_value = None
+
+                result = client.user.get("unknown-user", raise_when_not_found=True)
+
+                mock_from_name.assert_called_once_with(client, "unknown-user", True)
+                assert result is None
+
+    def test_get_bulk_users(self):
+        """複数ユーザーを一括取得"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with patch("wikidot.module.client.UserCollection.from_names") as mock_from_names:
+                mock_collection = MagicMock()
+                mock_from_names.return_value = mock_collection
+
+                result = client.user.get_bulk(["user1", "user2"])
+
+                mock_from_names.assert_called_once_with(client, ["user1", "user2"], False)
+                assert result == mock_collection
+
+
+class TestClientPrivateMessageAccessor:
+    """ClientPrivateMessageAccessorクラスのテスト"""
+
+    def test_send_message(self):
+        """メッセージ送信"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with patch("wikidot.module.client.PrivateMessage.send") as mock_send:
+                mock_recipient = MagicMock()
+                client.private_message.send(mock_recipient, "subject", "body")
+
+                mock_send.assert_called_once_with(client, mock_recipient, "subject", "body")
+
+    def test_send_message_rejects_non_user_recipient(self) -> None:
+        """Userでない送信先はログイン確認前に拒否する"""
+        bad_recipient: Any = {"id": 12345, "name": "test-user"}
+
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+
+            with pytest.raises(ValueError, match="recipient must be a User"):
+                client.private_message.send(bad_recipient, "subject", "body")
+
+            client.login_check.assert_not_called()
+
+    def test_get_inbox(self):
+        """受信箱取得"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with patch("wikidot.module.client.PrivateMessageInbox.acquire") as mock_acquire:
+                mock_inbox = MagicMock()
+                mock_acquire.return_value = mock_inbox
+
+                result = client.private_message.inbox
+
+                mock_acquire.assert_called_once_with(client)
+                assert result == mock_inbox
+
+    def test_get_sentbox(self):
+        """送信箱取得"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with patch("wikidot.module.client.PrivateMessageSentBox.acquire") as mock_acquire:
+                mock_sentbox = MagicMock()
+                mock_acquire.return_value = mock_sentbox
+
+                result = client.private_message.sentbox
+
+                mock_acquire.assert_called_once_with(client)
+                assert result == mock_sentbox
+
+    def test_get_messages(self):
+        """メッセージ一括取得"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with patch("wikidot.module.client.PrivateMessageCollection.from_ids") as mock_from_ids:
+                mock_collection = MagicMock()
+                mock_from_ids.return_value = mock_collection
+
+                result = client.private_message.get_messages([1, 2, 3])
+
+                mock_from_ids.assert_called_once_with(client, [1, 2, 3])
+                assert result == mock_collection
+
+    def test_get_messages_rejects_non_list_message_ids(self):
+        """リストでないメッセージID入力はクライアントアクセサでもログイン前に拒否する"""
+        message_ids: Any = "12"
+
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+            client.amc_client.request = MagicMock()
+
+            with pytest.raises(ValueError, match="message_ids must be a list"):
+                client.private_message.get_messages(message_ids)
+
+            client.login_check.assert_not_called()
+            client.amc_client.request.assert_not_called()
+
+    def test_get_messages_rejects_negative_message_id(self):
+        """負のメッセージID入力はクライアントアクセサでもログイン前に拒否する"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+            client.amc_client.request = MagicMock()
+
+            with pytest.raises(ValueError, match="message_ids list entries must be non-negative"):
+                client.private_message.get_messages([-1])
+
+            client.login_check.assert_not_called()
+            client.amc_client.request.assert_not_called()
+
+    def test_get_message(self):
+        """単一メッセージ取得"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with patch("wikidot.module.client.PrivateMessage.from_id") as mock_from_id:
+                mock_message = MagicMock()
+                mock_from_id.return_value = mock_message
+
+                result = client.private_message.get_message(123)
+
+                mock_from_id.assert_called_once_with(client, 123)
+                assert result == mock_message
+
+    def test_get_message_rejects_non_integer_message_id(self):
+        """非整数の単一メッセージIDはクライアントアクセサでもログイン前に拒否する"""
+        message_id: Any = "1"
+
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+            client.amc_client.request = MagicMock()
+
+            with pytest.raises(ValueError, match="message_id must be an integer"):
+                client.private_message.get_message(message_id)
+
+            client.login_check.assert_not_called()
+            client.amc_client.request.assert_not_called()
+
+    def test_get_message_rejects_negative_message_id(self):
+        """負の単一メッセージIDはクライアントアクセサでもログイン前に拒否する"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            client.login_check = MagicMock()
+            client.amc_client.request = MagicMock()
+
+            with pytest.raises(ValueError, match="message_id must be non-negative"):
+                client.private_message.get_message(-1)
+
+            client.login_check.assert_not_called()
+            client.amc_client.request.assert_not_called()
+
+
+class TestClientSiteAccessor:
+    """ClientSiteAccessorクラスのテスト"""
+
+    def test_get_site_by_unix_name(self):
+        """UNIX名からサイトを取得"""
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+            with patch("wikidot.module.client.Site.from_unix_name") as mock_from_unix_name:
+                mock_site = MagicMock()
+                mock_from_unix_name.return_value = mock_site
+
+                result = client.site.get("scp-wiki")
+
+                mock_from_unix_name.assert_called_once_with(client, "scp-wiki")
+                assert result == mock_site
+
+    def test_get_site_rejects_non_string_unix_name(self) -> None:
+        """文字列以外のUNIX名はサイト取得前に拒否する"""
+        bad_unix_name: Any = {"site": "scp-wiki"}
+
+        with patch("wikidot.module.client.AjaxModuleConnectorClient"):
+            client = Client()
+
+            with pytest.raises(ValueError, match="site_name must be a string"):
+                client.site.get(bad_unix_name)

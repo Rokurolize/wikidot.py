@@ -3,60 +3,103 @@ name: Check Code Quality
 on:
   pull_request:
     branches:
-      - develop
       - main
+
+permissions:
+  contents: read
 
 jobs:
   format:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       with:
-        ref: ${{ github.head_ref }}
+        persist-credentials: false
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      with:
+        enable-cache: true
 
     - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
+      run: uv python install 3.10
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-
-    - name: Run formatter
-      run: make format
-
-    - name: Commit changes
-      run: |
-        if [ -n "$(git status --porcelain)" ]; then
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add .
-          git commit -m "🎨 Format code with isort and black"
-          git push
-        fi
+    - name: Check format
+      run: make format-check
 
   lint:
-    needs: format  # formatジョブの完了後に実行
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
       with:
-        ref: ${{ github.head_ref }}
+        persist-credentials: false
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      with:
+        enable-cache: true
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
+      run: uv python install ${{ matrix.python-version }}
 
     - name: Run linter
       run: make lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      with:
+        persist-credentials: false
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      with:
+        enable-cache: true
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Run type checker
+      run: make typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13', '3.14']
+      fail-fast: false
+
+    steps:
+    - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      with:
+        persist-credentials: false
+
+    - name: Set up uv
+      uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9 # v7
+      with:
+        enable-cache: true
+
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Run tests with coverage
+      run: make test-cov
+
+    - name: Upload coverage report
+      if: matrix.python-version == '3.10'
+      uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      with:
+        name: coverage-report
+        path: htmlcov/
+        retention-days: 7

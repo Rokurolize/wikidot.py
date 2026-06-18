@@ -1,114 +1,359 @@
 """
-Wikidotサイトのメンバーを扱うモジュール
+Module for handling Wikidot site members
 
-このモジュールは、Wikidotサイトのメンバーに関連するクラスや機能を提供する。
-メンバーの情報取得や権限変更などの操作が可能。
+This module provides classes and functionality related to Wikidot site members.
+It enables operations such as retrieving member information and changing permissions.
 """
 
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ..common.exceptions import (
+    NoElementException,
     TargetErrorException,
+    UnexpectedException,
     WikidotStatusCodeException,
 )
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from .user import AbstractUser
 
 if TYPE_CHECKING:
+    from .client import Client
     from .site import Site
-    from .user import AbstractUser
+
+
+def _user_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
+def _odate_class_value(odate_elem: Tag) -> str:
+    class_attr = odate_elem.get("class", [])
+    if class_attr is None:
+        return ""
+
+    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+
+
+def _member_parse_context(
+    site: "Site",
+    group_label: str | None,
+    page: int | None,
+    row_index: int,
+    **details: object,
+) -> str:
+    context = f"for site: {site.unix_name}"
+    if group_label is not None:
+        context = f"{context}, group: {group_label}"
+    if page is not None:
+        context = f"{context}, page: {page}"
+
+    detail_text = ", ".join([f"row: {row_index}", *(f"{key}={value}" for key, value in details.items())])
+    return f"{context}, {detail_text}"
+
+
+def _parse_member_pager_page(site: "Site", group_label: str, page_text: str) -> int | None:
+    if re.fullmatch(r"[0-9]+", page_text) is not None:
+        return int(page_text)
+
+    if page_text.isdigit():
+        raise NoElementException(
+            "Site member pager page is malformed "
+            f"for site: {site.unix_name}, group: {group_label}, page: 1 (field=page, value={page_text})"
+        )
+
+    return None
+
+
+def _parse_member_user(
+    site: "Site",
+    user_elem: Tag,
+    group_label: str | None,
+    page: int | None,
+    row_index: int,
+) -> "AbstractUser":
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        parse_context = _member_parse_context(
+            site,
+            group_label,
+            page,
+            row_index,
+            field="user",
+            value=_user_onclick_value(user_elem),
+        )
+        raise NoElementException(f"Site member user is malformed {parse_context}") from exc
+
+
+def _parse_member_joined_at(
+    site: "Site",
+    joined_at_elem: Tag,
+    group_label: str | None,
+    page: int | None,
+    row_index: int,
+) -> datetime:
+    try:
+        return odate_parser(joined_at_elem)
+    except ValueError as exc:
+        parse_context = _member_parse_context(
+            site,
+            group_label,
+            page,
+            row_index,
+            field="joined_at",
+            value=_odate_class_value(joined_at_elem),
+        )
+        raise NoElementException(f"Site member joined_at is malformed {parse_context}") from exc
+
+
+def _require_site_member_action_status(member: "SiteMember", event: str, data: object) -> Any:
+    if not isinstance(data, dict):
+        raise NoElementException(
+            f"Site member action response is malformed for site: {member.site.unix_name}, "
+            f"user: {member.user.name} (id={member.user.id}, event={event}, "
+            f"expected=dict, actual={type(data).__name__})"
+        )
+
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise NoElementException(
+            f"Site member action response is malformed for site: {member.site.unix_name}, "
+            f"user: {member.user.name} (id={member.user.id}, event={event}, field=status)"
+        ) from exc
+
+    if not isinstance(status, str):
+        raise NoElementException(
+            f"Site member action response is malformed for site: {member.site.unix_name}, "
+            f"user: {member.user.name} "
+            f"(id={member.user.id}, event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
+
+    if status != "ok":
+        raise WikidotStatusCodeException(
+            f"Failed to complete site member action for site: {member.site.unix_name}, "
+            f"user: {member.user.name}, event: {event}",
+            status,
+        )
+    return status
+
+
+def _require_site_member_action_response_count(
+    member: "SiteMember", event: str, responses: Sequence[object], expected_count: int
+) -> None:
+    actual_count = len(responses)
+    if actual_count != expected_count:
+        raise UnexpectedException(
+            f"Site member action response count mismatch for site: {member.site.unix_name}, "
+            f"user: {member.user.name} "
+            f"(id={member.user.id}, event={event}, expected={expected_count}, actual={actual_count})"
+        )
+
+
+def _validate_site_member_user(user: object) -> AbstractUser:
+    if not isinstance(user, AbstractUser):
+        raise ValueError("member.user must be an AbstractUser")
+    _validate_site_member_user_id(user.id)
+    return user
+
+
+def _validate_site_member_user_id(user_id: object) -> int | None:
+    if user_id is None:
+        return None
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        raise ValueError("member.user.id must be an integer or None")
+    if user_id < 0:
+        raise ValueError("member.user.id must be non-negative")
+    return user_id
+
+
+def _validate_site_member_site(site: object) -> "Site":
+    from .site import Site
+
+    if not isinstance(site, Site):
+        raise ValueError("site must be a Site")
+    return site
+
+
+def _validate_site_member_site_client(site: "Site") -> "Client":
+    from .client import Client
+
+    if not isinstance(site.client, Client):
+        raise ValueError("client must be a Client")
+    return site.client
+
+
+def _validate_site_member_user_site(site: "Site", user: AbstractUser) -> None:
+    if user.client is not site.client:
+        raise ValueError("member.user must belong to the site")
+
+
+def _validate_site_member_joined_at(joined_at: object) -> datetime | None:
+    if joined_at is None:
+        return None
+    if not isinstance(joined_at, datetime):
+        raise ValueError("joined_at must be a datetime or None")
+    return joined_at
+
+
+def _validate_site_member_action_user(user: object) -> AbstractUser:
+    user = _validate_site_member_user(user)
+    if not isinstance(user.id, int) or isinstance(user.id, bool):
+        raise ValueError("member.user.id must be an integer")
+    if user.id < 0:
+        raise ValueError("member.user.id must be non-negative")
+    if not isinstance(user.name, str):
+        raise ValueError("member.user.name must be a string")
+    return user
 
 
 @dataclass
 class SiteMember:
     """
-    Wikidotサイトのメンバーを表すクラス
+    Class representing a member of a Wikidot site
 
-    サイトのメンバー情報を保持し、権限変更などの操作機能を提供する。
+    Holds site member information and provides functionality for operations such as permission changes.
 
     Attributes
     ----------
     site : Site
-        メンバーが所属するサイト
+        The site the member belongs to
     user : AbstractUser
-        メンバーユーザー
+        The member user
     joined_at : datetime | None
-        サイトへの参加日時（取得できない場合はNone）
+        Date and time the member joined the site (None if unavailable)
     """
 
     site: "Site"
     user: "AbstractUser"
     joined_at: datetime | None
 
+    def __post_init__(self) -> None:
+        self.site = _validate_site_member_site(self.site)
+        self.user = _validate_site_member_user(self.user)
+        _validate_site_member_user_site(self.site, self.user)
+        self.joined_at = _validate_site_member_joined_at(self.joined_at)
+
     @staticmethod
-    def _parse(site: "Site", html: BeautifulSoup) -> list["SiteMember"]:
+    def _parse(
+        site: "Site",
+        html: BeautifulSoup,
+        group_label: str | None = None,
+        page: int | None = None,
+    ) -> list["SiteMember"]:
         """
-        メンバーリストページのHTMLからメンバー情報を抽出する内部メソッド
+        Internal method to extract member information from member list page HTML
 
         Parameters
         ----------
         site : Site
-            メンバーが所属するサイト
+            The site the members belong to
         html : BeautifulSoup
-            解析対象のHTML
+            HTML to parse
 
         Returns
         -------
         list[SiteMember]
-            抽出されたメンバーのリスト
+            List of extracted members
         """
-        members: list["SiteMember"] = []
+        members: list[SiteMember] = []
 
-        for row in html.select("table tr"):
-            tds = row.select("td")
-            user_elem = tds[0].select_one(".printuser")
-
-            if user_elem is None:
+        for table in html.find_all("table"):
+            if not isinstance(table, Tag) or table.find_parent("table") is not None:
                 continue
 
-            user = user_parser(site.client, user_elem)
+            tbody = table.find("tbody", recursive=False)
+            row_container = tbody if isinstance(tbody, Tag) else table
 
-            # tdsが2つあったら加入日時がある
-            if len(tds) == 2:
-                joined_at_elem = tds[1].select_one(".odate")
-                if joined_at_elem is None:
-                    joined_at = None
+            for row_index, row in enumerate(row_container.find_all("tr", recursive=False), start=1):
+                if not isinstance(row, Tag):
+                    continue
+
+                tds = [td for td in row.find_all("td", recursive=False) if isinstance(td, Tag)]
+                if not tds:
+                    continue
+
+                user_elem = tds[0].find("span", class_="printuser", recursive=False)
+
+                if not isinstance(user_elem, Tag):
+                    continue
+
+                user = _parse_member_user(site, user_elem, group_label, page, row_index)
+
+                # tdsが2つあったら加入日時がある
+                if len(tds) == 2:
+                    joined_at_elem = tds[1].find("span", class_="odate", recursive=False)
+                    if not isinstance(joined_at_elem, Tag):
+                        joined_at = None
+                    else:
+                        joined_at = _parse_member_joined_at(site, joined_at_elem, group_label, page, row_index)
                 else:
-                    joined_at = odate_parser(joined_at_elem)
-            else:
-                joined_at = None
+                    joined_at = None
 
-            members.append(SiteMember(site, user, joined_at))
+                members.append(SiteMember(site, user, joined_at))
 
         return members
 
     @staticmethod
+    def _is_inside_member_row(element: Tag) -> bool:
+        for ancestor in element.parents:
+            if not isinstance(ancestor, Tag) or ancestor.name != "tr":
+                continue
+
+            tds = [td for td in ancestor.find_all("td", recursive=False) if isinstance(td, Tag)]
+            if not tds:
+                continue
+
+            if isinstance(tds[0].find("span", class_="printuser", recursive=False), Tag):
+                return True
+
+        return False
+
+    @staticmethod
+    def _pager_from_html(html: BeautifulSoup) -> Tag | None:
+        for pager in html.select("div.pager"):
+            if not isinstance(pager, Tag) or SiteMember._is_inside_member_row(pager):
+                continue
+
+            return pager
+
+        return None
+
+    @staticmethod
     def get(site: "Site", group: str | None = None) -> list["SiteMember"]:
         """
-        サイトのメンバーリストを取得する
+        Retrieve the member list of a site
 
-        指定したグループ（管理者、モデレーターなど）のメンバー一覧を取得する。
+        Retrieves a list of members of the specified group (admins, moderators, etc.).
 
         Parameters
         ----------
         site : Site
-            メンバーリストを取得するサイト
+            The site to retrieve members from
         group : str | None, default None
-            取得するメンバーのグループ（"admins", "moderators", または "" で全メンバー）
+            Group of members to retrieve ("admins", "moderators", or "" for all members)
 
         Returns
         -------
         list[SiteMember]
-            メンバーのリスト
+            List of members
 
         Raises
         ------
         ValueError
-            無効なグループが指定された場合
+            If an invalid group is specified
         """
         if group is None:
             group = ""
@@ -116,9 +361,11 @@ class SiteMember:
         if group not in ["admins", "moderators", ""]:
             raise ValueError("Invalid group")
 
-        members: list["SiteMember"] = []
+        site = _validate_site_member_site(site)
+        group_label = group or "members"
+        members: list[SiteMember] = []
 
-        first_response = site.amc_request(
+        first_response = site.amc_request_with_retry(
             [
                 {
                     "moduleName": "membership/MembersListModule",
@@ -127,59 +374,98 @@ class SiteMember:
                 }
             ]
         )[0]
+        if first_response is None:
+            raise UnexpectedException(
+                f"Cannot retrieve site members for site: {site.unix_name}, group: {group_label}, page: 1"
+            )
 
-        first_body = first_response.json()["body"]
+        first_body = SiteMember._member_list_response_body(first_response, site, group_label, 1)
         first_html = BeautifulSoup(first_body, "lxml")
 
-        members.extend(SiteMember._parse(site, first_html))
+        members.extend(SiteMember._parse(site, first_html, group_label, 1))
 
-        pager = first_html.select_one("div.pager")
+        pager = SiteMember._pager_from_html(first_html)
         if pager is None:
             return members
 
-        last_page = int(pager.select("a")[-2].text)
+        last_page = 1
+        for link in reversed(pager.select("a")):
+            page_text = link.get_text(strip=True)
+            parsed_page = _parse_member_pager_page(site, group_label, page_text)
+            if parsed_page is not None:
+                last_page = parsed_page
+                break
         if last_page == 1:
             return members
 
-        responses = site.amc_request(
+        page_numbers = list(range(2, last_page + 1))
+        responses = site.amc_request_with_retry(
             [
                 {
                     "moduleName": "membership/MembersListModule",
                     "page": page,
                     "group": group,
                 }
-                for page in range(2, last_page + 1)
+                for page in page_numbers
             ]
         )
 
-        for response in responses:
-            body = response.json()["body"]
+        for page, response in zip(page_numbers, responses, strict=True):
+            if response is None:
+                raise UnexpectedException(
+                    f"Cannot retrieve site members for site: {site.unix_name}, group: {group_label}, page: {page}"
+                )
+            body = SiteMember._member_list_response_body(response, site, group_label, page)
             html = BeautifulSoup(body, "lxml")
-            members.extend(SiteMember._parse(site, html))
+            members.extend(SiteMember._parse(site, html, group_label, page))
 
         return members
 
-    def _change_group(self, event: str):
-        """
-        メンバーのグループ（権限）を変更する内部メソッド
+    @staticmethod
+    def _member_list_response_body(response: Any, site: "Site", group_label: str, page: int) -> str:
+        data = response.json()
+        if not isinstance(data, dict):
+            raise NoElementException(
+                "Site member list response payload is malformed "
+                f"for site: {site.unix_name}, group: {group_label}, page: {page} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
 
-        モデレーターや管理者への昇格、または降格を行う共通メソッド。
+        body = data.get("body")
+        if body is None:
+            raise NoElementException(
+                "Site member list response body is not found "
+                f"for site: {site.unix_name}, group: {group_label}, page: {page}"
+            )
+        if not isinstance(body, str):
+            raise NoElementException(
+                "Site member list response body is malformed "
+                f"for site: {site.unix_name}, group: {group_label}, page: {page} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
+            )
+        return body
+
+    def _change_group(self, event: str) -> None:
+        """
+        Internal method to change a member's group (permissions)
+
+        Common method for promoting to or demoting from moderator or admin.
 
         Parameters
         ----------
         event : str
-            変更イベント（"toModerators", "removeModerator", "toAdmins", "removeAdmin"）
+            Change event ("toModerators", "removeModerator", "toAdmins", "removeAdmin")
 
         Raises
         ------
         ValueError
-            無効なイベントが指定された場合
+            If an invalid event is specified
         ForbiddenException
-            権限不足の場合
+            If insufficient permissions
         TargetErrorException
-            ユーザーが既に指定された権限を持っている、または持っていない場合
+            If the user already has or doesn't have the specified permission
         WikidotStatusCodeException
-            その他のエラーが発生した場合
+            If other errors occur
         """
         if event not in [
             "toModerators",
@@ -189,84 +475,97 @@ class SiteMember:
         ]:
             raise ValueError("Invalid event")
 
+        site = _validate_site_member_site(self.site)
+        user = _validate_site_member_action_user(self.user)
+        _validate_site_member_user_site(site, user)
+        client = _validate_site_member_site_client(site)
+        client.login_check()
+
         try:
-            self.site.amc_request(
+            responses = site.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
                         "event": event,
-                        "user_id": self.user.id,
+                        "user_id": user.id,
                         "moduleName": "",
                     }
                 ]
             )
+            _require_site_member_action_response_count(self, event, responses, 1)
+            response = responses[0]
+            _require_site_member_action_status(self, event, response.json())
+            if event in ("toModerators", "removeModerator"):
+                site._moderators = None
+            else:
+                site._admins = None
         except WikidotStatusCodeException as e:
             if e.status_code == "not_already":
-                raise TargetErrorException(f"User is not moderator/admin: {self.user.name}") from e
+                raise TargetErrorException(f"User is not moderator/admin: {user.name}") from e
 
             if e.status_code in ("already_admin", "already_moderator"):
                 raise TargetErrorException(
-                    f"User is already {e.status_code.removeprefix('already_')}: {self.user.name}"
+                    f"User is already {e.status_code.removeprefix('already_')}: {user.name}"
                 ) from e
 
             raise e
 
-    def to_moderator(self):
+    def to_moderator(self) -> None:
         """
-        メンバーをモデレーターに昇格させる
+        Promote a member to moderator
 
         Raises
         ------
         ForbiddenException
-            権限不足の場合
+            If insufficient permissions
         TargetErrorException
-            ユーザーが既にモデレーターである場合
+            If the user is already a moderator
         WikidotStatusCodeException
-            その他のエラーが発生した場合
+            If other errors occur
         """
         self._change_group("toModerators")
 
-    def remove_moderator(self):
+    def remove_moderator(self) -> None:
         """
-        メンバーのモデレーター権限を削除する
+        Remove moderator permissions from a member
 
         Raises
         ------
         ForbiddenException
-            権限不足の場合
+            If insufficient permissions
         TargetErrorException
-            ユーザーがモデレーターでない場合
+            If the user is not a moderator
         WikidotStatusCodeException
-            その他のエラーが発生した場合
+            If other errors occur
         """
         self._change_group("removeModerator")
 
-    def to_admin(self):
+    def to_admin(self) -> None:
         """
-        メンバーを管理者に昇格させる
+        Promote a member to admin
 
         Raises
         ------
         ForbiddenException
-            権限不足の場合
+            If insufficient permissions
         TargetErrorException
-            ユーザーが既に管理者である場合
+            If the user is already an admin
         WikidotStatusCodeException
-            その他のエラーが発生した場合
+            If other errors occur
         """
         self._change_group("toAdmins")
 
-    def remove_admin(self):
+    def remove_admin(self) -> None:
         """
-        メンバーの管理者権限を削除する
+        Remove admin permissions from a member
 
         Raises
         ------
         ForbiddenException
-            権限不足の場合
+            If insufficient permissions
         TargetErrorException
-            ユーザーが管理者でない場合
+            If the user is not an admin
         WikidotStatusCodeException
-            その他のエラーが発生した場合
+            If other errors occur
         """
         self._change_group("removeAdmin")

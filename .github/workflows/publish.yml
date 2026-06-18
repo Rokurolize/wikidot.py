@@ -3,29 +3,33 @@ name: Publish to PyPI
 on:
   # 新規リリースの作成時に実行
   release:
-    types: [ released, prereleased ]
+    types: [published]
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          enable-cache: true
 
       - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: '3.10'
+        run: uv python install 3.10
 
       - name: lint
-        run: |
-          make lint
+        run: make lint
 
       - name: Build package
-        run: |
-          make build
+        run: make build
 
       - name: Publish package to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          user: __token__
-          password: ${{ secrets.PYPI_API_TOKEN }}
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # v1.14.0

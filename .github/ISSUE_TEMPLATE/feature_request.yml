@@ -1,0 +1,51 @@
+name: Feature Request
+description: Propose a new feature or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for your feature request.
+        Please fill in the following items as detailed as possible.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Background / Problem
+      description: What problem are you trying to solve? What situation are you facing?
+      placeholder: "Example: I want to do X, but the current implementation doesn't support Y"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: What feature or change would solve this problem?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any other solutions?
+
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Use Case
+      description: Please provide a concrete example of how this feature would be used
+      placeholder: |
+        ```python
+        # Usage example
+        client = wikidot.Client()
+        # ...
+        ```
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Information
+      description: Reference links, related issues, or any other information

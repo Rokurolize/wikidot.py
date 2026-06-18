@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions / Discussions
+    url: https://github.com/ukwhatn/wikidot.py/discussions
+    about: For questions other than bug reports or feature requests

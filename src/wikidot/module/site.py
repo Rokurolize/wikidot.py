@@ -1,136 +1,988 @@
+import math
 import re
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional
+import sys
+import time
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Literal, Optional, cast, overload
+from urllib.parse import urlsplit
 
 import httpx
+from bs4 import BeautifulSoup, Tag
+
+if sys.version_info >= (3, 12):
+    from typing import Unpack
+else:
+    from typing_extensions import Unpack
 
 from ..common import exceptions
-from ..common.decorators import login_required
+from ..common.logger import logger
+from ..connector.ajax import AjaxModuleConnectorConfig, _validate_amc_request_bodies
+from ..util.http import sync_get_with_retry
+from ..util.parser import odate as odate_parser
+from ..util.parser import user as user_parser
 from ..util.quick_module import QMCUser, QuickModule
+from ..util.stringutil import StringUtil
 from .forum_category import ForumCategoryCollection
 from .forum_thread import ForumThread, ForumThreadCollection
-from .page import Page, PageCollection, SearchPagesQuery
+from .page import (
+    Page,
+    PageCollection,
+    PageConstants,
+    SearchPagesQuery,
+    SearchPagesQueryParams,
+    _normalize_parent_fullname,
+    _validate_metas,
+    _validate_optional_page_constructor_id,
+    _validate_optional_page_id,
+    _validate_page_bool_field,
+    _validate_page_source,
+    _validate_page_tags,
+    _validate_page_text_field,
+)
+from .page_source import PageSource
 from .site_application import SiteApplication
 from .site_member import SiteMember
+from .user import AbstractUser, User
 
 if TYPE_CHECKING:
     from .client import Client
-    from .user import User
 
 
-class SitePagesMethods:
+class _UnsetPublishParentType:
+    pass
+
+
+_UNSET_PUBLISH_PARENT = _UnsetPublishParentType()
+
+
+def _printuser_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
+def _parse_recent_change_user(
+    site: "Site",
+    user_elem: Tag,
+    *,
+    page_no: int,
+    change_index: int,
+) -> "AbstractUser":
+    try:
+        return user_parser(site.client, user_elem)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            "Recent change user is malformed "
+            f"for site: {site.unix_name} "
+            f"(page={page_no}, change={change_index}, field=changed_by, value={_printuser_onclick_value(user_elem)})"
+        ) from exc
+
+
+def _parse_recent_change_revision_no(site: "Site", rev_elem: Tag, *, page_no: int, change_index: int) -> int:
+    rev_value = rev_elem.get_text(" ", strip=True)
+    if re.fullmatch(r"\(\s*new\s*\)|new", rev_value, flags=re.IGNORECASE):
+        return 0
+    rev_match = re.fullmatch(r"\(\s*rev\.\s*([0-9]+)\s*\)|rev\.\s*([0-9]+)", rev_value)
+    if rev_match is None:
+        error = "malformed" if re.search(r"\d", rev_value) is not None else "not found"
+        raise exceptions.NoElementException(
+            f"Revision number is {error} for site: {site.unix_name} "
+            f"(page={page_no}, change={change_index}, field=revision_no, value={rev_value})"
+        )
+    revision_text = next(group for group in rev_match.groups() if group is not None)
+    return int(revision_text)
+
+
+def _parse_recent_change_page_fullname(site: "Site", href: str, *, page_no: int, change_index: int) -> str:
+    href_text = href.strip()
+    href_parts = urlsplit(href_text)
+    page_fullname = href_parts.path.strip("/")
+    href_host = href_parts.hostname.lower() if href_parts.hostname is not None else None
+
+    malformed = (
+        href_parts.scheme not in {"", "http", "https"}
+        or (href_parts.scheme in {"http", "https"} and href_parts.netloc == "")
+        or (href_parts.netloc != "" and href_host != site.domain.lower())
+        or (page_fullname == "" and (href_parts.query != "" or href_parts.fragment != ""))
+    )
+    if malformed:
+        raise exceptions.NoElementException(
+            "Page fullname href is malformed "
+            f"for site: {site.unix_name} "
+            f"(page={page_no}, change={change_index}, field=href, value={href_text})"
+        )
+
+    return page_fullname
+
+
+def _require_site_invitation_action_status(site: "Site", user: "AbstractUser", event: str, data: object) -> Any:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Site invitation action response is malformed for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, expected=dict, actual={type(data).__name__})"
+        )
+
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Site invitation action response is malformed for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, field=status)"
+        ) from exc
+
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Site invitation action response is malformed for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, field=status, expected=str, actual={type(status).__name__})"
+        )
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            f"Failed to complete site invitation action for site: {site.unix_name}, user: {user.name}, event: {event}",
+            status,
+        )
+    return status
+
+
+def _require_site_invitation_action_response_count(
+    site: "Site", user: "AbstractUser", event: str, responses: object, expected_count: int
+) -> tuple[Any, ...]:
+    if not isinstance(responses, (list, tuple)):
+        raise exceptions.UnexpectedException(
+            f"Site invitation action response count mismatch for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, expected={expected_count}, actual={type(responses).__name__})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            f"Site invitation action response count mismatch for site: {site.unix_name}, user: {user.name} "
+            f"(id={user.id}, event={event}, expected={expected_count}, actual={len(responses)})"
+        )
+    return tuple(responses)
+
+
+def _validate_site_invitation_user(user: object) -> User:
+    if not isinstance(user, User):
+        raise ValueError("user must be a User")
+    if not isinstance(user.id, int) or isinstance(user.id, bool):
+        raise ValueError("user.id must be an integer")
+    if user.id < 0:
+        raise ValueError("user.id must be non-negative")
+    if not isinstance(user.name, str):
+        raise ValueError("user.name must be a string")
+    return user
+
+
+def _validate_site_invitation_user_site(site: "Site", user: User) -> None:
+    if user.client is not site.client:
+        raise ValueError("user must belong to the site")
+
+
+def _validate_member_lookup_user_name(user_name: object) -> str:
+    user_name = _validate_page_text_field("user_name", user_name)
+    if user_name.strip() == "":
+        raise ValueError("user_name must not be empty")
+    return user_name
+
+
+def _validate_optional_user_id(user_id: object) -> int | None:
+    if user_id is None:
+        return None
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        raise ValueError("user_id must be an integer")
+    if user_id < 0:
+        raise ValueError("user_id must be non-negative")
+    return user_id
+
+
+def _validate_recent_changes_limit(limit: object) -> int | None:
+    if limit is None:
+        return None
+    if not isinstance(limit, int) or isinstance(limit, bool):
+        raise ValueError("limit must be an integer or None")
+    return limit
+
+
+def _validate_site_id(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("id must be an integer")
+    if value < 0:
+        raise ValueError("id must be non-negative")
+    return value
+
+
+def _validate_site_text_field(field_name: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be a string")
+    return value
+
+
+def _validate_site_routing_text_field(field_name: str, value: object) -> str:
+    value = _validate_site_text_field(field_name, value)
+    if value.strip() == "":
+        raise ValueError(f"{field_name} must not be empty")
+    return value
+
+
+def _validate_site_ssl_supported(value: object) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError("ssl_supported must be a boolean")
+    return value
+
+
+def _validate_site_change_flags(flags: object) -> list[str]:
+    if not isinstance(flags, list):
+        raise ValueError("flags must be a list")
+    if any(not isinstance(flag, str) for flag in flags):
+        raise ValueError("flags list entries must be strings")
+    return cast(list[str], flags)
+
+
+def _validate_site_change_revision_no(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("revision_no must be an integer")
+    if value < 0:
+        raise ValueError("revision_no must be non-negative")
+    return value
+
+
+def _validate_site_change_text_field(field_name: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field_name} must be a string")
+    return value
+
+
+def _validate_site_change_page_fullname(value: object) -> str:
+    page_fullname = _validate_site_change_text_field("page_fullname", value)
+    if page_fullname.strip() == "":
+        raise ValueError("page_fullname must not be empty")
+    return page_fullname
+
+
+def _validate_site_change_comment(value: object) -> str | None:
+    if value is not None and not isinstance(value, str):
+        raise ValueError("comment must be a string or None")
+    return value
+
+
+def _validate_site_change_changed_by(value: object) -> AbstractUser:
+    if not isinstance(value, AbstractUser):
+        raise ValueError("changed_by must be an AbstractUser")
+    _validate_site_change_changed_by_id(value.id)
+    return value
+
+
+def _validate_site_change_changed_by_id(value: object) -> int | None:
+    if value is None:
+        return None
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("changed_by.id must be an integer or None")
+    if value < 0:
+        raise ValueError("changed_by.id must be non-negative or None")
+    return value
+
+
+def _validate_site_change_changed_at(value: object) -> datetime:
+    if not isinstance(value, datetime):
+        raise ValueError("changed_at must be a datetime")
+    return value
+
+
+def _validate_site_change_site(value: object) -> "Site":
+    if not isinstance(value, Site):
+        raise ValueError("site must be a Site")
+    return value
+
+
+def _validate_site_change_changed_by_site(site: "Site", changed_by: AbstractUser) -> None:
+    if changed_by.client is not site.client:
+        raise ValueError("changed_by must belong to the site")
+
+
+def _validate_site_accessor_site(value: object) -> "Site":
+    if not isinstance(value, Site):
+        raise ValueError("site must be a Site")
+    return value
+
+
+def _validate_site_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
+def _validate_site_lookup_client(client: object) -> "Client":
+    return _validate_site_client(client)
+
+
+def _validate_site_config_object(config: object) -> AjaxModuleConnectorConfig:
+    if not isinstance(config, AjaxModuleConnectorConfig):
+        raise ValueError("config must be AjaxModuleConnectorConfig")
+    return config
+
+
+def _validate_site_amc_request_state(site: "Site") -> tuple["Client", str, bool]:
+    return (
+        _validate_site_client(site.client),
+        _validate_site_routing_text_field("unix_name", site.unix_name),
+        _validate_site_ssl_supported(site.ssl_supported),
+    )
+
+
+def _validate_amc_retry_batch_size(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"batch_size must be positive, got {value}")
+    return value
+
+
+def _validate_amc_retry_max_retries(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"max_retries must be non-negative, got {value}")
+    return value
+
+
+def _require_site_amc_retry_response_count(
+    responses: object,
+    expected_count: int,
+    batch_start: int,
+    attempt: int,
+) -> tuple[Any, ...]:
+    if not isinstance(responses, tuple | list):
+        raise exceptions.UnexpectedException(
+            "Site AMC retry response count mismatch "
+            f"(expected={expected_count}, actual={type(responses).__name__}, batch_start={batch_start}, attempt={attempt})"
+        )
+    if len(responses) != expected_count:
+        raise exceptions.UnexpectedException(
+            "Site AMC retry response count mismatch "
+            f"(expected={expected_count}, actual={len(responses)}, batch_start={batch_start}, attempt={attempt})"
+        )
+    return tuple(responses)
+
+
+def _validate_publish_result_source_matches(value: object) -> None:
+    if value is not None and not isinstance(value, bool):
+        raise ValueError("source_matches must be a boolean or None")
+
+
+def _validate_publish_result_page_id(value: object) -> None:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("page_id must be an integer")
+    if value < 0:
+        raise ValueError("page_id must be non-negative")
+
+
+def _validate_publish_result_boolean(value: object, field_name: str) -> None:
+    if not isinstance(value, bool):
+        raise ValueError(f"{field_name} must be a boolean")
+
+
+def _validate_publish_result_page(value: object) -> None:
+    if not isinstance(value, Page):
+        raise ValueError("page must be a Page")
+
+
+def _validate_result_page_site(page: Page) -> None:
+    if not isinstance(page.site, Site):
+        raise ValueError("page.site must be a Site")
+
+
+def _validate_result_page_fullname(page: Page) -> None:
+    _validate_page_text_field("page.fullname", page.fullname)
+
+
+def _validate_publish_result_page_id_matches_page(page: Page, page_id: int) -> None:
+    retained_page_id = _validate_optional_page_constructor_id(page._id)
+    if retained_page_id is not None and retained_page_id != page_id:
+        raise ValueError("page_id must match the result page")
+
+
+def _validate_source_result_page(value: object) -> None:
+    if not isinstance(value, Page):
+        raise ValueError("page must be a Page")
+
+
+def _validate_source_result_source(value: object) -> None:
+    if value is not None and not isinstance(value, PageSource):
+        raise ValueError("source must be PageSource or None")
+
+
+def _validate_source_result_error(value: object) -> None:
+    if value is not None and not isinstance(value, Exception):
+        raise ValueError("error must be an Exception or None")
+
+
+def _validate_source_result_outcome(source: PageSource | None, error: Exception | None) -> None:
+    if (source is None) == (error is None):
+        raise ValueError("source and error must describe exactly one outcome")
+
+
+def _validate_source_result_source_belongs_to_page(page: Page, source: PageSource | None) -> None:
+    if source is None:
+        return
+
+    message = "source must belong to the result page"
+    source_page = source.page
+    if not isinstance(source_page, Page):
+        raise ValueError(message)
+    if source_page.site is not page.site:
+        raise ValueError(message)
+    result_page_id = _validate_optional_page_constructor_id(page._id)
+    source_page_id = _validate_optional_page_constructor_id(source_page._id)
+    if result_page_id is not None and source_page_id is not None:
+        if source_page_id != result_page_id:
+            raise ValueError(message)
+        _validate_page_text_field("source.page.fullname", source_page.fullname)
+        return
+    _validate_page_text_field("source.page.fullname", source_page.fullname)
+    if source_page.fullname != page.fullname:
+        raise ValueError(message)
+
+
+@dataclass(frozen=True)
+class PagePublishResult:
     """
-    サイト内のページコレクションに対する操作を提供するクラス
+    Result returned by Site.page.publish()
 
-    ページの検索機能など、複数のページに対する操作を提供する。
-    Site.pagesプロパティを通じてアクセスする。
+    Attributes
+    ----------
+    page : Page
+        Created or edited page.
+    site : str
+        Site unix name associated with the published page.
+    fullname : str
+        Page fullname associated with the published page.
+    page_id : int
+        Public page ID resolved after saving.
+    source_matches : bool | None
+        True when source verification was requested and matched. None when verification was not requested.
+    tags_updated : bool
+        Whether the publish call requested a tags update.
+    parent_updated : bool
+        Whether the publish call requested a parent update.
+    metas_updated : bool
+        Whether the publish call requested a meta-tag update.
+    created : bool
+        True when publish created a new page. False when publish edited an existing page.
+    operation : Literal["create", "edit"]
+        Audit-friendly operation name derived from created.
+    url : str
+        Page URL derived from the returned page object.
+    metadata_update_count : int
+        Number of metadata update categories requested by the publish call.
+    metadata_updated : bool
+        True when any metadata update was requested by the publish call.
+    source_verification_requested : bool
+        True when source verification was requested by the publish call.
+    source_verification_status : Literal["matched", "mismatched", "skipped"]
+        Low-cardinality source verification status for audit records.
+    source_verified : bool
+        True when source verification was requested and matched.
+    as_dict : dict[str, str | int | bool | None]
+        Audit-friendly dictionary containing site, page, and publish result status fields.
+    """
+
+    page: "Page"
+    page_id: int
+    source_matches: bool | None
+    tags_updated: bool
+    parent_updated: bool
+    metas_updated: bool
+    created: bool = False
+
+    def __post_init__(self) -> None:
+        _validate_publish_result_page_id(self.page_id)
+        _validate_publish_result_source_matches(self.source_matches)
+        _validate_publish_result_boolean(self.tags_updated, "tags_updated")
+        _validate_publish_result_boolean(self.parent_updated, "parent_updated")
+        _validate_publish_result_boolean(self.metas_updated, "metas_updated")
+        _validate_publish_result_boolean(self.created, "created")
+        _validate_publish_result_page(self.page)
+        _validate_publish_result_page_id_matches_page(self.page, self.page_id)
+        _validate_result_page_site(self.page)
+        _validate_result_page_fullname(self.page)
+
+    @property
+    def metadata_update_count(self) -> int:
+        """Number of metadata update categories requested by publish."""
+        return sum((self.tags_updated, self.parent_updated, self.metas_updated))
+
+    @property
+    def metadata_updated(self) -> bool:
+        """Whether publish requested any metadata update."""
+        return self.tags_updated or self.parent_updated or self.metas_updated
+
+    @property
+    def source_verified(self) -> bool:
+        """Whether publish source verification matched."""
+        return self.source_matches is True
+
+    @property
+    def source_verification_requested(self) -> bool:
+        """Whether publish requested source verification."""
+        return self.source_matches is not None
+
+    @property
+    def source_verification_status(self) -> Literal["matched", "mismatched", "skipped"]:
+        """Low-cardinality source verification status for audit records."""
+        if self.source_matches is True:
+            return "matched"
+        if self.source_matches is False:
+            return "mismatched"
+        return "skipped"
+
+    @property
+    def operation(self) -> Literal["create", "edit"]:
+        """Create/edit operation name for audit records."""
+        return "create" if self.created else "edit"
+
+    @property
+    def fullname(self) -> str:
+        """Page fullname for audit records."""
+        return self.page.fullname
+
+    @property
+    def url(self) -> str:
+        """Page URL for audit records."""
+        return self.page.get_url()
+
+    @property
+    def site(self) -> str:
+        """Site unix name for audit records."""
+        return self.page.site.unix_name
+
+    def as_dict(self) -> dict[str, str | int | bool | None]:
+        """Return a compact audit-friendly representation of this publish result."""
+        return {
+            "site": self.site,
+            "fullname": self.fullname,
+            "url": self.url,
+            "page_id": self.page_id,
+            "created": self.created,
+            "operation": self.operation,
+            "source_matches": self.source_matches,
+            "source_verification_requested": self.source_verification_requested,
+            "source_verification_status": self.source_verification_status,
+            "source_verified": self.source_verified,
+            "tags_updated": self.tags_updated,
+            "parent_updated": self.parent_updated,
+            "metas_updated": self.metas_updated,
+            "metadata_update_count": self.metadata_update_count,
+            "metadata_updated": self.metadata_updated,
+        }
+
+
+@dataclass(frozen=True)
+class PageSourceResult:
+    """
+    Result returned by Site.pages.iter_sources()
+
+    Attributes
+    ----------
+    page : Page
+        Page associated with the source attempt.
+    site : str
+        Site unix name associated with the page.
+    fullname : str
+        Page fullname associated with the source attempt.
+    url : str
+        Page URL associated with the source attempt.
+    page_id : int | None
+        Page ID already associated with the source attempt. None when the page ID is not loaded.
+    source : PageSource | None
+        Page source when retrieval succeeded.
+    wiki_text : str | None
+        Page source text when retrieval succeeded. None when retrieval failed.
+    error : Exception | None
+        Error describing why source retrieval did not produce a source for this page.
+    error_type : str | None
+        Exception class name when source retrieval failed. None when retrieval succeeded.
+    error_message : str | None
+        String representation of the error when source retrieval failed. None when retrieval succeeded.
+    as_dict : dict[str, str | int | bool | None]
+        Ledger-friendly dictionary containing site, fullname, url, page_id, ok, wiki_text, error_type, and error_message.
+    """
+
+    page: "Page"
+    source: PageSource | None
+    error: Exception | None = None
+
+    def __post_init__(self) -> None:
+        _validate_source_result_page(self.page)
+        _validate_source_result_source(self.source)
+        _validate_source_result_error(self.error)
+        _validate_source_result_outcome(self.source, self.error)
+        _validate_result_page_site(self.page)
+        _validate_result_page_fullname(self.page)
+        _validate_source_result_source_belongs_to_page(self.page, self.source)
+
+    @property
+    def ok(self) -> bool:
+        """Whether source retrieval succeeded for this page."""
+        return self.source is not None and self.error is None
+
+    @property
+    def fullname(self) -> str:
+        """Page fullname associated with this source result."""
+        return self.page.fullname
+
+    @property
+    def url(self) -> str:
+        """Page URL associated with this source result."""
+        return self.page.get_url()
+
+    @property
+    def site(self) -> str:
+        """Site unix name associated with this source result."""
+        return self.page.site.unix_name
+
+    @property
+    def page_id(self) -> int | None:
+        """Page ID associated with this source result when already loaded."""
+        return _validate_optional_page_id(self.page._id)
+
+    @property
+    def wiki_text(self) -> str | None:
+        """Source wiki text when retrieval succeeded."""
+        if self.source is None:
+            return None
+        return self.source.wiki_text
+
+    @property
+    def error_message(self) -> str | None:
+        """String error message when source retrieval failed."""
+        if self.error is None:
+            return None
+        return str(self.error)
+
+    @property
+    def error_type(self) -> str | None:
+        """Exception class name when source retrieval failed."""
+        if self.error is None:
+            return None
+        return self.error.__class__.__name__
+
+    def as_dict(self) -> dict[str, str | int | bool | None]:
+        """Return a compact ledger-friendly representation of this source result."""
+        return {
+            "site": self.site,
+            "fullname": self.fullname,
+            "url": self.url,
+            "page_id": self.page_id,
+            "ok": self.ok,
+            "wiki_text": self.wiki_text,
+            "error_type": self.error_type,
+            "error_message": self.error_message,
+        }
+
+
+class SitePagesAccessor:
+    """
+    A class that provides operations on page collections within a site
+
+    Provides operations on multiple pages such as page search functionality.
+    Access through the Site.pages property.
     """
 
     def __init__(self, site: "Site"):
         """
-        初期化メソッド
+        Initialize method
 
         Parameters
         ----------
         site : Site
-            親サイトインスタンス
+            Parent site instance
         """
-        self.site = site
+        self.site = _validate_site_accessor_site(site)
 
-    def search(self, **kwargs) -> "PageCollection":
+    def search(self, **kwargs: Unpack[SearchPagesQueryParams]) -> "PageCollection":
         """
-        サイト内のページを検索する
+        Search for pages within a site
 
-        キーワード引数を受け取り、SearchPagesQueryオブジェクトに変換して検索を実行する。
+        Receives keyword arguments, converts them to a SearchPagesQuery object, and executes the search.
 
         Parameters
         ----------
-        **kwargs
-            SearchPagesQueryに渡す検索条件。以下のパラメータが利用可能:
-
-            ページ選択パラメータ:
-            - pagetype: str - ページタイプ（例: "normal", "admin"等）
-            - category: str - カテゴリ名
-            - tags: list[str] | str - タグリスト（リストまたは空白区切り文字列）
-            - parent: str - 親ページ名
-            - link_to: str - リンク先ページ名
-            - created_at: str - 作成日時の条件（例: "> -86400 86400"）
-            - updated_at: str - 更新日時の条件
-            - created_by: User | str - 作成者（ユーザーオブジェクトまたはユーザー名）
-            - rating: str - 評価値による絞り込み
-            - votes: str - 投票数による絞り込み
-            - name: str - ページ名による絞り込み
-            - fullname: str - フルネームによる絞り込み（完全一致）
-            - range: str - 範囲指定
-
-            ソートパラメータ:
-            - order: str - ソート順（例: "created_at desc", "title asc"）
-
-            ページネーションパラメータ:
-            - offset: int - 取得開始位置
-            - limit: int - 取得件数制限
-            - perPage: int - 1ページあたりの表示件数
-
-            レイアウトパラメータ:
-            - separate: str - 個別表示するかどうか
-            - wrapper: str - ラッパー要素を表示するかどうか
+        **kwargs : Unpack[SearchPagesQueryParams]
+            Search condition keyword arguments. See SearchPagesQueryParams for details.
 
         Returns
         -------
         PageCollection
-            検索結果のページコレクション
+            Page collection of search results
         """
         query = SearchPagesQuery(**kwargs)
         return PageCollection.search_pages(self.site, query)
 
+    @staticmethod
+    def _normalize_required_tags(required_tags: str | list[str] | None) -> set[str]:
+        if required_tags is None:
+            return set()
+        if isinstance(required_tags, str):
+            return set(required_tags.split())
+        if not isinstance(required_tags, list):
+            raise ValueError("required_tags must be a string, list, or None")
+        if any(not isinstance(tag, str) for tag in required_tags):
+            raise ValueError("required_tags list entries must be strings")
+        return set(required_tags)
 
-class SitePageMethods:
+    @staticmethod
+    def _validate_positive_integer(field_name: str, value: object) -> int:
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError(f"{field_name} must be an integer")
+        if value <= 0:
+            raise ValueError(f"{field_name} must be greater than 0")
+        return value
+
+    def iter_search(
+        self,
+        required_tags: str | list[str] | None = None,
+        **kwargs: Unpack[SearchPagesQueryParams],
+    ) -> Iterator["Page"]:
+        """
+        Iterate through page search results in bounded ListPages chunks
+
+        Receives keyword arguments, converts them to a SearchPagesQuery object, and yields pages while advancing the
+        query offset by perPage. Unlike search(), this avoids loading an unbounded result set into memory by default.
+
+        Parameters
+        ----------
+        required_tags : str | list[str] | None, default None
+            Tags that every yielded page must contain after the ListPages result is parsed.
+        **kwargs : Unpack[SearchPagesQueryParams]
+            Search condition keyword arguments. See SearchPagesQueryParams for details.
+
+        Yields
+        ------
+        Page
+            Matching pages yielded in ListPages order.
+        """
+        query = SearchPagesQuery(**kwargs)
+        offset = query.offset or 0
+        per_page = query.perPage or PageConstants.DEFAULT_PER_PAGE
+        remaining = query.limit
+
+        if remaining is not None and remaining <= 0:
+            return
+
+        required_tag_set = self._normalize_required_tags(required_tags)
+        while True:
+            batch_limit = per_page if remaining is None or required_tag_set else min(per_page, remaining)
+            if batch_limit <= 0:
+                return
+
+            batch_kwargs = query.as_dict()
+            batch_kwargs["offset"] = offset
+            batch_kwargs["perPage"] = per_page
+            batch_kwargs["limit"] = batch_limit
+            pages = PageCollection.search_pages(self.site, SearchPagesQuery(**batch_kwargs))
+            if not pages:
+                return
+
+            batch_pages = pages[:batch_limit]
+            if required_tag_set:
+                batch_pages = [page for page in batch_pages if required_tag_set.issubset(set(page.tags))]
+
+            yield from batch_pages
+
+            yielded_count = len(batch_pages) if required_tag_set else min(len(pages), batch_limit)
+            if remaining is not None:
+                remaining -= yielded_count
+                if remaining <= 0:
+                    return
+            if len(pages) < batch_limit:
+                return
+            offset += per_page
+
+    def iter_sources(
+        self,
+        source_batch_size: int = 25,
+        fallback_batch_size: int = 1,
+        required_tags: str | list[str] | None = None,
+        **kwargs: Unpack[SearchPagesQueryParams],
+    ) -> Iterator[PageSourceResult]:
+        """
+        Iterate through page source results in bounded source batches
+
+        Receives page search keyword arguments, discovers pages with iter_search(), and retrieves source code in
+        source_batch_size chunks while yielding one structured result per page.
+
+        Parameters
+        ----------
+        source_batch_size : int, default 25
+            Number of pages to fetch source for in each primary batch.
+        fallback_batch_size : int, default 1
+            Number of pages to fetch per fallback batch when a primary batch leaves pages without source.
+        required_tags : str | list[str] | None, default None
+            Tags that every yielded source result page must contain after the ListPages result is parsed.
+        **kwargs : Unpack[SearchPagesQueryParams]
+            Search condition keyword arguments. See SearchPagesQueryParams for details.
+
+        Yields
+        ------
+        PageSourceResult
+            Structured source success or failure for each matching page.
+        """
+        source_batch_size = self._validate_positive_integer("source_batch_size", source_batch_size)
+        fallback_batch_size = self._validate_positive_integer("fallback_batch_size", fallback_batch_size)
+
+        batch: list[Page] = []
+        for page in self.iter_search(required_tags=required_tags, **kwargs):
+            batch.append(page)
+            if len(batch) >= source_batch_size:
+                yield from self._source_results(batch, fallback_batch_size)
+                batch = []
+
+        if batch:
+            yield from self._source_results(batch, fallback_batch_size)
+
+    def _get_page_sources_error(self, pages: list[Page]) -> Exception | None:
+        try:
+            PageCollection(self.site, pages).get_page_sources()
+        except Exception as exc:
+            return exc
+        return None
+
+    def _source_results(self, pages: list[Page], fallback_batch_size: int) -> Iterator[PageSourceResult]:
+        source_errors: dict[int, Exception] = {}
+        source_error = self._get_page_sources_error(pages)
+        if source_error is not None:
+            for page in pages:
+                if page._source is None:
+                    source_errors[id(page)] = source_error
+
+        missing_pages = [page for page in pages if page._source is None]
+        if missing_pages:
+            for index in range(0, len(missing_pages), fallback_batch_size):
+                fallback_pages = missing_pages[index : index + fallback_batch_size]
+                for page in fallback_pages:
+                    source_errors.pop(id(page), None)
+                fallback_error = self._get_page_sources_error(fallback_pages)
+                if fallback_error is not None:
+                    if len(fallback_pages) == 1:
+                        source_errors[id(fallback_pages[0])] = fallback_error
+                    else:
+                        for page in fallback_pages:
+                            if page._source is None:
+                                source_errors.pop(id(page), None)
+                                page_error = self._get_page_sources_error([page])
+                                if page_error is not None:
+                                    source_errors[id(page)] = page_error
+
+        for page in pages:
+            if page._source is None:
+                yield PageSourceResult(
+                    page=page,
+                    source=None,
+                    error=source_errors.get(
+                        id(page),
+                        exceptions.NotFoundException(
+                            f"Cannot find page source for site: {page.site.unix_name}, page: {page.fullname}"
+                        ),
+                    ),
+                )
+            else:
+                yield PageSourceResult(page=page, source=page._source)
+
+
+class SitePageAccessor:
     """
-    サイト内の個別ページに対する操作を提供するクラス
+    A class that provides operations on individual pages within a site
 
-    ページの取得や作成などの個別ページ操作を提供する。
-    Site.pageプロパティを通じてアクセスする。
+    Provides individual page operations such as retrieving and creating pages.
+    Access through the Site.page property.
     """
 
     def __init__(self, site: "Site"):
         """
-        初期化メソッド
+        Initialize method
 
         Parameters
         ----------
         site : Site
-            親サイトインスタンス
+            Parent site instance
         """
-        self.site = site
+        self.site = _validate_site_accessor_site(site)
 
     def get(self, fullname: str, raise_when_not_found: bool = True) -> Optional["Page"]:
         """
-        フルネームからページを取得する
+        Get a page from its fullname
 
         Parameters
         ----------
         fullname : str
-            ページのフルネーム（例: "コンポーネント:scp-173"）
+            Fullname of the page (e.g., "component:scp-173")
         raise_when_not_found : bool, default True
-            ページが見つからなかった場合に例外を発生させるかどうか
-            Falseの場合、ページが見つからなければNoneを返す
+            Whether to raise an exception if the page is not found
+            If False, returns None when the page is not found
 
         Returns
         -------
         Page | None
-            ページオブジェクト、または見つからない場合はNone
+            Page object, or None if not found
 
         Raises
         ------
         NotFoundException
-            raise_when_not_foundがTrueでページが見つからない場合
+            When raise_when_not_found is True and the page is not found
         """
-        res = PageCollection.search_pages(self.site, SearchPagesQuery(fullname=fullname))
-        if len(res) == 0:
+        fullname = _validate_page_text_field("fullname", fullname)
+        raise_when_not_found = _validate_page_bool_field("raise_when_not_found", raise_when_not_found)
+        page = PageCollection.get_by_fullname(self.site, fullname)
+        if page is None:
+            page = self._get_by_direct_page_id(fullname)
+        if page is None:
             if raise_when_not_found:
-                raise exceptions.NotFoundException(f"Page is not found: {fullname}")
+                raise exceptions.NotFoundException(
+                    f"Page is not found for site: {self.site.unix_name}, page: {fullname}"
+                )
             return None
-        return res[0]
+        return page
+
+    def _get_by_direct_page_id(self, fullname: str) -> Optional["Page"]:
+        if ":" in fullname:
+            category, name = fullname.split(":", 1)
+        else:
+            category, name = "_default", fullname
+
+        now = datetime.now()
+        page = Page(
+            site=self.site,
+            fullname=fullname,
+            name=name,
+            category=category,
+            title="",
+            children_count=0,
+            comments_count=0,
+            size=0,
+            rating=0,
+            votes_count=0,
+            rating_percent=0.0,
+            revisions_count=0,
+            parent_fullname=None,
+            tags=[],
+            created_by=PageCollection._current_user_or_placeholder(self.site),
+            created_at=now,
+            updated_by=PageCollection._current_user_or_placeholder(self.site),
+            updated_at=now,
+            commented_by=None,
+            commented_at=None,
+        )
+        try:
+            _ = page.id
+        except httpx.HTTPStatusError as exc:
+            if exc.response.status_code == 404:
+                return None
+            raise
+        except exceptions.NotFoundException:
+            return None
+        return page
 
     def create(
         self,
@@ -141,33 +993,48 @@ class SitePageMethods:
         force_edit: bool = False,
     ) -> "Page":
         """
-        ページを新規作成する
+        Create a new page
 
         Parameters
         ----------
         fullname : str
-            ページのフルネーム（例: "scp-173"）
+            Fullname of the page (e.g., "scp-173")
         title : str, default ""
-            ページのタイトル
+            Title of the page
         source : str, default ""
-            ページのソースコード（Wikidot記法）
+            Source code of the page (Wikidot markup)
         comment : str, default ""
-            編集コメント
+            Edit comment
         force_edit : bool, default False
-            ページが既に存在する場合に上書きするかどうか
+            Whether to overwrite if the page already exists
 
         Returns
         -------
         Page
-            作成されたページオブジェクト
+            Created page object
 
         Raises
         ------
         TargetErrorException
-            ページが既に存在し、force_editがFalseの場合
+            When the page already exists and force_edit is False
         """
+        fullname = _validate_page_text_field("fullname", fullname)
+        title = _validate_page_text_field("title", title)
+        source = _validate_page_source(source)
+        comment = _validate_page_text_field("comment", comment)
+        force_edit = _validate_page_bool_field("force_edit", force_edit)
+        site = _validate_site_accessor_site(self.site)
+        client = _validate_site_client(site.client)
+
+        client.login_check()
+
+        if force_edit:
+            existing_page = self.get(fullname, raise_when_not_found=False)
+            if existing_page is not None:
+                return existing_page.edit(title=title, source=source, comment=comment, force_edit=True)
+
         return Page.create_or_edit(
-            site=self.site,
+            site=site,
             fullname=fullname,
             title=title,
             source=source,
@@ -176,61 +1043,304 @@ class SitePageMethods:
             raise_on_exists=True,
         )
 
+    @staticmethod
+    def _resolve_post_save_page_id(page: "Page", attempts: int, interval: float) -> int:
+        for attempt in range(attempts):
+            try:
+                return page.id
+            except httpx.HTTPStatusError as exc:
+                if exc.response.status_code != 404:
+                    raise
+                if attempt == attempts - 1:
+                    raise exceptions.NotFoundException(
+                        "Cannot resolve published page id for "
+                        f"site: {page.site.unix_name}, page: {page.fullname} after {attempts} attempts"
+                    ) from exc
+            except (exceptions.NotFoundException, exceptions.UnexpectedException):
+                if attempt == attempts - 1:
+                    raise
+            if interval > 0:
+                time.sleep(interval)
 
-class SiteForumMethods:
+        raise exceptions.NotFoundException("Cannot find page id")
+
+    @staticmethod
+    def _validate_post_save_visibility_attempts(value: object) -> int:
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError("post_save_visibility_attempts must be an integer")
+        if value < 1:
+            raise ValueError("post_save_visibility_attempts must be at least 1")
+        return value
+
+    @staticmethod
+    def _validate_post_save_visibility_interval(value: object) -> float:
+        if not isinstance(value, int | float) or isinstance(value, bool):
+            raise ValueError("post_save_visibility_interval must be a number")
+        interval = float(value)
+        if not math.isfinite(interval) or interval < 0:
+            raise ValueError("post_save_visibility_interval must be non-negative")
+        return interval
+
+    def publish(
+        self,
+        fullname: str,
+        title: str = "",
+        source: str = "",
+        comment: str = "",
+        tags: list[str] | None = None,
+        parent_fullname: str | None | _UnsetPublishParentType = _UNSET_PUBLISH_PARENT,
+        metas: dict[str, str] | None = None,
+        force_edit: bool = False,
+        verify_source: bool = False,
+        source_normalizer: Callable[[str], str] | None = None,
+        post_save_visibility_attempts: int = 1,
+        post_save_visibility_interval: float = 2.0,
+    ) -> PagePublishResult:
+        """
+        Create or edit a page, then optionally update metadata and verify saved source
+
+        Parameters
+        ----------
+        fullname : str
+            Fullname of the page to publish.
+        title : str, default ""
+            Title to save.
+        source : str, default ""
+            Wikidot source to save.
+        comment : str, default ""
+            Edit comment.
+        tags : list[str] | None, default None
+            Tags to save after the page source. None leaves tags unchanged.
+        parent_fullname : str | None, optional
+            Parent fullname to set. Passing None clears the parent. Omitting this argument leaves the parent unchanged.
+        metas : dict[str, str] | None, default None
+            Meta tags to save after the page source. None leaves meta tags unchanged.
+        force_edit : bool, default False
+            Whether to forcibly release locks by other users.
+        verify_source : bool, default False
+            Whether to force a fresh ViewSourceModule fetch and compare it with the submitted source.
+        source_normalizer : Callable[[str], str] | None, default None
+            Optional function applied to both fetched and submitted source before verification.
+        post_save_visibility_attempts : int, default 1
+            Total attempts to resolve the saved page ID before metadata updates, source verification, and result return.
+        post_save_visibility_interval : float, default 2.0
+            Seconds to wait between post-save page ID resolution attempts.
+
+        Returns
+        -------
+        PagePublishResult
+            Created or edited page plus publish status fields.
+
+        Raises
+        ------
+        LoginRequiredException
+            When not logged in.
+        TargetErrorException
+            When the page is locked.
+        UnexpectedException
+            When source verification is requested and the fetched source does not match.
+        WikidotStatusCodeException
+            When saving the page or metadata fails.
+        """
+        fullname = _validate_page_text_field("fullname", fullname)
+        force_edit = _validate_page_bool_field("force_edit", force_edit)
+        verify_source = _validate_page_bool_field("verify_source", verify_source)
+        post_save_visibility_attempts = self._validate_post_save_visibility_attempts(post_save_visibility_attempts)
+        post_save_visibility_interval = self._validate_post_save_visibility_interval(post_save_visibility_interval)
+        title = _validate_page_text_field("title", title)
+        source = _validate_page_source(source)
+        comment = _validate_page_text_field("comment", comment)
+        if verify_source and source_normalizer is not None and not callable(source_normalizer):
+            raise ValueError("source_normalizer must be callable or None")
+        if tags is not None:
+            tags = _validate_page_tags(tags)
+        if metas is not None:
+            metas = _validate_metas(metas)
+        parent_value: str | None = None
+        parent_updated = parent_fullname is not _UNSET_PUBLISH_PARENT
+        if parent_updated:
+            parent_value = _normalize_parent_fullname(parent_fullname)
+        site = _validate_site_accessor_site(self.site)
+        client = _validate_site_client(site.client)
+
+        client.login_check()
+
+        existing_page = self.get(fullname, raise_when_not_found=False)
+        if existing_page is None:
+            created = True
+            page = Page.create_or_edit(
+                site=site,
+                fullname=fullname,
+                title=title,
+                source=source,
+                comment=comment,
+                force_edit=force_edit,
+                raise_on_exists=True,
+            )
+        else:
+            created = False
+            page = existing_page.edit(title=title, source=source, comment=comment, force_edit=force_edit)
+
+        page_id = self._resolve_post_save_page_id(
+            page,
+            attempts=post_save_visibility_attempts,
+            interval=post_save_visibility_interval,
+        )
+
+        tags_updated = tags is not None
+        metas_updated = metas is not None
+
+        source_matches: bool | None = None
+        if verify_source:
+            fetched_source = page.refresh_source().wiki_text
+            expected_source = source
+            if source_normalizer is not None:
+                fetched_source = source_normalizer(fetched_source)
+                expected_source = source_normalizer(expected_source)
+            source_matches = fetched_source == expected_source
+            if not source_matches:
+                raise exceptions.UnexpectedException(
+                    f"Saved source verification failed for site: {site.unix_name}, page: {fullname}"
+                )
+
+        if tags_updated or parent_updated or metas_updated:
+            if parent_updated:
+                page.set_metadata(
+                    tags=tags,
+                    parent_fullname=parent_value,
+                    metas=metas,
+                )
+            else:
+                page.set_metadata(tags=tags, metas=metas)
+
+        return PagePublishResult(
+            page=page,
+            page_id=page_id,
+            source_matches=source_matches,
+            tags_updated=tags_updated,
+            parent_updated=parent_updated,
+            metas_updated=metas_updated,
+            created=created,
+        )
+
+
+class SiteForumAccessor:
     """
-    サイト内のフォーラム機能に対する操作を提供するクラス
+    A class that provides operations on forum functionality within a site
 
-    フォーラムカテゴリの取得などのフォーラム関連機能を提供する。
-    Site.forumプロパティを通じてアクセスする。
+    Provides forum-related functionality such as retrieving forum categories.
+    Access through the Site.forum property.
     """
 
     def __init__(self, site: "Site"):
         """
-        初期化メソッド
+        Initialize method
 
         Parameters
         ----------
         site : Site
-            親サイトインスタンス
+            Parent site instance
         """
-        self.site = site
+        self.site = _validate_site_accessor_site(site)
 
     @property
     def categories(self) -> "ForumCategoryCollection":
         """
-        サイト内のフォーラムカテゴリ一覧を取得する
+        Get a list of forum categories within the site
 
         Returns
         -------
         ForumCategoryCollection
-            フォーラムカテゴリのコレクション
+            Collection of forum categories
         """
         return ForumCategoryCollection.acquire_all(self.site)
 
 
 @dataclass
+class SiteChange:
+    """
+    A class representing a single change history entry for a site
+
+    Holds information about changes to pages within a site (creation, editing, deletion, etc.).
+
+    Attributes
+    ----------
+    site : Site
+        Site where the change occurred
+    page_fullname : str
+        Fullname of the changed page
+    page_title : str
+        Title of the changed page
+    revision_no : int
+        Revision number
+    changed_by : AbstractUser
+        User who made the change
+    changed_at : datetime
+        Date and time of change
+    flags : list[str]
+        Change flags ("N"=new, "S"=source change, "T"=title change, "R"=rename, "M"=move, "F"=file, "A"=delete)
+    comment : str | None
+        Change comment
+    """
+
+    site: "Site"
+    page_fullname: str
+    page_title: str
+    revision_no: int
+    changed_by: "AbstractUser"
+    changed_at: datetime
+    flags: list[str]
+    comment: str | None
+
+    def __post_init__(self) -> None:
+        self.flags = _validate_site_change_flags(self.flags)
+        self.revision_no = _validate_site_change_revision_no(self.revision_no)
+        self.page_fullname = _validate_site_change_page_fullname(self.page_fullname)
+        self.page_title = _validate_site_change_text_field("page_title", self.page_title)
+        self.comment = _validate_site_change_comment(self.comment)
+        self.changed_by = _validate_site_change_changed_by(self.changed_by)
+        self.changed_at = _validate_site_change_changed_at(self.changed_at)
+        self.site = _validate_site_change_site(self.site)
+        _validate_site_change_changed_by_site(self.site, self.changed_by)
+
+    def __str__(self) -> str:
+        """
+        String representation of the object
+
+        Returns
+        -------
+        str
+            String representation of the change history
+        """
+        return (
+            f"SiteChange(page_fullname={self.page_fullname}, "
+            f"revision_no={self.revision_no}, changed_by={self.changed_by}, "
+            f"changed_at={self.changed_at}, flags={self.flags})"
+        )
+
+
+@dataclass
 class Site:
     """
-    Wikidotサイトを表すクラス
+    A class representing a Wikidot site
 
-    サイトの基本情報とサイトに対する様々な操作機能を提供する。
-    ページ、フォーラム、メンバー管理などの機能にアクセスするための起点となる。
+    Provides basic site information and various operational functions for the site.
+    Serves as the entry point for accessing features such as pages, forums, and member management.
 
     Attributes
     ----------
     client : Client
-        クライアントインスタンス
+        Client instance
     id : int
-        サイトID
+        Site ID
     title : str
-        サイトのタイトル
+        Title of the site
     unix_name : str
-        サイトのUNIX名（URLの一部として使用される）
+        UNIX name of the site (used as part of the URL)
     domain : str
-        サイトのドメイン（完全修飾ドメイン名）
+        Domain of the site (fully qualified domain name)
     ssl_supported : bool
-        サイトがSSL/HTTPS対応しているかどうか
+        Whether the site supports SSL/HTTPS
     """
 
     client: "Client"
@@ -241,63 +1351,85 @@ class Site:
     domain: str
     ssl_supported: bool
 
-    _members = None
-    _moderators = None
-    _admins = None
+    # Accessor属性
+    pages: "SitePagesAccessor" = field(init=False, repr=False)
+    page: "SitePageAccessor" = field(init=False, repr=False)
+    forum: "SiteForumAccessor" = field(init=False, repr=False)
 
-    def __post_init__(self):
-        """
-        初期化後の処理
+    # キャッシュ属性
+    _members: list["SiteMember"] | None = field(init=False, default=None, repr=False)
+    _moderators: list["SiteMember"] | None = field(init=False, default=None, repr=False)
+    _admins: list["SiteMember"] | None = field(init=False, default=None, repr=False)
 
-        サイト関連の機能を提供する各サブクラスのインスタンスを初期化する。
+    def __post_init__(self) -> None:
         """
-        self.pages = SitePagesMethods(self)
-        self.page = SitePageMethods(self)
-        self.forum = SiteForumMethods(self)
+        Post-initialization processing
 
-    def __str__(self):
+        Initializes instances of each subclass that provides site-related functionality.
         """
-        オブジェクトの文字列表現
+        self.client = _validate_site_client(self.client)
+        self.id = _validate_site_id(self.id)
+        self.title = _validate_site_text_field("title", self.title)
+        self.unix_name = _validate_site_routing_text_field("unix_name", self.unix_name)
+        self.domain = _validate_site_routing_text_field("domain", self.domain)
+        self.ssl_supported = _validate_site_ssl_supported(self.ssl_supported)
+
+        self.pages = SitePagesAccessor(self)
+        self.page = SitePageAccessor(self)
+        self.forum = SiteForumAccessor(self)
+
+    def __str__(self) -> str:
+        """
+        String representation of the object
 
         Returns
         -------
         str
-            サイトオブジェクトの文字列表現
+            String representation of the site object
         """
         return f"Site(id={self.id}, title={self.title}, unix_name={self.unix_name})"
 
     @staticmethod
     def from_unix_name(client: "Client", unix_name: str) -> "Site":
         """
-        UNIX名からサイトオブジェクトを取得する
+        Get a site object from a UNIX name
 
-        指定されたUNIX名のサイトにアクセスし、サイト情報を解析してSiteオブジェクトを生成する。
+        Accesses the site with the specified UNIX name, parses site information, and generates a Site object.
 
         Parameters
         ----------
         client : Client
-            クライアントインスタンス
+            Client instance
         unix_name : str
-            サイトのUNIX名（例: "fondation"）
+            UNIX name of the site (e.g., "fondation")
 
         Returns
         -------
         Site
-            サイトオブジェクト
+            Site object
 
         Raises
         ------
         NotFoundException
-            指定されたUNIX名のサイトが存在しない場合
+            When a site with the specified UNIX name does not exist
         UnexpectedException
-            サイト情報の解析中にエラーが発生した場合
+            When an error occurs during site information parsing
         """
+        StringUtil.validate_site_unix_name(unix_name)
+        client = _validate_site_lookup_client(client)
+
         # サイト情報を取得
-        # リダイレクトには従う
-        response = httpx.get(
+        # リダイレクトには従う、リトライ付き
+        config = _validate_site_config_object(client.amc_client.config)
+        response = sync_get_with_retry(
             f"http://{unix_name}.wikidot.com",
+            timeout=config.request_timeout,
+            attempt_limit=config.attempt_limit,
+            retry_interval=config.retry_interval,
+            max_backoff=config.max_backoff,
+            backoff_factor=config.backoff_factor,
             follow_redirects=True,
-            timeout=client.amc_client.config.request_timeout,
+            raise_for_status=False,
         )
 
         # サイトが存在しない場合
@@ -308,10 +1440,15 @@ class Site:
         source = response.text
 
         # id : WIKIREQUEST.info.siteId = xxxx;
-        id_match = re.search(r"WIKIREQUEST\.info\.siteId = (\d+);", source)
+        id_match = re.search(r"WIKIREQUEST\.info\.siteId\s*=\s*([^;]*);", source)
         if id_match is None:
             raise exceptions.UnexpectedException(f"Cannot find site id: {unix_name}.wikidot.com")
-        site_id = int(id_match.group(1))
+        site_id_text = id_match.group(1).strip()
+        if re.fullmatch(r"[0-9]+", site_id_text) is None:
+            raise exceptions.NoElementException(
+                f"Site ID is malformed for site: {unix_name}.wikidot.com (field=site_id, value={site_id_text})"
+            )
+        site_id = int(site_id_text)
 
         # title : titleタグ
         title_match = re.search(r"<title>(.*?)</title>", source)
@@ -343,59 +1480,188 @@ class Site:
             ssl_supported=ssl_supported,
         )
 
-    def amc_request(self, bodies: list[dict], return_exceptions: bool = False):
+    @overload
+    def amc_request(
+        self, bodies: list[dict[str, Any]], return_exceptions: Literal[False] = False
+    ) -> tuple[httpx.Response, ...]: ...
+
+    @overload
+    def amc_request(
+        self, bodies: list[dict[str, Any]], return_exceptions: Literal[True] = ...
+    ) -> tuple[httpx.Response | Exception, ...]: ...
+
+    def amc_request(
+        self, bodies: list[dict[str, Any]], return_exceptions: bool = False
+    ) -> tuple[httpx.Response, ...] | tuple[httpx.Response | Exception, ...]:
         """
-        このサイトに対してAjax Module Connectorリクエストを実行する
+        Execute an Ajax Module Connector request for this site
 
         Parameters
         ----------
         bodies : list[dict]
-            リクエストボディのリスト
+            List of request bodies
         return_exceptions : bool, default False
-            例外を返すか送出するか（True: 返す, False: 送出する）
+            Whether to return or raise exceptions (True: return, False: raise)
 
         Returns
         -------
         list | Exception
-            レスポンスのリスト、またはreturn_exceptionsがTrueの場合は例外
+            List of responses, or exceptions if return_exceptions is True
         """
-        return self.client.amc_client.request(bodies, return_exceptions, self.unix_name, self.ssl_supported)
+        return_exceptions = _validate_page_bool_field("return_exceptions", return_exceptions)
+        bodies = _validate_amc_request_bodies(bodies)
+
+        if len(bodies) == 0:
+            return ()
+
+        client, unix_name, ssl_supported = _validate_site_amc_request_state(self)
+        if return_exceptions:
+            return client.amc_client.request(bodies, True, unix_name, ssl_supported)
+        else:
+            return client.amc_client.request(bodies, False, unix_name, ssl_supported)
+
+    def amc_request_with_retry(
+        self,
+        bodies: list[dict[str, Any]],
+        *,
+        batch_size: int | None = None,
+        max_retries: int | None = None,
+    ) -> tuple[httpx.Response | None, ...]:
+        """Execute amc_request with batch splitting and partial failure tolerance.
+
+        Requests are split into batches and failed requests are retried
+        up to max_retries times. Still-failed requests return None.
+
+        Parameters
+        ----------
+        bodies : list[dict]
+            List of request bodies
+        batch_size : int | None, optional
+            Number of requests per batch.
+            Defaults to config.retry_batch_size if not specified.
+        max_retries : int | None, optional
+            Maximum number of retry attempts for failed requests.
+            Defaults to config.retry_max_retries if not specified.
+
+        Returns
+        -------
+        tuple[httpx.Response | None, ...]
+            Responses for each body. None for permanently failed requests.
+        """
+        if batch_size is not None:
+            batch_size = _validate_amc_retry_batch_size(batch_size)
+        if max_retries is not None:
+            max_retries = _validate_amc_retry_max_retries(max_retries)
+        bodies = _validate_amc_request_bodies(bodies)
+        if len(bodies) == 0:
+            return ()
+
+        client = _validate_site_client(self.client)
+        config = _validate_site_config_object(client.amc_client.config)
+        batch_size = batch_size if batch_size is not None else _validate_amc_retry_batch_size(config.retry_batch_size)
+        max_retries = (
+            max_retries if max_retries is not None else _validate_amc_retry_max_retries(config.retry_max_retries)
+        )
+
+        all_results: list[httpx.Response | None] = []
+
+        for batch_start in range(0, len(bodies), batch_size):
+            batch = bodies[batch_start : batch_start + batch_size]
+
+            responses = _require_site_amc_retry_response_count(
+                self.amc_request(batch, return_exceptions=True),
+                expected_count=len(batch),
+                batch_start=batch_start,
+                attempt=0,
+            )
+            batch_results: list[httpx.Response | None] = []
+            failed_indices: list[int] = []
+
+            for i, resp_or_exc in enumerate(responses):
+                if isinstance(resp_or_exc, Exception):
+                    batch_results.append(None)
+                    failed_indices.append(i)
+                else:
+                    batch_results.append(resp_or_exc)
+
+            for attempt in range(max_retries):
+                if not failed_indices:
+                    break
+                retry_bodies = [batch[i] for i in failed_indices]
+                logger.warning(
+                    "amc_request_with_retry: %d/%d requests failed, retrying (attempt %d/%d)",
+                    len(failed_indices),
+                    len(batch),
+                    attempt + 1,
+                    max_retries,
+                )
+                retry_responses = _require_site_amc_retry_response_count(
+                    self.amc_request(retry_bodies, return_exceptions=True),
+                    expected_count=len(retry_bodies),
+                    batch_start=batch_start,
+                    attempt=attempt + 1,
+                )
+
+                still_failed_indices: list[int] = []
+                for j, retry_resp in enumerate(retry_responses):
+                    if isinstance(retry_resp, Exception):
+                        still_failed_indices.append(failed_indices[j])
+                    else:
+                        batch_results[failed_indices[j]] = retry_resp
+                failed_indices = still_failed_indices
+
+            all_results.extend(batch_results)
+
+        failed_count = sum(1 for r in all_results if r is None)
+        if failed_count > 0:
+            logger.warning(
+                "amc_request_with_retry: %d/%d succeeded (%d failed)",
+                len(all_results) - failed_count,
+                len(all_results),
+                failed_count,
+            )
+
+        return tuple(all_results)
 
     @property
-    def applications(self):
+    def applications(self) -> list[SiteApplication]:
         """
-        サイトへの未処理の参加申請を取得する
+        Get pending membership applications to the site
 
         Returns
         -------
         list[SiteApplication]
-            参加申請のリスト
+            List of membership applications
         """
         return SiteApplication.acquire_all(self)
 
-    @login_required
-    def invite_user(self, user: "User", text: str):
+    def invite_user(self, user: "User", text: str) -> None:
         """
-        ユーザーをサイトに招待する
+        Invite a user to the site
 
         Parameters
         ----------
         user : User
-            招待するユーザー
+            User to invite
         text : str
-            招待メッセージ
+            Invitation message
 
         Raises
         ------
         TargetErrorException
-            ユーザーが既に招待済み、または既にメンバーの場合
+            When the user is already invited or already a member
         WikidotStatusCodeException
-            その他のWikidot APIエラーが発生した場合
+            When other Wikidot API errors occur
         LoginRequiredException
-            ログインしていない場合（@login_required装飾子による）
+            When not logged in
         """
+        text = _validate_page_text_field("text", text)
+        user = _validate_site_invitation_user(user)
+        _validate_site_invitation_user_site(self, user)
+        client = _validate_site_client(self.client)
+        client.login_check()
         try:
-            self.amc_request(
+            responses = self.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
@@ -406,6 +1672,8 @@ class Site:
                     }
                 ]
             )
+            response = _require_site_invitation_action_response_count(self, user, "inviteMember", responses, 1)[0]
+            _require_site_invitation_action_status(self, user, "inviteMember", response.json())
         except exceptions.WikidotStatusCodeException as e:
             if e.status_code == "already_invited":
                 raise exceptions.TargetErrorException(
@@ -419,76 +1687,80 @@ class Site:
                 raise e
 
     @property
-    def url(self):
+    def url(self) -> str:
         """
-        サイトのURLを取得する
+        Get the URL of the site
 
         Returns
         -------
         str
-            サイトの完全なURL
+            Full URL of the site
         """
-        return f"http{'s' if self.ssl_supported else ''}://{self.domain}"
+        ssl_supported = _validate_site_ssl_supported(self.ssl_supported)
+        domain = _validate_site_routing_text_field("domain", self.domain)
+        return f"http{'s' if ssl_supported else ''}://{domain}"
 
     @property
-    def members(self):
+    def members(self) -> list[SiteMember]:
         """
-        サイトのメンバー一覧を取得する
+        Get a list of site members
 
         Returns
         -------
         list[SiteMember]
-            サイトメンバーのリスト
+            List of site members
         """
         if self._members is None:
             self._members = SiteMember.get(self)
         return self._members
 
     @property
-    def moderators(self):
+    def moderators(self) -> list[SiteMember]:
         """
-        サイトのモデレーター一覧を取得する
+        Get a list of site moderators
 
         Returns
         -------
         list[SiteMember]
-            サイトモデレーターのリスト
+            List of site moderators
         """
         if self._moderators is None:
             self._moderators = SiteMember.get(self, "moderators")
         return self._moderators
 
     @property
-    def admins(self):
+    def admins(self) -> list[SiteMember]:
         """
-        サイトの管理者一覧を取得する
+        Get a list of site administrators
 
         Returns
         -------
         list[SiteMember]
-            サイト管理者のリスト
+            List of site administrators
         """
         if self._admins is None:
             self._admins = SiteMember.get(self, "admins")
         return self._admins
 
-    def member_lookup(self, user_name: str, user_id: int | None = None):
+    def member_lookup(self, user_name: str, user_id: int | None = None) -> bool:
         """
-        指定されたユーザーがサイトのメンバーかどうかを確認する
+        Check whether a specified user is a member of the site
 
         Parameters
         ----------
         user_name : str
-            確認するユーザー名
+            Username to check
         user_id : int | None, default None
-            確認するユーザーID（指定した場合はIDも一致する必要がある）
+            User ID to check (if specified, the ID must also match)
 
         Returns
         -------
         bool
-            ユーザーがサイトメンバーである場合はTrue、そうでない場合はFalse
+            True if the user is a site member, False otherwise
         """
-        users: list["QMCUser"] = QuickModule.member_lookup(self.id, user_name)
+        user_name = _validate_member_lookup_user_name(user_name)
+        user_id = _validate_optional_user_id(user_id)
+        users: list[QMCUser] = QuickModule.member_lookup(self.id, user_name)
 
         if len(users) == 0:
             return False
@@ -499,34 +1771,263 @@ class Site:
 
         return False
 
-    def get_thread(self, thread_id: int):
+    def get_thread(self, thread_id: int) -> ForumThread:
         """
-        スレッドを取得する
+        Get a thread
 
         Parameters
         ----------
         thread_id : int
-            スレッドID
+            Thread ID
 
         Returns
         -------
         ForumThread
-            スレッドオブジェクト
+            Thread object
         """
         return ForumThread.get_from_id(self, thread_id)
 
-    def get_threads(self, thread_ids: list[int]):
+    def get_threads(self, thread_ids: list[int]) -> ForumThreadCollection:
         """
-        複数のスレッドを取得する
+        Get multiple threads
 
         Parameters
         ----------
         thread_ids : list[int]
-            スレッドIDのリスト
+            List of thread IDs
 
         Returns
         -------
         list[ForumThread]
-            スレッドオブジェクトのリスト
+            List of thread objects
         """
         return ForumThreadCollection.acquire_from_thread_ids(self, thread_ids)
+
+    def get_recent_changes(self, limit: int | None = None) -> list["SiteChange"]:
+        """
+        Get recent change history of the site
+
+        Retrieves recent changes to pages within the site (creation, editing, deletion, etc.).
+
+        Parameters
+        ----------
+        limit : int | None, default None
+            Maximum number of entries to retrieve. If None, retrieves only the first page (default count)
+
+        Returns
+        -------
+        list[SiteChange]
+            List of change history (in descending order by date)
+
+        Raises
+        ------
+        NoElementException
+            When HTML element parsing fails
+        """
+        from ..common.exceptions import NoElementException
+
+        limit = _validate_recent_changes_limit(limit)
+        if limit is not None and limit <= 0:
+            return []
+
+        changes: list[SiteChange] = []
+        per_page = min(limit, 1000) if limit is not None else 1000
+
+        def iter_changes(html: BeautifulSoup, page_no: int) -> Iterator[SiteChange]:
+            change_index = 0
+            for item in html.select("div.changes-list-item"):
+                if item.find_parent("table") is not None:
+                    continue
+
+                change_index += 1
+                parse_context = f"for site: {self.unix_name} (page={page_no}, change={change_index})"
+                table_elem = item.find("table", recursive=False)
+                if not isinstance(table_elem, Tag):
+                    raise NoElementException(f"Change table element is not found {parse_context}")
+
+                rows = table_elem.find_all("tr", recursive=False)
+                if not rows:
+                    raise NoElementException(f"Change row element is not found {parse_context}")
+
+                metadata_row = rows[0]
+
+                comment_elem = rows[1].find("td", class_="comments", recursive=False) if len(rows) > 1 else None
+                comment = comment_elem.get_text(" ", strip=True) if comment_elem else None
+                if comment == "":
+                    comment = None
+
+                title_cell = metadata_row.find("td", class_="title", recursive=False)
+                title_elem = title_cell.find("a", recursive=False) if isinstance(title_cell, Tag) else None
+                if not isinstance(title_elem, Tag):
+                    raise NoElementException(f"Title element is not found {parse_context}")
+
+                page_title = title_elem.get_text(" ", strip=True)
+                if page_title == "":
+                    raise NoElementException(f"Page title is not found {parse_context}")
+                href = title_elem.get("href")
+                if not isinstance(href, str) or href.strip() == "":
+                    raise NoElementException(f"Title href is not found {parse_context}")
+                page_fullname = _parse_recent_change_page_fullname(
+                    self, href, page_no=page_no, change_index=change_index
+                )
+                if page_fullname == "":
+                    raise NoElementException(f"Page fullname is not found {parse_context}")
+
+                date_cell = metadata_row.find("td", class_="mod-date", recursive=False)
+                odate_elem = (
+                    date_cell.find("span", class_="odate", recursive=False) if isinstance(date_cell, Tag) else None
+                )
+                if not isinstance(odate_elem, Tag):
+                    raise NoElementException(f"Odate element is not found {parse_context}")
+                try:
+                    changed_at = odate_parser(odate_elem)
+                except ValueError as exc:
+                    class_attr = odate_elem.get("class", [])
+                    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
+                    odate_value = next((value for value in class_values if "time_" in value), " ".join(class_values))
+                    raise NoElementException(
+                        "Odate value is malformed "
+                        f"for site: {self.unix_name} "
+                        f"(page={page_no}, change={change_index}, field=changed_at, value={odate_value})"
+                    ) from exc
+
+                rev_elem = metadata_row.find("td", class_="revision-no", recursive=False)
+                if rev_elem is None:
+                    raise NoElementException(f"Revision number element is not found {parse_context}")
+                revision_no = _parse_recent_change_revision_no(
+                    self, rev_elem, page_no=page_no, change_index=change_index
+                )
+
+                user_cell = metadata_row.find("td", class_="mod-by", recursive=False)
+                user_elem = (
+                    user_cell.find("span", class_="printuser", recursive=False) if isinstance(user_cell, Tag) else None
+                )
+                if not isinstance(user_elem, Tag):
+                    raise NoElementException(f"User element is not found {parse_context}")
+                changed_by = _parse_recent_change_user(
+                    self,
+                    user_elem,
+                    page_no=page_no,
+                    change_index=change_index,
+                )
+
+                flags_cell = metadata_row.find("td", class_="flags", recursive=False)
+                flags_elem = flags_cell.find_all("span", recursive=False) if isinstance(flags_cell, Tag) else []
+                flags = [span.get_text().strip() for span in flags_elem]
+
+                yield (
+                    SiteChange(
+                        site=self,
+                        page_fullname=page_fullname,
+                        page_title=page_title,
+                        revision_no=revision_no,
+                        changed_by=changed_by,
+                        changed_at=changed_at,
+                        flags=flags,
+                        comment=comment,
+                    )
+                )
+
+        def is_in_comment_cell(element: Tag) -> bool:
+            for ancestor in element.parents:
+                if not isinstance(ancestor, Tag):
+                    continue
+                if ancestor.name == "td" and "comments" in ancestor.get("class", []):
+                    return True
+            return False
+
+        def find_structural_pager(html: BeautifulSoup) -> Tag | None:
+            for pager in html.select("div.pager"):
+                if is_in_comment_cell(pager):
+                    continue
+                return pager
+            return None
+
+        def get_last_page(html: BeautifulSoup) -> int:
+            pager = find_structural_pager(html)
+            if pager is None:
+                return 1
+
+            for pager_link in reversed(pager.select("a")):
+                page_text = pager_link.get_text(strip=True)
+                if re.fullmatch(r"[0-9]+", page_text) is not None:
+                    return int(page_text)
+                if page_text.isdigit():
+                    raise NoElementException(
+                        f"Recent changes pager page is malformed for site: {self.unix_name}, page: 1 "
+                        f"(field=page, value={page_text})"
+                    )
+            return 1
+
+        def request_body(page_no: int) -> dict[str, Any]:
+            return {
+                "moduleName": "changes/SiteChangesListModule",
+                "perpage": str(per_page),
+                "page": page_no,
+                "options": "{'all':true}",
+            }
+
+        def response_body(response: Any, page_no: int) -> str:
+            data = response.json()
+            if not isinstance(data, dict):
+                raise NoElementException(
+                    f"Recent changes response payload is malformed for site: {self.unix_name}, page: {page_no} "
+                    f"(expected=dict, actual={type(data).__name__})"
+                )
+            body = data.get("body")
+            if body is None:
+                raise NoElementException(
+                    f"Recent changes response body is not found for site: {self.unix_name}, page: {page_no}"
+                )
+            if not isinstance(body, str):
+                raise NoElementException(
+                    f"Recent changes response body is malformed for site: {self.unix_name}, page: {page_no} "
+                    f"(field=body, expected=str, actual={type(body).__name__})"
+                )
+            return body
+
+        response = self.amc_request_with_retry([request_body(1)])[0]
+        if response is None:
+            raise exceptions.UnexpectedException(f"Cannot retrieve recent changes for site: {self.unix_name}, page: 1")
+
+        body = response_body(response, 1)
+        html = BeautifulSoup(body, "lxml")
+        page_changes = list(iter_changes(html, 1))
+        if not page_changes:
+            return changes
+
+        for change in page_changes:
+            changes.append(change)
+            if limit is not None and len(changes) >= limit:
+                return changes
+
+        last_page = get_last_page(html)
+        if last_page <= 1:
+            return changes
+
+        page_numbers = list(range(2, last_page + 1))
+        if limit is not None:
+            remaining = limit - len(changes)
+            if remaining <= 0:
+                return changes
+            page_numbers = page_numbers[: (remaining + per_page - 1) // per_page]
+
+        responses = self.amc_request_with_retry([request_body(page_no) for page_no in page_numbers])
+        for page_no, response in zip(page_numbers, responses, strict=True):
+            if response is None:
+                raise exceptions.UnexpectedException(
+                    f"Cannot retrieve recent changes for site: {self.unix_name}, page: {page_no}"
+                )
+
+            body = response_body(response, page_no)
+            html = BeautifulSoup(body, "lxml")
+            page_changes = list(iter_changes(html, page_no))
+            if not page_changes:
+                break
+
+            for change in page_changes:
+                changes.append(change)
+                if limit is not None and len(changes) >= limit:
+                    return changes
+
+        return changes

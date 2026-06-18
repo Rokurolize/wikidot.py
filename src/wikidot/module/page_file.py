@@ -1,0 +1,452 @@
+"""
+Module for handling Wikidot page file attachments
+
+This module provides classes and functions related to files attached
+to Wikidot site pages. It enables operations such as retrieving file information.
+"""
+
+import math
+import re
+from collections.abc import Iterator
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, Optional, cast
+from urllib.parse import urljoin, urlsplit
+
+from bs4 import BeautifulSoup, Tag
+
+from ..common import exceptions
+
+if TYPE_CHECKING:
+    from .page import Page
+
+
+_SIZE_PATTERN = re.compile(r"\s*([0-9]+(?:\.[0-9]+)?)\s*([A-Za-z]+)\s*")
+_SIZE_MULTIPLIERS = {
+    "b": 1,
+    "byte": 1,
+    "bytes": 1,
+    "kb": 1000,
+    "mb": 1000000,
+    "gb": 1000000000,
+}
+
+
+def _validate_files(files: object) -> list["PageFile"]:
+    if files is None:
+        return []
+    if not isinstance(files, list):
+        raise ValueError("files must be a list or None")
+    if any(not isinstance(file, PageFile) for file in files):
+        raise ValueError("files list entries must be PageFile")
+    return cast(list["PageFile"], files)
+
+
+def _validate_file_page(value: object) -> "Page":
+    from .page import Page
+
+    if not isinstance(value, Page):
+        raise ValueError("page must be a Page")
+    return value
+
+
+def _validate_files_belong_to_page(page: "Page", files: list["PageFile"]) -> None:
+    if any(file.page is not page for file in files):
+        raise ValueError("files must belong to the collection page")
+
+
+def _validate_file_id(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("id must be an integer")
+    if value < 0:
+        raise ValueError("id must be non-negative")
+    return value
+
+
+def _validate_file_text(field: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    return value
+
+
+def _validate_file_name(value: object) -> str:
+    name = _validate_file_text("name", value)
+    if name.strip() == "":
+        raise ValueError("name must not be empty")
+    return name
+
+
+def _validate_file_size(value: object) -> int:
+    if not isinstance(value, int) or isinstance(value, bool):
+        raise ValueError("size must be an integer")
+    if value < 0:
+        raise ValueError("size must be non-negative")
+    return value
+
+
+def _parse_file_link_url(site_url: str, href: str, *, file_id: int, name: str, context: str) -> str:
+    href_parts = urlsplit(href)
+    url = urljoin(f"{site_url}/", href)
+    url_parts = urlsplit(url)
+
+    if (
+        href_parts.scheme not in ("", "http", "https")
+        or (href_parts.scheme in ("http", "https") and href_parts.netloc == "")
+        or url_parts.scheme not in ("http", "https")
+        or url_parts.netloc == ""
+        or url_parts.path.strip("/") == ""
+    ):
+        location = f"{context}, file: {name}" if context else f"for file: {name}"
+        raise exceptions.NoElementException(
+            f"Page file link href is malformed {location} (id={file_id}, field=href, value={href})"
+        )
+
+    return url
+
+
+class PageFileCollection(list["PageFile"]):
+    """
+    Class representing a collection of page files
+
+    A list extension class for storing and operating on multiple files
+    attached to a page in bulk.
+    """
+
+    page: "Page | None"
+
+    def __init__(
+        self,
+        page: Optional["Page"] = None,
+        files: list["PageFile"] | None = None,
+    ):
+        """
+        Initialize the collection
+
+        Parameters
+        ----------
+        page : Page | None, default None
+            The page the files belong to. If None, inferred from the first file
+        files : list[PageFile] | None, default None
+            List of files to store
+        """
+        files = _validate_files(files)
+
+        if page is not None:
+            self.page = _validate_file_page(page)
+            _validate_files_belong_to_page(self.page, files)
+        elif len(files) > 0:
+            self.page = files[0].page
+            _validate_files_belong_to_page(self.page, files)
+        else:
+            self.page = None
+
+        super().__init__(files)
+
+    def __iter__(self) -> Iterator["PageFile"]:
+        """
+        Return an iterator over the files in the collection
+
+        Returns
+        -------
+        Iterator[PageFile]
+            Iterator of file objects
+        """
+        return super().__iter__()
+
+    def find(self, id: int) -> Optional["PageFile"]:
+        """
+        Get the file with the specified ID
+
+        Parameters
+        ----------
+        id : int
+            The ID of the file to retrieve
+
+        Returns
+        -------
+        PageFile | None
+            The file with the specified ID, or None if not found
+        """
+        if not isinstance(id, int) or isinstance(id, bool):
+            raise ValueError("id must be an integer")
+        for file in self:
+            if self.page is not None and file.page is not self.page:
+                raise ValueError("files must belong to the collection page")
+            if _validate_file_id(file.id) == id:
+                return file
+        return None
+
+    def find_by_name(self, name: str) -> Optional["PageFile"]:
+        """
+        Get the file with the specified name
+
+        Parameters
+        ----------
+        name : str
+            The name of the file to retrieve
+
+        Returns
+        -------
+        PageFile | None
+            The file with the specified name, or None if not found
+        """
+        name = _validate_file_name(name)
+        for file in self:
+            if self.page is not None and file.page is not self.page:
+                raise ValueError("files must belong to the collection page")
+            if _validate_file_name(file.name) == name:
+                return file
+        return None
+
+    @staticmethod
+    def _parse_size(size_text: str) -> int:
+        """
+        Convert file size string to bytes
+
+        Parameters
+        ----------
+        size_text : str
+            Size string (e.g., "1.5 kB", "2 MB", "500 Bytes")
+
+        Returns
+        -------
+        int
+            Size in bytes
+        """
+        size = PageFileCollection._parse_size_value(size_text)
+        return 0 if size is None else size
+
+    @staticmethod
+    def _parse_size_value(size_text: str) -> int | None:
+        size_match = _SIZE_PATTERN.fullmatch(size_text)
+        if size_match is None:
+            return None
+
+        value = float(size_match.group(1))
+        unit = size_match.group(2).lower()
+        multiplier = _SIZE_MULTIPLIERS.get(unit)
+        if multiplier is None:
+            return None
+        size = value * multiplier
+        if not math.isfinite(size):
+            return None
+        return int(size)
+
+    @staticmethod
+    def _parse_file_fields_from_html(
+        site_url: str, html: BeautifulSoup, *, context: str = ""
+    ) -> list[tuple[int, str, str, str, int]]:
+        files_table = html.select_one("table.page-files")
+
+        if not isinstance(files_table, Tag):
+            return []
+        files_tbody = files_table.find("tbody", recursive=False)
+        if not isinstance(files_tbody, Tag):
+            return []
+
+        file_fields: list[tuple[int, str, str, str, int]] = []
+        for row_index, row in enumerate(files_tbody.find_all("tr", recursive=False), start=1):
+            row_id = row.get("id")
+            if row_id is None:
+                continue
+
+            row_id_text = str(row_id)
+            if not row_id_text.startswith("file-row-"):
+                continue
+
+            file_id_text = row_id_text.removeprefix("file-row-")
+            if re.fullmatch(r"[0-9]+", file_id_text) is None:
+                location = f"{context} " if context else ""
+                raise exceptions.NoElementException(
+                    f"Page file row ID is malformed {location}(row={row_index}, field=id, value={row_id_text})"
+                )
+            file_id = int(file_id_text)
+            tds = [td for td in row.find_all("td", recursive=False) if isinstance(td, Tag)]
+            if len(tds) < 3:
+                location = f"{context} " if context else ""
+                raise exceptions.NoElementException(
+                    f"Page file row is malformed {location}(id={file_id}, field=cells, value={len(tds)})"
+                )
+
+            link_elem = tds[0].find("a", recursive=False)
+            if not isinstance(link_elem, Tag):
+                location = f"{context} " if context else ""
+                raise exceptions.NoElementException(f"Page file link is not found {location}(id={file_id}, field=link)")
+
+            name = link_elem.get_text(" ", strip=True)
+            if name == "":
+                location = f"{context} " if context else ""
+                raise exceptions.NoElementException(f"Page file name is not found {location}(id={file_id}, field=name)")
+            href = link_elem.get("href")
+            if not isinstance(href, str) or href.strip() == "":
+                location = f"{context}, file: {name}" if context else f"for file: {name}"
+                raise exceptions.NoElementException(
+                    f"Page file link href is not found {location} (id={file_id}, field=href)"
+                )
+            url = _parse_file_link_url(site_url, href, file_id=file_id, name=name, context=context)
+
+            mime_elem = tds[1].find("span", recursive=False)
+            mime_title = mime_elem.get("title") if isinstance(mime_elem, Tag) else None
+            if mime_title is None:
+                location = f"{context}, file: {name}" if context else f"for file: {name}"
+                raise exceptions.NoElementException(
+                    f"Page file MIME type title is not found {location} (id={file_id}, field=mime_type)"
+                )
+            mime_type = str(mime_title)
+
+            size_text = tds[2].get_text().strip()
+            if PageFileCollection._parse_size_value(size_text) is None:
+                location = f"{context}, file: {name}" if context else f"for file: {name}"
+                raise exceptions.NoElementException(
+                    f"Page file size is malformed {location} (id={file_id}, field=size, value={size_text})"
+                )
+            size = PageFileCollection._parse_size(size_text)
+
+            file_fields.append((file_id, name, url, mime_type, size))
+
+        return file_fields
+
+    @staticmethod
+    def _build_page_files(page: "Page", file_fields: list[tuple[int, str, str, str, int]]) -> list["PageFile"]:
+        return [
+            PageFile(
+                page=page,
+                id=file_id,
+                name=name,
+                url=url,
+                mime_type=mime_type,
+                size=size,
+            )
+            for file_id, name, url, mime_type, size in file_fields
+        ]
+
+    @staticmethod
+    def _parse_from_html(page: "Page", html: BeautifulSoup) -> list["PageFile"]:
+        """
+        Parse file information from HTML response
+
+        Internal helper method used by acquire() and PageCollection._acquire_page_files().
+
+        Parameters
+        ----------
+        page : Page
+            The page the files belong to
+        html : BeautifulSoup
+            Parsed HTML response from files/PageFilesModule
+
+        Returns
+        -------
+        list[PageFile]
+            List of parsed PageFile objects
+        """
+        context = f"for site: {page.site.unix_name}, page: {page.fullname}"
+        file_fields = PageFileCollection._parse_file_fields_from_html(page.site.url, html, context=context)
+        return PageFileCollection._build_page_files(page, file_fields)
+
+    @staticmethod
+    def acquire(page: "Page") -> "PageFileCollection":
+        """
+        Get the list of files attached to a page
+
+        Parameters
+        ----------
+        page : Page
+            The page to retrieve files from
+
+        Returns
+        -------
+        PageFileCollection
+            Collection of files attached to the page
+        """
+        page = _validate_file_page(page)
+        cached_files = getattr(page, "_files", None)
+        if isinstance(cached_files, PageFileCollection):
+            return cached_files
+
+        response = page.site.amc_request_with_retry(
+            [
+                {
+                    "moduleName": "files/PageFilesModule",
+                    "page_id": page.id,
+                }
+            ]
+        )[0]
+        if response is None:
+            raise exceptions.UnexpectedException(
+                f"Cannot retrieve page files for site: {page.site.unix_name}, page: {page.fullname}"
+            )
+
+        data = response.json()
+        if not isinstance(data, dict):
+            raise exceptions.NoElementException(
+                "Page file list response payload is malformed "
+                f"for site: {page.site.unix_name}, page: {page.fullname} "
+                f"(expected=dict, actual={type(data).__name__})"
+            )
+        body = data.get("body")
+        if body is None:
+            raise exceptions.NoElementException(
+                f"Page file list response body is not found for site: {page.site.unix_name}, page: {page.fullname}"
+            )
+        if not isinstance(body, str):
+            raise exceptions.NoElementException(
+                "Page file list response body is malformed "
+                f"for site: {page.site.unix_name}, page: {page.fullname} "
+                f"(field=body, expected=str, actual={type(body).__name__})"
+            )
+
+        html = BeautifulSoup(body, "lxml")
+        files = PageFileCollection._parse_from_html(page, html)
+        collection = PageFileCollection(page=page, files=files)
+        page._files = collection
+
+        return collection
+
+
+@dataclass
+class PageFile:
+    """
+    Class representing a Wikidot page attachment file
+
+    Holds information about an individual file attached to a page.
+
+    Attributes
+    ----------
+    page : Page
+        The page the file is attached to
+    id : int
+        File ID
+    name : str
+        File name
+    url : str
+        File download URL
+    mime_type : str
+        File MIME type
+    size : int
+        File size in bytes
+    """
+
+    page: "Page"
+    id: int
+    name: str
+    url: str
+    mime_type: str
+    size: int
+
+    def __post_init__(self) -> None:
+        self.page = _validate_file_page(self.page)
+        self.id = _validate_file_id(self.id)
+        self.name = _validate_file_name(self.name)
+        self.url = _validate_file_text("url", self.url)
+        self.mime_type = _validate_file_text("mime_type", self.mime_type)
+        self.size = _validate_file_size(self.size)
+
+    def __str__(self) -> str:
+        """
+        String representation of the object
+
+        Returns
+        -------
+        str
+            String representation of the file
+        """
+        return f"PageFile(id={self.id}, name={self.name}, url={self.url}, mime_type={self.mime_type}, size={self.size})"

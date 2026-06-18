@@ -1,18 +1,52 @@
+import contextlib
 from typing import TYPE_CHECKING
 
 import httpx
 
 from ..common.exceptions import SessionCreateException
+from ..connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
+from ..util.http import sync_post_with_retry
 
 if TYPE_CHECKING:
     from .client import Client
 
+# Login retry limit (reduced to prevent account lockout)
+LOGIN_RETRY_LIMIT = 3
+
+
+def _validate_login_text(field: str, value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{field} must be a string")
+    if not value.strip():
+        raise ValueError(f"{field} must not be empty")
+    return value
+
+
+def _validate_auth_client(client: object) -> "Client":
+    from .client import Client
+
+    if not isinstance(client, Client):
+        raise ValueError("client must be a Client")
+    return client
+
+
+def _validate_login_config_object(config: object) -> AjaxModuleConnectorConfig:
+    if not isinstance(config, AjaxModuleConnectorConfig):
+        raise ValueError("config must be AjaxModuleConnectorConfig")
+    return config
+
+
+def _validate_auth_header_object(header: object) -> AjaxRequestHeader:
+    if not isinstance(header, AjaxRequestHeader):
+        raise ValueError("header must be AjaxRequestHeader")
+    return header
+
 
 class HTTPAuthentication:
     """
-    WikidotへのHTTP認証を提供するクラス
+    Class that provides HTTP authentication for Wikidot
 
-    ログインおよびログアウト処理を管理するための静的メソッドを提供する。
+    Provides static methods for managing login and logout processing.
     """
 
     @staticmethod
@@ -20,26 +54,32 @@ class HTTPAuthentication:
         client: "Client",
         username: str,
         password: str,
-    ):
+    ) -> None:
         """
-        ユーザー名とパスワードでWikidotにログインする
+        Log in to Wikidot with username and password
 
         Parameters
         ----------
         client : Client
-            接続するクライアントインスタンス
+            The client instance to connect
         username : str
-            ログインするユーザー名
+            The username to log in with
         password : str
-            ユーザーのパスワード
+            The user's password
 
         Raises
         ------
         SessionCreateException
-            ログイン試行が失敗した場合（HTTP応答コードエラー、認証情報不一致、Cookieの問題等）
+            If the login attempt fails (HTTP response code error, credential mismatch, cookie issues, etc.)
         """
-        # ログインリクエスト実行
-        response = httpx.post(
+        username = _validate_login_text("username", username)
+        password = _validate_login_text("password", password)
+        client = _validate_auth_client(client)
+
+        # Execute login request with retry (reduced retry limit to prevent account lockout)
+        config = _validate_login_config_object(client.amc_client.config)
+        header = _validate_auth_header_object(client.amc_client.header)
+        response = sync_post_with_retry(
             url="https://www.wikidot.com/default--flow/login__LoginPopupScreen",
             data={
                 "login": username,
@@ -47,8 +87,13 @@ class HTTPAuthentication:
                 "action": "Login2Action",
                 "event": "login",
             },
-            headers=client.amc_client.header.get_header(),
-            timeout=20,
+            headers=header.get_header(),
+            timeout=config.request_timeout,
+            attempt_limit=LOGIN_RETRY_LIMIT,
+            retry_interval=config.retry_interval,
+            max_backoff=config.max_backoff,
+            backoff_factor=config.backoff_factor,
+            raise_for_status=False,
         )
 
         # Check status code
@@ -65,26 +110,30 @@ class HTTPAuthentication:
         if "WIKIDOT_SESSION_ID" not in response.cookies:
             raise SessionCreateException("Login attempt is failed due to invalid cookies")
 
+        session_cookie = str(response.cookies["WIKIDOT_SESSION_ID"])
+        if not session_cookie.strip():
+            raise SessionCreateException("Login attempt is failed because WIKIDOT_SESSION_ID cookie is empty")
+
         # Set cookies
-        client.amc_client.header.set_cookie("WIKIDOT_SESSION_ID", response.cookies["WIKIDOT_SESSION_ID"])
+        header.set_cookie("WIKIDOT_SESSION_ID", session_cookie)
 
     @staticmethod
-    def logout(client: "Client"):
+    def logout(client: "Client") -> None:
         """
-        Wikidotからログアウトする
+        Log out from Wikidot
 
         Parameters
         ----------
         client : Client
-            ログアウトするクライアントインスタンス
+            The client instance to log out
 
         Notes
         -----
-        ログアウト処理でエラーが発生しても無視され、Cookieの削除は常に行われる。
+        Errors during the logout process are ignored, and cookie deletion is always performed.
         """
-        try:
+        client = _validate_auth_client(client)
+        header = _validate_auth_header_object(client.amc_client.header)
+        with contextlib.suppress(Exception):
             client.amc_client.request([{"action": "Login2Action", "event": "logout", "moduleName": "Empty"}])
-        except Exception:
-            pass
 
-        client.amc_client.header.delete_cookie("WIKIDOT_SESSION_ID")
+        header.delete_cookie("WIKIDOT_SESSION_ID")

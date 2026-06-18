@@ -1,185 +1,417 @@
 """
-Wikidotサイトへの参加申請を扱うモジュール
+Module for handling site join applications on Wikidot
 
-このモジュールは、Wikidotサイトへの参加申請に関連するクラスや機能を提供する。
-申請の取得、承認、拒否などの操作が可能。
+This module provides classes and functionality related to site join applications on Wikidot.
+It enables operations such as retrieving, accepting, and declining applications.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 
 from ..common import exceptions
-from ..common.decorators import login_required
+from ..module.user import AbstractUser
 from ..util.parser import user as user_parser
 
 if TYPE_CHECKING:
     from ..module.site import Site
-    from ..module.user import AbstractUser
+    from .client import Client
+
+
+def _site_name(site: "Site") -> str:
+    site_unix_name = getattr(site, "unix_name", None)
+    return site_unix_name if isinstance(site_unix_name, str) else str(site)
+
+
+def _user_onclick_value(user_elem: Tag) -> str:
+    link_elem = user_elem.find("a", recursive=False)
+    if isinstance(link_elem, Tag):
+        onclick = link_elem.get("onclick")
+        if onclick is not None:
+            return str(onclick)
+    return user_elem.get_text(" ", strip=True)
+
+
+def _application_parse_context(
+    site: "Site",
+    application_index: int,
+    applications_count: int,
+    **details: object,
+) -> str:
+    context = [
+        f"application={application_index}",
+        f"applications={applications_count}",
+    ]
+    context.extend(f"{name}={value}" for name, value in details.items())
+    return f"for site: {_site_name(site)} ({', '.join(context)})"
+
+
+def _parse_application_user(
+    site: "Site",
+    application_index: int,
+    applications_count: int,
+    user_element: Tag,
+) -> "AbstractUser":
+    try:
+        return user_parser(site.client, user_element)
+    except ValueError as exc:
+        parse_context = _application_parse_context(
+            site,
+            application_index,
+            applications_count,
+            field="user",
+            value=_user_onclick_value(user_element),
+        )
+        raise exceptions.NoElementException(f"Site application user is malformed {parse_context}") from exc
+
+
+def _validate_site_application_user_object(user: object) -> AbstractUser:
+    if not isinstance(user, AbstractUser):
+        raise ValueError("application.user must be an AbstractUser")
+    _validate_site_application_user_id(user.id)
+    return user
+
+
+def _validate_site_application_user_id(user_id: object) -> int | None:
+    if user_id is None:
+        return None
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        raise ValueError("application.user.id must be an integer or None")
+    if user_id < 0:
+        raise ValueError("application.user.id must be non-negative")
+    return user_id
+
+
+def _validate_site_application_user(user: object) -> AbstractUser:
+    user = _validate_site_application_user_object(user)
+    if not isinstance(user.id, int) or isinstance(user.id, bool):
+        raise ValueError("application.user.id must be an integer")
+    if user.id < 0:
+        raise ValueError("application.user.id must be non-negative")
+    if not isinstance(user.name, str):
+        raise ValueError("application.user.name must be a string")
+    return user
+
+
+def _validate_site_application_user_site(site: "Site", user: AbstractUser) -> None:
+    if user.client is not site.client:
+        raise ValueError("application.user must belong to the site")
+
+
+def _validate_site_application_text(text: object) -> str:
+    if not isinstance(text, str):
+        raise ValueError("application.text must be a string")
+    return text
+
+
+def _validate_site_application_site(site: object) -> "Site":
+    from .site import Site
+
+    if not isinstance(site, Site):
+        raise ValueError("site must be a Site")
+    return site
+
+
+def _validate_site_application_site_client(site: "Site") -> "Client":
+    from .client import Client
+
+    if not isinstance(site.client, Client):
+        raise ValueError("client must be a Client")
+    return site.client
+
+
+def _require_site_application_action_status(
+    application: "SiteApplication",
+    event: str,
+    action: str,
+    data: object,
+) -> str:
+    if not isinstance(data, dict):
+        raise exceptions.NoElementException(
+            f"Site application action response is malformed for site: {_site_name(application.site)}, "
+            f"user: {application.user.name} "
+            f"(id={application.user.id}, event={event}, type={action}, "
+            f"expected=dict, actual={type(data).__name__})"
+        )
+
+    try:
+        status = data["status"]
+    except KeyError as exc:
+        raise exceptions.NoElementException(
+            f"Site application action response is malformed for site: {_site_name(application.site)}, "
+            f"user: {application.user.name} "
+            f"(id={application.user.id}, event={event}, type={action}, field=status)"
+        ) from exc
+
+    if not isinstance(status, str):
+        raise exceptions.NoElementException(
+            f"Site application action response is malformed for site: {_site_name(application.site)}, "
+            f"user: {application.user.name} "
+            f"(id={application.user.id}, event={event}, type={action}, "
+            f"field=status, expected=str, actual={type(status).__name__})"
+        )
+
+    if status != "ok":
+        raise exceptions.WikidotStatusCodeException(
+            "Failed to complete site application action for "
+            f"site: {_site_name(application.site)}, user: {application.user.name}, "
+            f"event: {event}, type: {action}",
+            status,
+        )
+    return status
+
+
+def _require_site_application_action_response_count(
+    application: "SiteApplication",
+    event: str,
+    action: str,
+    responses: Sequence[object],
+    expected_count: int,
+) -> None:
+    actual_count = len(responses)
+    if actual_count != expected_count:
+        raise exceptions.UnexpectedException(
+            f"Site application action response count mismatch for site: {_site_name(application.site)}, "
+            f"user: {application.user.name} "
+            f"(id={application.user.id}, event={event}, type={action}, "
+            f"expected={expected_count}, actual={actual_count})"
+        )
 
 
 @dataclass
 class SiteApplication:
     """
-    Wikidotサイトへの参加申請を表すクラス
+    Class representing a site join application on Wikidot
 
-    ユーザーからサイトへの参加申請情報を保持し、申請の承認や拒否などの
-    処理機能を提供する。
+    Holds site join application information from users and provides
+    functionality for processing such as accepting or declining applications.
 
     Attributes
     ----------
     site : Site
-        申請先のサイト
+        The site being applied to
     user : AbstractUser
-        申請者
+        The applicant
     text : str
-        申請メッセージ
+        Application message
     """
 
     site: "Site"
     user: "AbstractUser"
     text: str
 
-    def __str__(self):
+    def __post_init__(self) -> None:
+        self.site = _validate_site_application_site(self.site)
+        self.user = _validate_site_application_user_object(self.user)
+        self.text = _validate_site_application_text(self.text)
+        _validate_site_application_user_site(self.site, self.user)
+
+    def __str__(self) -> str:
         """
-        オブジェクトの文字列表現
+        String representation of the object
 
         Returns
         -------
         str
-            申請の文字列表現
+            String representation of the application
         """
         return f"SiteApplication(user={self.user}, site={self.site}, text={self.text})"
 
     @staticmethod
-    @login_required
     def acquire_all(site: "Site") -> list["SiteApplication"]:
         """
-        サイトへの未処理の参加申請をすべて取得する
+        Retrieve all pending site join applications
 
         Parameters
         ----------
         site : Site
-            参加申請を取得するサイト
+            The site to retrieve applications from
 
         Returns
         -------
         list[SiteApplication]
-            参加申請のリスト
+            List of site applications
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         ForbiddenException
-            サイトの参加申請を管理する権限がない場合
+            If no permission to manage site applications
         UnexpectedException
-            応答の解析に失敗した場合
+            If response parsing fails
         """
-        response = site.amc_request([{"moduleName": "managesite/ManageSiteMembersApplicationsModule"}])[0]
+        site = _validate_site_application_site(site)
+        client = _validate_site_application_site_client(site)
+        client.login_check()
 
-        body = response.json()["body"]
+        response = site.amc_request_with_retry([{"moduleName": "managesite/ManageSiteMembersApplicationsModule"}])[0]
+        if response is None:
+            raise exceptions.UnexpectedException(f"Cannot retrieve site applications for site: {_site_name(site)}")
 
-        if "WIKIDOT.page.listeners.loginClick(event)" in body:
-            raise exceptions.ForbiddenException("You are not allowed to access this page")
+        body = SiteApplication._application_list_response_body(response, site)
 
-        html = BeautifulSoup(response.json()["body"], "lxml")
+        html = BeautifulSoup(body, "lxml")
 
         applications = []
 
-        user_elements = html.select("h3 span.printuser")
-        text_wrapper_elements = html.select("table")
+        application_headers = [
+            header
+            for header in html.select("h3")
+            if header.find_parent("table") is None and header.find("span", class_="printuser", recursive=False)
+        ]
+        if not application_headers and "WIKIDOT.page.listeners.loginClick(event)" in body:
+            raise exceptions.ForbiddenException("You are not allowed to access this page")
+        used_text_tables: set[int] = set()
 
-        if len(user_elements) != len(text_wrapper_elements):
-            raise exceptions.UnexpectedException("Length of user_elements and text_wrapper_elements are different")
+        for application_index, header in enumerate(application_headers, start=1):
+            user_element = header.find("span", class_="printuser", recursive=False)
+            if not isinstance(user_element, Tag):
+                continue
 
-        for i in range(len(user_elements)):
-            user_element = user_elements[i]
-            text_wrapper_element = text_wrapper_elements[i]
+            parse_context = _application_parse_context(site, application_index, len(application_headers))
+            text_wrapper_element = header.find_next_sibling("table")
+            if not isinstance(text_wrapper_element, Tag):
+                raise exceptions.NoElementException(f"Application text table is not found {parse_context}")
+            if id(text_wrapper_element) in used_text_tables:
+                raise exceptions.UnexpectedException(
+                    "Length of application users and text tables are different for site: "
+                    f"{_site_name(site)} (users={len(application_headers)}, text_tables={len(used_text_tables)})"
+                )
+            used_text_tables.add(id(text_wrapper_element))
 
-            user = user_parser(site.client, user_element)
-            text = text_wrapper_element.select("td")[1].text.strip()
+            text_row = text_wrapper_element.find("tr", recursive=False)
+            if not isinstance(text_row, Tag):
+                raise exceptions.NoElementException(f"Application text row is not found {parse_context}")
+
+            text_cells = text_row.find_all("td", recursive=False)
+            if len(text_cells) < 2:
+                parse_context = _application_parse_context(
+                    site,
+                    application_index,
+                    len(application_headers),
+                    cells=len(text_cells),
+                )
+                raise exceptions.NoElementException(f"Application text cell is not found {parse_context}")
+
+            user = _parse_application_user(site, application_index, len(application_headers), user_element)
+            text = text_cells[1].get_text(" ", strip=True)
 
             applications.append(SiteApplication(site, user, text))
 
         return applications
 
-    @login_required
-    def _process(self, action: str):
-        """
-        参加申請を処理する内部メソッド
+    @staticmethod
+    def _application_list_response_body(response: Any, site: "Site") -> str:
+        data = response.json()
+        if not isinstance(data, dict):
+            raise exceptions.NoElementException(
+                "Site application list response payload is malformed "
+                f"for site: {_site_name(site)} (expected=dict, actual={type(data).__name__})"
+            )
 
-        承認または拒否の処理を行う共通メソッド。
+        body = data.get("body")
+        if body is None:
+            raise exceptions.NoElementException(
+                f"Site application list response body is not found for site: {_site_name(site)}"
+            )
+        if not isinstance(body, str):
+            raise exceptions.NoElementException(
+                "Site application list response body is malformed "
+                f"for site: {_site_name(site)} (field=body, expected=str, actual={type(body).__name__})"
+            )
+        return body
+
+    def _process(self, action: str) -> None:
+        """
+        Internal method to process a site join application
+
+        Common method for processing acceptance or decline.
 
         Parameters
         ----------
         action : str
-            処理の種類 ("accept" または "decline")
+            Type of action ("accept" or "decline")
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         ValueError
-            無効なアクションが指定された場合
+            If an invalid action or applicant user is specified
         NotFoundException
-            指定された申請が見つからない場合
+            If the specified application is not found
         WikidotStatusCodeException
-            その他のエラーが発生した場合
+            If other errors occur
         """
         if action not in ["accept", "decline"]:
             raise ValueError(f"Invalid action: {action}")
 
+        site = _validate_site_application_site(self.site)
+        user = _validate_site_application_user(self.user)
+        _validate_site_application_user_site(site, user)
+        client = _validate_site_application_site_client(site)
+        client.login_check()
+
+        status_text = {"accept": "accepted", "decline": "declined"}[action]
+        event = "acceptApplication"
+
         try:
-            self.site.amc_request(
+            responses = site.amc_request(
                 [
                     {
                         "action": "ManageSiteMembershipAction",
-                        "event": "acceptApplication",
-                        "user_id": self.user.id,
-                        "text": f"your application has been {action}ed",
+                        "event": event,
+                        "user_id": user.id,
+                        "text": f"your application has been {status_text}",
                         "type": action,
                         "moduleName": "Empty",
                     }
                 ]
             )
+            _require_site_application_action_response_count(self, event, action, responses, 1)
+            response = responses[0]
+            _require_site_application_action_status(self, event, action, response.json())
+            if action == "accept":
+                site._members = None
         except exceptions.WikidotStatusCodeException as e:
             if e.status_code == "no_application":
                 raise exceptions.NotFoundException(f"Application not found: {self.user}") from e
             else:
                 raise e
 
-    def accept(self):
+    def accept(self) -> None:
         """
-        参加申請を承認する
+        Accept the site join application
 
-        申請者をサイトのメンバーとして追加する。
+        Adds the applicant as a member of the site.
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         NotFoundException
-            指定された申請が見つからない場合
+            If the specified application is not found
         WikidotStatusCodeException
-            その他のエラーが発生した場合
+            If other errors occur
         """
         self._process("accept")
 
-    def decline(self):
+    def decline(self) -> None:
         """
-        参加申請を拒否する
+        Decline the site join application
 
-        申請者の参加を拒否し、申請を削除する。
+        Rejects the applicant's join request and deletes the application.
 
         Raises
         ------
         LoginRequiredException
-            ログインしていない場合
+            If not logged in
         NotFoundException
-            指定された申請が見つからない場合
+            If the specified application is not found
         WikidotStatusCodeException
-            その他のエラーが発生した場合
+            If other errors occur
         """
         self._process("decline")
