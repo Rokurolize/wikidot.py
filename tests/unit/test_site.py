@@ -2335,6 +2335,34 @@ class TestSiteFromUnixName:
         assert site.id == 999
         assert site.ssl_supported is False
 
+    def test_from_unix_name_uses_explicit_local_base_url(self, httpx_mock: HTTPXMock) -> None:
+        """明示されたローカルベースURLからサイトメタデータを取得する"""
+        client = create_mock_client()
+        client.amc_client.config = AjaxModuleConnectorConfig(local_base_url="http://127.0.0.1:4173/")
+        html = """
+        <html>
+        <head><title>Local Wikijump</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = 4173;
+            WIKIREQUEST.info.siteUnixName = "local-site";
+            WIKIREQUEST.info.domain = "127.0.0.1:4173";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(url="http://127.0.0.1:4173/", text=html)
+
+        site = Site.from_unix_name(client, "local-site")
+
+        assert site.id == 4173
+        assert site.title == "Local Wikijump"
+        assert site.unix_name == "local-site"
+        assert site.domain == "127.0.0.1:4173"
+        assert site.ssl_supported is False
+        assert site.url == "http://127.0.0.1:4173"
+        assert [str(request.url) for request in httpx_mock.get_requests()] == ["http://127.0.0.1:4173/"]
+
     def test_from_unix_name_not_found(self, httpx_mock: HTTPXMock) -> None:
         """存在しないサイトはNotFoundException"""
         client = create_mock_client()

@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from ..connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
+from ..connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader, _normalize_local_base_url
 from .async_helper import run_coroutine
 from .http import (
     _is_retryable_status,
@@ -48,6 +48,19 @@ def _validate_request_config(config: AjaxModuleConnectorConfig) -> tuple[float, 
         _validate_non_negative_number_option("max_backoff", getattr(config, "max_backoff", None)),
         _validate_positive_int_option("semaphore_limit", getattr(config, "semaphore_limit", None)),
     )
+
+
+def _is_configured_local_url(config: AjaxModuleConnectorConfig, url: str) -> bool:
+    local_base_url = _normalize_local_base_url(config.local_base_url)
+    if local_base_url is None:
+        return False
+
+    parsed_url = urlparse(url)
+    parsed_base = urlparse(local_base_url)
+    if parsed_url.scheme != parsed_base.scheme or parsed_url.netloc != parsed_base.netloc:
+        return False
+    base_path = parsed_base.path.rstrip("/")
+    return base_path == "" or parsed_url.path == base_path or parsed_url.path.startswith(f"{base_path}/")
 
 
 def _validate_request_method(method: object) -> str:
@@ -137,6 +150,8 @@ class RequestUtil:
 
             hostname = hostname.lower().rstrip(".")
             if parsed.scheme.lower() == "https" and (hostname == "wikidot.com" or hostname.endswith(".wikidot.com")):
+                return request_headers
+            if _is_configured_local_url(config, url):
                 return request_headers
 
             return None

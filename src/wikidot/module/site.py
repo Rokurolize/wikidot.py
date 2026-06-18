@@ -18,7 +18,7 @@ else:
 
 from ..common import exceptions
 from ..common.logger import logger
-from ..connector.ajax import AjaxModuleConnectorConfig, _validate_amc_request_bodies
+from ..connector.ajax import AjaxModuleConnectorConfig, _local_url, _validate_amc_request_bodies
 from ..util.http import sync_get_with_retry
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
@@ -1421,8 +1421,9 @@ class Site:
         # サイト情報を取得
         # リダイレクトには従う、リトライ付き
         config = _validate_site_config_object(client.amc_client.config)
+        site_url = _local_url(config, "") or f"http://{unix_name}.wikidot.com"
         response = sync_get_with_retry(
-            f"http://{unix_name}.wikidot.com",
+            site_url,
             timeout=config.request_timeout,
             attempt_limit=config.attempt_limit,
             retry_interval=config.retry_interval,

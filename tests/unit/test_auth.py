@@ -57,6 +57,25 @@ class TestHTTPAuthentication:
         assert kwargs["raise_for_status"] is False
         mock_client.amc_client.header.set_cookie.assert_called_once_with("WIKIDOT_SESSION_ID", "test-session-id")
 
+    def test_login_uses_explicit_local_base_url(self):
+        """明示されたローカルベースURLのログイン画面へ送信する"""
+        mock_client = self._mock_client()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(
+            local_base_url="http://127.0.0.1:4173",
+            retry_interval=0,
+        )
+
+        mock_response = MagicMock()
+        mock_response.status_code = httpx.codes.OK
+        mock_response.text = "Login successful"
+        mock_response.cookies = {"WIKIDOT_SESSION_ID": "local-session-id"}
+
+        with patch("wikidot.module.auth.sync_post_with_retry", return_value=mock_response) as mock_post:
+            HTTPAuthentication.login(mock_client, "local-user", "local-password")
+
+        assert mock_post.call_args.kwargs["url"] == "http://127.0.0.1:4173/default--flow/login__LoginPopupScreen"
+        mock_client.amc_client.header.set_cookie.assert_called_once_with("WIKIDOT_SESSION_ID", "local-session-id")
+
     @pytest.mark.parametrize(
         ("field", "value", "message"),
         [

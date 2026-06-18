@@ -260,6 +260,12 @@ class TestAjaxModuleConnectorConfig:
         assert config.retry_batch_size == 25
         assert config.retry_max_retries == 7
 
+    def test_custom_local_base_url_is_normalized(self) -> None:
+        """明示されたローカルベースURLは末尾スラッシュなしで保持される"""
+        config = AjaxModuleConnectorConfig(local_base_url="http://127.0.0.1:4173/")
+
+        assert config.local_base_url == "http://127.0.0.1:4173"
+
     @pytest.mark.parametrize(
         "request_timeout", [None, True, False, "1", 0, -0.1, float("nan"), float("inf"), -float("inf")]
     )
@@ -440,6 +446,20 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert len(responses) == 1
         assert str(httpx_mock.get_requests()[0].url) == request_url
+
+    def test_request_uses_explicit_local_base_url(self, httpx_mock: HTTPXMock) -> None:
+        """明示されたローカルベースURLはwikidot.comホスト生成を置き換える"""
+        httpx_mock.add_response(
+            url="http://127.0.0.1:4173/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+        )
+        config = AjaxModuleConnectorConfig(local_base_url="http://127.0.0.1:4173")
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        responses = client.request([{"moduleName": "TestModule"}])
+
+        assert len(responses) == 1
+        assert str(httpx_mock.get_requests()[0].url) == "http://127.0.0.1:4173/ajax-module-connector.php"
 
     @pytest.mark.parametrize(
         ("ssl_supported", "request_url"),

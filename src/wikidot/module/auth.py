@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import httpx
 
 from ..common.exceptions import SessionCreateException
-from ..connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
+from ..connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader, _local_url
 from ..util.http import sync_post_with_retry
 
 if TYPE_CHECKING:
@@ -79,8 +79,11 @@ class HTTPAuthentication:
         # Execute login request with retry (reduced retry limit to prevent account lockout)
         config = _validate_login_config_object(client.amc_client.config)
         header = _validate_auth_header_object(client.amc_client.header)
+        login_url = _local_url(config, "default--flow/login__LoginPopupScreen") or (
+            "https://www.wikidot.com/default--flow/login__LoginPopupScreen"
+        )
         response = sync_post_with_retry(
-            url="https://www.wikidot.com/default--flow/login__LoginPopupScreen",
+            url=login_url,
             data={
                 "login": username,
                 "password": password,

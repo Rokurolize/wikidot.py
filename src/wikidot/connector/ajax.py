@@ -11,6 +11,7 @@ import json.decoder
 import math
 from dataclasses import dataclass
 from typing import Any, Literal, overload
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -180,6 +181,8 @@ class AjaxModuleConnectorConfig:
         Default batch size for amc_request_with_retry
     retry_max_retries : int, default 3
         Default maximum retry attempts for amc_request_with_retry
+    local_base_url : str | None, default None
+        Explicit opt-in local target base URL. Defaults to real Wikidot routing.
     """
 
     request_timeout: int = 20
@@ -190,6 +193,7 @@ class AjaxModuleConnectorConfig:
     semaphore_limit: int = 10
     retry_batch_size: int = 50
     retry_max_retries: int = 3
+    local_base_url: str | None = None
 
     def __post_init__(self) -> None:
         _validate_positive_number_option("request_timeout", self.request_timeout)
@@ -200,6 +204,7 @@ class AjaxModuleConnectorConfig:
         _validate_positive_int_option("semaphore_limit", self.semaphore_limit)
         _validate_positive_int_option("retry_batch_size", self.retry_batch_size)
         _validate_non_negative_int_option("retry_max_retries", self.retry_max_retries)
+        self.local_base_url = _normalize_local_base_url(self.local_base_url)
 
 
 def _validate_amc_config(config: object) -> AjaxModuleConnectorConfig:
@@ -252,6 +257,33 @@ def _validate_non_negative_number_option(field_name: str, value: object) -> floa
     if not math.isfinite(numeric_value) or numeric_value < 0:
         raise ValueError(f"{field_name} must be a non-negative number")
     return numeric_value
+
+
+def _normalize_local_base_url(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("local_base_url must be a string or None")
+    url = value.strip()
+    if url == "":
+        raise ValueError("local_base_url must not be empty")
+
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"} or parsed.netloc == "":
+        raise ValueError("local_base_url must be an absolute HTTP(S) URL")
+    if parsed.username is not None or parsed.password is not None:
+        raise ValueError("local_base_url must not contain credentials")
+    if parsed.query or parsed.fragment:
+        raise ValueError("local_base_url must not contain query or fragment")
+
+    return urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
+
+
+def _local_url(config: AjaxModuleConnectorConfig, path: str) -> str | None:
+    local_base_url = _normalize_local_base_url(config.local_base_url)
+    if local_base_url is None:
+        return None
+    return f"{local_base_url}/{path.lstrip('/')}"
 
 
 def _validate_amc_request_config(
@@ -408,6 +440,10 @@ class AjaxModuleConnectorClient:
         NotFoundException
             If the specified site does not exist
         """
+        local_base_url = _normalize_local_base_url(self.config.local_base_url)
+        if local_base_url is not None:
+            return urlsplit(local_base_url).scheme == "https"
+
         # www always supports SSL
         if self.site_name == "www":
             return True
@@ -530,7 +566,7 @@ class AjaxModuleConnectorClient:
                 try:
                     # Control concurrent execution with Semaphore
                     async with semaphore_instance:
-                        url = (
+                        url = _local_url(self.config, "ajax-module-connector.php") or (
                             f"http{'s' if site_ssl_supported else ''}://{site_name}.wikidot.com/"
                             f"ajax-module-connector.php"
                         )
