@@ -3,7 +3,7 @@ name: Publish to PyPI
 on:
   # 新規リリースの作成時に実行
   release:
-    types: [ released, prereleased ]
+    types: [ published ]
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -13,7 +13,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
         with:
           persist-credentials: false
 

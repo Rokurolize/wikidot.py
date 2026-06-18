@@ -13,7 +13,11 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup, Tag
-from typing_extensions import Self
+
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 from ..common import exceptions
 from ..common.decorators import login_required

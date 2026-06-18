@@ -1,7 +1,7 @@
 """odateパーサーのユニットテスト"""
 
 from collections.abc import Callable
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -24,7 +24,7 @@ class TestOdateParse:
         result = odate_parse(elem)
 
         assert isinstance(result, datetime)
-        assert result == datetime.fromtimestamp(1702814400)
+        assert result == datetime.fromtimestamp(1702814400, UTC).replace(tzinfo=None)
 
     def test_parse_odate_epoch(self, odate_html_factory: Callable[[int], str]) -> None:
         """Unix epoch (0) をパースできる"""
@@ -35,7 +35,7 @@ class TestOdateParse:
 
         result = odate_parse(elem)
 
-        assert result == datetime.fromtimestamp(0)
+        assert result == datetime.fromtimestamp(0, UTC).replace(tzinfo=None)
 
     def test_parse_odate_with_multiple_classes(self, odate_html_multiple_classes: str) -> None:
         """複数クラスを持つodate要素をパースできる"""
@@ -46,7 +46,7 @@ class TestOdateParse:
         result = odate_parse(elem)
 
         assert isinstance(result, datetime)
-        assert result == datetime.fromtimestamp(1702828800)
+        assert result == datetime.fromtimestamp(1702828800, UTC).replace(tzinfo=None)
 
     def test_parse_odate_without_time_class_raises(self, odate_html_no_time: str) -> None:
         """time_クラスがない場合はValueErrorを発生させる"""
@@ -131,3 +131,7 @@ class TestOdateParse:
 
         assert result.year == 2007
         assert result.month == 6
+        assert result.day == 21
+        assert result.hour == 0
+        assert result.minute == 0
+        assert result.second == 0

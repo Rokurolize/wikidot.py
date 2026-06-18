@@ -357,6 +357,21 @@ class TestPageCollectionParse:
         assert len(pages) == 1
         assert pages[0].fullname == "scp-001"
 
+    def test_parse_missing_title_value_as_empty_string(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """ListPagesが空titleのvalue spanを省略しても空文字列として扱う"""
+        body = page_listpages_single["body"].replace(
+            '<span class="set title"><span class="name">title</span> <span class="value">SCP-001</span></span>',
+            '<span class="set title"><span class="name">title</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        pages = PageCollection._parse(mock_site_no_http, html_body)
+
+        assert len(pages) == 1
+        assert pages[0].title == ""
+
     def test_parse_multiple_pages(self, mock_site_no_http: Site, page_listpages_multiple: dict[str, Any]) -> None:
         """複数ページをパースできる"""
         html_body = BeautifulSoup(page_listpages_multiple["body"], "lxml")

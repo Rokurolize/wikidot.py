@@ -253,9 +253,6 @@ class SiteApplication:
 
         body = SiteApplication._application_list_response_body(response, site)
 
-        if "WIKIDOT.page.listeners.loginClick(event)" in body:
-            raise exceptions.ForbiddenException("You are not allowed to access this page")
-
         html = BeautifulSoup(body, "lxml")
 
         applications = []
@@ -265,6 +262,8 @@ class SiteApplication:
             for header in html.select("h3")
             if header.find_parent("table") is None and header.find("span", class_="printuser", recursive=False)
         ]
+        if not application_headers and "WIKIDOT.page.listeners.loginClick(event)" in body:
+            raise exceptions.ForbiddenException("You are not allowed to access this page")
         used_text_tables: set[int] = set()
 
         for application_index, header in enumerate(application_headers, start=1):

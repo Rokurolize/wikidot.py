@@ -169,6 +169,8 @@ class PageFileCollection(list["PageFile"]):
         if not isinstance(id, int) or isinstance(id, bool):
             raise ValueError("id must be an integer")
         for file in self:
+            if self.page is not None and file.page is not self.page:
+                raise ValueError("files must belong to the collection page")
             if _validate_file_id(file.id) == id:
                 return file
         return None
@@ -189,6 +191,8 @@ class PageFileCollection(list["PageFile"]):
         """
         name = _validate_file_name(name)
         for file in self:
+            if self.page is not None and file.page is not self.page:
+                raise ValueError("files must belong to the collection page")
             if _validate_file_name(file.name) == name:
                 return file
         return None
@@ -258,11 +262,15 @@ class PageFileCollection(list["PageFile"]):
             file_id = int(file_id_text)
             tds = [td for td in row.find_all("td", recursive=False) if isinstance(td, Tag)]
             if len(tds) < 3:
-                continue
+                location = f"{context} " if context else ""
+                raise exceptions.NoElementException(
+                    f"Page file row is malformed {location}(id={file_id}, field=cells, value={len(tds)})"
+                )
 
             link_elem = tds[0].find("a", recursive=False)
             if not isinstance(link_elem, Tag):
-                continue
+                location = f"{context} " if context else ""
+                raise exceptions.NoElementException(f"Page file link is not found {location}(id={file_id}, field=link)")
 
             name = link_elem.get_text(" ", strip=True)
             if name == "":

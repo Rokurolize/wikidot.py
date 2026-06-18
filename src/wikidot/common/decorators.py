@@ -68,7 +68,7 @@ def login_required(func: Callable[P, T]) -> Callable[P, T]:
                 maybe_client = getattr(self_obj, "client")
                 if isinstance(maybe_client, Client):
                     client = maybe_client
-            else:
+            if client is None:
                 # Search for client in attributes held by self
                 for attr_name in dir(self_obj):
                     if attr_name.startswith("_"):

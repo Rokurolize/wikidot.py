@@ -45,3 +45,13 @@ class TestSetupConsoleHandler:
 
         with pytest.raises(ValueError, match="logging level must be a string or integer"):
             setup_console_handler(logger, level)
+
+    def test_preserves_existing_file_handlers(self, tmp_path) -> None:
+        logger = _test_logger("wikidot-test-preserve-file")
+        file_handler = logging.FileHandler(tmp_path / "wikidot.log")
+        logger.addHandler(file_handler)
+
+        setup_console_handler(logger)
+
+        assert file_handler in logger.handlers
+        assert any(type(handler) is logging.StreamHandler for handler in logger.handlers)

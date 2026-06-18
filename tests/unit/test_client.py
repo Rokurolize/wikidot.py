@@ -38,9 +38,22 @@ class TestClient:
             mock_from_name.return_value = MagicMock()
             client = Client(username="test-user", password="test-password")
 
-            mock_login.assert_called_once()
+            mock_login.assert_called_once_with(client, "test-user", "test-password")
             assert client.is_logged_in is True
             assert client.username == "test-user"
+
+    def test_init_logs_out_when_user_lookup_fails_after_login(self):
+        """ログイン後のユーザー取得失敗時はセッションを破棄して元例外を送出する"""
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.HTTPAuthentication.logout") as mock_logout,
+            patch("wikidot.module.client.User.from_name", side_effect=RuntimeError("lookup failed")),
+            pytest.raises(RuntimeError, match="lookup failed"),
+        ):
+            Client(username="test-user", password="test-password")
+
+        mock_logout.assert_called_once()
 
     @pytest.mark.parametrize(
         ("username", "password"),

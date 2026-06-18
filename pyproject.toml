@@ -34,8 +34,12 @@ build = [
 lint = [
     "ruff",
     "mypy",
+    "pyright",
     "types-beautifulsoup4",
     "lxml-stubs",
+]
+typecheck = [
+    "pyright",
 ]
 format = [
     "ruff",

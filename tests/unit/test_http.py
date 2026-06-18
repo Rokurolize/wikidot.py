@@ -162,6 +162,7 @@ class TestSyncGetWithRetry:
         )
 
         assert response.status_code == 200
+        assert httpx_mock.get_requests()[0].content == b"key=value"
 
     def test_retry_on_5xx_then_success(self, httpx_mock):
         """5xxエラー後にリトライして成功"""
@@ -175,6 +176,7 @@ class TestSyncGetWithRetry:
         )
 
         assert response.status_code == 200
+        assert [request.content for request in httpx_mock.get_requests()] == [b"key=value", b"key=value"]
 
     def test_no_retry_on_4xx(self, httpx_mock):
         """4xxエラーはリトライしない"""
@@ -216,6 +218,7 @@ class TestSyncGetWithRetry:
         )
 
         assert response.status_code == 200
+        assert [request.content for request in httpx_mock.get_requests()] == [b"key=value", b"key=value"]
 
     def test_max_retries_exceeded_on_timeout(self, httpx_mock):
         """タイムアウトでリトライ上限に達した場合"""
@@ -312,7 +315,12 @@ class TestSyncPostWithRetry:
 
     def test_success_on_first_attempt(self, httpx_mock):
         """最初の試行で成功"""
-        httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
+        httpx_mock.add_response(
+            url="https://example.com/test",
+            status_code=200,
+            method="POST",
+            match_content=b"key=value",
+        )
 
         response = sync_post_with_retry(
             "https://example.com/test",
@@ -322,11 +330,22 @@ class TestSyncPostWithRetry:
         )
 
         assert response.status_code == 200
+        assert httpx_mock.get_requests()[0].content == b"key=value"
 
     def test_retry_on_5xx_then_success(self, httpx_mock):
         """5xxエラー後にリトライして成功"""
-        httpx_mock.add_response(url="https://example.com/test", status_code=500, method="POST")
-        httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
+        httpx_mock.add_response(
+            url="https://example.com/test",
+            status_code=500,
+            method="POST",
+            match_content=b"key=value",
+        )
+        httpx_mock.add_response(
+            url="https://example.com/test",
+            status_code=200,
+            method="POST",
+            match_content=b"key=value",
+        )
 
         response = sync_post_with_retry(
             "https://example.com/test",
@@ -336,6 +355,7 @@ class TestSyncPostWithRetry:
         )
 
         assert response.status_code == 200
+        assert [request.content for request in httpx_mock.get_requests()] == [b"key=value", b"key=value"]
 
     def test_no_retry_on_4xx(self, httpx_mock):
         """4xxエラーはリトライしない"""
@@ -354,7 +374,12 @@ class TestSyncPostWithRetry:
     def test_retry_on_timeout(self, httpx_mock):
         """タイムアウト後にリトライして成功"""
         httpx_mock.add_exception(httpx.TimeoutException("Timeout"), method="POST")
-        httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
+        httpx_mock.add_response(
+            url="https://example.com/test",
+            status_code=200,
+            method="POST",
+            match_content=b"key=value",
+        )
 
         response = sync_post_with_retry(
             "https://example.com/test",
@@ -364,6 +389,7 @@ class TestSyncPostWithRetry:
         )
 
         assert response.status_code == 200
+        assert [request.content for request in httpx_mock.get_requests()] == [b"key=value", b"key=value"]
 
     def test_raise_for_status_false(self, httpx_mock):
         """raise_for_status=Falseの場合はエラーでも返す"""

@@ -20,7 +20,8 @@ class TestPrivateMessage:
         # メッセージ一覧を取得
         messages = list(inbox)
         # メッセージがあることを期待（事前にテスト用メッセージを入れておく）
-        assert len(messages) >= 0  # 空でもテストは通す
+        if len(messages) == 0:
+            pytest.skip("No messages in inbox")
 
     def test_2_get_sentbox(self, client):
         """2. 送信箱取得"""
@@ -29,7 +30,8 @@ class TestPrivateMessage:
 
         # メッセージ一覧を取得
         messages = list(sentbox)
-        assert len(messages) >= 0
+        if len(messages) == 0:
+            pytest.skip("No messages in sentbox")
 
     def test_3_inbox_message_properties(self, client):
         """3. 受信メッセージのプロパティ確認"""

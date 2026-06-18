@@ -40,9 +40,20 @@ class TestHTTPAuthentication:
         mock_response.text = "Login successful"
         mock_response.cookies = {"WIKIDOT_SESSION_ID": "test-session-id"}
 
-        with patch("wikidot.module.auth.httpx.post", return_value=mock_response):
+        with patch("wikidot.module.auth.httpx.post", return_value=mock_response) as mock_post:
             HTTPAuthentication.login(mock_client, "test-user", "test-password")
 
+        mock_post.assert_called_once_with(
+            "https://www.wikidot.com/default--flow/login__LoginPopupScreen",
+            data={
+                "login": "test-user",
+                "password": "test-password",
+                "action": "Login2Action",
+                "event": "login",
+            },
+            headers={},
+            timeout=mock_client.amc_client.config.request_timeout,
+        )
         mock_client.amc_client.header.set_cookie.assert_called_once_with("WIKIDOT_SESSION_ID", "test-session-id")
 
     @pytest.mark.parametrize(
@@ -211,7 +222,9 @@ class TestHTTPAuthentication:
 
         HTTPAuthentication.logout(mock_client)
 
-        mock_client.amc_client.request.assert_called_once()
+        mock_client.amc_client.request.assert_called_once_with(
+            [{"action": "Login2Action", "event": "logout", "moduleName": "Empty"}]
+        )
         mock_client.amc_client.header.delete_cookie.assert_called_once_with("WIKIDOT_SESSION_ID")
 
     @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])

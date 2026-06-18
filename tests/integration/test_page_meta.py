@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from .conftest import generate_page_name
+from .conftest import generate_page_name, wait_for_condition
 
 
 class TestPageMeta:
@@ -22,7 +22,12 @@ class TestPageMeta:
             title="Meta Test Page",
             source="Content for meta test.",
         )
-        self.page = self.site.page.get(self.page_name)
+        self.page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: page is not None,
+            max_retries=10,
+            interval=2.0,
+        )
         assert self.page is not None
 
         yield
@@ -32,15 +37,20 @@ class TestPageMeta:
             page = self.site.page.get(self.page_name, raise_when_not_found=False)
             if page is not None:
                 page.destroy()
-        except Exception:
-            pass
+        except Exception as exc:
+            pytest.fail(f"Failed to cleanup integration test page {self.page_name}: {exc}")
 
     def test_1_set_meta(self):
         """1. メタ設定"""
         self.page.metas = {"description": "Test description"}
 
         # 再取得して確認
-        updated_page = self.site.page.get(self.page_name)
+        updated_page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: "description" in page.metas and page.metas["description"] == "Test description",
+            max_retries=10,
+            interval=2.0,
+        )
         assert updated_page is not None
         assert "description" in updated_page.metas
         assert updated_page.metas["description"] == "Test description"
@@ -51,7 +61,12 @@ class TestPageMeta:
         self.page.metas = {"keywords": "test, integration"}
 
         # 再取得
-        updated_page = self.site.page.get(self.page_name)
+        updated_page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: "keywords" in page.metas and page.metas["keywords"] == "test, integration",
+            max_retries=10,
+            interval=2.0,
+        )
         assert updated_page is not None
 
         # メタ取得
@@ -65,7 +80,12 @@ class TestPageMeta:
         self.page.metas = {"description": "Original description"}
 
         # 再取得
-        self.page = self.site.page.get(self.page_name)
+        self.page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: page.metas.get("description") == "Original description",
+            max_retries=10,
+            interval=2.0,
+        )
         assert self.page is not None
         assert self.page.metas["description"] == "Original description"
 
@@ -73,7 +93,12 @@ class TestPageMeta:
         self.page.metas = {"description": "Updated description"}
 
         # 確認
-        updated_page = self.site.page.get(self.page_name)
+        updated_page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: page.metas.get("description") == "Updated description",
+            max_retries=10,
+            interval=2.0,
+        )
         assert updated_page is not None
         assert updated_page.metas["description"] == "Updated description"
 
@@ -83,7 +108,12 @@ class TestPageMeta:
         self.page.metas = {"description": "To be deleted"}
 
         # 再取得
-        self.page = self.site.page.get(self.page_name)
+        self.page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: page.metas.get("description") == "To be deleted",
+            max_retries=10,
+            interval=2.0,
+        )
         assert self.page is not None
         assert "description" in self.page.metas
 
@@ -91,7 +121,12 @@ class TestPageMeta:
         self.page.metas = {}
 
         # 確認
-        updated_page = self.site.page.get(self.page_name)
+        updated_page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: "description" not in page.metas,
+            max_retries=10,
+            interval=2.0,
+        )
         assert updated_page is not None
         assert "description" not in updated_page.metas
 
@@ -104,7 +139,14 @@ class TestPageMeta:
         }
 
         # 確認
-        updated_page = self.site.page.get(self.page_name)
+        updated_page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: page.metas.get("description") == "Page description"
+            and page.metas.get("keywords") == "keyword1, keyword2"
+            and page.metas.get("author") == "Test Author",
+            max_retries=10,
+            interval=2.0,
+        )
         assert updated_page is not None
         assert updated_page.metas["description"] == "Page description"
         assert updated_page.metas["keywords"] == "keyword1, keyword2"

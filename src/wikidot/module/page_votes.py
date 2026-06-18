@@ -133,6 +133,8 @@ class PageVoteCollection(list["PageVote"]):
         _validate_vote_user_site(self.page, user)
         user_id = _validate_vote_search_user_id(user.id)
         for vote in self:
+            if vote.page is not self.page:
+                raise ValueError("votes must belong to the collection page")
             if _validate_stored_vote_user_id(vote.user.id) == user_id:
                 return vote
         raise ValueError(f"User {user} has not voted on page {self.page}")

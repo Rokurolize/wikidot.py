@@ -288,7 +288,16 @@ class Client:
             HTTPAuthentication.login(self, username, password)
             self.is_logged_in = True
             self.username = username
-            self.me = User.from_name(self, username)
+            try:
+                self.me = User.from_name(self, username)
+            except Exception:
+                try:
+                    HTTPAuthentication.logout(self)
+                finally:
+                    self.is_logged_in = False
+                    self.username = None
+                    self.me = None
+                raise
 
         # ----------
         # 以下メソッド

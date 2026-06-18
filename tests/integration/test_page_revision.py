@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from .conftest import generate_page_name
+from .conftest import generate_page_name, wait_for_condition
 
 
 class TestPageRevision:
@@ -22,7 +22,12 @@ class TestPageRevision:
             title="Revision Test Page",
             source="Initial content.",
         )
-        self.page = self.site.page.get(self.page_name)
+        self.page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name, raise_when_not_found=False),
+            lambda page: page is not None,
+            max_retries=10,
+            interval=2.0,
+        )
         assert self.page is not None
 
         # 編集してリビジョンを作成
@@ -38,13 +43,18 @@ class TestPageRevision:
             page = self.site.page.get(self.page_name, raise_when_not_found=False)
             if page is not None:
                 page.destroy()
-        except Exception:
-            pass
+        except Exception as exc:
+            pytest.fail(f"Failed to cleanup integration test page {self.page_name}: {exc}")
 
     def test_1_get_revisions(self):
         """1. リビジョン一覧取得"""
         # 再取得
-        page = self.site.page.get(self.page_name)
+        page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: len(page.revisions) >= 1,
+            max_retries=10,
+            interval=2.0,
+        )
         assert page is not None
 
         revisions = page.revisions
@@ -54,8 +64,12 @@ class TestPageRevision:
 
     def test_2_revision_properties(self):
         """2. リビジョンプロパティ確認"""
-        page = self.site.page.get(self.page_name)
-        assert page is not None
+        page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: len(page.revisions) >= 1,
+            max_retries=10,
+            interval=2.0,
+        )
 
         revisions = page.revisions
         assert len(revisions) >= 1
@@ -68,8 +82,12 @@ class TestPageRevision:
 
     def test_3_get_latest_revision(self):
         """3. 最新リビジョン取得"""
-        page = self.site.page.get(self.page_name)
-        assert page is not None
+        page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: page.latest_revision is not None,
+            max_retries=10,
+            interval=2.0,
+        )
 
         latest = page.latest_revision
         assert latest is not None
@@ -77,8 +95,12 @@ class TestPageRevision:
 
     def test_4_revision_source(self):
         """4. リビジョンソース取得"""
-        page = self.site.page.get(self.page_name)
-        assert page is not None
+        page = wait_for_condition(
+            lambda: self.site.page.get(self.page_name),
+            lambda page: len(page.revisions) >= 1,
+            max_retries=10,
+            interval=2.0,
+        )
 
         revisions = page.revisions
         assert len(revisions) >= 1

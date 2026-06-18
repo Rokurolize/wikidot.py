@@ -27,9 +27,6 @@ pytestmark = pytest.mark.skipif(
 
 
 def pytest_collection_modifyitems(config, items):
-    if WIKIDOT_USERNAME and WIKIDOT_PASSWORD and TEST_SITE_UNIX_NAME:
-        return
-
     skip_marker = pytest.mark.skip(
         reason=(
             "WIKIDOT_USERNAME, WIKIDOT_PASSWORD, and WIKIDOT_TEST_SITE_UNIX_NAME environment variables are required"
@@ -38,7 +35,9 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         item_path = str(item.path).replace("\\", "/")
         if "/tests/integration/" in item_path:
-            item.add_marker(skip_marker)
+            item.add_marker(pytest.mark.integration)
+            if not (WIKIDOT_USERNAME and WIKIDOT_PASSWORD and TEST_SITE_UNIX_NAME):
+                item.add_marker(skip_marker)
 
 
 def generate_page_name(prefix: str = "test") -> str:
@@ -120,13 +119,16 @@ def cleanup_pages(site) -> Generator[list[str], None, None]:
     pages_to_cleanup: list[str] = []
     yield pages_to_cleanup
 
+    cleanup_errors: list[str] = []
     for fullname in pages_to_cleanup:
         try:
             page = site.page.get(fullname, raise_when_not_found=False)
             if page is not None:
                 page.destroy()
         except Exception as e:
-            print(f"Warning: Failed to cleanup page {fullname}: {e}")
+            cleanup_errors.append(f"{fullname}: {e}")
+    if cleanup_errors:
+        pytest.fail("Failed to cleanup integration test pages: " + "; ".join(cleanup_errors))
 
 
 def wait_for_condition(

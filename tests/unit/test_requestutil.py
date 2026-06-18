@@ -279,6 +279,24 @@ class TestRequestUtilGet:
 
         assert "Cookie" not in httpx_mock.get_requests()[0].headers
 
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://test.wikidot.com.evil.test/test",
+            "https://evilwikidot.com/test",
+            "https://wikidot.com.evil.test/test",
+            "http://test.wikidot.com/test",
+        ],
+    )
+    def test_get_does_not_send_client_headers_to_lookalike_or_plaintext_hosts(self, httpx_mock, url: str):
+        """Wikidot風の別ホストや平文URLにはCookieを送らない"""
+        httpx_mock.add_response(url=url, status_code=200)
+        mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
+
+        RequestUtil.request(mock_client, "GET", [url])
+
+        assert "Cookie" not in httpx_mock.get_requests()[0].headers
+
     def test_get_retry_on_5xx(self, httpx_mock):
         """GET 5xxエラー後リトライ成功"""
         httpx_mock.add_response(url="https://example.com/test", status_code=500)
@@ -378,6 +396,24 @@ class TestRequestUtilPost:
         mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
 
         RequestUtil.request(mock_client, "POST", ["https://example.com/test"])
+
+        assert "Cookie" not in httpx_mock.get_requests()[0].headers
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://test.wikidot.com.evil.test/test",
+            "https://evilwikidot.com/test",
+            "https://wikidot.com.evil.test/test",
+            "http://test.wikidot.com/test",
+        ],
+    )
+    def test_post_does_not_send_client_headers_to_lookalike_or_plaintext_hosts(self, httpx_mock, url: str):
+        """Wikidot風の別ホストや平文URLにはCookieを送らない"""
+        httpx_mock.add_response(url=url, status_code=200, method="POST")
+        mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
+
+        RequestUtil.request(mock_client, "POST", [url])
 
         assert "Cookie" not in httpx_mock.get_requests()[0].headers
 

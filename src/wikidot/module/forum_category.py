@@ -556,6 +556,8 @@ class ForumCategory:
                 f"category: {category_id} (event=newThread, expected=dict, actual={type(response).__name__})"
             )
 
+        _require_forum_category_action_status(self, "newThread", response)
+
         # responseからthreadIdを取得
         thread_id = response.get("threadId")
         if not isinstance(thread_id, int) or isinstance(thread_id, bool):
@@ -565,7 +567,6 @@ class ForumCategory:
                 f"Thread ID must be non-negative for site: {site.unix_name}, category: {category_id}"
             )
 
-        _require_forum_category_action_status(self, "newThread", response)
         self._threads = None
 
         return ForumThread.get_from_id(site, thread_id, self)

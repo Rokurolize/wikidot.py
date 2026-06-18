@@ -1,6 +1,7 @@
 FORMAT_DIR = src tests
 
 release_from-develop: check-version
+	set -e; \
 	pr_url=$$(gh pr create --base main --head develop --title "Release v$(version)" --body "Release v$(version)"); \
 	gh pr merge --auto --merge "$$pr_url"; \
 	for attempt in $$(seq 1 120); do \
@@ -50,6 +51,10 @@ release: check-version
 		echo "Unexpected release changes found; review and commit them before releasing."; \
 		exit 1; \
 	fi
+	@if git diff -U0 -- src/wikidot/__init__.py | awk '/^[+-][^+-]/ && $$0 !~ /^[+-]__version__ = "/ { found=1 } END { exit found ? 0 : 1 }'; then \
+		echo "Unexpected non-version changes found in src/wikidot/__init__.py."; \
+		exit 1; \
+	fi
 	git add pyproject.toml src/wikidot/__init__.py
 	git commit -m 'release: $(version)' --allow-empty
 	git push origin develop
@@ -72,10 +77,15 @@ check-version:
 		exit 1; \
 	fi
 
+commit: export message := $(message)
 commit:
+	@if [ -z "$$message" ]; then \
+		echo "message is required, for example: make commit message='your message'"; \
+		exit 1; \
+	fi
 	make format
 	git add .
-	git commit -m '$(message)'
+	git commit -m "$$message"
 
 format:
 	uv sync --extra format
@@ -93,6 +103,10 @@ lint:
 lint-fix:
 	uv sync --extra lint
 	uv run ruff check $(FORMAT_DIR) --fix
+
+typecheck:
+	uv sync --extra typecheck
+	uv run pyright
 
 # テスト関連のコマンド（デフォルトはユニットテストのみ）
 test:
@@ -119,4 +133,4 @@ test-integration-cov:
 	uv sync --extra test
 	uv run pytest tests/integration/ -v --cov=src/wikidot --cov-report=term-missing --cov-report=html --cov-fail-under=50
 
-.PHONY: build release release_from-develop update-version check-clean-worktree check-version format format-check commit lint lint-fix test test-cov test-unit test-unit-cov test-integration test-integration-cov
+.PHONY: build release release_from-develop update-version check-clean-worktree check-version format format-check commit lint lint-fix typecheck test test-cov test-unit test-unit-cov test-integration test-integration-cov

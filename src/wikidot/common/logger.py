@@ -54,9 +54,9 @@ def setup_console_handler(logger: logging.Logger, level: str | int = logging.WAR
     """
     level_value = _validate_logging_level(level)
 
-    # Remove existing StreamHandler (to avoid duplicates)
+    # Remove existing console handlers owned by this setup path without removing FileHandler.
     for handler in logger.handlers[:]:
-        if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.NullHandler):
+        if type(handler) is logging.StreamHandler:
             logger.removeHandler(handler)
 
     # Add new StreamHandler

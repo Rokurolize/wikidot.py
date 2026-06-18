@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from .conftest import TEST_EXISTING_PAGE_FULLNAME
 
 
@@ -15,8 +17,9 @@ class TestPageVotes:
 
         votes = page.votes
         assert votes is not None
-        # 投票がなくても空のコレクションが返る
-        assert isinstance(votes, list)
+        if len(votes) == 0:
+            pytest.skip("No votes found on existing integration page")
+        assert votes[0].page is page
 
     def test_2_votes_properties(self, site):
         """2. 投票プロパティ確認"""
@@ -25,8 +28,9 @@ class TestPageVotes:
 
         votes = page.votes
         # 投票がある場合はプロパティを確認
-        if len(votes) > 0:
-            vote = votes[0]
-            assert vote.page is not None
-            assert vote.user is not None
-            assert vote.value is not None
+        if len(votes) == 0:
+            pytest.skip("No votes found on existing integration page")
+        vote = votes[0]
+        assert vote.page is not None
+        assert vote.user is not None
+        assert vote.value is not None

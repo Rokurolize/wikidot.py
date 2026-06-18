@@ -1325,7 +1325,10 @@ class PageCollection(list["Page"]):
                 value_element = set_element.find("span", class_="value", recursive=False)
 
                 if value_element is None:
-                    value: Any = None
+                    # Wikidot omits the value span for an empty page title in
+                    # ListPages output. Page.title is still a required string,
+                    # so preserve the blank value instead of passing None.
+                    value: Any = "" if key == "title" else None
 
                 elif key in ["created_at", "updated_at", "commented_at"]:
                     odate_element = (

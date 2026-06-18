@@ -208,6 +208,8 @@ class PageRevisionCollection(list["PageRevision"]):
         if not isinstance(id, int) or isinstance(id, bool):
             raise ValueError("id must be an integer")
         for revision in self:
+            if self.page is not None and revision.page is not self.page:
+                raise ValueError("revisions must belong to the collection page")
             if _validate_revision_id(revision.id) == id:
                 return revision
         return None

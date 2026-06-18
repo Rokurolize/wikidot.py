@@ -130,12 +130,13 @@ class RequestUtil:
         request_headers = _get_headers()
 
         def _get_headers_for_url(url: str) -> dict[str, str] | None:
-            hostname = urlparse(url).hostname
+            parsed = urlparse(url)
+            hostname = parsed.hostname
             if hostname is None:
                 return None
 
             hostname = hostname.lower().rstrip(".")
-            if hostname == "wikidot.com" or hostname.endswith(".wikidot.com"):
+            if parsed.scheme.lower() == "https" and (hostname == "wikidot.com" or hostname.endswith(".wikidot.com")):
                 return request_headers
 
             return None

@@ -71,7 +71,7 @@ class TestAjaxRequestHeader:
         with pytest.raises(ValueError, match="cookie name must be a non-empty string without whitespace, '=' or ';'"):
             AjaxRequestHeader(cookie={name: "value"})
 
-    @pytest.mark.parametrize("value", ["bad value", "bad;value", "bad\nvalue", "bad\tvalue"])
+    @pytest.mark.parametrize("value", ["bad value", "bad;value", "bad\nvalue", "bad\rvalue", "bad\tvalue"])
     def test_custom_cookie_rejects_invalid_cookie_values(self, value: str) -> None:
         """初期Cookie値がヘッダ構文を壊す場合は拒否される"""
         with pytest.raises(ValueError, match="cookie value must serialize without whitespace or ';'"):
@@ -113,7 +113,7 @@ class TestAjaxRequestHeader:
 
         assert header.cookie == before
 
-    @pytest.mark.parametrize("value", ["bad value", "bad;value", "bad\nvalue", "bad\tvalue"])
+    @pytest.mark.parametrize("value", ["bad value", "bad;value", "bad\nvalue", "bad\rvalue", "bad\tvalue"])
     def test_set_cookie_rejects_invalid_cookie_values_without_mutating_header(self, value: str) -> None:
         """不正なCookie値はヘッダ状態を変更する前に拒否される"""
         header = AjaxRequestHeader()
@@ -212,7 +212,7 @@ class TestAjaxRequestHeader:
         with pytest.raises(TypeError, match="cookie name must be str"):
             header.get_header()
 
-    @pytest.mark.parametrize("value", ["bad value", "bad;value", "bad\nvalue", "bad\tvalue"])
+    @pytest.mark.parametrize("value", ["bad value", "bad;value", "bad\nvalue", "bad\rvalue", "bad\tvalue"])
     def test_get_header_rejects_mutated_cookie_values(self, value: str) -> None:
         """直接変更されたCookie値もシリアライズ前に検証する"""
         header = AjaxRequestHeader()

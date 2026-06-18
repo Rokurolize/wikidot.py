@@ -390,17 +390,20 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
 
             cells = row.find_all("td", recursive=False)
             if len(cells) < 3:
-                continue
+                parse_context = _revision_list_parse_context(post, row_index, field="cells", value=str(len(cells)))
+                raise exceptions.NoElementException(f"Forum post revision row is malformed {parse_context}")
 
             # Get user element
             user_elem = cells[0].find("span", class_="printuser", recursive=False)
             if user_elem is None:
-                continue
+                parse_context = _revision_list_parse_context(post, row_index, field="created_by", value="")
+                raise exceptions.NoElementException(f"Forum post revision user is not found {parse_context}")
 
             # Get odate element
             odate_elem = cells[1].find("span", class_="odate", recursive=False)
             if odate_elem is None:
-                continue
+                parse_context = _revision_list_parse_context(post, row_index, field="created_at", value="")
+                raise exceptions.NoElementException(f"Forum post revision timestamp is not found {parse_context}")
 
             # Get revision ID from onclick attribute
             revision_link = cells[2].find(
@@ -409,7 +412,8 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                 recursive=False,
             )
             if revision_link is None:
-                continue
+                parse_context = _revision_list_parse_context(post, row_index, field="revision_id", value="")
+                raise exceptions.NoElementException(f"Forum post revision link is not found {parse_context}")
 
             onclick = str(revision_link.get("onclick", ""))
             match = re.fullmatch(
@@ -636,7 +640,14 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     all_revisions, all_revision_ids, html_responses, strict=True
                 ):
                     if response is None:
-                        continue
+                        revision_post = _validate_forum_post(revision.post)
+                        revision_site = _validate_forum_thread_site(
+                            _validate_forum_post_thread(revision_post.thread).site
+                        )
+                        raise exceptions.UnexpectedException(
+                            "Cannot retrieve forum post revision HTML "
+                            f"for site: {revision_site.unix_name}, post: {revision_post.id}, revision: {revision_id}"
+                        )
                     data = response.json()
                     revision_html = _revision_html_content(revision, data)
                     for target_revision in all_revisions_by_id[revision_id]:
