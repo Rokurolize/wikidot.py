@@ -35,6 +35,7 @@ lint = [
     "ruff",
     "mypy",
     "pyright",
+    "types-Pygments",
     "types-beautifulsoup4",
     "lxml-stubs",
 ]

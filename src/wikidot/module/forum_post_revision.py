@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup, Tag
 from ..common import exceptions
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ..util.parser.html import class_values
 
 if TYPE_CHECKING:
     from .forum_post import ForumPost
@@ -31,11 +32,8 @@ def _revision_list_parse_context(post: "ForumPost", row_index: int, **details: o
 
 
 def _odate_class_value(odate_elem: Tag) -> str:
-    class_attr = odate_elem.get("class", [])
-    if class_attr is None:
-        return ""
-    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
-    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+    values = class_values(odate_elem)
+    return next((value for value in values if "time_" in value), " ".join(values))
 
 
 def _user_onclick_value(user_elem: Tag) -> str:

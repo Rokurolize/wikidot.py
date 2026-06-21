@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 import bs4
 
 from ...module import user
+from .html import class_values
 
 if TYPE_CHECKING:
     from wikidot.module.client import Client
@@ -34,8 +35,9 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
     if not isinstance(elem, bs4.Tag):
         raise ValueError("elem must be bs4.Tag except DeletedUser")
 
-    if "deleted" in elem.get("class", []):
-        data_id = elem.get("data-id", 0)
+    if "deleted" in class_values(elem):
+        data_id_attr = elem.get("data-id")
+        data_id = 0 if data_id_attr is None else data_id_attr
         data_id_text = str(data_id)
         if re.fullmatch(r"[0-9]+", data_id_text) is None:
             raise ValueError(f"deleted user id is malformed: {data_id}")

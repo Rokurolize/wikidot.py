@@ -18,6 +18,7 @@ else:
 from ..common import exceptions
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ..util.parser.html import class_values
 from ..util.requestutil import RequestUtil
 from .page_revision import PageRevision, PageRevisionCollection
 from .page_source import PageSource, extract_page_source_text
@@ -482,12 +483,8 @@ def _parse_revision_created_by(site: "Site", page: "Page", rev_id: int, user_ele
 
 
 def _odate_class_value(odate_elem: Tag) -> str:
-    class_attr = odate_elem.get("class", [])
-    if class_attr is None:
-        return ""
-
-    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
-    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+    values = class_values(odate_elem)
+    return next((value for value in values if "time_" in value), " ".join(values))
 
 
 def _parse_revision_created_at(site: "Site", page: "Page", rev_id: int, odate_elem: Tag) -> datetime:
@@ -1138,7 +1135,7 @@ class PageCollection(list["Page"]):
         for ancestor in element.parents:
             if not isinstance(ancestor, Tag):
                 continue
-            if ancestor.name == "div" and "page" in ancestor.get("class", []):
+            if ancestor.name == "div" and "page" in class_values(ancestor):
                 return True
         return False
 
@@ -1307,7 +1304,7 @@ class PageCollection(list["Page"]):
 
             # レーティング方式を判定
             is_5star_rating = any(
-                "rating" in set_element.get("class", [])
+                "rating" in class_values(set_element)
                 and set_element.find("span", class_="page-rate-list-pages-start", recursive=False) is not None
                 for set_element in set_elements
             )
@@ -2054,13 +2051,7 @@ class PageCollection(list["Page"]):
                 for span in vote_container.find_all("span", recursive=False):
                     if not isinstance(span, Tag):
                         continue
-                    classes = span.get("class", [])
-                    if isinstance(classes, str):
-                        class_names = [classes]
-                    elif isinstance(classes, list):
-                        class_names = classes
-                    else:
-                        class_names = []
+                    class_names = class_values(span)
                     if "printuser" in class_names:
                         user_elems.append(span)
                         continue

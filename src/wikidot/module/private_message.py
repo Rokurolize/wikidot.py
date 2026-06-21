@@ -13,16 +13,13 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup, Tag
-
-try:
-    from typing import Self
-except ImportError:
-    from typing_extensions import Self
+from typing_extensions import Self
 
 from ..common import exceptions
 from ..common.decorators import login_required
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ..util.parser.html import class_values
 from ._validation import validate_text_field
 from .user import User
 
@@ -170,11 +167,8 @@ def _validate_private_message_collection_messages(messages: object) -> list["Pri
 
 
 def _odate_class_value(odate_element: Tag) -> str:
-    class_attr = odate_element.get("class", [])
-    if class_attr is None:
-        return ""
-    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
-    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+    values = class_values(odate_element)
+    return next((value for value in values if "time_" in value), " ".join(values))
 
 
 def _user_onclick_value(user_element: Tag) -> str:
@@ -330,7 +324,7 @@ class PrivateMessageCollection(list["PrivateMessage"]):
         for ancestor in element.parents:
             if not isinstance(ancestor, Tag):
                 continue
-            if ancestor.name == "tr" and "message" in ancestor.get("class", []):
+            if ancestor.name == "tr" and "message" in class_values(ancestor):
                 return True
         return False
 
@@ -758,7 +752,7 @@ class PrivateMessageInbox(PrivateMessageCollection):
         LoginRequiredException
             If not logged in
         """
-        return cls._factory_acquire(client, "dashboard/messages/DMInboxModule")
+        return cast(Self, cls._factory_acquire(client, "dashboard/messages/DMInboxModule"))
 
 
 class PrivateMessageSentBox(PrivateMessageCollection):
@@ -808,7 +802,7 @@ class PrivateMessageSentBox(PrivateMessageCollection):
         LoginRequiredException
             If not logged in
         """
-        return cls._factory_acquire(client, "dashboard/messages/DMSentModule")
+        return cast(Self, cls._factory_acquire(client, "dashboard/messages/DMSentModule"))
 
 
 @dataclass

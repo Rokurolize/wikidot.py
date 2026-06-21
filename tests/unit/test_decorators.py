@@ -1,5 +1,6 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 from wikidot.common.decorators import login_required
 from wikidot.module.client import Client

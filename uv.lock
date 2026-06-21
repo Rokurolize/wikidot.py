@@ -1418,6 +1418,15 @@ wheels = [
 ]
 
 [[package]]
+name = "types-docutils"
+version = "0.22.3.20260518"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/fd/91/81b520d0869a41aa0d86e713417b63e8604b4280c304bc09b02d74c7efd4/types_docutils-0.22.3.20260518.tar.gz", hash = "sha256:2c45ba63a9ac64246335359b68fe9c27602926499c9b67caec3780745f6aadee", size = 57504, upload-time = "2026-05-18T06:03:53.325Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/01/9b/243fb84ede4f987f303a89e734c5def35ead2f8bd962ad301c1e99680958/types_docutils-0.22.3.20260518-py3-none-any.whl", hash = "sha256:9c4cbc37d9e37f47dfe971ac09e9880380dc948ff1f23956892e810d0bf08676", size = 91970, upload-time = "2026-05-18T06:03:52.388Z" },
+]
+
+[[package]]
 name = "types-html5lib"
 version = "1.1.11.20251117"
 source = { registry = "https://pypi.org/simple" }
@@ -1427,6 +1436,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c8/f3/d9a1bbba7b42b5558a3f9fe017d967f5338cf8108d35991d9b15fdea3e0d/types_html5lib-1.1.11.20251117.tar.gz", hash = "sha256:1a6a3ac5394aa12bf547fae5d5eff91dceec46b6d07c4367d9b39a37f42f201a", size = 18100, upload-time = "2025-11-17T03:08:00.78Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f0/ab/f5606db367c1f57f7400d3cb3bead6665ee2509621439af1b29c35ef6f9e/types_html5lib-1.1.11.20251117-py3-none-any.whl", hash = "sha256:2a3fc935de788a4d2659f4535002a421e05bea5e172b649d33232e99d4272d08", size = 24302, upload-time = "2025-11-17T03:07:59.996Z" },
+]
+
+[[package]]
+name = "types-pygments"
+version = "2.20.0.20260518"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "types-docutils" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/db/66/3e27e8dbe72947d51355d1fcba222a55bf5f0770ee660e9cc9df0d1ce5d7/types_pygments-2.20.0.20260518.tar.gz", hash = "sha256:bcab233d0389cb0a91146eb860e7bdcbceaa0f30bee73cefc7b367129cc4a330", size = 21152, upload-time = "2026-05-18T06:07:26.927Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/66/d6/5f19f5b633af6a7666c6096fdd06b70f0d4a8f585af5e18a3ef58ad47ec1/types_pygments-2.20.0.20260518-py3-none-any.whl", hash = "sha256:e40728efd00c9da5936366648d5b3c55e72ed52bdd80495a96577b4d717c4fcb", size = 29002, upload-time = "2026-05-18T06:07:26.054Z" },
 ]
 
 [[package]]
@@ -1500,6 +1521,7 @@ lint = [
     { name = "pyright" },
     { name = "ruff" },
     { name = "types-beautifulsoup4" },
+    { name = "types-pygments" },
 ]
 test = [
     { name = "pytest" },
@@ -1530,6 +1552,7 @@ requires-dist = [
     { name = "ruff", marker = "extra == 'lint'" },
     { name = "twine", marker = "extra == 'build'" },
     { name = "types-beautifulsoup4", marker = "extra == 'lint'" },
+    { name = "types-pygments", marker = "extra == 'lint'" },
     { name = "typing-extensions", marker = "python_full_version < '3.12'", specifier = ">=4.5.0" },
 ]
 provides-extras = ["build", "lint", "typecheck", "format", "dev", "test"]

@@ -525,7 +525,7 @@ class AjaxModuleConnectorClient:
             request_body = {"wikidot_token7": wikidot_token, **_body}
 
             while True:
-                response: httpx.Response | None = None
+                response = None
                 # Execute request
                 try:
                     # Control concurrent execution with Semaphore

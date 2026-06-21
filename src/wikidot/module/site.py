@@ -22,6 +22,7 @@ from ..connector.ajax import AjaxModuleConnectorConfig, _validate_amc_request_bo
 from ..util.http import sync_get_with_retry
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ..util.parser.html import class_values
 from ..util.quick_module import QMCUser, QuickModule
 from ..util.stringutil import StringUtil
 from .forum_category import ForumCategoryCollection
@@ -1882,9 +1883,8 @@ class Site:
                 try:
                     changed_at = odate_parser(odate_elem)
                 except ValueError as exc:
-                    class_attr = odate_elem.get("class", [])
-                    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
-                    odate_value = next((value for value in class_values if "time_" in value), " ".join(class_values))
+                    values = class_values(odate_elem)
+                    odate_value = next((value for value in values if "time_" in value), " ".join(values))
                     raise NoElementException(
                         "Odate value is malformed "
                         f"for site: {self.unix_name} "
@@ -1932,7 +1932,7 @@ class Site:
             for ancestor in element.parents:
                 if not isinstance(ancestor, Tag):
                     continue
-                if ancestor.name == "td" and "comments" in ancestor.get("class", []):
+                if ancestor.name == "td" and "comments" in class_values(ancestor):
                     return True
             return False
 

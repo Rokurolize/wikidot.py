@@ -2,6 +2,8 @@ from datetime import datetime, timezone
 
 import bs4
 
+from .html import class_values
+
 
 def odate_parse(odate_element: bs4.Tag) -> datetime:
     """Parse an odate element and return a datetime object
@@ -25,8 +27,7 @@ def odate_parse(odate_element: bs4.Tag) -> datetime:
     if not isinstance(odate_element, bs4.Tag):
         raise ValueError("odate_element must be bs4.Tag")
 
-    _odate_classes = odate_element.get("class", [])
-    for _odate_class in _odate_classes:
+    for _odate_class in class_values(odate_element):
         odate_class = str(_odate_class)
         if "time_" in odate_class:
             if not odate_class.startswith("time_"):
