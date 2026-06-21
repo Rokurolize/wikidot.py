@@ -253,13 +253,11 @@ def _validate_duplicate_post_ids_share_site(posts: list["ForumPost"], post_ids: 
         existing_post = posts_by_id.get(post_id)
         if existing_post is None:
             posts_by_id[post_id] = post
+            post_thread = _validate_forum_post_thread(post.thread)
+            sites_by_post_id[post_id] = _validate_forum_thread_site(post_thread.site)
             continue
 
-        existing_site = sites_by_post_id.get(post_id)
-        if existing_site is None:
-            existing_thread = _validate_forum_post_thread(existing_post.thread)
-            existing_site = _validate_forum_thread_site(existing_thread.site)
-            sites_by_post_id[post_id] = existing_site
+        existing_site = sites_by_post_id[post_id]
         post_thread = _validate_forum_post_thread(post.thread)
         site = _validate_forum_thread_site(post_thread.site)
         if site is not existing_site:

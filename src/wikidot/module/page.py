@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 12):  # pragma: no cover - Python >=3.12 compatibility branch
     from typing import TypedDict, Unpack
-else:
+else:  # pragma: no cover - Python <3.12 compatibility branch
     from typing_extensions import TypedDict, Unpack
 
 from ..common import exceptions
@@ -591,13 +591,7 @@ def _parse_who_rated_vote_value(site: "Site", page: "Page", value: object) -> in
             f"WhoRated vote value is malformed for site: {site.unix_name}, page: {page.fullname} "
             f"(id={page.id}, field=vote_value, value={value_text})"
         )
-    try:
-        return int(value_text)
-    except ValueError as exc:
-        raise exceptions.NoElementException(
-            f"WhoRated vote value is malformed for site: {site.unix_name}, page: {page.fullname} "
-            f"(id={page.id}, field=vote_value, value={value_text})"
-        ) from exc
+    return int(value_text)
 
 
 def _parse_who_rated_user(site: "Site", page: "Page", user_elem: Tag) -> Any:
@@ -762,13 +756,7 @@ def _parse_page_rating_points(site: "Site", page: "Page", event: str, data: dict
             f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
             f"(id={page.id}, event={event}, field=points, value={value_text})"
         )
-    try:
-        return int(value_text)
-    except (TypeError, ValueError) as exc:
-        raise exceptions.NoElementException(
-            f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
-            f"(id={page.id}, event={event}, field=points, value={value_text})"
-        ) from exc
+    return int(value_text)
 
 
 def _page_rating_failure_message(
@@ -1133,8 +1121,6 @@ class PageCollection(list["Page"]):
     @staticmethod
     def _is_inside_listpages_result(element: Tag) -> bool:
         for ancestor in element.parents:
-            if not isinstance(ancestor, Tag):
-                continue
             if ancestor.name == "div" and "page" in class_values(ancestor):
                 return True
         return False
@@ -2039,8 +2025,6 @@ class PageCollection(list["Page"]):
             html = BeautifulSoup(body, "lxml")
             vote_container: Tag | None = None
             for element in html.find_all("div"):
-                if not isinstance(element, Tag):
-                    continue
                 style = element.get("style")
                 if isinstance(style, str) and "column-count" in style:
                     vote_container = element
@@ -2049,8 +2033,6 @@ class PageCollection(list["Page"]):
             value_elems: list[Tag] = []
             if vote_container is not None:
                 for span in vote_container.find_all("span", recursive=False):
-                    if not isinstance(span, Tag):
-                        continue
                     class_names = class_values(span)
                     if "printuser" in class_names:
                         user_elems.append(span)

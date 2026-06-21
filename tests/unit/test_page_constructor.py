@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import wikidot.module.page as page_module
 from wikidot.module.client import Client
 from wikidot.module.forum_thread import ForumThread
 from wikidot.module.page import Page
@@ -422,6 +423,22 @@ class TestPageInit:
         assert page_with_source._source == source
         assert page_with_source.source == source
 
+    def test_init_accepts_source_cache_from_same_retained_page_id_with_different_fullname(
+        self, mock_site_no_http: Any
+    ) -> None:
+        source_owner = _page(mock_site_no_http, _id=371, fullname="old-name", name="old-name")
+        source = PageSource(source_owner, "cached source")
+
+        page = _page(mock_site_no_http, _id=371, fullname="new-name", name="new-name", _source=source)
+
+        assert page.source is source
+
+    def test_cache_owner_validation_accepts_same_id_without_fullname_field(self, mock_site_no_http: Any) -> None:
+        page = _page(mock_site_no_http, _id=371, fullname="new-name", name="new-name")
+        cache_owner = _page(mock_site_no_http, _id=371, fullname="old-name", name="old-name")
+
+        page_module._validate_page_cache_owner(page, cache_owner, "cache must belong to the page", None)
+
     @pytest.mark.parametrize("source", [True, "cached source", {"wiki_text": "cached source"}, object()])
     def test_init_rejects_malformed_optional_source(self, mock_site_no_http: Any, source: Any) -> None:
         with pytest.raises(ValueError, match="page.source must be PageSource"):
@@ -429,6 +446,29 @@ class TestPageInit:
 
     def test_init_rejects_source_cache_from_different_page(self, mock_site_no_http: Any) -> None:
         source_owner = _page(mock_site_no_http, fullname="other-page", name="other-page")
+        source = PageSource(source_owner, "cached source")
+
+        with pytest.raises(ValueError, match=r"page\.source must belong to the page"):
+            _page(mock_site_no_http, _source=source)
+
+    def test_init_rejects_source_cache_with_non_page_owner(self, mock_site_no_http: Any) -> None:
+        source_owner = _page(mock_site_no_http)
+        source = PageSource(source_owner, "cached source")
+        source.page = cast(Any, object())
+
+        with pytest.raises(ValueError, match=r"page\.source must belong to the page"):
+            _page(mock_site_no_http, _source=source)
+
+    def test_init_rejects_source_cache_from_different_site_object(self, mock_site_no_http: Any) -> None:
+        other_site = Site(
+            client=mock_site_no_http.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+        source_owner = _page(other_site)
         source = PageSource(source_owner, "cached source")
 
         with pytest.raises(ValueError, match=r"page\.source must belong to the page"):
@@ -492,6 +532,13 @@ class TestPageInit:
         assert page_with_revisions._revisions == revisions
         assert page_with_revisions.revisions == revisions
 
+    def test_init_accepts_empty_revisions_cache_without_collection_page(self, mock_site_no_http: Any) -> None:
+        revisions = PageRevisionCollection(page=None, revisions=[])
+
+        page = _page(mock_site_no_http, _revisions=revisions)
+
+        assert page.revisions is revisions
+
     @pytest.mark.parametrize("revisions", [True, "cached revisions", [], {"revisions": []}, object()])
     def test_init_rejects_malformed_optional_revisions(self, mock_site_no_http: Any, revisions: Any) -> None:
         with pytest.raises(ValueError, match=r"page\.revisions must be PageRevisionCollection or None"):
@@ -514,6 +561,36 @@ class TestPageInit:
         revisions_owner = _page(mock_site_no_http)
         revisions: Any = PageRevisionCollection(revisions_owner, [_page_revision(revisions_owner)])
         revisions[0] = _page_revision(_page(mock_site_no_http, fullname="other-page", name="other-page"), 101)
+
+        with pytest.raises(ValueError, match=r"page\.revisions must belong to the page"):
+            _page(mock_site_no_http, _revisions=revisions)
+
+    def test_validate_page_revisions_maps_list_entry_ownership_errors(self, mock_site_no_http: Any) -> None:
+        page = _page(mock_site_no_http)
+        revision = _page_revision(_page(mock_site_no_http, fullname="other-page", name="other-page"), 101)
+
+        with pytest.raises(ValueError, match=r"page\.revisions must belong to the page"):
+            page_module._validate_page_revisions(page, [revision])
+
+    def test_validate_page_revisions_reraises_unrelated_collection_errors(
+        self, mock_site_no_http: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        page = _page(mock_site_no_http)
+        revision = _page_revision(page, 101)
+
+        class BrokenPageRevisionCollection:
+            def __init__(self, _page: Page, _revisions: list[PageRevision]) -> None:
+                raise ValueError("unrelated collection error")
+
+        monkeypatch.setattr(page_module, "PageRevisionCollection", BrokenPageRevisionCollection)
+
+        with pytest.raises(ValueError, match="unrelated collection error"):
+            page_module._validate_page_revisions(page, [revision])
+
+    def test_init_rejects_revisions_cache_with_non_page_collection_owner(self, mock_site_no_http: Any) -> None:
+        revisions_owner = _page(mock_site_no_http)
+        revisions = PageRevisionCollection(revisions_owner, [_page_revision(revisions_owner)])
+        revisions.page = cast(Any, object())
 
         with pytest.raises(ValueError, match=r"page\.revisions must belong to the page"):
             _page(mock_site_no_http, _revisions=revisions)
@@ -607,6 +684,13 @@ class TestPageInit:
         assert page_without_files._files is None
         assert page_with_files._files == files
         assert page_with_files.files == files
+
+    def test_init_accepts_empty_files_cache_without_collection_page(self, mock_site_no_http: Any) -> None:
+        files = PageFileCollection(page=None, files=[])
+
+        page = _page(mock_site_no_http, _files=files)
+
+        assert page.files is files
 
     @pytest.mark.parametrize("files", [True, "cached files", [], {"files": []}, object()])
     def test_init_rejects_malformed_optional_files(self, mock_site_no_http: Any, files: Any) -> None:

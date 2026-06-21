@@ -131,11 +131,7 @@ class RequestUtil:
 
         def _get_headers_for_url(url: str) -> dict[str, str] | None:
             parsed = urlparse(url)
-            hostname = parsed.hostname
-            if hostname is None:
-                return None
-
-            hostname = hostname.lower().rstrip(".")
+            hostname = str(parsed.hostname).lower().rstrip(".")
             if parsed.scheme.lower() == "https" and (hostname == "wikidot.com" or hostname.endswith(".wikidot.com")):
                 return request_headers
 
@@ -143,7 +139,8 @@ class RequestUtil:
 
         async def _get(http_client: httpx.AsyncClient, url: str) -> httpx.Response:
             async with semaphore:
-                for attempt in range(attempt_limit):
+                attempt = 0
+                while True:
                     try:
                         response = await http_client.get(url, headers=_get_headers_for_url(url))
                         response.raise_for_status()
@@ -161,6 +158,7 @@ class RequestUtil:
                             max_backoff,
                         )
                         await asyncio.sleep(backoff)
+                        attempt += 1
                     except (httpx.TimeoutException, httpx.NetworkError):
                         if attempt >= attempt_limit - 1:
                             raise
@@ -171,11 +169,12 @@ class RequestUtil:
                             max_backoff,
                         )
                         await asyncio.sleep(backoff)
-                raise RuntimeError("Unreachable")
+                        attempt += 1
 
         async def _post(http_client: httpx.AsyncClient, url: str) -> httpx.Response:
             async with semaphore:
-                for attempt in range(attempt_limit):
+                attempt = 0
+                while True:
                     try:
                         response = await http_client.post(url, headers=_get_headers_for_url(url))
                         response.raise_for_status()
@@ -193,6 +192,7 @@ class RequestUtil:
                             max_backoff,
                         )
                         await asyncio.sleep(backoff)
+                        attempt += 1
                     except (httpx.TimeoutException, httpx.NetworkError):
                         if attempt >= attempt_limit - 1:
                             raise
@@ -203,7 +203,7 @@ class RequestUtil:
                             max_backoff,
                         )
                         await asyncio.sleep(backoff)
-                raise RuntimeError("Unreachable")
+                        attempt += 1
 
         async def _execute() -> list[httpx.Response | BaseException]:
             async with httpx.AsyncClient(timeout=request_timeout) as http_client:
@@ -212,13 +212,10 @@ class RequestUtil:
                         *[_get(http_client, url) for url in urls],
                         return_exceptions=return_exceptions,
                     )
-                elif method == "POST":
-                    return await asyncio.gather(
-                        *[_post(http_client, url) for url in urls],
-                        return_exceptions=return_exceptions,
-                    )
-                else:
-                    raise ValueError("Invalid method")
+                return await asyncio.gather(
+                    *[_post(http_client, url) for url in urls],
+                    return_exceptions=return_exceptions,
+                )
 
         results: list[httpx.Response | BaseException] = run_coroutine(_execute())
         return [

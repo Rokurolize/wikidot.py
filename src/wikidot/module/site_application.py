@@ -7,7 +7,7 @@ It enables operations such as retrieving, accepting, and declining applications.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from bs4 import BeautifulSoup, Tag
 
@@ -88,8 +88,6 @@ def _validate_site_application_user(user: object) -> AbstractUser:
     user = _validate_site_application_user_object(user)
     if not isinstance(user.id, int) or isinstance(user.id, bool):
         raise ValueError("application.user.id must be an integer")
-    if user.id < 0:
-        raise ValueError("application.user.id must be non-negative")
     if not isinstance(user.name, str):
         raise ValueError("application.user.name must be a string")
     return user
@@ -267,9 +265,7 @@ class SiteApplication:
         used_text_tables: set[int] = set()
 
         for application_index, header in enumerate(application_headers, start=1):
-            user_element = header.find("span", class_="printuser", recursive=False)
-            if not isinstance(user_element, Tag):
-                continue
+            user_element = cast(Tag, header.find("span", class_="printuser", recursive=False))
 
             parse_context = _application_parse_context(site, application_index, len(application_headers))
             text_wrapper_element = header.find_next_sibling("table")

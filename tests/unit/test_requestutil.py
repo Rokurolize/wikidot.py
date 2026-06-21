@@ -269,6 +269,15 @@ class TestRequestUtilGet:
 
         assert httpx_mock.get_requests()[0].headers["Cookie"] == "WIKIDOT_SESSION_ID=abc;"
 
+    def test_get_sends_client_headers_to_root_wikidot_host_with_trailing_dot(self, httpx_mock):
+        url = "https://wikidot.com./test"
+        httpx_mock.add_response(url=url, status_code=200)
+        mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
+
+        RequestUtil.request(mock_client, "GET", [url])
+
+        assert httpx_mock.get_requests()[0].headers["Cookie"] == "WIKIDOT_SESSION_ID=abc;"
+
     def test_get_does_not_send_client_headers_to_non_wikidot(self, httpx_mock):
         """非Wikidot宛てGETではセッションCookieを送らない"""
         httpx_mock.add_response(url="https://example.com/test", status_code=200)
@@ -360,6 +369,50 @@ class TestRequestUtilGet:
         assert len(results) == 1
         assert _assert_response(results[0]).status_code == 200
 
+    def test_get_max_retries_exceeded_on_5xx(self, httpx_mock):
+        httpx_mock.add_response(url="https://example.com/test", status_code=500)
+        httpx_mock.add_response(url="https://example.com/test", status_code=500)
+        mock_client = _mock_client(config=AjaxModuleConnectorConfig(attempt_limit=2, retry_interval=0.01))
+
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            RequestUtil.request(mock_client, "GET", ["https://example.com/test"])
+
+        assert exc_info.value.response.status_code == 500
+
+    def test_get_max_retries_exceeded_on_timeout(self, httpx_mock):
+        httpx_mock.add_exception(httpx.TimeoutException("Timeout"))
+        httpx_mock.add_exception(httpx.TimeoutException("Timeout"))
+        mock_client = _mock_client(config=AjaxModuleConnectorConfig(attempt_limit=2, retry_interval=0.01))
+
+        with pytest.raises(httpx.TimeoutException):
+            RequestUtil.request(mock_client, "GET", ["https://example.com/test"])
+
+    def test_get_return_exceptions_normalizes_base_exception(self, monkeypatch):
+        class NonExceptionFailure(BaseException):
+            pass
+
+        class FakeAsyncClient:
+            def __init__(self, *, timeout):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+            async def get(self, url, *, headers=None):
+                raise NonExceptionFailure("stop")
+
+        monkeypatch.setattr("wikidot.util.requestutil.httpx.AsyncClient", FakeAsyncClient)
+        mock_client = _mock_client(config=AjaxModuleConnectorConfig(attempt_limit=1, retry_interval=0.01))
+
+        results = RequestUtil.request(mock_client, "GET", ["https://example.com/test"], return_exceptions=True)
+
+        assert len(results) == 1
+        assert isinstance(results[0], Exception)
+        assert str(results[0]) == "stop"
+
 
 class TestRequestUtilPost:
     """RequestUtil.request POSTメソッドのテスト"""
@@ -386,6 +439,15 @@ class TestRequestUtilPost:
         mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
 
         RequestUtil.request(mock_client, "POST", ["https://test.wikidot.com/test"])
+
+        assert httpx_mock.get_requests()[0].headers["Cookie"] == "WIKIDOT_SESSION_ID=abc;"
+
+    def test_post_sends_client_headers_to_root_wikidot_host_with_trailing_dot(self, httpx_mock):
+        url = "https://wikidot.com./test"
+        httpx_mock.add_response(url=url, status_code=200, method="POST")
+        mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
+
+        RequestUtil.request(mock_client, "POST", [url])
 
         assert httpx_mock.get_requests()[0].headers["Cookie"] == "WIKIDOT_SESSION_ID=abc;"
 
@@ -463,6 +525,50 @@ class TestRequestUtilPost:
 
         assert len(results) == 1
         assert _assert_response(results[0]).status_code == 200
+
+    def test_post_max_retries_exceeded_on_5xx(self, httpx_mock):
+        httpx_mock.add_response(url="https://example.com/test", status_code=500, method="POST")
+        httpx_mock.add_response(url="https://example.com/test", status_code=500, method="POST")
+        mock_client = _mock_client(config=AjaxModuleConnectorConfig(attempt_limit=2, retry_interval=0.01))
+
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            RequestUtil.request(mock_client, "POST", ["https://example.com/test"])
+
+        assert exc_info.value.response.status_code == 500
+
+    def test_post_max_retries_exceeded_on_timeout(self, httpx_mock):
+        httpx_mock.add_exception(httpx.TimeoutException("Timeout"), method="POST")
+        httpx_mock.add_exception(httpx.TimeoutException("Timeout"), method="POST")
+        mock_client = _mock_client(config=AjaxModuleConnectorConfig(attempt_limit=2, retry_interval=0.01))
+
+        with pytest.raises(httpx.TimeoutException):
+            RequestUtil.request(mock_client, "POST", ["https://example.com/test"])
+
+    def test_post_return_exceptions_normalizes_base_exception(self, monkeypatch):
+        class NonExceptionFailure(BaseException):
+            pass
+
+        class FakeAsyncClient:
+            def __init__(self, *, timeout):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+            async def post(self, url, *, headers=None):
+                raise NonExceptionFailure("stop")
+
+        monkeypatch.setattr("wikidot.util.requestutil.httpx.AsyncClient", FakeAsyncClient)
+        mock_client = _mock_client(config=AjaxModuleConnectorConfig(attempt_limit=1, retry_interval=0.01))
+
+        results = RequestUtil.request(mock_client, "POST", ["https://example.com/test"], return_exceptions=True)
+
+        assert len(results) == 1
+        assert isinstance(results[0], Exception)
+        assert str(results[0]) == "stop"
 
 
 class TestRequestUtilInvalidMethod:

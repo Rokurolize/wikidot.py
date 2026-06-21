@@ -3,10 +3,11 @@
 import re
 from datetime import datetime
 from typing import Any, cast
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import MagicMock, PropertyMock, create_autospec, patch
 
 import httpx
 import pytest
+from bs4 import BeautifulSoup
 from pytest_httpx import HTTPXMock
 
 from wikidot.common.exceptions import (
@@ -21,7 +22,18 @@ from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.module.client import Client
 from wikidot.module.page import Page, PageCollection
 from wikidot.module.page_source import PageSource
-from wikidot.module.site import PagePublishResult, PageSourceResult, Site, SiteChange
+from wikidot.module.site import (
+    PagePublishResult,
+    PageSourceResult,
+    Site,
+    SiteChange,
+    _printuser_onclick_value,
+    _require_site_amc_retry_response_count,
+    _require_site_invitation_action_response_count,
+    _require_site_invitation_action_status,
+)
+from wikidot.module.site_application import SiteApplication
+from wikidot.module.site_member import SiteMember
 from wikidot.module.user import User
 
 
@@ -44,6 +56,44 @@ def create_mock_client(is_logged_in: bool = True) -> MagicMock:
         retry_max_retries=3,
     )
     return mock_client
+
+
+class TestSiteModuleHelpers:
+    def test_printuser_onclick_value_falls_back_to_visible_text(self) -> None:
+        html = BeautifulSoup('<span class="printuser"><a href="/user:info/test-user">test user</a></span>', "lxml")
+        user_elem = html.find("span", class_="printuser")
+        assert user_elem is not None
+
+        assert _printuser_onclick_value(user_elem) == "test user"
+
+    def test_printuser_onclick_value_uses_span_text_without_link(self) -> None:
+        html = BeautifulSoup('<span class="printuser">test user</span>', "lxml")
+        user_elem = html.find("span", class_="printuser")
+        assert user_elem is not None
+
+        assert _printuser_onclick_value(user_elem) == "test user"
+
+    def test_invitation_action_status_rejects_non_ok_status(self, mock_site_no_http: Site) -> None:
+        user = User(client=mock_site_no_http.client, id=123, name="test-user", unix_name="test-user")
+
+        with pytest.raises(WikidotStatusCodeException, match="Failed to complete site invitation action"):
+            _require_site_invitation_action_status(mock_site_no_http, user, "accept", {"status": "error"})
+
+    def test_invitation_action_response_count_rejects_non_sequence(self, mock_site_no_http: Site) -> None:
+        user = User(client=mock_site_no_http.client, id=123, name="test-user", unix_name="test-user")
+
+        with pytest.raises(UnexpectedException, match="actual=RuntimeError"):
+            _require_site_invitation_action_response_count(
+                mock_site_no_http,
+                user,
+                "accept",
+                RuntimeError("failed"),
+                1,
+            )
+
+    def test_amc_retry_response_count_rejects_non_sequence(self) -> None:
+        with pytest.raises(UnexpectedException, match="actual=RuntimeError"):
+            _require_site_amc_retry_response_count(RuntimeError("failed"), 1, 2, 3)
 
 
 class TestSiteDataclass:
@@ -84,11 +134,92 @@ class TestSiteDataclass:
 
         assert site.url == "http://test.wikidot.com"
 
+    @pytest.mark.parametrize(
+        ("site_id", "message"),
+        [
+            ("1", "id must be an integer"),
+            (True, "id must be an integer"),
+            (-1, "id must be non-negative"),
+        ],
+    )
+    def test_site_id_validation(self, mock_client_no_http: MagicMock, site_id: Any, message: str) -> None:
+        with pytest.raises(ValueError, match=message):
+            Site(
+                client=mock_client_no_http,
+                id=site_id,
+                title="Test",
+                unix_name="test",
+                domain="test.wikidot.com",
+                ssl_supported=True,
+            )
+
     def test_site_has_accessors(self, mock_site_no_http: Site) -> None:
         """Siteはpages/page/forumアクセサを持つ"""
         assert hasattr(mock_site_no_http, "pages")
         assert hasattr(mock_site_no_http, "page")
         assert hasattr(mock_site_no_http, "forum")
+
+    def test_site_forum_categories_delegates_to_collection(self, mock_site_no_http: Site) -> None:
+        expected = MagicMock()
+
+        with patch("wikidot.module.site.ForumCategoryCollection.acquire_all", return_value=expected) as acquire_all:
+            result = mock_site_no_http.forum.categories
+
+        assert result is expected
+        acquire_all.assert_called_once_with(mock_site_no_http)
+
+    def test_site_applications_delegates_to_collection(self, mock_site_no_http: Site) -> None:
+        expected = [MagicMock()]
+
+        with patch.object(SiteApplication, "acquire_all", return_value=expected) as acquire_all:
+            result = mock_site_no_http.applications
+
+        assert result is expected
+        acquire_all.assert_called_once_with(mock_site_no_http)
+
+    def test_site_thread_helpers_delegate_to_forum_collections(self, mock_site_no_http: Site) -> None:
+        thread = MagicMock()
+        threads = MagicMock()
+
+        with (
+            patch("wikidot.module.site.ForumThread.get_from_id", return_value=thread) as get_from_id,
+            patch("wikidot.module.site.ForumThreadCollection.acquire_from_thread_ids", return_value=threads) as acquire,
+        ):
+            single = mock_site_no_http.get_thread(123)
+            multiple = mock_site_no_http.get_threads([123, 456])
+
+        assert single is thread
+        assert multiple is threads
+        get_from_id.assert_called_once_with(mock_site_no_http, 123)
+        acquire.assert_called_once_with(mock_site_no_http, [123, 456])
+
+    @pytest.mark.parametrize(
+        ("property_name", "group"),
+        [
+            ("members", ""),
+            ("moderators", "moderators"),
+            ("admins", "admins"),
+        ],
+    )
+    def test_site_member_properties_load_and_cache_groups(
+        self, mock_site_no_http: Site, property_name: str, group: str
+    ) -> None:
+        member = SiteMember(
+            site=mock_site_no_http,
+            user=User(client=mock_site_no_http.client, id=1, name="tester", unix_name="tester"),
+            joined_at=None,
+        )
+
+        with patch.object(SiteMember, "get", return_value=[member]) as mock_get:
+            first = getattr(mock_site_no_http, property_name)
+            second = getattr(mock_site_no_http, property_name)
+
+        assert first == [member]
+        assert second is first
+        if group:
+            mock_get.assert_called_once_with(mock_site_no_http, group)
+        else:
+            mock_get.assert_called_once_with(mock_site_no_http)
 
 
 class TestSiteChangeDataclass:
@@ -150,6 +281,15 @@ class TestSiteChangeDataclass:
         change = self._site_change(mock_site_no_http, flags=["S", "N"])
 
         assert change.flags == ["S", "N"]
+
+    def test_str_representation_includes_key_fields(self, mock_site_no_http: Site) -> None:
+        change = self._site_change(mock_site_no_http, flags=["S", "N"])
+
+        assert str(change) == (
+            "SiteChange(page_fullname=test-page, revision_no=1, "
+            "changed_by=User(id=1, name=tester, unix_name=tester), "
+            "changed_at=2026-06-06 00:00:00, flags=['S', 'N'])"
+        )
 
     @pytest.mark.parametrize("revision_no", [None, True, False, "1", 1.0, []])
     def test_init_rejects_malformed_revision_numbers(self, mock_site_no_http: Site, revision_no: Any) -> None:
@@ -327,6 +467,38 @@ class TestSitePagesAccessor:
         assert [query.perPage for query in search_calls] == [2, 2, 2]
         assert [query.category for query in search_calls] == ["_default", "_default", "_default"]
         assert [query.tags for query in search_calls] == ["scp", "scp", "scp"]
+
+    def test_search_delegates_to_page_collection(self, mock_site_no_http: Site) -> None:
+        expected = PageCollection(mock_site_no_http, [])
+
+        with patch.object(PageCollection, "search_pages", return_value=expected) as mock_search:
+            result = mock_site_no_http.pages.search(category="_default", name="test-page")
+
+        assert result is expected
+        assert mock_search.call_args.args[0] is mock_site_no_http
+        query = mock_search.call_args.args[1]
+        assert query.category == "_default"
+        assert query.name == "test-page"
+
+    def test_iter_search_zero_limit_returns_without_search(self, mock_site_no_http: Site) -> None:
+        with patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])) as search:
+            pages = list(mock_site_no_http.pages.iter_search(limit=0))
+
+        assert pages == []
+        search.assert_not_called()
+
+    def test_iter_search_rejects_non_positive_per_page(self, mock_site_no_http: Site) -> None:
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])) as search,
+            pytest.raises(ValueError, match="perPage must be positive"),
+        ):
+            list(mock_site_no_http.pages.iter_search(perPage=0))
+
+        search.assert_not_called()
+
+    def test_positive_integer_validator_rejects_zero(self, mock_site_no_http: Site) -> None:
+        with pytest.raises(ValueError, match="source_batch_size must be greater than 0"):
+            mock_site_no_http.pages._validate_positive_integer("source_batch_size", 0)
 
     def test_iter_search_stops_after_short_page_without_limit(self, mock_site_no_http: Site) -> None:
         """limit未指定では最後の短いページで逐次取得を終了する"""
@@ -636,6 +808,88 @@ class TestSitePagesAccessor:
         assert "page-three" in str(results[2].error)
         mock_site_no_http.amc_request.assert_not_called()
 
+    def test_iter_sources_splits_failed_fallback_batches_to_single_pages(self, mock_site_no_http: Site) -> None:
+        pages = [
+            self._page(mock_site_no_http, "page-one", 701),
+            self._page(mock_site_no_http, "page-two", 702),
+        ]
+
+        def search_pages(site: Site, query) -> PageCollection:
+            return PageCollection(site, pages)
+
+        responses = [
+            UnexpectedException("batch failed"),
+            UnexpectedException("fallback batch failed"),
+            (self._source_response("source 701"),),
+            UnexpectedException("single page failed"),
+        ]
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=responses)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            results = list(
+                mock_site_no_http.pages.iter_sources(
+                    limit=2,
+                    perPage=2,
+                    source_batch_size=2,
+                    fallback_batch_size=2,
+                )
+            )
+
+        assert [result.ok for result in results] == [True, False]
+        assert results[0].wiki_text == "source 701"
+        assert results[1].error_message == "single page failed"
+        assert [len(call.args[0]) for call in mock_site_no_http.amc_request_with_retry.call_args_list] == [2, 2, 1, 1]
+
+    def test_iter_sources_clears_batch_error_when_single_page_fallback_succeeds(self, mock_site_no_http: Site) -> None:
+        page = self._page(mock_site_no_http, "page-one", 703)
+
+        def search_pages(site: Site, query) -> PageCollection:
+            return PageCollection(site, [page])
+
+        responses = [
+            UnexpectedException("batch failed"),
+            (self._source_response("source 703"),),
+        ]
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(side_effect=responses)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            results = list(
+                mock_site_no_http.pages.iter_sources(
+                    limit=1,
+                    perPage=1,
+                    source_batch_size=1,
+                    fallback_batch_size=1,
+                )
+            )
+
+        assert [result.ok for result in results] == [True]
+        assert results[0].wiki_text == "source 703"
+
+    def test_source_results_skips_page_populated_during_failed_multi_page_fallback(
+        self, mock_site_no_http: Site
+    ) -> None:
+        pages = [
+            self._page(mock_site_no_http, "page-one", 704),
+            self._page(mock_site_no_http, "page-two", 705),
+        ]
+        call_no = 0
+
+        def get_page_sources_error(batch: list[Page]) -> Exception:
+            nonlocal call_no
+            call_no += 1
+            if call_no == 2:
+                batch[0]._source = PageSource(page=batch[0], wiki_text="source 704")
+            return UnexpectedException(f"failed {call_no}")
+
+        with patch.object(mock_site_no_http.pages, "_get_page_sources_error", side_effect=get_page_sources_error):
+            results = list(mock_site_no_http.pages._source_results(pages, fallback_batch_size=2))
+
+        assert [result.ok for result in results] == [True, False]
+        assert results[0].wiki_text == "source 704"
+        assert results[1].error_message == "failed 3"
+
     def test_iter_sources_retries_missing_pages_when_fallback_batch_is_large(self, mock_site_no_http: Site) -> None:
         """fallback_batch_sizeが大きくても未取得ページは再試行する"""
         pages = [
@@ -864,6 +1118,54 @@ class TestSitePagesAccessor:
         with pytest.raises(ValueError, match="source must belong to the result page"):
             PageSourceResult(page=page, source=source)
 
+    def test_source_result_rejects_source_from_different_fullname_when_ids_are_missing(
+        self, mock_site_no_http: Site
+    ) -> None:
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page._id = None
+        source_page = self._page(mock_site_no_http, "page-two", 372)
+        source_page._id = None
+        source = PageSource(page=source_page, wiki_text="source")
+
+        with pytest.raises(ValueError, match="source must belong to the result page"):
+            PageSourceResult(page=page, source=source)
+
+    def test_source_result_rejects_source_with_malformed_page(self, mock_site_no_http: Site) -> None:
+        page = self._page(mock_site_no_http, "page-one", 371)
+        source_page = self._page(mock_site_no_http, "page-one", 371)
+        source = PageSource(page=source_page, wiki_text="source 371")
+        source.page = cast(Any, {"fullname": "page-one"})
+
+        with pytest.raises(ValueError, match="source must belong to the result page"):
+            PageSourceResult(page=page, source=source)
+
+    def test_source_result_rejects_source_from_different_site(self, mock_site_no_http: Site) -> None:
+        other_site = Site(
+            client=mock_site_no_http.client,
+            id=987,
+            title="Other",
+            unix_name="other",
+            domain="other.wikidot.com",
+            ssl_supported=True,
+        )
+        page = self._page(mock_site_no_http, "page-one", 371)
+        source_page = self._page(other_site, "page-one", 371)
+        source = PageSource(page=source_page, wiki_text="source 371")
+
+        with pytest.raises(ValueError, match="source must belong to the result page"):
+            PageSourceResult(page=page, source=source)
+
+    def test_source_result_accepts_same_retained_id_despite_renamed_source_fullname(
+        self, mock_site_no_http: Site
+    ) -> None:
+        page = self._page(mock_site_no_http, "page-one", 371)
+        source_page = self._page(mock_site_no_http, "renamed-page-one", 371)
+        source = PageSource(page=source_page, wiki_text="source 371")
+
+        result = PageSourceResult(page=page, source=source)
+
+        assert result.source is source
+
     def test_source_result_accepts_source_from_same_logical_page(self, mock_site_no_http: Site) -> None:
         """PageSourceResultのsourceは同一論理ページの別Pageオブジェクトを受け付ける"""
         page = self._page(mock_site_no_http, "page-one", 371)
@@ -874,6 +1176,19 @@ class TestSitePagesAccessor:
 
         assert result.source is source
         assert result.wiki_text == "source 371"
+
+    def test_source_result_accepts_source_from_same_fullname_when_ids_are_missing(
+        self, mock_site_no_http: Site
+    ) -> None:
+        page = self._page(mock_site_no_http, "page-one", 371)
+        page._id = None
+        source_page = self._page(mock_site_no_http, "page-one", 372)
+        source_page._id = None
+        source = PageSource(page=source_page, wiki_text="source")
+
+        result = PageSourceResult(page=page, source=source)
+
+        assert result.source is source
 
     def test_source_result_rejects_malformed_retained_source_page_fullname(self, mock_site_no_http: Site) -> None:
         """PageSourceResultは壊れたsourceページ名を所有判定に使わない"""
@@ -1196,6 +1511,38 @@ class TestSitePageAccessor:
 
         assert page is None
 
+    def test_get_direct_page_id_probe_handles_category_fullname(self, mock_site_no_http: Site) -> None:
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])),
+            patch.object(Page, "id", new_callable=PropertyMock, return_value=123),
+        ):
+            page = mock_site_no_http.page.get("category:name")
+
+        assert page is not None
+        assert page.category == "category"
+        assert page.name == "name"
+
+    def test_get_direct_page_id_probe_reraises_non_404_http_errors(self, mock_site_no_http: Site) -> None:
+        request = httpx.Request("GET", "https://test-site.wikidot.com/direct-page")
+        response = httpx.Response(500, request=request)
+        error = httpx.HTTPStatusError("server error", request=request, response=response)
+
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])),
+            patch.object(Page, "id", new_callable=PropertyMock, side_effect=error),
+            pytest.raises(httpx.HTTPStatusError),
+        ):
+            mock_site_no_http.page.get("direct-page")
+
+    def test_get_direct_page_id_probe_returns_none_for_not_found_exception(self, mock_site_no_http: Site) -> None:
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])),
+            patch.object(Page, "id", new_callable=PropertyMock, side_effect=NotFoundException("missing")),
+        ):
+            page = mock_site_no_http.page.get("direct-page", raise_when_not_found=False)
+
+        assert page is None
+
     def test_get_not_found_raises_with_site_context(self, mock_site_no_http: Site) -> None:
         """ListPagesにも直接URLにもないページの例外はサイト名とページ名を含む"""
         request = httpx.Request("GET", "https://test-site.wikidot.com/missing")
@@ -1279,6 +1626,34 @@ class TestSitePageAccessor:
             comment="Overwrite",
             force_edit=True,
         )
+
+    def test_create_delegates_without_force_edit_lookup(self, mock_site_no_http: Site) -> None:
+        created_page = self._page(mock_site_no_http, "new-page", 801)
+        mock_site_no_http.page.get = MagicMock()
+
+        with patch.object(Page, "create_or_edit", return_value=created_page) as create_or_edit:
+            result = mock_site_no_http.page.create(
+                "new-page",
+                title="New",
+                source="source",
+                comment="comment",
+                force_edit=False,
+            )
+
+        assert result is created_page
+        mock_site_no_http.page.get.assert_not_called()
+        create_or_edit.assert_called_once()
+
+    def test_create_force_edit_delegates_when_existing_page_is_missing(self, mock_site_no_http: Site) -> None:
+        created_page = self._page(mock_site_no_http, "new-page", 802)
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+
+        with patch.object(Page, "create_or_edit", return_value=created_page) as create_or_edit:
+            result = mock_site_no_http.page.create("new-page", source="source", force_edit=True)
+
+        assert result is created_page
+        mock_site_no_http.page.get.assert_called_once_with("new-page", raise_when_not_found=False)
+        create_or_edit.assert_called_once()
 
     def test_create_rejects_non_string_source_before_login(self, mock_site_no_http: Site) -> None:
         """createのsourceはログインや既存ページ確認より前に文字列として検証する"""
@@ -1471,6 +1846,27 @@ class TestSitePageAccessor:
         assert result.page_id == 67890
         assert result.source_matches is None
         assert result.tags_updated is False
+        assert result.parent_updated is False
+        assert result.metas_updated is False
+
+    def test_publish_updates_tags_without_parent_metadata(self, mock_site_no_http: Site) -> None:
+        mock_site_no_http.client.login_check = MagicMock()
+        saved_page = self._publishable_page(mock_site_no_http, wiki_text="Saved source")
+        saved_page_mock: Any = saved_page
+        existing_page = MagicMock()
+        existing_page.edit.return_value = saved_page
+        mock_site_no_http.page.get = MagicMock(return_value=existing_page)
+
+        result = mock_site_no_http.page.publish(
+            "test-page",
+            source="Saved source",
+            tags=["published"],
+            verify_source=False,
+            force_edit=True,
+        )
+
+        saved_page_mock.set_metadata.assert_called_once_with(tags=["published"], metas=None)
+        assert result.tags_updated is True
         assert result.parent_updated is False
         assert result.metas_updated is False
 
@@ -2137,6 +2533,7 @@ class TestSitePageAccessor:
     @pytest.mark.parametrize(
         ("kwargs", "message"),
         [
+            ({"post_save_visibility_attempts": 0}, "post_save_visibility_attempts must be at least 1"),
             ({"post_save_visibility_attempts": True}, "post_save_visibility_attempts must be an integer"),
             ({"post_save_visibility_attempts": False}, "post_save_visibility_attempts must be an integer"),
             ({"post_save_visibility_interval": True}, "post_save_visibility_interval must be a number"),
@@ -2193,6 +2590,43 @@ class TestSitePageAccessor:
         assert result.page is created_page
         assert result.page_id == 24680
 
+    def test_resolve_post_save_page_id_rejects_zero_attempts(self, mock_site_no_http: Site) -> None:
+        page = self._publishable_page(mock_site_no_http, "new-page", 24680)
+
+        with pytest.raises(ValueError, match="attempts must be at least 1"):
+            mock_site_no_http.page._resolve_post_save_page_id(page, attempts=0, interval=0)
+
+    def test_publish_sleeps_between_post_save_visibility_attempts(self, mock_site_no_http: Site) -> None:
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+        created_page = self._publishable_page(mock_site_no_http, "new-page", 24680, wiki_text="New source")
+        created_page._id = None
+        id_attempts = 0
+
+        def acquire_ids(_site: Site, pages: list[Page]) -> list[Page]:
+            nonlocal id_attempts
+            id_attempts += 1
+            if id_attempts == 1:
+                raise NotFoundException("not visible yet")
+            pages[0].id = 24680
+            return pages
+
+        with (
+            patch.object(Page, "create_or_edit", return_value=created_page),
+            patch.object(PageCollection, "_acquire_page_ids", side_effect=acquire_ids),
+            patch("wikidot.module.site.time.sleep") as sleep,
+        ):
+            result = mock_site_no_http.page.publish(
+                "new-page",
+                title="New Title",
+                source="New source",
+                post_save_visibility_attempts=2,
+                post_save_visibility_interval=0.25,
+            )
+
+        assert result.page_id == 24680
+        sleep.assert_called_once_with(0.25)
+
     def test_publish_reports_context_when_post_save_visibility_404_exhausts(
         self,
         mock_site_no_http: Site,
@@ -2236,6 +2670,41 @@ class TestSitePageAccessor:
         assert created_page.id_attempts == 2
         created_page.set_metadata.assert_not_called()
         created_page.refresh_source.assert_not_called()
+
+    def test_publish_reraises_not_found_when_post_save_visibility_attempts_exhaust(
+        self,
+        mock_site_no_http: Site,
+    ) -> None:
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_site_no_http.page.get = MagicMock(return_value=None)
+
+        class NeverResolvedPage:
+            def __init__(self) -> None:
+                self.site = mock_site_no_http
+                self.fullname = "new-page"
+                self.id_attempts = 0
+                self.set_metadata = MagicMock()
+                self.refresh_source = MagicMock()
+
+            @property
+            def id(self) -> int:
+                self.id_attempts += 1
+                raise NotFoundException("not visible yet")
+
+        created_page = NeverResolvedPage()
+
+        with (
+            patch.object(Page, "create_or_edit", return_value=created_page),
+            pytest.raises(NotFoundException, match="not visible yet"),
+        ):
+            mock_site_no_http.page.publish(
+                "new-page",
+                source="New source",
+                post_save_visibility_attempts=2,
+                post_save_visibility_interval=0,
+            )
+
+        assert created_page.id_attempts == 2
 
     def test_publish_surfaces_non_404_post_save_visibility_http_errors(self, mock_site_no_http: Site) -> None:
         """保存後のpageId取得で404以外のHTTP失敗はvisibility lagとして隠さない"""
@@ -3006,6 +3475,31 @@ class TestSiteAmcRequest:
                 [{"moduleName": "First"}, {"moduleName": "Second"}], batch_size=2, max_retries=1
             )
 
+    def test_amc_request_with_retry_returns_none_for_entries_still_failed_after_retries(self) -> None:
+        mock_client = create_mock_client()
+        first_response = MagicMock()
+        retried_response = MagicMock()
+        mock_client.amc_client.request.side_effect = [
+            (first_response, RuntimeError("temporary-1"), RuntimeError("temporary-2")),
+            (retried_response, RuntimeError("still failing")),
+        ]
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        result = site.amc_request_with_retry(
+            [{"moduleName": "First"}, {"moduleName": "Second"}, {"moduleName": "Third"}],
+            batch_size=3,
+            max_retries=1,
+        )
+
+        assert result == (first_response, retried_response, None)
+
 
 class TestSiteInviteUser:
     """Site.invite_user のテスト"""
@@ -3640,6 +4134,22 @@ class TestSiteGetRecentChanges:
         }
         return response
 
+    @staticmethod
+    def _site_with_recent_change_body(body: str, site_changes: dict[str, Any]) -> Site:
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+        return site
+
     def test_get_recent_changes_success(self, site_changes: dict[str, Any]) -> None:
         """変更履歴取得成功"""
         mock_client = create_mock_client()
@@ -3662,15 +4172,68 @@ class TestSiteGetRecentChanges:
 
             changes = site.get_recent_changes()
 
-            assert len(changes) == 2
-            assert changes[0].page_fullname == "test:test-page"
-            assert changes[0].page_title == "test:\nTest Page Title"
-            assert changes[0].revision_no == 3
-            assert "S" in changes[0].flags
-            assert changes[0].comment == "Test edit comment"
-            assert changes[1].page_fullname == "scp-001"
-            assert changes[1].revision_no == 1
-            assert "N" in changes[1].flags
+        assert len(changes) == 2
+        assert changes[0].page_fullname == "test:test-page"
+        assert changes[0].page_title == "test:\nTest Page Title"
+        assert changes[0].revision_no == 3
+        assert "S" in changes[0].flags
+        assert changes[0].comment == "Test edit comment"
+        assert changes[1].page_fullname == "scp-001"
+        assert changes[1].revision_no == 1
+
+    def test_get_recent_changes_missing_table_includes_context(self, site_changes: dict[str, Any]) -> None:
+        body = re.sub(r"<table>.*?</table>", "", site_changes["body"], count=1, flags=re.DOTALL)
+        site = self._site_with_recent_change_body(body, site_changes)
+
+        with pytest.raises(
+            NoElementException, match=r"Change table element is not found for site: test \(page=1, change=1\)"
+        ):
+            site.get_recent_changes()
+
+    def test_get_recent_changes_missing_rows_includes_context(self, site_changes: dict[str, Any]) -> None:
+        body = re.sub(r"<table>.*?</table>", "<table></table>", site_changes["body"], count=1, flags=re.DOTALL)
+        site = self._site_with_recent_change_body(body, site_changes)
+
+        with pytest.raises(
+            NoElementException, match=r"Change row element is not found for site: test \(page=1, change=1\)"
+        ):
+            site.get_recent_changes()
+
+    def test_get_recent_changes_empty_comment_becomes_none(self, site_changes: dict[str, Any]) -> None:
+        body = site_changes["body"].replace(
+            '<td class="comments">Test edit comment</td>', '<td class="comments"></td>', 1
+        )
+        site = self._site_with_recent_change_body(body, site_changes)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+            changes = site.get_recent_changes()
+
+        assert changes[0].comment is None
+
+    def test_get_recent_changes_missing_odate_includes_context(self, site_changes: dict[str, Any]) -> None:
+        body = re.sub(r'<span class="odate[^"]*">.*?</span>', "", site_changes["body"], count=1, flags=re.DOTALL)
+        site = self._site_with_recent_change_body(body, site_changes)
+
+        with pytest.raises(NoElementException, match=r"Odate element is not found for site: test \(page=1, change=1\)"):
+            site.get_recent_changes()
+
+    def test_get_recent_changes_missing_revision_number_includes_context(self, site_changes: dict[str, Any]) -> None:
+        body = re.sub(r'<td class="revision-no"[^>]*>.*?</td>', "", site_changes["body"], count=1, flags=re.DOTALL)
+        site = self._site_with_recent_change_body(body, site_changes)
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Revision number element is not found for site: test \(page=1, change=1\)",
+        ):
+            site.get_recent_changes()
+
+    def test_get_recent_changes_missing_user_includes_context(self, site_changes: dict[str, Any]) -> None:
+        body = re.sub(r'<span class="printuser">.*?</span>', "", site_changes["body"], count=1, flags=re.DOTALL)
+        site = self._site_with_recent_change_body(body, site_changes)
+
+        with pytest.raises(NoElementException, match=r"User element is not found for site: test \(page=1, change=1\)"):
+            site.get_recent_changes()
 
     def test_get_recent_changes_ignores_comment_change_like_markup(self) -> None:
         """編集コメント内の変更履歴風HTMLを別変更やflagsとして扱わない"""
@@ -4143,6 +4706,45 @@ Real edit comment
         changes = site.get_recent_changes()
 
         assert len(changes) == 0
+
+    def test_get_recent_changes_first_page_without_change_items_returns_empty(self) -> None:
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": "<div></div>"}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        assert site.get_recent_changes() == []
+
+    def test_get_recent_changes_stops_when_paginated_page_has_no_items(self) -> None:
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        first_response = self._site_change_response(1, last_page=2)
+        second_response = MagicMock()
+        second_response.json.return_value = {"status": "ok", "body": "<div></div>"}
+        mock_client.amc_client.request.side_effect = [(first_response,), (second_response,)]
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+            changes = site.get_recent_changes()
+
+        assert [change.page_fullname for change in changes] == ["page-1"]
 
     def test_get_recent_changes_with_limit(self, site_changes: dict[str, Any]) -> None:
         """limit指定時"""

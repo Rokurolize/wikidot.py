@@ -534,15 +534,11 @@ class ForumThreadCollection(list["ForumThread"]):
     @staticmethod
     def _is_inside_thread_description(element: Tag) -> bool:
         for ancestor in element.parents:
-            if not isinstance(ancestor, Tag):
-                continue
             ancestor_classes = ancestor.get("class")
             if not (isinstance(ancestor_classes, list) and "description" in ancestor_classes):
                 continue
 
-            parent = ancestor.parent
-            if not isinstance(parent, Tag):
-                continue
+            parent = cast(Tag, ancestor.parent)
             parent_classes = parent.get("class")
             if parent.name == "td" and isinstance(parent_classes, list) and "name" in parent_classes:
                 return True
@@ -558,10 +554,8 @@ class ForumThreadCollection(list["ForumThread"]):
 
             if isinstance(child, NavigableString):
                 text = child.strip()
-            elif isinstance(child, Tag):
-                text = child.get_text(" ", strip=True)
             else:
-                continue
+                text = child.get_text(" ", strip=True)
 
             if text:
                 chunks.append(text)
@@ -753,8 +747,6 @@ class ForumThreadCollection(list["ForumThread"]):
         if len(br_tags) < 3:
             raise NoElementException(f"Br tags are not enough {parse_context}")
         post_count_elem = br_tags[2].previous_sibling
-        if post_count_elem is None:
-            raise NoElementException(f"Posts count element is not found {parse_context}")
         post_count_text = str(post_count_elem)
         post_count = _parse_thread_detail_post_count(site, thread_id, category, post_count_text)
 

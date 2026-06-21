@@ -9,8 +9,10 @@ from unittest.mock import MagicMock, call
 import pytest
 from bs4 import BeautifulSoup
 
+import wikidot.module.forum_thread as forum_thread_module
 from wikidot.common import exceptions
 from wikidot.module.client import Client
+from wikidot.module.forum_post import ForumPostCollection
 from wikidot.module.forum_thread import ForumThread, ForumThreadCollection
 from wikidot.module.user import AbstractUser, User
 
@@ -191,6 +193,15 @@ class TestForumThreadCollectionInit:
         assert found is not None
         assert found.id == 3001
 
+    def test_find_skips_nonmatching_thread_before_match(
+        self, mock_site_no_http: Site, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        first_thread = _thread_with_id(mock_forum_thread_no_http, 3000)
+        target_thread = _thread_with_id(mock_forum_thread_no_http, 3001)
+        collection = ForumThreadCollection(mock_site_no_http, [first_thread, target_thread])
+
+        assert collection.find(3001) is target_thread
+
     def test_find_nonexistent(self, mock_site_no_http: Site) -> None:
         """存在しないスレッドを検索するとNoneを返す"""
         collection = ForumThreadCollection(mock_site_no_http, [])
@@ -248,6 +259,94 @@ class TestForumThreadCollectionInit:
 
         with pytest.raises(ValueError, match="thread_id must be non-negative"):
             collection.find(3001)
+
+    def test_validate_forum_thread_rejects_non_thread(self) -> None:
+        with pytest.raises(ValueError, match="thread must be a ForumThread"):
+            forum_thread_module._validate_forum_thread(object())
+
+    def test_user_onclick_value_falls_back_to_text_without_anchor(self) -> None:
+        elem = BeautifulSoup('<span class="printuser">Broken User</span>', "lxml").select_one("span")
+        assert elem is not None
+
+        assert forum_thread_module._user_onclick_value(elem) == "Broken User"
+
+    def test_user_onclick_value_falls_back_to_text_without_onclick(self) -> None:
+        elem = BeautifulSoup('<span class="printuser"><a>Broken User</a></span>', "lxml").select_one("span")
+        assert elem is not None
+
+        assert forum_thread_module._user_onclick_value(elem) == "Broken User"
+
+    def test_parse_thread_list_thread_id_rejects_missing_marker(self, mock_site_no_http: Site) -> None:
+        with pytest.raises(exceptions.NoElementException, match="Thread ID is not found"):
+            forum_thread_module._parse_thread_list_thread_id(mock_site_no_http, None, 1, None, "/forum/start")
+
+    def test_description_text_from_block_skips_statistics_and_empty_children(self) -> None:
+        html = BeautifulSoup(
+            """
+            <div class="description-block">
+                Intro
+                <span> detail </span>
+                <div class="statistics">ignored</div>
+            </div>
+            """,
+            "lxml",
+        )
+        block = html.select_one("div.description-block")
+        statistics = html.select_one("div.statistics")
+        assert block is not None
+        assert statistics is not None
+
+        assert ForumThreadCollection._description_text_from_block(block, statistics) == "Intro detail"
+
+    def test_is_inside_thread_description_rejects_description_outside_name_cell(self) -> None:
+        html = BeautifulSoup('<div class="description"><span class="pager">2</span></div>', "lxml")
+        pager = html.select_one("span.pager")
+        assert pager is not None
+
+        assert ForumThreadCollection._is_inside_thread_description(pager) is False
+
+    def test_thread_title_from_breadcrumbs_falls_back_to_text(self) -> None:
+        breadcrumbs = BeautifulSoup(
+            "<div><span>Forum &raquo; Category &raquo; Thread Title</span></div>", "lxml"
+        ).select_one("div")
+        assert breadcrumbs is not None
+
+        assert ForumThreadCollection._thread_title_from_breadcrumbs(breadcrumbs) == "Thread Title"
+
+    def test_thread_title_from_breadcrumbs_skips_empty_trailing_text(self) -> None:
+        breadcrumbs = BeautifulSoup("<div>Forum &raquo; Category <span></span> &raquo; </div>", "lxml").select_one(
+            "div"
+        )
+        assert breadcrumbs is not None
+
+        assert ForumThreadCollection._thread_title_from_breadcrumbs(breadcrumbs) == "Forum » Category"
+
+    def test_thread_title_from_breadcrumbs_skips_empty_trailing_node_before_title(self) -> None:
+        breadcrumbs = BeautifulSoup(
+            "<div><span>Forum</span> &raquo; Thread Title<span></span> \n </div>", "lxml"
+        ).select_one("div")
+        assert breadcrumbs is not None
+
+        assert ForumThreadCollection._thread_title_from_breadcrumbs(breadcrumbs) == "Thread Title"
+
+    def test_init_accepts_empty_posts_cache_without_collection_thread(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        posts = ForumPostCollection(thread=None, posts=[])
+
+        thread = ForumThread(
+            site=mock_forum_thread_no_http.site,
+            id=mock_forum_thread_no_http.id,
+            title=mock_forum_thread_no_http.title,
+            description=mock_forum_thread_no_http.description,
+            created_by=mock_forum_thread_no_http.created_by,
+            created_at=mock_forum_thread_no_http.created_at,
+            post_count=mock_forum_thread_no_http.post_count,
+            category=mock_forum_thread_no_http.category,
+            _posts=posts,
+        )
+
+        assert thread.posts is posts
 
 
 class TestForumThreadCollectionParseListInCategory:
@@ -309,6 +408,55 @@ class TestForumThreadCollectionParseListInCategory:
         assert collection[0].created_by.name == "test_user"
         assert int(collection[0].created_at.timestamp()) == 1700000000
 
+    def test_parse_list_skips_short_rows(
+        self, mock_site_no_http: Site, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        body = forum_threads_in_category["body"].replace(
+            '<tr class=""><td class="name"><div class="title"><a href="/forum/t-3001/test-thread">Test Thread</a></div>',
+            '<tr><td>short row</td></tr><tr class=""><td class="name"><div class="title"><a href="/forum/t-3001/test-thread">Test Thread</a></div>',
+            1,
+        )
+        html = BeautifulSoup(body, "lxml")
+
+        collection = ForumThreadCollection._parse_list_in_category(mock_site_no_http, html)
+
+        assert [thread.id for thread in collection] == [3001, 3002]
+
+    @pytest.mark.parametrize(
+        ("old_fragment", "new_fragment", "message"),
+        [
+            ('<td class="name">', "<td>", "Thread name element is not found"),
+            ('<td class="started">', "<td>", "Thread started element is not found"),
+            ('<td class="posts">5</td>', "<td>5</td>", "Posts count element is not found"),
+            (
+                '<div class="title"><a href="/forum/t-3001/test-thread">Test Thread</a></div>',
+                '<div class="title"></div>',
+                "Title element is not found",
+            ),
+            ('<a href="/forum/t-3001/test-thread">Test Thread</a>', "<a>Test Thread</a>", "Title href is not found"),
+            ('<div class="description">Test thread description</div>', "", "Description element is not found"),
+            (
+                '<span class="printuser"><a href="http://www.wikidot.com/user:info/test-user" onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test_user</a></span>',
+                "",
+                "User element is not found",
+            ),
+            ('<span class="odate time_1700000000">17 Dec 2025</span>', "", "Odate element is not found"),
+        ],
+    )
+    def test_parse_list_rejects_malformed_required_thread_elements(
+        self,
+        mock_site_no_http: Site,
+        forum_threads_in_category: dict[str, Any],
+        old_fragment: str,
+        new_fragment: str,
+        message: str,
+    ) -> None:
+        body = forum_threads_in_category["body"].replace(old_fragment, new_fragment, 1)
+        html = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(exceptions.NoElementException, match=message):
+            ForumThreadCollection._parse_list_in_category(mock_site_no_http, html)
+
 
 class TestForumThreadCollectionParseThreadPage:
     """ForumThreadCollection._parse_thread_pageのテスト"""
@@ -341,6 +489,63 @@ class TestForumThreadCollectionParseThreadPage:
 
         with pytest.raises(exceptions.NoElementException, match="Thread title"):
             ForumThreadCollection._parse_thread_page(mock_site_no_http, html)
+
+    @pytest.mark.parametrize(
+        ("old_fragment", "new_fragment", "message"),
+        [
+            (
+                '<div class="forum-breadcrumbs"><a href="/forum/start">Forum</a> / <a href="/forum/c-1001/test-category">Test Category</a> » Test Thread Title</div>',
+                "",
+                "Breadcrumbs element is not found",
+            ),
+            (
+                '<div class="description-block">Test thread description<div class="statistics">',
+                '<div class="missing-description-block">Test thread description<div class="statistics">',
+                "Description block element is not found",
+            ),
+            ('<div class="statistics">Started by:', "<div>Started by:", "Statistics element is not found"),
+            (
+                '<span class="printuser"><a href="http://www.wikidot.com/user:info/test-user" onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test_user</a></span>',
+                "",
+                "User element is not found",
+            ),
+            ('<span class="odate time_1700000000">17 Dec 2025</span>', "", "Odate element is not found"),
+            (
+                '<div class="statistics">Started by: <span class="printuser"><a href="http://www.wikidot.com/user:info/test-user" onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test_user</a></span><br/>Date: <span class="odate time_1700000000">17 Dec 2025</span><br/>Number of posts: 5<br/><br/></div>',
+                '<div class="statistics">Started by: <span class="printuser"><a href="http://www.wikidot.com/user:info/test-user" onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test_user</a></span><br/>Date: <span class="odate time_1700000000">17 Dec 2025</span><br/></div>',
+                "Br tags are not enough",
+            ),
+            ("<br/>Date:", "Date:", "Post count is malformed"),
+            ("Number of posts: 5<br/>", "<br/>", "Post count is malformed"),
+            (
+                '<script type="text/javascript">WIKIDOT.forumThreadId = 3001;</script>',
+                '<script type="text/javascript" src="/thread.js"></script><script type="text/javascript">WIKIDOT.forumThreadId = 3001;</script>',
+                "never-matches",
+            ),
+            (
+                '<script type="text/javascript">WIKIDOT.forumThreadId = 3001;</script>',
+                "",
+                "Script element is not found",
+            ),
+        ],
+    )
+    def test_parse_thread_page_rejects_missing_required_elements(
+        self,
+        mock_site_no_http: Site,
+        forum_thread_detail: dict[str, Any],
+        old_fragment: str,
+        new_fragment: str,
+        message: str,
+    ) -> None:
+        body = forum_thread_detail["body"].replace(old_fragment, new_fragment, 1)
+        html = BeautifulSoup(body, "lxml")
+
+        if message == "never-matches":
+            thread = ForumThreadCollection._parse_thread_page(mock_site_no_http, html)
+            assert thread.id == 3001
+        else:
+            with pytest.raises(exceptions.NoElementException, match=message):
+                ForumThreadCollection._parse_thread_page(mock_site_no_http, html)
 
 
 class TestForumThreadCollectionAcquireAll:
@@ -521,6 +726,21 @@ class TestForumThreadCollectionAcquireAll:
         with pytest.raises(
             exceptions.NoElementException,
             match=r"Forum thread list response body is not found for site: test-site, category: 1001, page: 1",
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+
+    def test_acquire_all_raises_when_first_page_retry_is_exhausted(
+        self, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        """カテゴリ内スレッド一覧の初回再試行が尽きた場合は明示的に失敗する"""
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(None,))
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=r"Cannot retrieve forum threads for site: test-site, category: 1001, page: 1",
         ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
 
@@ -1155,9 +1375,28 @@ class TestForumThreadCollectionAcquireFromIds:
 
         assert len(collection) == 1
         assert collection[0].id == 0
+
+    def test_acquire_from_ids_skips_nonmatching_script_before_thread_id(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        body = forum_thread_detail["body"].replace(
+            '<script type="text/javascript">WIKIDOT.forumThreadId = 3001;</script>',
+            '<script type="text/javascript">var unrelated = true;</script>'
+            '<script type="text/javascript">WIKIDOT.forumThreadId = 3001;</script>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        collection = ForumThreadCollection.acquire_from_thread_ids(mock_site_no_http, [3001])
+
+        assert len(collection) == 1
+        assert collection[0].id == 3001
         mock_site_no_http.amc_request.assert_not_called()
         mock_site_no_http.amc_request_with_retry.assert_called_once_with(
-            [{"t": 0, "moduleName": "forum/ForumViewThreadModule"}]
+            [{"t": 3001, "moduleName": "forum/ForumViewThreadModule"}]
         )
 
     def test_acquire_from_ids_ignores_description_statistics_markup(
@@ -2203,6 +2442,24 @@ class TestForumThreadBasic:
         mock_site_no_http.amc_request.assert_not_called()
         mock_site_no_http.amc_request_with_retry.assert_not_called()
 
+    def test_get_from_id_rejects_mismatched_parsed_thread_id(
+        self, mock_site_no_http: Site, forum_thread_detail: dict[str, Any]
+    ) -> None:
+        """要求IDと詳細ページ内IDが違う場合は別スレッドとして返さない"""
+        response = MagicMock()
+        response.json.return_value = forum_thread_detail
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Thread ID is not matched for site: test-site \(requested_thread=3002, parsed_thread=3001\)",
+        ):
+            ForumThread.get_from_id(mock_site_no_http, 3002)
+
+        mock_site_no_http.amc_request.assert_not_called()
+        mock_site_no_http.amc_request_with_retry.assert_called_once()
+
     def test_site_get_thread_rejects_non_integer_thread_id_before_fetch(self, mock_site_no_http: Site) -> None:
         """サイトの単一スレッド取得でも非整数IDはAMC取得前に拒否する"""
         thread_id: Any = "3001"
@@ -2262,6 +2519,26 @@ class TestForumThreadPosts:
         assert mock_forum_thread_no_http._posts is None
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_posts_property_uses_empty_collection_when_acquire_result_has_no_thread_id(
+        self, mock_forum_thread_no_http: ForumThread, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """一括取得結果に対象IDがなければ対象threadの空コレクションを保持する"""
+        from wikidot.module.forum_post import ForumPostCollection
+
+        mock_forum_thread_no_http._posts = None
+
+        def acquire_all_in_threads(threads: list[ForumThread]) -> dict[int, ForumPostCollection]:
+            assert threads == [mock_forum_thread_no_http]
+            return {}
+
+        monkeypatch.setattr(ForumPostCollection, "acquire_all_in_threads", acquire_all_in_threads)
+
+        posts = mock_forum_thread_no_http.posts
+
+        assert posts.thread is mock_forum_thread_no_http
+        assert list(posts) == []
+        assert mock_forum_thread_no_http._posts is posts
+
 
 class TestForumThreadReply:
     """ForumThread.replyのテスト"""
@@ -2278,6 +2555,7 @@ class TestForumThreadReply:
 
     def test_reply_success(self, mock_forum_thread_no_http: ForumThread, amc_ok_response: dict[str, Any]) -> None:
         """返信が成功する"""
+        mock_forum_thread_no_http.category = None
         mock_forum_thread_no_http.site.client.is_logged_in = True
         mock_forum_thread_no_http.site.client.login_check = MagicMock()
 

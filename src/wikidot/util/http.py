@@ -181,7 +181,8 @@ async def async_get_with_retry(
         backoff_factor=backoff_factor,
     )
 
-    for attempt in range(attempt_limit):
+    attempt = 0
+    while True:
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 response = await client.get(url, headers=headers, follow_redirects=follow_redirects)
@@ -200,6 +201,7 @@ async def async_get_with_retry(
                 max_backoff,
             )
             await asyncio.sleep(backoff)
+            attempt += 1
         except (httpx.TimeoutException, httpx.NetworkError):
             if attempt >= attempt_limit - 1:
                 raise
@@ -210,7 +212,7 @@ async def async_get_with_retry(
                 max_backoff,
             )
             await asyncio.sleep(backoff)
-    raise RuntimeError("Unreachable")
+            attempt += 1
 
 
 def sync_get_with_retry(
@@ -272,7 +274,8 @@ def sync_get_with_retry(
         backoff_factor=backoff_factor,
     )
 
-    for attempt in range(attempt_limit):
+    attempt = 0
+    while True:
         try:
             response = httpx.get(
                 url,
@@ -290,6 +293,7 @@ def sync_get_with_retry(
                     max_backoff,
                 )
                 time.sleep(backoff)
+                attempt += 1
                 continue
             return response
         except httpx.HTTPStatusError as e:
@@ -305,6 +309,7 @@ def sync_get_with_retry(
                 max_backoff,
             )
             time.sleep(backoff)
+            attempt += 1
         except (httpx.TimeoutException, httpx.NetworkError):
             if attempt >= attempt_limit - 1:
                 raise
@@ -315,7 +320,7 @@ def sync_get_with_retry(
                 max_backoff,
             )
             time.sleep(backoff)
-    raise RuntimeError("Unreachable")
+            attempt += 1
 
 
 def sync_post_with_retry(
@@ -376,7 +381,8 @@ def sync_post_with_retry(
         backoff_factor=backoff_factor,
     )
 
-    for attempt in range(attempt_limit):
+    attempt = 0
+    while True:
         try:
             response = httpx.post(
                 url,
@@ -394,6 +400,7 @@ def sync_post_with_retry(
                     max_backoff,
                 )
                 time.sleep(backoff)
+                attempt += 1
                 continue
             return response
         except httpx.HTTPStatusError as e:
@@ -409,6 +416,7 @@ def sync_post_with_retry(
                 max_backoff,
             )
             time.sleep(backoff)
+            attempt += 1
         except (httpx.TimeoutException, httpx.NetworkError):
             if attempt >= attempt_limit - 1:
                 raise
@@ -419,4 +427,4 @@ def sync_post_with_retry(
                 max_backoff,
             )
             time.sleep(backoff)
-    raise RuntimeError("Unreachable")
+            attempt += 1

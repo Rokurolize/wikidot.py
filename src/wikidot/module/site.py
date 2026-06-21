@@ -11,9 +11,9 @@ from urllib.parse import urlsplit
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 12):  # pragma: no cover - Python >=3.12 compatibility branch
     from typing import Unpack
-else:
+else:  # pragma: no cover - Python <3.12 compatibility branch
     from typing_extensions import Unpack
 
 from ..common import exceptions
@@ -775,8 +775,6 @@ class SitePagesAccessor:
         required_tag_set = self._normalize_required_tags(required_tags)
         while True:
             batch_limit = per_page if remaining is None or required_tag_set else min(per_page, remaining)
-            if batch_limit <= 0:
-                return
 
             batch_kwargs = query.as_dict()
             batch_kwargs["offset"] = offset
@@ -1046,7 +1044,9 @@ class SitePageAccessor:
 
     @staticmethod
     def _resolve_post_save_page_id(page: "Page", attempts: int, interval: float) -> int:
-        for attempt in range(attempts):
+        if attempts < 1:
+            raise ValueError("attempts must be at least 1")
+        for attempt in range(attempts):  # pragma: no branch - attempts is validated and terminal failures raise
             try:
                 return page.id
             except httpx.HTTPStatusError as exc:
@@ -1062,8 +1062,7 @@ class SitePageAccessor:
                     raise
             if interval > 0:
                 time.sleep(interval)
-
-        raise exceptions.NotFoundException("Cannot find page id")
+        raise AssertionError("post-save page id retry loop exited unexpectedly")  # pragma: no cover
 
     @staticmethod
     def _validate_post_save_visibility_attempts(value: object) -> int:
@@ -1481,15 +1480,17 @@ class Site:
             ssl_supported=ssl_supported,
         )
 
-    @overload
-    def amc_request(
-        self, bodies: list[dict[str, Any]], return_exceptions: Literal[False] = False
-    ) -> tuple[httpx.Response, ...]: ...
+    if TYPE_CHECKING:
 
-    @overload
-    def amc_request(
-        self, bodies: list[dict[str, Any]], return_exceptions: Literal[True] = ...
-    ) -> tuple[httpx.Response | Exception, ...]: ...
+        @overload
+        def amc_request(
+            self, bodies: list[dict[str, Any]], return_exceptions: Literal[False] = False
+        ) -> tuple[httpx.Response, ...]: ...
+
+        @overload
+        def amc_request(
+            self, bodies: list[dict[str, Any]], return_exceptions: Literal[True] = ...
+        ) -> tuple[httpx.Response | Exception, ...]: ...
 
     def amc_request(
         self, bodies: list[dict[str, Any]], return_exceptions: bool = False
@@ -1930,8 +1931,6 @@ class Site:
 
         def is_in_comment_cell(element: Tag) -> bool:
             for ancestor in element.parents:
-                if not isinstance(ancestor, Tag):
-                    continue
                 if ancestor.name == "td" and "comments" in class_values(ancestor):
                     return True
             return False
@@ -2008,8 +2007,6 @@ class Site:
         page_numbers = list(range(2, last_page + 1))
         if limit is not None:
             remaining = limit - len(changes)
-            if remaining <= 0:
-                return changes
             page_numbers = page_numbers[: (remaining + per_page - 1) // per_page]
 
         responses = self.amc_request_with_retry([request_body(page_no) for page_no in page_numbers])
