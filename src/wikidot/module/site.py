@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 12):  # pragma: no cover - Python >=3.12 compatibility branch
     from typing import Unpack
 else:  # pragma: no cover - Python <3.12 compatibility branch
     from typing_extensions import Unpack

@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 12):  # pragma: no cover - Python >=3.12 compatibility branch
     from typing import TypedDict, Unpack
 else:  # pragma: no cover - Python <3.12 compatibility branch
     from typing_extensions import TypedDict, Unpack
