@@ -1320,7 +1320,7 @@ class TestForumCategoryCreateThread:
         mock_forum_category_no_http.site.amc_request.assert_not_called()
         assert mock_forum_category_no_http._threads is cached_threads
 
-    @pytest.mark.parametrize("response_body", [{}, {"threadId": "3001"}])
+    @pytest.mark.parametrize("response_body", [{"status": "ok"}, {"status": "ok", "threadId": "3001"}])
     def test_create_thread_missing_or_invalid_thread_id_raises(
         self,
         mock_forum_category_no_http: ForumCategory,

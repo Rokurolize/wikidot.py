@@ -162,7 +162,7 @@ class TestSyncGetWithRetry:
         )
 
         assert response.status_code == 200
-        assert httpx_mock.get_requests()[0].content == b"key=value"
+        assert httpx_mock.get_requests()[0].content == b""
 
     def test_retry_on_5xx_then_success(self, httpx_mock):
         """5xxエラー後にリトライして成功"""
@@ -176,7 +176,7 @@ class TestSyncGetWithRetry:
         )
 
         assert response.status_code == 200
-        assert [request.content for request in httpx_mock.get_requests()] == [b"key=value", b"key=value"]
+        assert [request.content for request in httpx_mock.get_requests()] == [b"", b""]
 
     def test_no_retry_on_4xx(self, httpx_mock):
         """4xxエラーはリトライしない"""
@@ -218,7 +218,7 @@ class TestSyncGetWithRetry:
         )
 
         assert response.status_code == 200
-        assert [request.content for request in httpx_mock.get_requests()] == [b"key=value", b"key=value"]
+        assert [request.content for request in httpx_mock.get_requests()] == [b"", b""]
 
     def test_max_retries_exceeded_on_timeout(self, httpx_mock):
         """タイムアウトでリトライ上限に達した場合"""

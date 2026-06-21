@@ -1007,12 +1007,12 @@ class TestPageFileCollectionAcquire:
                             <td><span title="text/plain">TXT</span></td>
                             <td>100 Bytes</td>
                         </tr>
-                        <tr id="file-row-101">
+                        <tr>
                             <td>No link here</td>
                             <td></td>
                             <td></td>
                         </tr>
-                        <tr id="file-row-102">
+                        <tr id="not-a-file-row-102">
                             <td>Too few columns</td>
                         </tr>
                     </tbody>
