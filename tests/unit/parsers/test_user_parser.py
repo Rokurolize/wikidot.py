@@ -174,13 +174,13 @@ class TestUserParserDeletedUser:
         assert result.id == 0
 
     def test_parse_non_deleted_string_raises(self, mock_client_no_http: MagicMock) -> None:
-        with pytest.raises(ValueError, match="elem must be bs4.Tag except DeletedUser"):
+        with pytest.raises(ValueError, match=r"elem must be bs4\.Tag except DeletedUser"):
             user_parse(mock_client_no_http, "not deleted")
 
     def test_parse_non_tag_input_raises(self, mock_client_no_http: MagicMock) -> None:
         elem: Any = object()
 
-        with pytest.raises(ValueError, match="elem must be bs4.Tag except DeletedUser"):
+        with pytest.raises(ValueError, match=r"elem must be bs4\.Tag except DeletedUser"):
             user_parse(mock_client_no_http, elem)
 
     def test_parse_deleted_user_with_id(self, mock_client_no_http: MagicMock, printuser_deleted_html: str) -> None:

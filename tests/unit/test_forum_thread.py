@@ -2527,7 +2527,7 @@ class TestForumThreadPosts:
 
         mock_forum_thread_no_http._posts = None
 
-        def acquire_all_in_threads(threads):
+        def acquire_all_in_threads(threads: list[ForumThread]) -> dict[int, ForumPostCollection]:
             assert threads == [mock_forum_thread_no_http]
             return {}
 

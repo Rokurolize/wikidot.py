@@ -110,7 +110,7 @@ class TestSiteApplicationDataclass:
         user = _application_user(site.client)
         user.id = user_id
 
-        with pytest.raises(ValueError, match="application.user.id must be non-negative"):
+        with pytest.raises(ValueError, match=r"application\.user\.id must be non-negative"):
             SiteApplication(site=site, user=user, text="")
 
     @pytest.mark.parametrize("retained_user_id", [True, False, "12345", 12345.0, []])
