@@ -1809,9 +1809,7 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         list_response = MagicMock()
         list_response.json.return_value = forum_post_revisions_single
         mock_forum_post_no_http.thread.site.amc_request = MagicMock()
-        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(
-            side_effect=[(list_response,), (None,)]
-        )
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(side_effect=[(list_response,), (None,)])
 
         with pytest.raises(
             exceptions.UnexpectedException,

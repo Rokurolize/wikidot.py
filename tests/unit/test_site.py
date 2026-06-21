@@ -841,9 +841,7 @@ class TestSitePagesAccessor:
         assert results[1].error_message == "single page failed"
         assert [len(call.args[0]) for call in mock_site_no_http.amc_request_with_retry.call_args_list] == [2, 2, 1, 1]
 
-    def test_iter_sources_clears_batch_error_when_single_page_fallback_succeeds(
-        self, mock_site_no_http: Site
-    ) -> None:
+    def test_iter_sources_clears_batch_error_when_single_page_fallback_succeeds(self, mock_site_no_http: Site) -> None:
         page = self._page(mock_site_no_http, "page-one", 703)
 
         def search_pages(site: Site, query) -> PageCollection:
@@ -3502,6 +3500,7 @@ class TestSiteAmcRequest:
 
         assert result == (first_response, retried_response, None)
 
+
 class TestSiteInviteUser:
     """Site.invite_user のテスト"""
 
@@ -4186,18 +4185,24 @@ class TestSiteGetRecentChanges:
         body = re.sub(r"<table>.*?</table>", "", site_changes["body"], count=1, flags=re.DOTALL)
         site = self._site_with_recent_change_body(body, site_changes)
 
-        with pytest.raises(NoElementException, match=r"Change table element is not found for site: test \(page=1, change=1\)"):
+        with pytest.raises(
+            NoElementException, match=r"Change table element is not found for site: test \(page=1, change=1\)"
+        ):
             site.get_recent_changes()
 
     def test_get_recent_changes_missing_rows_includes_context(self, site_changes: dict[str, Any]) -> None:
         body = re.sub(r"<table>.*?</table>", "<table></table>", site_changes["body"], count=1, flags=re.DOTALL)
         site = self._site_with_recent_change_body(body, site_changes)
 
-        with pytest.raises(NoElementException, match=r"Change row element is not found for site: test \(page=1, change=1\)"):
+        with pytest.raises(
+            NoElementException, match=r"Change row element is not found for site: test \(page=1, change=1\)"
+        ):
             site.get_recent_changes()
 
     def test_get_recent_changes_empty_comment_becomes_none(self, site_changes: dict[str, Any]) -> None:
-        body = site_changes["body"].replace('<td class="comments">Test edit comment</td>', '<td class="comments"></td>', 1)
+        body = site_changes["body"].replace(
+            '<td class="comments">Test edit comment</td>', '<td class="comments"></td>', 1
+        )
         site = self._site_with_recent_change_body(body, site_changes)
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:

@@ -766,7 +766,9 @@ class TestPageRevisionCollection:
 
     def test_get_htmls_with_marker_without_closing_anchor_uses_body(self, mock_page, sample_revision):
         """区切りリンク開始だけがある異常HTMLはbody全体を保持する"""
-        body = "<div>before</div>onclick=\"document.getElementById('page-version-info').style.display='none'\"><p>raw</p>"
+        body = (
+            "<div>before</div>onclick=\"document.getElementById('page-version-info').style.display='none'\"><p>raw</p>"
+        )
         mock_response = MagicMock()
         mock_response.json.return_value = {"body": body}
         mock_page.site.amc_request_with_retry.return_value = [mock_response]

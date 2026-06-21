@@ -263,57 +263,61 @@ class TestForumCategoryCollectionAcquireAll:
             forum_category_module._parse_category_id(mock_site_no_http, 1, "/forum/start")
 
     def test_acquire_all_rejects_missing_name_class(self, mock_site_no_http: Site) -> None:
-        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(
-            self._forum_start_response(self._category_row(name_class="")),
-        ))
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(name_class="")),)
+        )
 
         with pytest.raises(exceptions.NoElementException, match="Name element is not found"):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
 
     def test_acquire_all_rejects_missing_thread_count_class(self, mock_site_no_http: Site) -> None:
-        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(
-            self._forum_start_response(self._category_row(threads_class="")),
-        ))
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(threads_class="")),)
+        )
 
         with pytest.raises(exceptions.NoElementException, match="Thread count element is not found"):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
 
     def test_acquire_all_rejects_missing_post_count_class(self, mock_site_no_http: Site) -> None:
-        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(
-            self._forum_start_response(self._category_row(posts_class="")),
-        ))
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(posts_class="")),)
+        )
 
         with pytest.raises(exceptions.NoElementException, match="Post count element is not found"):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
 
     def test_acquire_all_rejects_missing_title_container(self, mock_site_no_http: Site) -> None:
-        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(
-            self._forum_start_response(self._category_row(title_html="")),
-        ))
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(title_html="")),)
+        )
 
         with pytest.raises(exceptions.NoElementException, match="Title element is not found"):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
 
     def test_acquire_all_rejects_missing_name_link(self, mock_site_no_http: Site) -> None:
-        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(
-            self._forum_start_response(self._category_row(title_html='<div class="title">General</div>')),
-        ))
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(
+                self._forum_start_response(self._category_row(title_html='<div class="title">General</div>')),
+            )
+        )
 
         with pytest.raises(exceptions.NoElementException, match="Name link element is not found"):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
 
     def test_acquire_all_rejects_missing_name_href(self, mock_site_no_http: Site) -> None:
-        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(
-            self._forum_start_response(self._category_row(title_html='<div class="title"><a>General</a></div>')),
-        ))
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(
+                self._forum_start_response(self._category_row(title_html='<div class="title"><a>General</a></div>')),
+            )
+        )
 
         with pytest.raises(exceptions.NoElementException, match="Name link href is not found"):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
 
     def test_acquire_all_rejects_missing_description(self, mock_site_no_http: Site) -> None:
-        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(
-            self._forum_start_response(self._category_row(description_html="")),
-        ))
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(description_html="")),)
+        )
 
         with pytest.raises(exceptions.NoElementException, match="Description element is not found"):
             ForumCategoryCollection.acquire_all(mock_site_no_http)

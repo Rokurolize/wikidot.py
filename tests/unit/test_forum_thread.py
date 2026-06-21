@@ -314,15 +314,17 @@ class TestForumThreadCollectionInit:
         assert ForumThreadCollection._thread_title_from_breadcrumbs(breadcrumbs) == "Thread Title"
 
     def test_thread_title_from_breadcrumbs_skips_empty_trailing_text(self) -> None:
-        breadcrumbs = BeautifulSoup("<div>Forum &raquo; Category <span></span> &raquo; </div>", "lxml").select_one("div")
+        breadcrumbs = BeautifulSoup("<div>Forum &raquo; Category <span></span> &raquo; </div>", "lxml").select_one(
+            "div"
+        )
         assert breadcrumbs is not None
 
         assert ForumThreadCollection._thread_title_from_breadcrumbs(breadcrumbs) == "Forum » Category"
 
     def test_thread_title_from_breadcrumbs_skips_empty_trailing_node_before_title(self) -> None:
-        breadcrumbs = BeautifulSoup("<div><span>Forum</span> &raquo; Thread Title<span></span> \n </div>", "lxml").select_one(
-            "div"
-        )
+        breadcrumbs = BeautifulSoup(
+            "<div><span>Forum</span> &raquo; Thread Title<span></span> \n </div>", "lxml"
+        ).select_one("div")
         assert breadcrumbs is not None
 
         assert ForumThreadCollection._thread_title_from_breadcrumbs(breadcrumbs) == "Thread Title"
@@ -520,7 +522,11 @@ class TestForumThreadCollectionParseThreadPage:
                 '<script type="text/javascript" src="/thread.js"></script><script type="text/javascript">WIKIDOT.forumThreadId = 3001;</script>',
                 "never-matches",
             ),
-            ('<script type="text/javascript">WIKIDOT.forumThreadId = 3001;</script>', "", "Script element is not found"),
+            (
+                '<script type="text/javascript">WIKIDOT.forumThreadId = 3001;</script>',
+                "",
+                "Script element is not found",
+            ),
         ],
     )
     def test_parse_thread_page_rejects_missing_required_elements(

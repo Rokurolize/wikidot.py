@@ -1867,7 +1867,9 @@ class TestForumPostCollectionGetSources:
         """編集フォームにsource textareaがなければsite/post付きで失敗する"""
         collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
         mock_response = MagicMock()
-        mock_response.json.return_value = {"body": '<form id="edit-post-form"><textarea name="other"></textarea></form>'}
+        mock_response.json.return_value = {
+            "body": '<form id="edit-post-form"><textarea name="other"></textarea></form>'
+        }
         mock_forum_thread_no_http.site.amc_request = MagicMock()
         mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
 

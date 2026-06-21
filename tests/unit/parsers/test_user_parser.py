@@ -127,9 +127,7 @@ class TestUserParserRegularUser:
             user_parse(mock_client_no_http, elem)
 
     @pytest.mark.parametrize("onclick", ["", "WIKIDOT.page.listeners.userInfo(); return false;"])
-    def test_parse_regular_user_without_onclick_id_raises(
-        self, mock_client_no_http: MagicMock, onclick: str
-    ) -> None:
+    def test_parse_regular_user_without_onclick_id_raises(self, mock_client_no_http: MagicMock, onclick: str) -> None:
         html = (
             '<span class="printuser"><a href="http://www.wikidot.com/user:info/missing-id" '
             f'onclick="{onclick}">missing-id</a></span>'
