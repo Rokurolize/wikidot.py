@@ -295,6 +295,12 @@ class TestUserFromName:
 class TestUserCollection:
     """UserCollection のテスト"""
 
+    def test_init_defaults_to_empty_collection(self) -> None:
+        """UserCollectionは引数なしなら空コレクションとして初期化する"""
+        users = UserCollection()
+
+        assert list(users) == []
+
     @pytest.mark.parametrize("users", [True, False, "1", ("1",), 1])
     def test_init_rejects_non_list_users(self, users: Any) -> None:
         """UserCollection初期化時のusersはlistまたはNoneだけ受け付ける"""
@@ -630,6 +636,48 @@ class TestUserCollection:
             str(exc_info.value)
             == f"User ID is malformed for requested user: bad (index=1, field=user_id, value={href})"
         )
+
+    def test_from_names_blank_id_href_raises(self, httpx_mock: HTTPXMock) -> None:
+        """プロフィールIDリンクhrefがblankの場合はID欠落として扱う"""
+        client = create_lookup_client()
+        html = """
+        <!DOCTYPE html>
+        <html>
+        <body>
+        <div id="user-info">
+            <h1 class="profile-title">bad</h1>
+            <a class="btn btn-default btn-xs" href="   ">Karma</a>
+        </div>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(url="https://www.wikidot.com/user:info/bad", text=html)
+
+        with pytest.raises(
+            NoElementException,
+            match=r"User ID is not found for requested user: bad \(index=1\)",
+        ):
+            UserCollection.from_names(client, ["bad"])
+
+    def test_from_names_raises_response_exception(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """RequestUtilが返した例外要素はユーザーHTMLとして解釈せず送出する"""
+        client = create_lookup_client()
+        error = RuntimeError("request failed")
+        monkeypatch.setattr("wikidot.module.user.RequestUtil.request", lambda *_args, **_kwargs: [error])
+
+        with pytest.raises(RuntimeError, match="request failed"):
+            UserCollection.from_names(client, ["bad"])
+
+    def test_from_name_raises_when_empty_result_and_raise_enabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """単一ユーザー取得は一括取得が空ならraise_when_not_found指定を尊重する"""
+        client = create_lookup_client()
+        monkeypatch.setattr(
+            "wikidot.module.user.UserCollection.from_names",
+            lambda *_args, **_kwargs: UserCollection([]),
+        )
+
+        with pytest.raises(NotFoundException, match="User not found: missing-user"):
+            User.from_name(client, "missing-user", raise_when_not_found=True)
 
     def test_from_names_missing_name_element(self, httpx_mock: HTTPXMock) -> None:
         """名前要素がない場合NoElementException"""

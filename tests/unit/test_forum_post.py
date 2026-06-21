@@ -10,6 +10,7 @@ from unittest.mock import MagicMock
 import pytest
 from bs4 import BeautifulSoup
 
+import wikidot.module.forum_post as forum_post_module
 from wikidot.common import exceptions
 from wikidot.module.client import Client
 from wikidot.module.forum_post import ForumPost, ForumPostCollection
@@ -211,6 +212,16 @@ class TestForumPostCollectionInit:
         found = collection.find(9999)
         assert found is None
 
+    def test_find_skips_nonmatching_post_before_match(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """先頭が不一致でも後続の一致投稿を返す"""
+        first_post = _post_with_id(mock_forum_post_no_http, 5000)
+        target_post = _post_with_id(mock_forum_post_no_http, 5001)
+        collection = ForumPostCollection(mock_forum_thread_no_http, [first_post, target_post])
+
+        assert collection.find(5001) is target_post
+
     def test_find_accepts_post_with_zero_retained_id(self, mock_forum_post_no_http: ForumPost) -> None:
         post = _post_with_id(mock_forum_post_no_http, 0)
         collection = ForumPostCollection(post.thread, [post])
@@ -254,6 +265,39 @@ class TestForumPostCollectionInit:
 
         with pytest.raises(ValueError, match="id must be non-negative"):
             collection.find(5001)
+
+    def test_validate_forum_post_rejects_non_post(self) -> None:
+        with pytest.raises(ValueError, match="post must be a ForumPost"):
+            forum_post_module._validate_forum_post(object())
+
+    def test_validate_forum_posts_rejects_non_list(self) -> None:
+        with pytest.raises(ValueError, match="posts must be a list"):
+            forum_post_module._validate_forum_posts(object())
+
+    def test_validate_single_thread_site_rejects_mixed_sites(self, mock_forum_thread_no_http: ForumThread) -> None:
+        other_site = Site(
+            client=mock_forum_thread_no_http.site.client,
+            id=654321,
+            title="Other Site",
+            unix_name="other-site",
+            domain="other-site.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ValueError, match="threads must belong to the same Site"):
+            forum_post_module._validate_single_thread_site([mock_forum_thread_no_http.site, other_site])
+
+    def test_user_onclick_value_falls_back_to_text_without_anchor(self) -> None:
+        elem = BeautifulSoup('<span class="printuser">Broken User</span>', "lxml").select_one("span")
+        assert elem is not None
+
+        assert forum_post_module._user_onclick_value(elem) == "Broken User"
+
+    def test_user_onclick_value_falls_back_to_text_when_anchor_has_no_onclick(self) -> None:
+        elem = BeautifulSoup('<span class="printuser"><a href="#">Broken User</a></span>', "lxml").select_one("span")
+        assert elem is not None
+
+        assert forum_post_module._user_onclick_value(elem) == "Broken User"
 
 
 class TestForumPostCollectionParse:
@@ -391,6 +435,58 @@ class TestForumPostCollectionParse:
         assert posts[0].edited_by.id == 54322
         assert posts[0].edited_at is not None
 
+    @pytest.mark.parametrize(
+        "changes_markup",
+        [
+            '<div class="changes"><span class="printuser"><a onclick="WIKIDOT.page.listeners.userInfo(54322); return false;">edit_user</a></span></div>',
+            '<div class="changes"><span class="odate time_1700000500">17 Dec 2025</span></div>',
+        ],
+    )
+    def test_parse_ignores_incomplete_top_level_changes_metadata(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any], changes_markup: str
+    ) -> None:
+        """トップレベルchangesでも編集者と日時の片方だけなら編集情報として扱わない"""
+        body = forum_posts_in_thread["body"].replace(
+            '<div class="content" id="post-content-5001"><p>Test post content</p></div>',
+            f'<div class="content" id="post-content-5001"><p>Test post content</p></div>{changes_markup}',
+            1,
+        )
+        html = BeautifulSoup(body, "lxml")
+
+        posts = ForumPostCollection._parse(mock_forum_thread_no_http, html)
+
+        assert posts[0].edited_by is None
+        assert posts[0].edited_at is None
+
+    @pytest.mark.parametrize(
+        "body_replacement",
+        [
+            (
+                '<div class="post" id="post-5001">',
+                '<div class="not-post" id="post-5001">',
+            ),
+            (
+                '<div class="post" id="post-5001">',
+                '<div class="post">',
+            ),
+        ],
+    )
+    def test_parse_treats_malformed_parent_container_as_top_level_post(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        forum_posts_nested: dict[str, Any],
+        body_replacement: tuple[str, str],
+    ) -> None:
+        """返信の親コンテナが壊れている場合は親IDなしの投稿として読む"""
+        body = forum_posts_nested["body"].replace(*body_replacement, 1)
+        html = BeautifulSoup(body, "lxml")
+
+        posts = ForumPostCollection._parse(mock_forum_thread_no_http, html)
+
+        assert len(posts) == 1
+        assert posts[0].id == 5002
+        assert posts[0].parent_id is None
+
     def test_parse_scopes_post_info_metadata_to_direct_children(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
@@ -450,6 +546,10 @@ class TestForumPostCollectionAcquireAll:
 
         with pytest.raises(ValueError, match="threads must be a list"):
             ForumPostCollection.acquire_all_in_threads(bad_threads)
+
+    def test_acquire_all_in_threads_empty_input_returns_empty_mapping(self) -> None:
+        """空のthread一覧はAMCリクエストなしで空dictを返す"""
+        assert ForumPostCollection.acquire_all_in_threads([]) == {}
 
     @pytest.mark.parametrize("bad_thread", [None, True, "3001"])
     def test_acquire_all_in_threads_rejects_non_thread_entries_before_fetch(
@@ -778,6 +878,67 @@ class TestForumPostCollectionAcquireAll:
                 r"\(thread=3001, page=1, post=1, post_id=5001\)"
             ),
         ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("old_fragment", "new_fragment", "message"),
+        [
+            (
+                '<div class="long">',
+                '<div class="long-missing">',
+                r"Post wrapper element is not found for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5001\)",
+            ),
+            (
+                '<div class="head">',
+                '<div class="head-missing">',
+                r"Post head element is not found for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5001\)",
+            ),
+            (
+                '<div class="content" id="post-content-5001"><p>Test post content</p></div>',
+                "",
+                r"Post content element is not found for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5001\)",
+            ),
+            (
+                '<div class="info">',
+                '<div class="info-missing">',
+                r"Post info element is not found for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5001\)",
+            ),
+            (
+                '<span class="printuser">',
+                '<span class="printuser-missing">',
+                r"Post user element is not found for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5001\)",
+            ),
+            (
+                '<span class="odate time_1700000000">17 Dec 2025</span>',
+                "",
+                r"Post odate element is not found for site: test-site "
+                r"\(thread=3001, page=1, post=1, post_id=5001\)",
+            ),
+        ],
+    )
+    def test_acquire_all_missing_required_post_elements_include_thread_page_and_post_context(
+        self,
+        mock_forum_thread_no_http: ForumThread,
+        forum_posts_in_thread: dict[str, Any],
+        old_fragment: str,
+        new_fragment: str,
+        message: str,
+    ) -> None:
+        """投稿一覧の必須要素欠損はsite/thread/page/post文脈付きで失敗する"""
+        body = forum_posts_in_thread["body"].replace(old_fragment, new_fragment, 1)
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_posts_in_thread, "body": body}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(exceptions.NoElementException, match=message):
             ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
@@ -1700,6 +1861,25 @@ class TestForumPostCollectionGetSources:
         assert mock_forum_post_no_http._source is None
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_get_post_sources_missing_source_textarea_includes_site_and_post_context(
+        self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """編集フォームにsource textareaがなければsite/post付きで失敗する"""
+        collection = ForumPostCollection(mock_forum_thread_no_http, [mock_forum_post_no_http])
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": '<form id="edit-post-form"><textarea name="other"></textarea></form>'}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match="Source textarea is not found for site: test-site, post: 5001",
+        ):
+            collection.get_post_sources()
+
+        assert mock_forum_post_no_http._source is None
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
     def test_get_post_sources_malformed_response_body_type_includes_site_post_and_type_context(
         self, mock_forum_thread_no_http: ForumThread, mock_forum_post_no_http: ForumPost
     ) -> None:
@@ -1786,6 +1966,13 @@ class TestForumPostCollectionGetSources:
         collection = ForumPostCollection(mock_forum_thread_no_http, [])
         result = collection.get_post_sources()
         assert result == collection
+        assert len(collection) == 0
+
+    def test_get_post_sources_empty_collection_without_thread(self) -> None:
+        """thread未保持の空コレクションは取得処理なしで自身を返す"""
+        collection = ForumPostCollection()
+
+        assert collection.get_post_sources() is collection
         assert len(collection) == 0
 
     def test_get_post_sources_multiple_posts(
@@ -2028,6 +2215,24 @@ class TestForumPostBasic:
             _source=mock_forum_post_no_http._source,
             _revisions=revisions,
         )
+
+        assert post.revisions is revisions
+
+    def test_init_accepts_revisions_cache_without_collection_post(self, mock_forum_post_no_http: ForumPost) -> None:
+        """collection側にpost未保持でも各revisionが同一投稿ならキャッシュとして保持できる"""
+        revisions = ForumPostRevisionCollection(None, [_revision_for_post(mock_forum_post_no_http)])
+
+        post = _post_with_revisions_cache(mock_forum_post_no_http, revisions)
+
+        assert post.revisions is revisions
+
+    def test_init_accepts_empty_revisions_cache_without_collection_post(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """空のpost未保持revision cacheも投稿キャッシュとして保持できる"""
+        revisions = ForumPostRevisionCollection(None, [])
+
+        post = _post_with_revisions_cache(mock_forum_post_no_http, revisions)
 
         assert post.revisions is revisions
 

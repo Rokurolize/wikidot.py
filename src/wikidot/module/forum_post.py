@@ -555,8 +555,6 @@ class ForumPostCollection(list["ForumPost"]):
     @staticmethod
     def _is_inside_post_content(post_elem: Tag) -> bool:
         for ancestor in post_elem.parents:
-            if not isinstance(ancestor, Tag):
-                continue
             ancestor_classes = ancestor.get("class")
             ancestor_id = ancestor.get("id")
             if (
@@ -603,32 +601,27 @@ class ForumPostCollection(list["ForumPost"]):
 
             post_index += 1
             parse_context = _post_list_parse_context(thread, page, post_index)
-            post_id_attr = post_elem.get("id")
-            if post_id_attr is None:
-                raise NoElementException(f"Post ID attribute is not found {parse_context}")
+            post_id_attr = cast(str, post_elem.get("id"))
             post_id = _parse_post_id_value(thread, page, post_index, post_id_attr, field="post_id")
             parse_context = _post_list_parse_context(thread, page, post_index, post_id)
 
             # 親Post IDの取得
             parent_id: int | None = None
-            parent_container = post_elem.parent
+            own_container = post_elem.find_parent("div", class_="post-container")
+            parent_container = own_container.find_parent("div", class_="post-container") if own_container else None
             if parent_container is not None:
-                grandparent = parent_container.parent
-                if grandparent is not None and grandparent.name != "body":
-                    grandparent_class = grandparent.get("class")
-                    if isinstance(grandparent_class, list) and "post-container" in grandparent_class:
-                        parent_post = grandparent.find("div", class_="post", recursive=False)
-                        if isinstance(parent_post, Tag):
-                            parent_id_attr = parent_post.get("id")
-                            if parent_id_attr is not None:
-                                parent_id = _parse_post_id_value(
-                                    thread,
-                                    page,
-                                    post_index,
-                                    parent_id_attr,
-                                    field="parent_post_id",
-                                    post_id=post_id,
-                                )
+                parent_post = parent_container.find("div", class_="post", recursive=False)
+                if isinstance(parent_post, Tag):
+                    parent_id_attr = parent_post.get("id")
+                    if parent_id_attr is not None:
+                        parent_id = _parse_post_id_value(
+                            thread,
+                            page,
+                            post_index,
+                            parent_id_attr,
+                            field="parent_post_id",
+                            post_id=post_id,
+                        )
 
             # タイトルと本文の取得
             # Use :scope > to get direct children only (avoid matching nested pseudo-posts)

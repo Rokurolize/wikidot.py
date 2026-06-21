@@ -265,6 +265,93 @@ class TestSiteMemberParse:
 
             assert len(members) == 1
 
+    def test_parse_malformed_user_without_link_uses_text_context(self) -> None:
+        html = BeautifulSoup(
+            """
+            <table>
+                <tr>
+                    <td><span class="printuser">Broken User</span></td>
+                </tr>
+            </table>
+            """,
+            "lxml",
+        )
+        site = _site()
+        site.unix_name = "test-site"
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site member user is malformed for site: test-site, group: members, page: 1, row: 1, "
+                r"field=user, value=Broken User"
+            ),
+        ):
+            SiteMember._parse(site, html, "members", 1)
+
+    def test_parse_malformed_user_context_omits_group_when_group_is_unknown(self) -> None:
+        html = BeautifulSoup(
+            """
+            <table>
+                <tr>
+                    <td><span class="printuser">Broken User</span></td>
+                </tr>
+            </table>
+            """,
+            "lxml",
+        )
+        site = _site()
+        site.unix_name = "test-site"
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Site member user is malformed for site: test-site, page: 2, row: 1, field=user, value=Broken User",
+        ):
+            SiteMember._parse(site, html, None, 2)
+
+    def test_parse_malformed_user_context_omits_page_when_page_is_unknown(self) -> None:
+        html = BeautifulSoup(
+            """
+            <table>
+                <tr>
+                    <td><span class="printuser">Broken User</span></td>
+                </tr>
+            </table>
+            """,
+            "lxml",
+        )
+        site = _site()
+        site.unix_name = "test-site"
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Site member user is malformed for site: test-site, group: members, row: 1, field=user, value=Broken User",
+        ):
+            SiteMember._parse(site, html, "members", None)
+
+    def test_parse_member_with_joined_at_cell_without_odate_sets_none(self) -> None:
+        html = BeautifulSoup(
+            """
+            <table>
+                <tr>
+                    <td><span class="printuser">
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">Test User</a>
+                    </span></td>
+                    <td>No joined date</td>
+                </tr>
+            </table>
+            """,
+            "lxml",
+        )
+        site = _site()
+
+        with patch("wikidot.module.site_member.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = _member_user(client=site.client)
+
+            members = SiteMember._parse(site, html, "members", 1)
+
+        assert len(members) == 1
+        assert members[0].joined_at is None
+
     def test_parse_ignores_nested_member_tables(self):
         """ネストしたメンバー風テーブルは構造上のメンバーとして扱わない"""
         html = BeautifulSoup(
@@ -731,6 +818,43 @@ class TestSiteMemberGet:
         site.amc_request.assert_not_called()
         site.amc_request_with_retry.assert_called_once()
 
+    def test_member_row_detection_ignores_rows_without_cells(self) -> None:
+        html = BeautifulSoup("<tr><th><div class='pager'>1</div></th></tr>", "lxml")
+        pager = html.select_one("div.pager")
+        assert pager is not None
+
+        assert SiteMember._is_inside_member_row(pager) is False
+
+    def test_member_row_detection_ignores_rows_without_printuser(self) -> None:
+        html = BeautifulSoup("<tr><td><div class='pager'>1</div></td></tr>", "lxml")
+        pager = html.select_one("div.pager")
+        assert pager is not None
+
+        assert SiteMember._is_inside_member_row(pager) is False
+
+    def test_parse_malformed_user_link_without_onclick_uses_text_context(self) -> None:
+        html = BeautifulSoup(
+            """
+            <table>
+                <tr>
+                    <td><span class="printuser"><a href="#">Broken User</a></span></td>
+                </tr>
+            </table>
+            """,
+            "lxml",
+        )
+        site = _site()
+        site.unix_name = "test-site"
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site member user is malformed for site: test-site, group: members, page: 1, row: 1, "
+                r"field=user, value=Broken User"
+            ),
+        ):
+            SiteMember._parse(site, html, "members", 1)
+
     def test_get_admins_group(self):
         """管理者グループ取得"""
         site = _site()
@@ -1029,6 +1153,23 @@ class TestSiteMemberChangeGroup:
         assert mock_response.json.call_count == 1
         assert site._moderators is cached_moderators
         assert site._admins is cached_admins
+
+    def test_change_group_explicit_non_ok_action_status_raises_status_exception(self) -> None:
+        site = _site()
+        site.unix_name = "test-site"
+        cached_moderators = [object()]
+        site._moderators = cached_moderators
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "other_error"}
+        site.amc_request.return_value = (mock_response,)
+        user = self._user(client=site.client)
+        member = SiteMember(site=site, user=user, joined_at=None)
+
+        with pytest.raises(WikidotStatusCodeException) as exc_info:
+            member.to_moderator()
+
+        assert exc_info.value.status_code == "other_error"
+        assert site._moderators is cached_moderators
 
     def test_change_group_rejects_action_response_count_mismatch_before_parsing(self):
         """権限変更応答の件数異常はpayload解析前に文脈付きで失敗する"""

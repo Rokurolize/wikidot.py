@@ -209,8 +209,6 @@ def _validate_site_member_action_user(user: object) -> AbstractUser:
     user = _validate_site_member_user(user)
     if not isinstance(user.id, int) or isinstance(user.id, bool):
         raise ValueError("member.user.id must be an integer")
-    if user.id < 0:
-        raise ValueError("member.user.id must be non-negative")
     if not isinstance(user.name, str):
         raise ValueError("member.user.name must be a string")
     return user
@@ -275,9 +273,6 @@ class SiteMember:
             row_container = tbody if isinstance(tbody, Tag) else table
 
             for row_index, row in enumerate(row_container.find_all("tr", recursive=False), start=1):
-                if not isinstance(row, Tag):
-                    continue
-
                 tds = [td for td in row.find_all("td", recursive=False) if isinstance(td, Tag)]
                 if not tds:
                     continue

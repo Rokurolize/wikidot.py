@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from wikidot.common.exceptions import LoginRequiredException
+from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.module.client import (
     Client,
     ClientPrivateMessageAccessor,
@@ -148,6 +149,14 @@ class TestClient:
         mock_login.assert_not_called()
         mock_from_name.assert_not_called()
 
+    def test_init_accepts_amc_config_instance(self) -> None:
+        config = AjaxModuleConnectorConfig(request_timeout=7)
+
+        with patch("wikidot.module.client.AjaxModuleConnectorClient") as mock_amc_client:
+            Client(amc_config=config)
+
+        mock_amc_client.assert_called_once_with(site_name=None, config=config)
+
     @pytest.mark.parametrize("logging_level", [None, True, False, 1.5, object(), [], {}])
     def test_init_rejects_malformed_logging_level_before_client_setup(self, logging_level: Any) -> None:
         with (
@@ -192,6 +201,23 @@ class TestClient:
             assert client.is_logged_in is False
             assert client.username is None
             assert client.me is None
+
+    def test_context_manager_logs_and_clears_when_logout_fails(self) -> None:
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.HTTPAuthentication.logout", side_effect=RuntimeError("logout failed")),
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+            patch("wikidot.module.client.wd_logger.warning") as mock_warning,
+        ):
+            mock_from_name.return_value = MagicMock()
+            with Client(username="test-user", password="test-password") as client:
+                assert client.is_logged_in is True
+
+        mock_warning.assert_called_once()
+        assert client.is_logged_in is False
+        assert client.username is None
+        assert client.me is None
 
     def test_login_check_raises_when_not_logged_in(self):
         """未ログイン時にlogin_checkが例外を送出する"""
@@ -259,6 +285,23 @@ class TestClient:
             assert client.is_logged_in is False
             assert client.username is None
             assert client.me is None
+
+    def test_close_logs_and_clears_when_logout_fails(self) -> None:
+        with (
+            patch("wikidot.module.client.AjaxModuleConnectorClient"),
+            patch("wikidot.module.client.HTTPAuthentication.login"),
+            patch("wikidot.module.client.HTTPAuthentication.logout", side_effect=RuntimeError("logout failed")),
+            patch("wikidot.module.client.User.from_name") as mock_from_name,
+            patch("wikidot.module.client.wd_logger.warning") as mock_warning,
+        ):
+            mock_from_name.return_value = MagicMock()
+            client = Client(username="test-user", password="test-password")
+            client.close()
+
+        mock_warning.assert_called_once()
+        assert client.is_logged_in is False
+        assert client.username is None
+        assert client.me is None
 
     def test_accessors_are_initialized(self):
         """各アクセサが初期化される"""

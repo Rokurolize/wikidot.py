@@ -322,8 +322,6 @@ class PrivateMessageCollection(list["PrivateMessage"]):
     @staticmethod
     def _is_inside_message_row(element: Tag) -> bool:
         for ancestor in element.parents:
-            if not isinstance(ancestor, Tag):
-                continue
             if ancestor.name == "tr" and "message" in class_values(ancestor):
                 return True
         return False

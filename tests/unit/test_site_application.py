@@ -179,6 +179,95 @@ class TestSiteApplicationAcquireAll:
         malformed_client.login_check.assert_not_called()
         site.amc_request_with_retry.assert_not_called()
 
+    def test_acquire_all_malformed_user_without_link_uses_text_context(self) -> None:
+        site = _site()
+        site.unix_name = "test-site"
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <div>
+                    <h3><span class="printuser">Broken User</span></h3>
+                    <table><tr><td>Label</td><td>Application text</td></tr></table>
+                </div>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site application user is malformed for site: test-site "
+                r"\(application=1, applications=1, field=user, value=Broken User\)"
+            ),
+        ):
+            SiteApplication.acquire_all(site)
+
+    def test_acquire_all_malformed_user_link_without_onclick_uses_text_context(self) -> None:
+        site = _site()
+        site.unix_name = "test-site"
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <div>
+                    <h3><span class="printuser"><a href="#">Broken User</a></span></h3>
+                    <table><tr><td>Label</td><td>Application text</td></tr></table>
+                </div>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=(
+                r"Site application user is malformed for site: test-site "
+                r"\(application=1, applications=1, field=user, value=Broken User\)"
+            ),
+        ):
+            SiteApplication.acquire_all(site)
+
+    def test_acquire_all_missing_text_table_includes_application_context(self) -> None:
+        site = _site()
+        site.unix_name = "test-site"
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <div>
+                    <h3><span class="printuser">
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                    </span></h3>
+                </div>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Application text table is not found for site: test-site \(application=1, applications=1\)",
+        ):
+            SiteApplication.acquire_all(site)
+
+    def test_acquire_all_missing_text_row_includes_application_context(self) -> None:
+        site = _site()
+        site.unix_name = "test-site"
+        response = MagicMock()
+        response.json.return_value = {
+            "body": """
+                <div>
+                    <h3><span class="printuser">
+                        <a onclick="WIKIDOT.page.listeners.userInfo(12345)" href="#">User1</a>
+                    </span></h3>
+                    <table><tbody></tbody></table>
+                </div>
+            """
+        }
+        site.amc_request_with_retry.return_value = (response,)
+
+        with pytest.raises(
+            NoElementException,
+            match=r"Application text row is not found for site: test-site \(application=1, applications=1\)",
+        ):
+            SiteApplication.acquire_all(site)
+
     def test_site_applications_retries_transient_fetch_failures(self):
         """site.applicationsは一時的なAMC失敗を再試行して申請を返す"""
         mock_client = create_mock_client(is_logged_in=True)
@@ -728,6 +817,19 @@ class TestSiteApplicationProcess:
         mock_client.login_check.assert_not_called()
         site.amc_request.assert_not_called()
         assert site._members is cached_members
+
+    def test_accept_rejects_negative_action_user_id_after_optional_init_id(self) -> None:
+        mock_client = create_mock_client(is_logged_in=True)
+        site = _site(mock_client)
+        user = User(client=mock_client, id=None, name="TestUser")
+        app = SiteApplication(site=site, user=user, text="")
+        app.user.id = -1
+
+        with pytest.raises(ValueError, match="application.user.id must be non-negative"):
+            app.accept()
+
+        mock_client.login_check.assert_not_called()
+        site.amc_request.assert_not_called()
 
     def test_accept_rejects_non_user_before_login(self) -> None:
         """申請承認は申請者オブジェクト不正をログイン確認前に拒否する"""

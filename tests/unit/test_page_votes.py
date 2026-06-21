@@ -236,6 +236,18 @@ class TestPageVoteCollection:
 
         assert collection.find(search_user) is vote
 
+    def test_find_rejects_retained_vote_from_different_page(self) -> None:
+        """保持済み投票のpageが後から崩れた場合は検索時に拒否する"""
+        page = _page()
+        vote_user = self._user(page, 12345, "vote-user")
+        vote = PageVote(page=page, user=vote_user, value=1)
+        collection = PageVoteCollection(page, [vote])
+        vote.page = _page_on_same_site(page)
+        search_user = self._user(page, 12345, "search-user")
+
+        with pytest.raises(ValueError, match="votes must belong to the collection page"):
+            collection.find(search_user)
+
     def test_find_skips_vote_with_missing_retained_user_id(self) -> None:
         """保持済み投票のuser.id=Noneは別ユーザー検索時に無効化せずスキップする"""
         page = _page()

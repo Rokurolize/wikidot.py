@@ -248,6 +248,13 @@ class TestPageRevisionCollection:
         with pytest.raises(ValueError, match="id must be non-negative"):
             collection.find(100)
 
+    def test_find_rejects_revision_with_retained_different_page(self, mock_page, sample_revision) -> None:
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+        sample_revision.page = _page_on_same_site(mock_page)
+
+        with pytest.raises(ValueError, match="revisions must belong to the collection page"):
+            collection.find(100)
+
     def test_get_sources_requires_page(self):
         """get_sourcesはpageが必要"""
         collection = PageRevisionCollection()
@@ -757,6 +764,18 @@ class TestPageRevisionCollection:
 
         assert sample_revision._html == "<p>Direct HTML content</p>"
 
+    def test_get_htmls_with_marker_without_closing_anchor_uses_body(self, mock_page, sample_revision):
+        """区切りリンク開始だけがある異常HTMLはbody全体を保持する"""
+        body = "<div>before</div>onclick=\"document.getElementById('page-version-info').style.display='none'\"><p>raw</p>"
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": body}
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
+
+        collection = PageRevisionCollection(page=mock_page, revisions=[sample_revision])
+        collection.get_htmls()
+
+        assert sample_revision._html == body
+
     def test_get_htmls_deduplicates_duplicate_revision_ids(self, mock_page, sample_revision, mock_user):
         """重複リビジョンIDはHTML取得を1回だけ行い、各エントリへ反映する"""
         duplicate_revision = PageRevision(
@@ -814,6 +833,46 @@ class TestPageRevisionCollection:
 
         mock_page.site.amc_request.assert_not_called()
         assert result == collection
+
+    def test_generic_acquire_without_copy_function_fetches_duplicate_unacquired_revisions(
+        self, mock_page, sample_revision, mock_user
+    ):
+        """copy関数なしの汎用取得は重複IDを通常の未取得対象として処理する"""
+        duplicate_revision = PageRevision(
+            page=mock_page,
+            id=sample_revision.id,
+            rev_no=2,
+            created_by=mock_user,
+            created_at=datetime(2023, 1, 2, 12, 0, 0),
+            comment="Duplicate revision entry",
+        )
+        mock_response = MagicMock()
+        mock_page.site.amc_request_with_retry.return_value = [mock_response]
+
+        def process_response(response, page, revision_id):
+            assert response is mock_response
+            assert page is mock_page
+            assert revision_id == sample_revision.id
+
+            def apply_revision(revision):
+                revision._html = f"<p>Fetched {revision.rev_no}</p>"
+
+            return apply_revision
+
+        revisions = PageRevisionCollection._generic_acquire(
+            mock_page,
+            [sample_revision, duplicate_revision],
+            lambda revision: revision.is_html_acquired(),
+            "history/PageVersionModule",
+            process_response,
+        )
+
+        assert revisions == [sample_revision, duplicate_revision]
+        assert sample_revision._html == "<p>Fetched 1</p>"
+        assert duplicate_revision._html == "<p>Fetched 2</p>"
+        mock_page.site.amc_request_with_retry.assert_called_once_with(
+            [{"moduleName": "history/PageVersionModule", "revision_id": sample_revision.id}]
+        )
 
     def test_get_htmls_rejects_revision_from_different_page_before_fetch(self, mock_page, mock_user):
         """get_htmlsはコレクションページと異なるリビジョンを送信前に拒否する"""
@@ -1123,6 +1182,54 @@ class TestPageRevision:
     def test_init_rejects_source_cache_from_different_page(self, mock_page, mock_user) -> None:
         """PageRevisionの初期sourceキャッシュはリビジョンのページだけ受け付ける"""
         source = PageSource(page=_page_on_same_site(mock_page), wiki_text="cached revision source")
+
+        with pytest.raises(ValueError, match=r"revision\.source must belong to the revision page"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+                _source=source,
+            )
+
+    def test_init_rejects_source_cache_with_mutated_non_page_owner(self, mock_page, mock_user) -> None:
+        source = PageSource(page=mock_page, wiki_text="cached revision source")
+        source.page = cast(Any, object())
+
+        with pytest.raises(ValueError, match=r"revision\.source must belong to the revision page"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+                _source=source,
+            )
+
+    def test_init_rejects_source_cache_from_different_site(self, mock_page, mock_user) -> None:
+        source_owner = _page_on_same_site(mock_page, fullname=mock_page.fullname)
+        source_owner.site = cast(Any, object())
+        source = PageSource(page=source_owner, wiki_text="cached revision source")
+
+        with pytest.raises(ValueError, match=r"revision\.source must belong to the revision page"):
+            PageRevision(
+                page=mock_page,
+                id=100,
+                rev_no=1,
+                created_by=mock_user,
+                created_at=datetime(2023, 1, 1, 12, 0, 0),
+                comment="Initial revision",
+                _source=source,
+            )
+
+    def test_init_rejects_source_cache_with_different_matching_page_ids(self, mock_page, mock_user) -> None:
+        mock_page._id = 100
+        source_owner = _page_on_same_site(mock_page, fullname=mock_page.fullname)
+        source_owner._id = 101
+        source = PageSource(page=source_owner, wiki_text="cached revision source")
 
         with pytest.raises(ValueError, match=r"revision\.source must belong to the revision page"):
             PageRevision(
