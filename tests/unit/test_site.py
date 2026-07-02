@@ -1522,6 +1522,23 @@ class TestSitePageAccessor:
         assert page.category == "category"
         assert page.name == "name"
 
+    @pytest.mark.parametrize(
+        "unsafe_fullname",
+        ["missing/../victim", "missing?template=other", "missing#frag", "bad\\name", "bad\nname"],
+    )
+    def test_get_direct_page_id_probe_rejects_url_control_fullnames(
+        self, mock_site_no_http: Site, unsafe_fullname: str
+    ) -> None:
+        """URL routing syntax in direct fallback fullnames is treated as not found."""
+        with (
+            patch.object(PageCollection, "search_pages", return_value=PageCollection(mock_site_no_http, [])),
+            patch.object(Page, "id", new_callable=PropertyMock, return_value=123) as page_id,
+        ):
+            page = mock_site_no_http.page.get(unsafe_fullname, raise_when_not_found=False)
+
+        assert page is None
+        page_id.assert_not_called()
+
     def test_get_direct_page_id_probe_reraises_non_404_http_errors(self, mock_site_no_http: Site) -> None:
         request = httpx.Request("GET", "https://test-site.wikidot.com/direct-page")
         response = httpx.Response(500, request=request)
