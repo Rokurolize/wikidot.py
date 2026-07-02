@@ -3175,6 +3175,14 @@ class TestPageProperties:
         url = mock_page_no_http.get_url()
         assert url == "https://test-site.wikidot.com/test-page"
 
+    def test_get_url_encodes_fullname_path_components(self, mock_page_no_http: Page) -> None:
+        """URL生成時にページ名由来のURL制御文字をエンコードする"""
+        mock_page_no_http.fullname = "category:missing/../victim?template=other#frag"
+
+        url = mock_page_no_http.get_url()
+
+        assert url == "https://test-site.wikidot.com/category:missing%2F..%2Fvictim%3Ftemplate%3Dother%23frag"
+
     def test_get_url_rejects_malformed_site(self, mock_page_no_http: Page) -> None:
         """URL生成前に保持しているサイトを検証する"""
         mock_page_no_http.site = cast("Site", MagicMock())

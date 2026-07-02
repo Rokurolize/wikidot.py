@@ -6,6 +6,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
+from urllib.parse import quote
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -2325,7 +2326,8 @@ class Page:
         """
         site = _validate_page_site(self.site)
         fullname = _validate_page_text_field("fullname", self.fullname)
-        return f"{site.url}/{fullname}"
+        encoded_fullname = quote(fullname, safe=":")
+        return f"{site.url}/{encoded_fullname}"
 
     @property
     def id(self) -> int:
