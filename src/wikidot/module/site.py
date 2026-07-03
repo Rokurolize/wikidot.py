@@ -59,7 +59,7 @@ _UNSET_PUBLISH_PARENT = _UnsetPublishParentType()
 
 
 def _is_safe_direct_page_fullname(fullname: str) -> bool:
-    return re.search(r"[\x00-\x1f\x7f/?#\\]", fullname) is None
+    return fullname not in {".", ".."} and re.search(r"[\x00-\x1f\x7f/?#\\]", fullname) is None
 
 
 def _printuser_onclick_value(user_elem: Tag) -> str:

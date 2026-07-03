@@ -1524,7 +1524,7 @@ class TestSitePageAccessor:
 
     @pytest.mark.parametrize(
         "unsafe_fullname",
-        ["missing/../victim", "missing?template=other", "missing#frag", "bad\\name", "bad\nname"],
+        [".", "..", "missing/../victim", "missing?template=other", "missing#frag", "bad\\name", "bad\nname"],
     )
     def test_get_direct_page_id_probe_rejects_url_control_fullnames(
         self, mock_site_no_http: Site, unsafe_fullname: str
