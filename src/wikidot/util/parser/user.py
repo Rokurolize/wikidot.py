@@ -1,5 +1,6 @@
 import re
 from typing import TYPE_CHECKING
+from urllib.parse import urlparse
 
 import bs4
 
@@ -8,6 +9,11 @@ from .html import class_values
 
 if TYPE_CHECKING:
     from wikidot.module.client import Client
+
+
+def _is_gravatar_url(url: str) -> bool:
+    host = urlparse(url).hostname
+    return host == "gravatar.com" or (host is not None and host.endswith(".gravatar.com"))
 
 
 def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
@@ -54,7 +60,7 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
     # Gravatar URLを持つ場合はGuestUserとする
     img_elem = elem.find("img")
     img_src = img_elem.get("src") if isinstance(img_elem, bs4.Tag) else None
-    if isinstance(img_src, str) and "gravatar.com" in img_src:
+    if isinstance(img_src, str) and _is_gravatar_url(img_src):
         avatar_url = img_src
         guest_text = elem.get_text(" ", strip=True)
         guest_name = re.sub(r"\s*(?:\([^)]*\)|（[^）]*）)\s*$", "", guest_text)
