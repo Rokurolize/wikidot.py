@@ -115,7 +115,7 @@ test:
 
 test-cov:
 	uv sync --extra test
-	uv run pytest tests/unit/ -v --cov=src/wikidot --cov-report=term-missing --cov-report=html --cov-report=xml:coverage.xml --cov-fail-under=80
+	uv run pytest tests/unit/ -v --cov=src/wikidot --cov-report=term-missing --cov-report=html --cov-report=xml:coverage.xml --cov-fail-under=80 --junitxml=junit.xml -o junit_family=legacy
 
 test-unit:
 	uv sync --extra test
@@ -123,7 +123,7 @@ test-unit:
 
 test-unit-cov:
 	uv sync --extra test
-	uv run pytest tests/unit/ -v --cov=src/wikidot --cov-report=term-missing --cov-report=html --cov-report=xml:coverage.xml --cov-fail-under=80
+	uv run pytest tests/unit/ -v --cov=src/wikidot --cov-report=term-missing --cov-report=html --cov-report=xml:coverage.xml --cov-fail-under=80 --junitxml=junit.xml -o junit_family=legacy
 
 test-integration:
 	uv sync --extra test
