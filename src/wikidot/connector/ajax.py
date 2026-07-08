@@ -28,6 +28,14 @@ from ..util.http import calculate_backoff, sync_get_with_retry
 from ..util.stringutil import StringUtil
 
 
+def _has_session_cookie(cookie: dict[Any, Any]) -> bool:
+    return str(cookie.get("WIKIDOT_SESSION_ID", "")).strip() != ""
+
+
+def _is_side_effecting_amc_body(body: dict[str, Any]) -> bool:
+    return "action" in body or "event" in body
+
+
 def _validate_cookie_name(name: object) -> str:
     if not isinstance(name, str):
         raise TypeError("cookie name must be str")
@@ -444,13 +452,13 @@ class AjaxModuleConnectorClient:
         if local_base_url is not None:
             return urlsplit(local_base_url).scheme == "https"
 
-        # www always supports SSL
         if self.site_name == "www":
             return True
 
-        # For other sites, determine by checking if redirected to https
+        # Wikidot session cookies must never be sent over plaintext transport.
+        # Probe HTTPS only for existence and fail closed if the HTTPS request itself fails.
         response = sync_get_with_retry(
-            f"http://{self.site_name}.wikidot.com",
+            f"https://{self.site_name}.wikidot.com",
             timeout=self.config.request_timeout,
             attempt_limit=self.config.attempt_limit,
             retry_interval=self.config.retry_interval,
@@ -464,12 +472,7 @@ class AjaxModuleConnectorClient:
         if response.status_code == httpx.codes.NOT_FOUND:
             raise NotFoundException(f"Site is not found: {self.site_name}.wikidot.com")
 
-        # Determine by checking if redirected to https
-        return (
-            response.status_code == httpx.codes.MOVED_PERMANENTLY
-            and "Location" in response.headers
-            and response.headers["Location"].startswith("https")
-        )
+        return True
 
     @overload
     def request(
@@ -554,6 +557,9 @@ class AjaxModuleConnectorClient:
             if not isinstance(cookie, dict):
                 raise ValueError("cookie must be a dictionary")
             wikidot_token = cookie.get("wikidot_token7", 123456)
+            has_session_cookie = _has_session_cookie(cookie)
+        else:
+            has_session_cookie = False
 
         async def _request(_body: dict[str, Any], client: httpx.AsyncClient) -> httpx.Response:
             retry_count = 0
@@ -561,13 +567,13 @@ class AjaxModuleConnectorClient:
             request_body = {"wikidot_token7": wikidot_token, **_body}
 
             while True:
-                response: httpx.Response | None = None
+                response = None
                 # Execute request
                 try:
                     # Control concurrent execution with Semaphore
                     async with semaphore_instance:
                         url = _local_url(self.config, "ajax-module-connector.php") or (
-                            f"http{'s' if site_ssl_supported else ''}://{site_name}.wikidot.com/"
+                            f"http{'s' if site_ssl_supported or has_session_cookie else ''}://{site_name}.wikidot.com/"
                             f"ajax-module-connector.php"
                         )
                         wd_logger.debug(f"Ajax Request: {url} -> {_mask_sensitive_data(request_body)}")
@@ -667,6 +673,10 @@ class AjaxModuleConnectorClient:
                     continue
 
                 if "status" not in _response_body:
+                    if _is_side_effecting_amc_body(request_body):
+                        wd_logger.error(f"AMC response is missing status field -> {_mask_sensitive_data(request_body)}")
+                        raise ResponseDataException("AMC response is missing status field")
+
                     retry_count += 1
                     if retry_count >= attempt_limit:
                         wd_logger.error(f"AMC response is missing status field -> {_mask_sensitive_data(request_body)}")

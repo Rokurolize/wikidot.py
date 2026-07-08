@@ -354,7 +354,10 @@ class TestForumCategoryCollectionAcquireAll:
             "https://other-site.wikidot.com/forum/c-1001/test-category",
             "http:forum/c-1001/test-category",
             "javascript:/forum/c-1001/test-category",
+            "javascript:c-1001",
+            "data:c-1001",
             "mailto:forum/c-1001/test-category",
+            "mailto:c-1001",
         ],
     )
     def test_acquire_all_rejects_malformed_category_href_routes(
@@ -549,6 +552,28 @@ class TestForumCategoryCollectionAcquireAll:
 
         with pytest.raises(exceptions.NoElementException, match=expected_match):
             ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    def test_acquire_all_oversized_count_raises_no_element_exception(
+        self,
+        mock_site_no_http: Site,
+        forum_start: dict[str, Any],
+    ) -> None:
+        """過大なカテゴリ件数はraw ValueErrorではなくNoElementExceptionに変換する"""
+        oversized_count = "9" * 5000
+        body = forum_start["body"].replace(
+            '<td class="threads">10</td>',
+            f'<td class="threads">{oversized_count}</td>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body}
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+        assert "Thread count is malformed for site: test-site" in str(exc_info.value)
+        assert "(row=1, field=threads," in str(exc_info.value)
 
     @pytest.mark.parametrize(
         ("valid_cell", "negative_cell", "expected_match"),
@@ -1320,7 +1345,7 @@ class TestForumCategoryCreateThread:
         mock_forum_category_no_http.site.amc_request.assert_not_called()
         assert mock_forum_category_no_http._threads is cached_threads
 
-    @pytest.mark.parametrize("response_body", [{}, {"threadId": "3001"}])
+    @pytest.mark.parametrize("response_body", [{"status": "ok"}, {"status": "ok", "threadId": "3001"}])
     def test_create_thread_missing_or_invalid_thread_id_raises(
         self,
         mock_forum_category_no_http: ForumCategory,

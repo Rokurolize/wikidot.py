@@ -34,7 +34,10 @@ def odate_parse(odate_element: bs4.Tag) -> datetime:
             unix_timestamp = odate_class.removeprefix("time_")
             if not unix_timestamp.isascii() or not unix_timestamp.isdecimal():
                 raise ValueError(f"odate unix time is malformed: {odate_class}")
-            unix_time = int(unix_timestamp)
-            return datetime.fromtimestamp(unix_time, timezone.utc).replace(tzinfo=None)
+            try:
+                unix_time = int(unix_timestamp)
+                return datetime.fromtimestamp(unix_time, timezone.utc).replace(tzinfo=None)
+            except (OverflowError, OSError, ValueError) as exc:
+                raise ValueError(f"odate unix time is malformed: {odate_class}") from exc
 
     raise ValueError("odate element does not contain a valid unix time")

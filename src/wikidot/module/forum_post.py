@@ -26,6 +26,9 @@ if TYPE_CHECKING:
     from .user import AbstractUser
 
 
+MAX_FORUM_POST_PAGER_PAGES = 1000
+
+
 def _site_name(site: object) -> str:
     site_unix_name = getattr(site, "unix_name", None)
     return site_unix_name if isinstance(site_unix_name, str) else str(site)
@@ -274,7 +277,11 @@ def _parse_post_id_value(
     if value_text == raw_id or re.fullmatch(r"[0-9]+", raw_id) is None:
         parse_context = _post_list_parse_context(thread, page, post_index, post_id, field=field, value=value_text)
         raise NoElementException(f"Post ID is malformed {parse_context}")
-    return int(raw_id)
+    try:
+        return int(raw_id)
+    except ValueError as exc:
+        parse_context = _post_list_parse_context(thread, page, post_index, post_id, field=field, value=value_text)
+        raise NoElementException(f"Post ID is malformed {parse_context}") from exc
 
 
 def _user_onclick_value(user_elem: Tag) -> str:
@@ -481,7 +488,21 @@ class ForumPostCollection(list["ForumPost"]):
     @staticmethod
     def _parse_post_list_pager_page(thread: "ForumThread", page_text: str) -> int | None:
         if re.fullmatch(r"[0-9]+", page_text) is not None:
-            return int(page_text)
+            try:
+                page = int(page_text)
+            except ValueError as exc:
+                raise NoElementException(
+                    "Forum post list pager page is malformed "
+                    f"for site: {thread.site.unix_name}, thread: {thread.id}, page: 1 "
+                    f"(field=page, value={page_text})"
+                ) from exc
+            if page > MAX_FORUM_POST_PAGER_PAGES:
+                raise NoElementException(
+                    "Forum post list pager page is too large "
+                    f"for site: {thread.site.unix_name}, thread: {thread.id}, page: 1 "
+                    f"(field=page, value={page_text})"
+                )
+            return page
 
         if page_text.isdigit():
             raise NoElementException(

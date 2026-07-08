@@ -105,6 +105,18 @@ class TestOdateParse:
         with pytest.raises(ValueError, match=rf"odate unix time is malformed: {time_class}"):
             odate_parse(elem)
 
+    def test_parse_odate_with_oversized_timestamp_raises_value_error(self) -> None:
+        """過大なtimestampはraw OverflowErrorやValueErrorではなくparserのValueErrorにする"""
+        time_class = "time_" + ("9" * 5000)
+        soup = BeautifulSoup(f'<span class="odate {time_class}">Dec 17 2023</span>', "lxml")
+        elem = soup.select_one("span.odate")
+        assert elem is not None
+
+        with pytest.raises(ValueError) as exc_info:
+            odate_parse(elem)
+
+        assert str(exc_info.value).startswith("odate unix time is malformed: time_")
+
     def test_parse_odate_recent_timestamp(self, odate_html_factory: Callable[[int], str]) -> None:
         """最近のタイムスタンプをパースできる"""
         # 2024-01-01 00:00:00 UTC = 1704067200

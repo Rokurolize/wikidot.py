@@ -934,7 +934,10 @@ class TestPrivateMessageCollection:
             "https://other-site.wikidot.com/account/messages/view/123",
             "http:account/messages/view/123",
             "javascript:/account/messages/view/123",
+            "javascript:#/sent/123",
             "mailto:account/messages/view/123",
+            "https://evil.example/#/inbox/123",
+            "http://[::1/account/messages/view/123",
             "/account/messages/read/123",
             "/other/messages/view/123",
         ],
@@ -975,7 +978,10 @@ class TestPrivateMessageCollection:
 
         mock_from_ids.assert_called_once_with(mock_client, [123])
 
-    @pytest.mark.parametrize("data_href", ["#/sent/123", "#/inbox/123"])
+    @pytest.mark.parametrize(
+        "data_href",
+        ["#/sent/123", "#/inbox/123", "https://www.wikidot.com/#/inbox/123", "/account/messages#/sent/123"],
+    )
     def test_acquire_accepts_live_hash_message_href(self, mock_client, data_href: str):
         """実Wikidotのhash形式data-hrefからメッセージIDを取得する"""
         mock_response = MagicMock()

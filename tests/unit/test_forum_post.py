@@ -1278,6 +1278,28 @@ class TestForumPostCollectionAcquireAll:
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
         mock_forum_thread_no_http.site.amc_request_with_retry.assert_called_once()
 
+    def test_acquire_all_rejects_excessive_pager_target(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """過大なpagerページ番号では追加ページの大量要求を作らない"""
+        body_with_pager = (
+            forum_posts_in_thread["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target">1001</span></div>'
+        )
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+        mock_forum_thread_no_http.site.amc_request = MagicMock()
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(first_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Forum post list pager page is too large for site: test-site, thread: 3001, page: 1",
+        ):
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        mock_forum_thread_no_http.site.amc_request.assert_not_called()
+        mock_forum_thread_no_http.site.amc_request_with_retry.assert_called_once()
+
     def test_acquire_all_raises_when_first_page_retry_is_exhausted(
         self, mock_forum_thread_no_http: ForumThread
     ) -> None:

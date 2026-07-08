@@ -1629,6 +1629,43 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
         assert mock_forum_post_no_http.thread.site.amc_request_with_retry.call_count == 2
 
+    def test_acquire_all_for_posts_with_html_rejects_excessive_revision_html_requests(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_post_revisions_single: dict[str, Any],
+    ) -> None:
+        """過大なrevision一覧ではHTML取得AMC要求を大量生成しない"""
+        row = """
+        <tr class="active">
+            <td>
+                <span class="printuser"><a href="http://www.wikidot.com/user:info/test-user" onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test_user</a></span>
+            </td>
+            <td>
+                <span class="odate time_1700000000">17 Dec 2025, 12:00</span>
+            </td>
+            <td>
+                <a href="javascript:;" onclick="WIKIDOT.modules.ForumViewThreadModule.listeners.showRevision(event, {revision_id})">View revision</a>
+            </td>
+        </tr>
+        """
+        rows = "".join(row.format(revision_id=900000 + index) for index in range(1001))
+        list_response = MagicMock()
+        list_response.json.return_value = {
+            **forum_post_revisions_single,
+            "body": f'<table class="table">{rows}</table>',
+        }
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(list_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Forum post revision HTML request count is too large \(count=1001, max=1000\)",
+        ):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
+
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_called_once()
+
     def test_acquire_all_for_posts_with_html_missing_response_content_includes_context(
         self,
         mock_forum_post_no_http: ForumPost,

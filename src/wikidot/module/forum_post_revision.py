@@ -24,6 +24,9 @@ if TYPE_CHECKING:
     from .user import AbstractUser
 
 
+MAX_FORUM_POST_REVISION_HTML_REQUESTS = 1000
+
+
 def _revision_list_parse_context(post: "ForumPost", row_index: int, **details: object) -> str:
     detail_values = {"row": row_index, **details}
     detail_text = ", ".join(f"{key}={value}" for key, value in detail_values.items())
@@ -430,7 +433,16 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                 )
                 raise exceptions.NoElementException(f"Forum post revision ID is malformed {parse_context}")
 
-            revision_id = int(match.group(1))
+            try:
+                revision_id = int(match.group(1))
+            except ValueError as exc:
+                parse_context = _revision_list_parse_context(
+                    post,
+                    row_index,
+                    field="revision_id",
+                    value=onclick,
+                )
+                raise exceptions.NoElementException(f"Forum post revision ID is malformed {parse_context}") from exc
             try:
                 created_by = user_parser(post.thread.site.client, user_elem)
             except ValueError as exc:
@@ -617,6 +629,11 @@ class ForumPostRevisionCollection(list["ForumPostRevision"]):
                     all_revisions_by_id[revision_id].append(revision)
 
             if len(all_revisions) > 0:
+                if len(all_revisions) > MAX_FORUM_POST_REVISION_HTML_REQUESTS:
+                    raise exceptions.NoElementException(
+                        "Forum post revision HTML request count is too large "
+                        f"(count={len(all_revisions)}, max={MAX_FORUM_POST_REVISION_HTML_REQUESTS})"
+                    )
                 _validate_revision_html_targets(all_revisions)
                 if site is None:
                     revision_post = _validate_forum_post(all_revisions[0].post)

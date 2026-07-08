@@ -487,6 +487,24 @@ class TestPageCollectionParse:
             f"(field=comments, value={fullwidth_comments})"
         )
 
+    def test_parse_oversized_integer_field_raises_no_element_exception(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """過大なListPages整数はraw ValueErrorではなくNoElementExceptionに変換する"""
+        oversized_comments = "9" * 5000
+        body = page_listpages_single["body"].replace(
+            '<span class="set comments"><span class="name">comments</span> <span class="value">0</span></span>',
+            '<span class="set comments"><span class="name">comments</span> '
+            f'<span class="value">{oversized_comments}</span></span>',
+        )
+        html_body = BeautifulSoup(body, "lxml")
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            PageCollection._parse(mock_site_no_http, html_body)
+
+        assert "ListPages integer field is malformed for site: test-site, page: scp-001" in str(exc_info.value)
+        assert "(field=comments," in str(exc_info.value)
+
     def test_parse_negative_count_field_includes_site_page_and_value_context(
         self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
     ) -> None:
@@ -2840,6 +2858,14 @@ class TestPageProperties:
         url = mock_page_no_http.get_url()
         assert url == "https://test-site.wikidot.com/test-page"
 
+    def test_get_url_encodes_url_delimiters_in_fullname(self, mock_page_no_http: Page) -> None:
+        """ページfullname内のURL区切り文字はlookup先を変えないようエンコードする"""
+        mock_page_no_http.fullname = "victim?ignored=#fragment"
+
+        url = mock_page_no_http.get_url()
+
+        assert url == "https://test-site.wikidot.com/victim%3Fignored%3D%23fragment"
+
     def test_get_url_rejects_malformed_site(self, mock_page_no_http: Page) -> None:
         """URL生成前に保持しているサイトを検証する"""
         mock_page_no_http.site = cast("Site", MagicMock())
@@ -5012,8 +5038,8 @@ class TestPageWriteMethods:
         malformed_site.amc_request_with_retry.assert_not_called()
         assert mock_page_with_id._metas is None
 
-    def test_metas_setter_batches_changes(self, mock_page_with_id: Page) -> None:
-        """metaタグの削除・追加・更新は1つのAMCバッチで送信する"""
+    def test_metas_setter_sends_changes_sequentially(self, mock_page_with_id: Page) -> None:
+        """metaタグの削除・追加・更新は順番に1件ずつAMC送信する"""
         mock_page_with_id._metas = {
             "remove": "old",
             "keep": "same",
@@ -5025,7 +5051,7 @@ class TestPageWriteMethods:
             ok_response = MagicMock()
             ok_response.json.return_value = {"status": "ok"}
             ok_responses.append(ok_response)
-        mock_page_with_id.site.amc_request = MagicMock(return_value=tuple(ok_responses))
+        mock_page_with_id.site.amc_request = MagicMock(side_effect=[(response,) for response in ok_responses])
 
         mock_page_with_id.metas = {
             "keep": "same",
@@ -5033,9 +5059,9 @@ class TestPageWriteMethods:
             "change": "new",
         }
 
-        mock_page_with_id.site.amc_request.assert_called_once()
+        assert mock_page_with_id.site.amc_request.call_count == 3
         mock_page_with_id.site.client.login_check.assert_called_once()
-        request_bodies = mock_page_with_id.site.amc_request.call_args.args[0]
+        request_bodies = [call.args[0][0] for call in mock_page_with_id.site.amc_request.call_args_list]
         assert request_bodies == [
             {
                 "metaName": "remove",
@@ -5071,9 +5097,7 @@ class TestPageWriteMethods:
         mock_page_with_id._metas = {"old": "value"}
         malformed_response = MagicMock()
         malformed_response.json.return_value = {"body": ""}
-        ok_response = MagicMock()
-        ok_response.json.return_value = {"status": "ok"}
-        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response, ok_response])
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
         mock_page_with_id.site.client.is_logged_in = True
         mock_page_with_id.site.client.login_check = MagicMock()
 
@@ -5096,9 +5120,7 @@ class TestPageWriteMethods:
         mock_page_with_id._metas = {"old": "value"}
         malformed_response = MagicMock()
         malformed_response.json.return_value = {"status": ["not-ok"]}
-        ok_response = MagicMock()
-        ok_response.json.return_value = {"status": "ok"}
-        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response, ok_response])
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[malformed_response])
         mock_page_with_id.site.client.is_logged_in = True
         mock_page_with_id.site.client.login_check = MagicMock()
 
@@ -5124,15 +5146,13 @@ class TestPageWriteMethods:
             "change": "old",
         }
         mock_page_with_id.site.client.login_check = MagicMock()
-        ok_response = MagicMock()
-        ok_response.json.return_value = {"status": "ok"}
-        mock_page_with_id.site.amc_request = MagicMock(return_value=(ok_response,))
+        mock_page_with_id.site.amc_request = MagicMock(return_value=())
 
         with pytest.raises(
             exceptions.UnexpectedException,
             match=(
                 r"Page metadata action response count mismatch for site: test-site, page: test-page "
-                r"\(id=12345, expected=3, actual=1\)"
+                r"\(id=12345, expected=1, actual=0\)"
             ),
         ):
             mock_page_with_id.metas = {
@@ -5141,7 +5161,6 @@ class TestPageWriteMethods:
                 "change": "new",
             }
 
-        ok_response.json.assert_not_called()
         assert mock_page_with_id._metas == {"remove": "old", "keep": "same", "change": "old"}
 
     def test_metas_setter_rejects_malformed_site_before_login(self, mock_page_with_id: Page) -> None:
@@ -5211,8 +5230,8 @@ class TestPageWriteMethods:
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id._metas == {"old": "value"}
 
-    def test_set_metadata_batches_tags_parent_and_metas(self, mock_page_with_id: Page) -> None:
-        """タグ・親・metaタグ更新を1つのAMCバッチで送信する"""
+    def test_set_metadata_sends_tags_parent_and_metas_sequentially(self, mock_page_with_id: Page) -> None:
+        """タグ・親・metaタグ更新は順番に1件ずつAMC送信する"""
         mock_page_with_id.tags = ["old-tag"]
         mock_page_with_id.parent_fullname = "old-parent"
         mock_page_with_id._metas = {
@@ -5226,7 +5245,7 @@ class TestPageWriteMethods:
             ok_response = MagicMock()
             ok_response.json.return_value = {"status": "ok"}
             ok_responses.append(ok_response)
-        mock_page_with_id.site.amc_request = MagicMock(return_value=tuple(ok_responses))
+        mock_page_with_id.site.amc_request = MagicMock(side_effect=[(response,) for response in ok_responses])
 
         result = mock_page_with_id.set_metadata(
             tags=["tag-one", "tag-two"],
@@ -5240,8 +5259,8 @@ class TestPageWriteMethods:
 
         assert result == mock_page_with_id
         mock_page_with_id.site.client.login_check.assert_called_once()
-        mock_page_with_id.site.amc_request.assert_called_once()
-        request_bodies = mock_page_with_id.site.amc_request.call_args.args[0]
+        assert mock_page_with_id.site.amc_request.call_count == 5
+        request_bodies = [call.args[0][0] for call in mock_page_with_id.site.amc_request.call_args_list]
         assert request_bodies == [
             {
                 "tags": "tag-one tag-two",
@@ -5345,20 +5364,17 @@ class TestPageWriteMethods:
         mock_page_with_id.parent_fullname = "old-parent"
         mock_page_with_id._metas = {"keep": "same"}
         mock_page_with_id.site.client.login_check = MagicMock()
-        ok_response = MagicMock()
-        ok_response.json.return_value = {"status": "ok"}
-        mock_page_with_id.site.amc_request = MagicMock(return_value=(ok_response,))
+        mock_page_with_id.site.amc_request = MagicMock(return_value=())
 
         with pytest.raises(
             exceptions.UnexpectedException,
             match=(
                 r"Page metadata action response count mismatch for site: test-site, page: test-page "
-                r"\(id=12345, expected=2, actual=1\)"
+                r"\(id=12345, expected=1, actual=0\)"
             ),
         ):
             mock_page_with_id.set_metadata(tags=["new-tag"], parent_fullname="new-parent")
 
-        ok_response.json.assert_not_called()
         assert mock_page_with_id.tags == ["old-tag"]
         assert mock_page_with_id.parent_fullname == "old-parent"
         assert mock_page_with_id._metas == {"keep": "same"}
