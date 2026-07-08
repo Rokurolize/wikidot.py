@@ -125,3 +125,16 @@ jobs:
         flags: unit
         disable_search: true
         fail_ci_if_error: true
+
+    - name: Upload test results to Codecov
+      if: ${{ !cancelled() }}
+      # codecov/codecov-action v5.5.5
+      uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac
+      with:
+        use_oidc: true
+        slug: Rokurolize/wikidot.py
+        files: junit.xml
+        flags: unit,py${{ matrix.python-version }}
+        disable_search: true
+        fail_ci_if_error: true
+        report_type: test_results
