@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, call
+from urllib.parse import urlparse
 
 import pytest
 from bs4 import BeautifulSoup
@@ -2188,7 +2189,7 @@ class TestForumThreadBasic:
     def test_url_property(self, mock_forum_thread_no_http: ForumThread) -> None:
         """urlプロパティが正しいURLを返す"""
         url = mock_forum_thread_no_http.url
-        assert "test-site.wikidot.com" in url
+        assert urlparse(url).hostname == "test-site.wikidot.com"
         assert "forum/t-3001" in url
 
     def test_url_rejects_mutated_site(self, mock_forum_thread_no_http: ForumThread) -> None:

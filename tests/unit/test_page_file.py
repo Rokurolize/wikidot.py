@@ -4,6 +4,7 @@ import re
 from datetime import datetime
 from typing import Any, cast
 from unittest.mock import MagicMock
+from urllib.parse import urlparse
 
 import pytest
 from bs4 import BeautifulSoup
@@ -690,7 +691,7 @@ class TestPageFileCollectionAcquire:
         assert collection[0].name == "image.png"
         assert collection[0].mime_type == "image/png"
         assert collection[0].size == 1500
-        assert "test.wikidot.com" in collection[0].url
+        assert urlparse(collection[0].url).hostname == "test.wikidot.com"
 
     def test_acquire_preserves_file_name_text_spacing(self):
         """装飾要素を含む添付ファイル名の語境界を保持する"""

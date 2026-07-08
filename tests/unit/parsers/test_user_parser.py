@@ -2,6 +2,7 @@
 
 from typing import Any
 from unittest.mock import MagicMock
+from urllib.parse import urlparse
 
 import pytest
 from bs4 import BeautifulSoup
@@ -284,7 +285,7 @@ class TestUserParserGuestUser:
         assert isinstance(result, GuestUser)
         assert result.name == "guest-user"
         assert result.avatar_url is not None
-        assert "gravatar.com" in result.avatar_url
+        assert urlparse(result.avatar_url).hostname in {"gravatar.com", "www.gravatar.com"}
 
     def test_parse_guest_user_without_text(self, mock_client_no_http: MagicMock) -> None:
         """表示名が空のゲストユーザーでも例外にしない"""
@@ -297,6 +298,16 @@ class TestUserParserGuestUser:
 
         assert isinstance(result, GuestUser)
         assert result.name == ""
+
+    def test_parse_guest_user_rejects_gravatar_substring_in_other_host(self, mock_client_no_http: MagicMock) -> None:
+        """gravatar.comをパスに含むだけのURLはゲストユーザー扱いしない"""
+        html = '<span class="printuser"><img src="https://example.test/gravatar.com/avatar/abc123" /></span>'
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        with pytest.raises(ValueError, match="link element is not found"):
+            user_parse(mock_client_no_http, elem)
 
     def test_parse_guest_user_preserves_display_name_text_spacing(self, mock_client_no_http: MagicMock) -> None:
         """ゲスト表示名内の装飾要素や空白を切り落とさない"""
