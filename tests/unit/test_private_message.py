@@ -111,6 +111,53 @@ def _mutate_retained_user_id(user: User, user_id: object) -> None:
     user.id = cast(Any, user_id)
 
 
+class TestPrivateMessageModuleHelpers:
+    def test_parse_message_list_hash_id_rejects_too_large_integer(self) -> None:
+        oversized_id = "9" * 5000
+
+        with pytest.raises(NoElementException) as exc_info:
+            PrivateMessageCollection._parse_message_list_message_id(
+                "dashboard/messages/DMInboxModule",
+                1,
+                1,
+                f"/account/messages#/inbox/{oversized_id}",
+            )
+
+        message = str(exc_info.value)
+        assert "Message ID is malformed in data-href" in message
+        assert "for module: dashboard/messages/DMInboxModule (page=1, row=1)" in message
+        assert oversized_id in message
+
+    def test_parse_message_list_path_id_rejects_too_large_integer(self) -> None:
+        oversized_id = "9" * 5000
+
+        with pytest.raises(NoElementException) as exc_info:
+            PrivateMessageCollection._parse_message_list_message_id(
+                "dashboard/messages/DMInboxModule",
+                1,
+                1,
+                f"/account/messages/view/{oversized_id}",
+            )
+
+        message = str(exc_info.value)
+        assert "Message ID is malformed in data-href" in message
+        assert "for module: dashboard/messages/DMInboxModule (page=1, row=1)" in message
+        assert oversized_id in message
+
+    def test_parse_message_list_pager_page_rejects_too_large_integer(self) -> None:
+        oversized_page = "9" * 5000
+
+        with pytest.raises(NoElementException) as exc_info:
+            PrivateMessageCollection._parse_message_list_pager_page(
+                "dashboard/messages/DMInboxModule",
+                oversized_page,
+            )
+
+        message = str(exc_info.value)
+        assert "Message list pager page is malformed for module: dashboard/messages/DMInboxModule, page: 1" in message
+        assert oversized_page in message
+
+
 class TestPrivateMessageCollection:
     """PrivateMessageCollectionクラスのテスト"""
 

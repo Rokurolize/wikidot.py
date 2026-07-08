@@ -129,6 +129,34 @@ def _mutate_retained_user_id(user: AbstractUser, retained_id: object) -> None:
     user.id = cast(Any, retained_id)
 
 
+class TestForumPostModuleHelpers:
+    def test_parse_post_id_value_rejects_too_large_integer_segment(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        oversized_id = "9" * 5000
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=rf"Post ID is malformed for site: test-site \(thread=3001, page=1, post=1, field=post_id, value=post-{oversized_id}\)",
+        ):
+            forum_post_module._parse_post_id_value(
+                mock_forum_thread_no_http,
+                1,
+                1,
+                f"post-{oversized_id}",
+                field="post_id",
+            )
+
+    def test_parse_post_list_pager_page_rejects_too_large_integer(self, mock_forum_thread_no_http: ForumThread) -> None:
+        oversized_page = "9" * 5000
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=rf"Forum post list pager page is malformed for site: test-site, thread: 3001, page: 1 \(field=page, value={oversized_page}\)",
+        ):
+            ForumPostCollection._parse_post_list_pager_page(mock_forum_thread_no_http, oversized_page)
+
+
 class TestForumPostCollectionInit:
     """ForumPostCollectionの初期化テスト"""
 

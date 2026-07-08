@@ -262,6 +262,19 @@ class TestForumCategoryCollectionAcquireAll:
         with pytest.raises(exceptions.NoElementException, match="Category ID is not found"):
             forum_category_module._parse_category_id(mock_site_no_http, 1, "/forum/start")
 
+    def test_parse_category_id_rejects_invalid_url_syntax(self, mock_site_no_http: Site) -> None:
+        with pytest.raises(exceptions.NoElementException, match=r"Category ID is malformed"):
+            forum_category_module._parse_category_id(mock_site_no_http, 1, "http://[::1/forum/c-1001")
+
+    def test_parse_category_id_rejects_too_large_integer_segment(self, mock_site_no_http: Site) -> None:
+        oversized_id = "9" * 5000
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=rf"Category ID is malformed for site: test-site \(row=1, field=id, value=/forum/c-{oversized_id}\)",
+        ):
+            forum_category_module._parse_category_id(mock_site_no_http, 1, f"/forum/c-{oversized_id}")
+
     def test_acquire_all_rejects_missing_name_class(self, mock_site_no_http: Site) -> None:
         mock_site_no_http.amc_request_with_retry = MagicMock(
             return_value=(self._forum_start_response(self._category_row(name_class="")),)

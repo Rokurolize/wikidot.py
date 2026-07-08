@@ -984,6 +984,31 @@ class TestForumPostRevisionCollectionAcquireAll:
         assert mock_forum_post_no_http._revisions is None
         mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
 
+    def test_acquire_all_rejects_too_large_revision_id(
+        self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
+    ) -> None:
+        """int変換上限を超えるリビジョンIDも構造エラーとして扱う"""
+        oversized_revision_id = "9" * 5000
+        malformed_body = forum_post_revisions["body"].replace(
+            "showRevision(event, 9003)",
+            f"showRevision(event, {oversized_revision_id})",
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**forum_post_revisions, "body": malformed_body}
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            ForumPostRevisionCollection.acquire_all(mock_forum_post_no_http)
+
+        message = str(exc_info.value)
+        assert "Forum post revision ID is malformed for site: test-site, post: 5001" in message
+        assert "(row=1, field=revision_id" in message
+        assert oversized_revision_id in message
+        assert mock_forum_post_no_http._revisions is None
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+
     def test_acquire_all_rejects_revision_id_with_trailing_action_text(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:

@@ -301,6 +301,19 @@ class TestRequestUtilGet:
 
         assert httpx_mock.get_requests()[0].headers["Cookie"] == "WIKIDOT_SESSION_ID=abc;"
 
+    def test_get_does_not_send_client_headers_to_different_local_origin(self, httpx_mock):
+        """local_base_urlと異なるoriginにはCookieヘッダを送らない"""
+        httpx_mock.add_response(url="http://127.0.0.1:4174/test", status_code=200)
+
+        mock_client = _mock_client(
+            config=AjaxModuleConnectorConfig(local_base_url="http://127.0.0.1:4173"),
+            headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
+        )
+
+        RequestUtil.request(mock_client, "GET", ["http://127.0.0.1:4174/test"])
+
+        assert "Cookie" not in httpx_mock.get_requests()[0].headers
+
     @pytest.mark.parametrize(
         "url",
         [

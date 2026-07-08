@@ -161,6 +161,44 @@ class TestPageModuleHelpers:
 
         assert exc_info.value.status_code == "not_ok"
 
+    def test_parse_revision_row_id_rejects_too_large_integer(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        oversized_revision_id = "9" * 5000
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            page_module._parse_revision_row_id(
+                mock_site_no_http,
+                mock_page_with_id,
+                f"revision-row-{oversized_revision_id}",
+            )
+
+        message = str(exc_info.value)
+        assert "Revision ID is malformed for site: test-site, page: test-page" in message
+        assert oversized_revision_id in message
+
+    def test_parse_revision_number_rejects_too_large_integer(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        oversized_revision_no = "9" * 5000
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            page_module._parse_revision_number(mock_site_no_http, mock_page_with_id, 123, oversized_revision_no)
+
+        message = str(exc_info.value)
+        assert "Revision number is malformed for site: test-site, page: test-page, revision: 123" in message
+        assert oversized_revision_no in message
+
+    def test_parse_listpages_pager_page_rejects_too_large_integer(self, mock_site_no_http: Site) -> None:
+        oversized_page = "9" * 5000
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            PageCollection._parse_listpages_pager_page(mock_site_no_http, 500, oversized_page)
+
+        message = str(exc_info.value)
+        assert "ListPages pager page is malformed for site: test-site, offset: 500" in message
+        assert oversized_page in message
+
 
 # ============================================================
 # SearchPagesQueryテスト
@@ -1677,6 +1715,25 @@ class TestPageCollectionAcquire:
         ):
             collection.get_page_ids()
 
+        request.assert_called_once()
+
+    def test_acquire_page_ids_rejects_too_large_id_metadata(
+        self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
+    ) -> None:
+        """int変換上限を超えるpage_idも構造エラーとして扱う"""
+        oversized_page_id = "9" * 5000
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        response = httpx.Response(200, text=f"WIKIREQUEST.info.pageId = {oversized_page_id};")
+        request = MagicMock(return_value=[response])
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            collection.get_page_ids()
+
+        message = str(exc_info.value)
+        assert "Page ID is malformed for site: test-site, page: test-page" in message
+        assert "(field=page_id" in message
+        assert oversized_page_id in message
         request.assert_called_once()
 
     def test_acquire_page_ids_missing_id_raises_not_found_with_page_context(

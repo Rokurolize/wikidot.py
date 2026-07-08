@@ -9,6 +9,7 @@ import pytest
 from wikidot.connector.ajax import (
     _calculate_backoff,
     _mask_sensitive_data,
+    _normalize_local_base_url,
 )
 
 
@@ -203,3 +204,31 @@ class TestCalculateBackoff:
 
         with pytest.raises(ValueError, match=rf"{field} must be a non-negative number"):
             _calculate_backoff(1, options["base_interval"], options["backoff_factor"], options["max_backoff"])
+
+
+class TestNormalizeLocalBaseUrl:
+    """local_base_url validation tests"""
+
+    @pytest.mark.parametrize("value", [True, 123, object()])
+    def test_rejects_non_string_values(self, value):
+        with pytest.raises(ValueError, match="local_base_url must be a string or None"):
+            _normalize_local_base_url(value)
+
+    @pytest.mark.parametrize("value", ["", "   "])
+    def test_rejects_blank_values(self, value):
+        with pytest.raises(ValueError, match="local_base_url must not be empty"):
+            _normalize_local_base_url(value)
+
+    @pytest.mark.parametrize("value", ["localhost:4173", "/local", "ftp://example.com"])
+    def test_rejects_non_absolute_http_urls(self, value):
+        with pytest.raises(ValueError, match=r"local_base_url must be an absolute HTTP\(S\) URL"):
+            _normalize_local_base_url(value)
+
+    def test_rejects_credentials(self):
+        with pytest.raises(ValueError, match="local_base_url must not contain credentials"):
+            _normalize_local_base_url("http://user:pass@127.0.0.1:4173")
+
+    @pytest.mark.parametrize("value", ["http://127.0.0.1:4173/?token=1", "http://127.0.0.1:4173/#fragment"])
+    def test_rejects_query_or_fragment(self, value):
+        with pytest.raises(ValueError, match="local_base_url must not contain query or fragment"):
+            _normalize_local_base_url(value)
