@@ -29,6 +29,9 @@ if TYPE_CHECKING:
     from .user import AbstractUser
 
 
+MAX_FORUM_THREAD_PAGER_PAGES = 1000
+
+
 def _site_name(site: "Site") -> str:
     site_unix_name = getattr(site, "unix_name", None)
     return site_unix_name if isinstance(site_unix_name, str) else str(site)
@@ -240,7 +243,11 @@ def _parse_thread_list_count(
     if re.fullmatch(r"-?[0-9]+", value) is None:
         parse_context = _thread_list_parse_context(site, category, row_index, page, field="posts", value=value)
         raise NoElementException(f"Posts count is malformed {parse_context}")
-    count = int(value)
+    try:
+        count = int(value)
+    except ValueError as exc:
+        parse_context = _thread_list_parse_context(site, category, row_index, page, field="posts", value=value)
+        raise NoElementException(f"Posts count is malformed {parse_context}") from exc
     if count < 0:
         parse_context = _thread_list_parse_context(site, category, row_index, page, field="posts", value=value)
         raise NoElementException(f"Posts count must be non-negative {parse_context}")
@@ -251,12 +258,15 @@ def _parse_thread_list_thread_id(
     site: "Site", category: Optional["ForumCategory"], row_index: int, page: int | None, href: object
 ) -> int:
     href_text = str(href)
-    thread_id_candidate = re.search(r"(?:^|/)t-\d+", href_text)
-    href_parts = urlsplit(href_text)
+    try:
+        href_parts = urlsplit(href_text)
+    except ValueError as exc:
+        parse_context = _thread_list_parse_context(site, category, row_index, page, field="id", value=href_text)
+        raise NoElementException(f"Thread ID is malformed {parse_context}") from exc
     href_host = href_parts.hostname.lower() if href_parts.hostname is not None else None
     site_domain = getattr(site, "domain", None)
     site_host = site_domain.lower() if isinstance(site_domain, str) else None
-    if thread_id_candidate is not None and (
+    if (
         href_parts.scheme not in ("", "http", "https")
         or (href_parts.scheme in ("http", "https") and href_parts.netloc == "")
         or (href_parts.netloc != "" and href_host != site_host)
@@ -266,7 +276,11 @@ def _parse_thread_list_thread_id(
 
     thread_id_match = re.search(r"(?:^|/)t-([0-9]+)(?=[/?#]|$)", href_parts.path)
     if thread_id_match is not None:
-        return int(thread_id_match.group(1))
+        try:
+            return int(thread_id_match.group(1))
+        except ValueError as exc:
+            parse_context = _thread_list_parse_context(site, category, row_index, page, field="id", value=href_text)
+            raise NoElementException(f"Thread ID is malformed {parse_context}") from exc
 
     if re.search(r"(?:^|/)t-[^/?#]*", href_text) is not None:
         parse_context = _thread_list_parse_context(site, category, row_index, page, field="id", value=href_text)
@@ -340,7 +354,11 @@ def _parse_thread_detail_post_count(
     if post_count_match is None:
         parse_context = _thread_detail_parse_context(site, thread_id, category, field="posts", value=value_text)
         raise NoElementException(f"Post count is malformed {parse_context}")
-    count = int(post_count_match.group(1))
+    try:
+        count = int(post_count_match.group(1))
+    except ValueError as exc:
+        parse_context = _thread_detail_parse_context(site, thread_id, category, field="posts", value=value_text)
+        raise NoElementException(f"Post count is malformed {parse_context}") from exc
     if count < 0:
         parse_context = _thread_detail_parse_context(site, thread_id, category, field="posts", value=value_text)
         raise NoElementException(f"Post count must be non-negative {parse_context}")
@@ -354,7 +372,11 @@ def _parse_thread_detail_thread_id(
     if re.fullmatch(r"[0-9]+", value_text) is None:
         parse_context = _thread_detail_parse_context(site, thread_id, category, field="thread_id", value=value_text)
         raise NoElementException(f"Forum thread detail ID is malformed {parse_context}")
-    return int(value_text)
+    try:
+        return int(value_text)
+    except ValueError as exc:
+        parse_context = _thread_detail_parse_context(site, thread_id, category, field="thread_id", value=value_text)
+        raise NoElementException(f"Forum thread detail ID is malformed {parse_context}") from exc
 
 
 def _parse_thread_detail_user(
@@ -520,7 +542,21 @@ class ForumThreadCollection(list["ForumThread"]):
     @staticmethod
     def _parse_thread_list_pager_page(category: "ForumCategory", page_text: str) -> int | None:
         if re.fullmatch(r"[0-9]+", page_text) is not None:
-            return int(page_text)
+            try:
+                page = int(page_text)
+            except ValueError as exc:
+                raise NoElementException(
+                    "Forum thread list pager page is malformed "
+                    f"for site: {category.site.unix_name}, category: {category.id}, page: 1 "
+                    f"(field=page, value={page_text})"
+                ) from exc
+            if page > MAX_FORUM_THREAD_PAGER_PAGES:
+                raise NoElementException(
+                    "Forum thread list pager page is too large "
+                    f"for site: {category.site.unix_name}, category: {category.id}, page: 1 "
+                    f"(field=page, value={page_text})"
+                )
+            return page
 
         if page_text.isdigit():
             raise NoElementException(

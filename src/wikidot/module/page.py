@@ -118,7 +118,11 @@ def _validate_page_rating_percent_field(value: object) -> int | float | None:
         return None
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("rating_percent must be an integer, float, or None")
-    if not math.isfinite(value) or not 0 <= value <= 1:
+    try:
+        is_finite = math.isfinite(value)
+    except OverflowError as exc:
+        raise ValueError("rating_percent must be between 0.0 and 1.0, or None") from exc
+    if not is_finite or not 0 <= value <= 1:
         raise ValueError("rating_percent must be between 0.0 and 1.0, or None")
     return value
 
@@ -443,7 +447,13 @@ def _parse_revision_row_id(site: "Site", page: "Page", value: object) -> int:
             f"Revision ID is malformed for site: {site.unix_name}, page: {page.fullname} "
             f"(id={page.id}, field=revision_row_id, value={value_text})"
         )
-    return int(raw_id)
+    try:
+        return int(raw_id)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Revision ID is malformed for site: {site.unix_name}, page: {page.fullname} "
+            f"(id={page.id}, field=revision_row_id, value={value_text})"
+        ) from exc
 
 
 def _parse_revision_number(site: "Site", page: "Page", rev_id: int, value: object) -> int:
@@ -454,7 +464,13 @@ def _parse_revision_number(site: "Site", page: "Page", rev_id: int, value: objec
             f"Revision number is malformed for site: {site.unix_name}, page: {page.fullname}, "
             f"revision: {rev_id} (id={page.id}, field=revision_number, value={value_text})"
         )
-    rev_no = int(raw_rev_no)
+    try:
+        rev_no = int(raw_rev_no)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Revision number is malformed for site: {site.unix_name}, page: {page.fullname}, "
+            f"revision: {rev_id} (id={page.id}, field=revision_number, value={value_text})"
+        ) from exc
     if rev_no < 0:
         raise exceptions.NoElementException(
             f"Revision number must be non-negative for site: {site.unix_name}, page: {page.fullname}, "
@@ -505,7 +521,13 @@ def _parse_listpages_integer_field(site: "Site", page_name: str, key: str, value
             f"ListPages integer field is malformed for site: {site.unix_name}, page: {page_name} "
             f"(field={key}, value={value_text})"
         )
-    return int(value_text)
+    try:
+        return int(value_text)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"ListPages integer field is malformed for site: {site.unix_name}, page: {page_name} "
+            f"(field={key}, value={value_text})"
+        ) from exc
 
 
 def _parse_listpages_non_negative_integer_field(site: "Site", page_name: str, key: str, value: object) -> int:
@@ -1137,7 +1159,13 @@ class PageCollection(list["Page"]):
     @staticmethod
     def _parse_listpages_pager_page(site: "Site", offset: int | None, page_text: str) -> int | None:
         if re.fullmatch(r"[0-9]+", page_text) is not None:
-            return int(page_text)
+            try:
+                return int(page_text)
+            except ValueError as exc:
+                raise exceptions.NoElementException(
+                    f"ListPages pager page is malformed for site: {site.unix_name}, offset: {offset} "
+                    f"(field=page, value={page_text})"
+                ) from exc
         if page_text.isdigit():
             raise exceptions.NoElementException(
                 f"ListPages pager page is malformed for site: {site.unix_name}, offset: {offset} "
@@ -1634,7 +1662,13 @@ class PageCollection(list["Page"]):
                     f"Page ID is malformed for site: {site.unix_name}, page: {target_pages_for_url[0].fullname} "
                     f"(field=page_id, value={page_id_text})"
                 )
-            page_id = int(page_id_text)
+            try:
+                page_id = int(page_id_text)
+            except ValueError as exc:
+                raise exceptions.NoElementException(
+                    f"Page ID is malformed for site: {site.unix_name}, page: {target_pages_for_url[0].fullname} "
+                    f"(field=page_id, value={page_id_text})"
+                ) from exc
             for page in target_pages_for_url:
                 page.id = page_id
 
@@ -2777,19 +2811,20 @@ class Page:
         client.login_check()
         request_bodies = self._meta_update_request_bodies(value, page_id)
 
-        if request_bodies:
-            responses = _require_page_metadata_action_response_count(
-                site, self, site.amc_request(request_bodies), len(request_bodies)
-            )
-            for request_body, response in zip(request_bodies, responses, strict=True):
-                _require_page_metadata_action_status(
-                    site,
-                    self,
-                    str(request_body.get("event", "unknown")),
-                    response.json(),
-                )
+        self._apply_metadata_request_bodies(site, request_bodies)
 
         self._metas = dict(value)
+
+    def _apply_metadata_request_bodies(self, site: "Site", request_bodies: list[dict[str, Any]]) -> None:
+        for request_body in request_bodies:
+            responses = _require_page_metadata_action_response_count(site, self, site.amc_request([request_body]), 1)
+            response = responses[0]
+            _require_page_metadata_action_status(
+                site,
+                self,
+                str(request_body.get("event", "unknown")),
+                response.json(),
+            )
 
     def _meta_update_request_bodies(self, value: dict[str, str], page_id: int | None = None) -> list[dict[str, Any]]:
         current_metas = self.metas
@@ -2920,17 +2955,7 @@ class Page:
         if metas is not None:
             request_bodies.extend(self._meta_update_request_bodies(metas, page_id))
 
-        if request_bodies:
-            responses = _require_page_metadata_action_response_count(
-                site, self, site.amc_request(request_bodies), len(request_bodies)
-            )
-            for request_body, response in zip(request_bodies, responses, strict=True):
-                _require_page_metadata_action_status(
-                    site,
-                    self,
-                    str(request_body.get("event", "unknown")),
-                    response.json(),
-                )
+        self._apply_metadata_request_bodies(site, request_bodies)
 
         if tags is not None:
             self.tags = list(tags)

@@ -7,10 +7,11 @@ from unittest.mock import MagicMock, PropertyMock, create_autospec, patch
 
 import httpx
 import pytest
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from pytest_httpx import HTTPXMock
 
 from wikidot.common.exceptions import (
+    ForbiddenException,
     LoginRequiredException,
     NoElementException,
     NotFoundException,
@@ -62,14 +63,14 @@ class TestSiteModuleHelpers:
     def test_printuser_onclick_value_falls_back_to_visible_text(self) -> None:
         html = BeautifulSoup('<span class="printuser"><a href="/user:info/test-user">test user</a></span>', "lxml")
         user_elem = html.find("span", class_="printuser")
-        assert user_elem is not None
+        assert isinstance(user_elem, Tag)
 
         assert _printuser_onclick_value(user_elem) == "test user"
 
     def test_printuser_onclick_value_uses_span_text_without_link(self) -> None:
         html = BeautifulSoup('<span class="printuser">test user</span>', "lxml")
         user_elem = html.find("span", class_="printuser")
-        assert user_elem is not None
+        assert isinstance(user_elem, Tag)
 
         assert _printuser_onclick_value(user_elem) == "test user"
 
@@ -553,6 +554,31 @@ class TestSitePagesAccessor:
         assert [query.tags for query in search_calls] == ["scp", "scp"]
         assert [query.offset for query in search_calls] == [0, 2]
         assert [query.limit for query in search_calls] == [2, 2]
+
+    def test_iter_search_required_tags_slices_filtered_batch_to_remaining_limit(
+        self,
+        mock_site_no_http: Site,
+    ) -> None:
+        """required_tags指定時もcallerのlimitを超えてyieldしない"""
+        pages = [self._page(mock_site_no_http, f"fr:scp-{index}", index) for index in range(250)]
+        for page in pages:
+            page.tags = ["scp", "fr"]
+
+        def search_pages(site: Site, query) -> PageCollection:
+            assert query.limit == 250
+            return PageCollection(site, pages)
+
+        with patch.object(PageCollection, "search_pages", side_effect=search_pages):
+            result = list(
+                mock_site_no_http.pages.iter_search(
+                    tags="scp",
+                    required_tags=["scp", "fr"],
+                    perPage=250,
+                    limit=1,
+                )
+            )
+
+        assert [page.fullname for page in result] == ["fr:scp-0"]
 
     def test_iter_search_required_tags_keeps_remote_chunk_size_after_skips(
         self,
@@ -2821,6 +2847,34 @@ class TestSiteFromUnixName:
         assert site.id == 999
         assert site.ssl_supported is False
 
+    def test_from_unix_name_uses_explicit_local_base_url(self, httpx_mock: HTTPXMock) -> None:
+        """明示されたローカルベースURLからサイトメタデータを取得する"""
+        client = create_mock_client()
+        client.amc_client.config = AjaxModuleConnectorConfig(local_base_url="http://127.0.0.1:4173/")
+        html = """
+        <html>
+        <head><title>Local Wikijump</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = 4173;
+            WIKIREQUEST.info.siteUnixName = "local-site";
+            WIKIREQUEST.info.domain = "127.0.0.1:4173";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(url="http://127.0.0.1:4173/", text=html)
+
+        site = Site.from_unix_name(client, "local-site")
+
+        assert site.id == 4173
+        assert site.title == "Local Wikijump"
+        assert site.unix_name == "local-site"
+        assert site.domain == "127.0.0.1:4173"
+        assert site.ssl_supported is False
+        assert site.url == "http://127.0.0.1:4173"
+        assert [str(request.url) for request in httpx_mock.get_requests()] == ["http://127.0.0.1:4173/"]
+
     def test_from_unix_name_not_found(self, httpx_mock: HTTPXMock) -> None:
         """存在しないサイトはNotFoundException"""
         client = create_mock_client()
@@ -2923,6 +2977,33 @@ class TestSiteFromUnixName:
             match=r"Site ID is malformed for site: bad-site\.wikidot\.com \(field=site_id, value=latest\)",
         ):
             Site.from_unix_name(client, "bad-site")
+
+    def test_from_unix_name_oversized_site_id_raises_no_element_exception(self, httpx_mock: HTTPXMock) -> None:
+        """過大なsiteIdはraw ValueErrorではなくNoElementExceptionに変換する"""
+        client = create_mock_client()
+        site_id_text = "9" * 5000
+        html = f"""
+        <html>
+        <head><title>Bad Site</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = {site_id_text};
+            WIKIREQUEST.info.siteUnixName = "bad-site";
+            WIKIREQUEST.info.domain = "bad-site.wikidot.com";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="http://bad-site.wikidot.com",
+            text=html,
+        )
+
+        with pytest.raises(NoElementException) as exc_info:
+            Site.from_unix_name(client, "bad-site")
+
+        assert "Site ID is malformed for site: bad-site.wikidot.com" in str(exc_info.value)
+        assert "(field=site_id," in str(exc_info.value)
 
     @pytest.mark.parametrize("site_id_text", ["-1", "+123"])
     def test_from_unix_name_signed_site_id_includes_raw_value_context(
@@ -3491,6 +3572,25 @@ class TestSiteAmcRequest:
             site.amc_request_with_retry(
                 [{"moduleName": "First"}, {"moduleName": "Second"}], batch_size=2, max_retries=1
             )
+
+    def test_amc_request_with_retry_raises_permanent_permission_errors_without_retry(self) -> None:
+        """no_permissionなど恒久的なAMC例外はNoneに丸めず即時に返す"""
+        mock_client = create_mock_client()
+        permission_error = ForbiddenException("no permission")
+        mock_client.amc_client.request.return_value = (permission_error,)
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ForbiddenException, match="no permission"):
+            site.amc_request_with_retry([{"moduleName": "Protected"}], max_retries=3)
+
+        mock_client.amc_client.request.assert_called_once()
 
     def test_amc_request_with_retry_returns_none_for_entries_still_failed_after_retries(self) -> None:
         mock_client = create_mock_client()
@@ -4937,7 +5037,7 @@ Real edit comment
                 UnexpectedException,
                 match=r"Cannot retrieve recent changes for site: test, page: 2",
             ):
-                site.get_recent_changes()
+                site.get_recent_changes(limit=2)
 
     def test_get_recent_changes_paginated_missing_response_body_includes_site_context(self) -> None:
         """変更履歴後続レスポンスのbody欠損はサイト名とページ番号を含める"""
@@ -4970,7 +5070,7 @@ Real edit comment
                 NoElementException,
                 match=r"Recent changes response body is not found for site: test, page: 2",
             ):
-                site.get_recent_changes()
+                site.get_recent_changes(limit=2)
 
     def test_get_recent_changes_paginated_malformed_response_body_type_includes_site_context(self) -> None:
         """変更履歴後続レスポンスのbody型異常はサイト名・ページ番号・型を含める"""
@@ -5006,7 +5106,7 @@ Real edit comment
                     r"\(field=body, expected=str, actual=list\)"
                 ),
             ):
-                site.get_recent_changes()
+                site.get_recent_changes(limit=2)
 
     def test_get_recent_changes_paginated_malformed_response_payload_type_includes_site_context(self) -> None:
         """変更履歴後続レスポンスのpayload型異常はサイト名・ページ番号・型を含める"""
@@ -5042,7 +5142,7 @@ Real edit comment
                     r"\(expected=dict, actual=list\)"
                 ),
             ):
-                site.get_recent_changes()
+                site.get_recent_changes(limit=2)
 
     def test_get_recent_changes_zero_limit_returns_empty(self) -> None:
         """limit=0ではリクエストせず空リストを返す"""
@@ -5143,7 +5243,7 @@ Real edit comment
                 match=rf"Recent changes pager page is malformed for site: test, page: 1 "
                 rf"\(field=page, value={fullwidth_page}\)",
             ):
-                site.get_recent_changes()
+                site.get_recent_changes(limit=2000)
 
         mock_client.amc_client.request.assert_called_once()
 
@@ -5206,10 +5306,38 @@ Real edit comment
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
             mock_user_parser.return_value = self._parsed_user(site)
 
-            changes = site.get_recent_changes()
+            changes = site.get_recent_changes(limit=3)
 
         assert [change.page_fullname for change in changes] == ["page-1", "page-2", "page-3"]
         assert requested_pages == [[1], [2, 3]]
+
+    def test_get_recent_changes_default_does_not_follow_remote_pager(self) -> None:
+        """limit未指定ではリモートpagerに従わず最初のページだけ取得する"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        requested_pages: list[list[int]] = []
+
+        def request_side_effect(bodies: list[dict[str, Any]], *_args: Any) -> tuple[MagicMock, ...]:
+            pages = [int(body["page"]) for body in bodies]
+            requested_pages.append(pages)
+            return tuple(self._site_change_response(page, last_page=999999) for page in pages)
+
+        mock_client.amc_client.request.side_effect = request_side_effect
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+
+            changes = site.get_recent_changes()
+
+        assert [change.page_fullname for change in changes] == ["page-1"]
+        assert requested_pages == [[1]]
 
     def test_get_recent_changes_batches_only_pages_needed_for_limit(self) -> None:
         """limitで不要な後続ページはAMCバッチに含めない"""

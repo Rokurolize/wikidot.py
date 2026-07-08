@@ -978,7 +978,10 @@ class TestForumThreadCollectionAcquireAll:
             "https://other-site.wikidot.com/forum/t-3001/test-thread",
             "http:forum/t-3001/test-thread",
             "javascript:/forum/t-3001/test-thread",
+            "javascript:t-3001",
+            "data:t-3001",
             "mailto:forum/t-3001/test-thread",
+            "mailto:t-3001",
         ],
     )
     def test_acquire_all_rejects_malformed_thread_href_routes(
@@ -1081,6 +1084,26 @@ class TestForumThreadCollectionAcquireAll:
             ),
         ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+    def test_acquire_all_oversized_post_count_raises_no_element_exception(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """過大な投稿数はraw ValueErrorではなくNoElementExceptionに変換する"""
+        oversized_count = "9" * 5000
+        body_with_bad_count = forum_threads_in_category["body"].replace(
+            '<td class="posts">5</td>',
+            f'<td class="posts">{oversized_count}</td>',
+            1,
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "body": body_with_bad_count}
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        assert "Posts count is malformed for site: test-site" in str(exc_info.value)
+        assert "(category=1001, page=1, row=1, field=posts," in str(exc_info.value)
 
     def test_acquire_all_negative_post_count_includes_category_context(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
@@ -1210,6 +1233,25 @@ class TestForumThreadCollectionAcquireAll:
                 r"Forum thread list pager page is malformed for site: test-site, category: 1001, page: 1 "
                 rf"\(field=page, value={re.escape(fullwidth_page)}\)"
             ),
+        ):
+            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        mock_forum_category_no_http.site.amc_request.assert_not_called()
+        mock_forum_category_no_http.site.amc_request_with_retry.assert_called_once()
+
+    def test_acquire_all_rejects_excessive_pager_link(
+        self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
+    ) -> None:
+        """過大なpagerページ番号では追加ページの大量要求を作らない"""
+        first_response = MagicMock()
+        body_with_pager = forum_threads_in_category["body"] + '<div class="pager"><a>1</a><a>1001</a></div>'
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+        mock_forum_category_no_http.site.amc_request = MagicMock()
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(first_response,))
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Forum thread list pager page is too large for site: test-site, category: 1001, page: 1",
         ):
             ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
 

@@ -260,6 +260,12 @@ class TestAjaxModuleConnectorConfig:
         assert config.retry_batch_size == 25
         assert config.retry_max_retries == 7
 
+    def test_custom_local_base_url_is_normalized(self) -> None:
+        """明示されたローカルベースURLは末尾スラッシュなしで保持される"""
+        config = AjaxModuleConnectorConfig(local_base_url="http://127.0.0.1:4173/")
+
+        assert config.local_base_url == "http://127.0.0.1:4173"
+
     @pytest.mark.parametrize(
         "request_timeout", [None, True, False, "1", 0, -0.1, float("nan"), float("inf"), -float("inf")]
     )
@@ -299,33 +305,33 @@ class TestAjaxModuleConnectorClientInit:
         assert client.ssl_supported is True
         assert client.site_name == "www"
 
-    def test_site_with_ssl_redirect(self, httpx_mock: HTTPXMock) -> None:
-        """HTTPSリダイレクトがあるサイトはSSL対応"""
+    def test_non_www_site_uses_https_probe(self, httpx_mock: HTTPXMock) -> None:
+        """non-wwwサイトはHTTPSだけで存在確認する"""
         httpx_mock.add_response(
-            url="http://test-site.wikidot.com",
-            status_code=301,
-            headers={"Location": "https://test-site.wikidot.com"},
+            url="https://test-site.wikidot.com",
+            status_code=200,
+        )
+
+        client = AjaxModuleConnectorClient(site_name="test-site")
+
+        assert client.ssl_supported is True
+        assert str(httpx_mock.get_requests()[0].url) == "https://test-site.wikidot.com"
+
+    def test_non_www_site_does_not_downgrade_without_redirect(self, httpx_mock: HTTPXMock) -> None:
+        """HTTPSリダイレクトがないレスポンスでもHTTPへ降格しない"""
+        httpx_mock.add_response(
+            url="https://test-site.wikidot.com",
+            status_code=200,
         )
 
         client = AjaxModuleConnectorClient(site_name="test-site")
 
         assert client.ssl_supported is True
 
-    def test_site_without_ssl(self, httpx_mock: HTTPXMock) -> None:
-        """HTTPSリダイレクトがないサイトはSSL非対応"""
-        httpx_mock.add_response(
-            url="http://test-site.wikidot.com",
-            status_code=200,
-        )
-
-        client = AjaxModuleConnectorClient(site_name="test-site")
-
-        assert client.ssl_supported is False
-
     def test_site_not_found(self, httpx_mock: HTTPXMock) -> None:
         """存在しないサイトはNotFoundException"""
         httpx_mock.add_response(
-            url="http://nonexistent.wikidot.com",
+            url="https://nonexistent.wikidot.com",
             status_code=404,
         )
 
@@ -440,6 +446,43 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert len(responses) == 1
         assert str(httpx_mock.get_requests()[0].url) == request_url
+
+    def test_authenticated_request_forces_https_even_with_false_ssl_override(
+        self,
+        httpx_mock: HTTPXMock,
+    ) -> None:
+        """セッションCookie付きAMCリクエストはHTTPへ降格しない"""
+        request_url = "https://www.wikidot.com/ajax-module-connector.php"
+        httpx_mock.add_response(
+            url=request_url,
+            json={"status": "ok", "body": ""},
+        )
+        client = AjaxModuleConnectorClient(site_name="www")
+        client.header.set_cookie("WIKIDOT_SESSION_ID", "secret-session")
+
+        responses = client.request(
+            [{"moduleName": "TestModule"}],
+            site_ssl_supported=False,
+        )
+
+        assert len(responses) == 1
+        request = httpx_mock.get_requests()[0]
+        assert str(request.url) == request_url
+        assert "WIKIDOT_SESSION_ID=secret-session" in request.headers["Cookie"]
+
+    def test_request_uses_explicit_local_base_url(self, httpx_mock: HTTPXMock) -> None:
+        """明示されたローカルベースURLはwikidot.comホスト生成を置き換える"""
+        httpx_mock.add_response(
+            url="http://127.0.0.1:4173/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+        )
+        config = AjaxModuleConnectorConfig(local_base_url="http://127.0.0.1:4173")
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        responses = client.request([{"moduleName": "TestModule"}])
+
+        assert len(responses) == 1
+        assert str(httpx_mock.get_requests()[0].url) == "http://127.0.0.1:4173/ajax-module-connector.php"
 
     @pytest.mark.parametrize(
         ("ssl_supported", "request_url"),
@@ -1049,6 +1092,26 @@ class TestAjaxModuleConnectorClientRequest:
         assert len(httpx_mock.get_requests()) == 2
         assert responses[0].json()["status"] == "ok"
 
+    def test_missing_status_action_response_is_not_replayed(self, httpx_mock: HTTPXMock) -> None:
+        """副作用のあるAMC actionはstatus欠落時に再送しない"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"body": ""},
+        )
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+            is_optional=True,
+        )
+
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(ResponseDataException, match="AMC response is missing status field"):
+            client.request([{"action": "WikiPageAction", "event": "savePage", "moduleName": "Empty"}])
+
+        assert len(httpx_mock.get_requests()) == 1
+
     def test_retry_on_non_string_status_response(self, httpx_mock: HTTPXMock) -> None:
         """statusが文字列ではないJSONレスポンスでリトライ"""
         httpx_mock.add_response(
@@ -1135,11 +1198,11 @@ class TestAjaxModuleConnectorClientRequest:
     def test_custom_site_name(self, httpx_mock: HTTPXMock) -> None:
         """サイト名を指定してリクエスト"""
         httpx_mock.add_response(
-            url="http://other-site.wikidot.com",
+            url="https://other-site.wikidot.com",
             status_code=200,
         )
         httpx_mock.add_response(
-            url="http://other-site.wikidot.com/ajax-module-connector.php",
+            url="https://other-site.wikidot.com/ajax-module-connector.php",
             json={"status": "ok", "body": ""},
         )
 

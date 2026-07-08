@@ -227,6 +227,26 @@ class TestUserFromName:
         assert result.id == 12345
         assert result.name == "test-user"
 
+    def test_from_name_uses_explicit_local_base_url(self, httpx_mock: HTTPXMock, user_profile_html: str) -> None:
+        """明示されたローカルベースURLからユーザープロフィールを取得する"""
+        client = create_lookup_client()
+        client.amc_client.config = AjaxModuleConnectorConfig(
+            local_base_url="http://127.0.0.1:4173",
+            retry_interval=0,
+        )
+        httpx_mock.add_response(
+            url="http://127.0.0.1:4173/user:info/test-user",
+            text=user_profile_html,
+        )
+
+        result = User.from_name(client, "test-user")
+
+        assert result is not None
+        assert isinstance(result, User)
+        assert [str(request.url) for request in httpx_mock.get_requests()] == [
+            "http://127.0.0.1:4173/user:info/test-user"
+        ]
+
     def test_from_name_not_found_no_raise(self, httpx_mock: HTTPXMock, user_profile_not_found_html: str) -> None:
         """ユーザーが見つからない場合Noneを返す"""
         client = create_lookup_client()

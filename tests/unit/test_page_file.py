@@ -485,8 +485,8 @@ class TestPageFileCollectionAcquire:
         with pytest.raises(ValueError, match="page must be a Page"):
             PageFileCollection.acquire(bad_page)
 
-    def test_acquire_skips_cached_page_files(self):
-        """取得済みpage.filesは直接取得でも再取得しない"""
+    def test_acquire_refreshes_cached_page_files(self):
+        """直接取得は既存page.filesキャッシュを返さず再取得する"""
         page = _page()
         page.id = 12345
         site = MagicMock()
@@ -503,13 +503,17 @@ class TestPageFileCollectionAcquire:
         cached_collection = PageFileCollection(page=page, files=[cached_file])
         page._files = cached_collection
         site.amc_request = MagicMock()
-        site.amc_request_with_retry = MagicMock(return_value=(None,))
+        response = MagicMock()
+        response.json.return_value = {"body": "<div>No files</div>"}
+        site.amc_request_with_retry = MagicMock(return_value=(response,))
 
         collection = PageFileCollection.acquire(page)
 
-        assert collection is cached_collection
+        assert collection is not cached_collection
+        assert page._files is collection
+        assert len(collection) == 0
         site.amc_request.assert_not_called()
-        site.amc_request_with_retry.assert_not_called()
+        site.amc_request_with_retry.assert_called_once_with([{"moduleName": "files/PageFilesModule", "page_id": 12345}])
 
     def test_acquire_uses_retry_aware_amc(self):
         """直接ファイル取得でもリトライ対応AMCを使う"""
@@ -1096,8 +1100,8 @@ class TestPageFileCollectionAcquire:
         assert collection[0].name == "file1.txt"
         assert collection[1].name == "file2.pdf"
 
-    def test_acquire_skips_invalid_rows(self):
-        """無効な行はスキップ"""
+    def test_acquire_rejects_invalid_rows(self):
+        """構造的に壊れたfile-rowは黙ってスキップしない"""
         page = _page()
         page.id = 12345
         site = MagicMock()
@@ -1114,12 +1118,12 @@ class TestPageFileCollectionAcquire:
                             <td><span title="text/plain">TXT</span></td>
                             <td>100 Bytes</td>
                         </tr>
-                        <tr>
+                        <tr id="file-row-101">
                             <td>No link here</td>
                             <td></td>
                             <td></td>
                         </tr>
-                        <tr id="not-a-file-row-102">
+                        <tr id="file-row-102">
                             <td>Too few columns</td>
                         </tr>
                     </tbody>
@@ -1128,10 +1132,11 @@ class TestPageFileCollectionAcquire:
         }
         site.amc_request_with_retry.return_value = (response,)
 
-        collection = PageFileCollection.acquire(page)
-
-        assert len(collection) == 1
-        assert collection[0].name == "valid.txt"
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=r"Page file link is not found .*\(id=101, field=link\)",
+        ):
+            PageFileCollection.acquire(page)
 
     def test_acquire_ignores_nested_file_rows(self):
         """添付ファイル行内のネストした表は構造的なファイル行として扱わない"""

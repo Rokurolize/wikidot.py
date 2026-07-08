@@ -38,7 +38,11 @@ def _parse_category_count(site: "Site", row_index: int, field: str, label: str, 
     if re.fullmatch(r"-?[0-9]+", value) is None:
         parse_context = _category_parse_context(site, row_index, field=field, value=value)
         raise NoElementException(f"{label} is malformed {parse_context}")
-    count = int(value)
+    try:
+        count = int(value)
+    except ValueError as exc:
+        parse_context = _category_parse_context(site, row_index, field=field, value=value)
+        raise NoElementException(f"{label} is malformed {parse_context}") from exc
     if count < 0:
         parse_context = _category_parse_context(site, row_index, field=field, value=value)
         raise NoElementException(f"{label} must be non-negative {parse_context}")
@@ -48,11 +52,15 @@ def _parse_category_count(site: "Site", row_index: int, field: str, label: str, 
 def _parse_category_id(site: "Site", row_index: int, href: object) -> int:
     href_text = str(href)
     category_id_candidate = re.search(r"(?:^|/)c-\d+", href_text)
-    href_parts = urlsplit(href_text)
+    try:
+        href_parts = urlsplit(href_text)
+    except ValueError as exc:
+        parse_context = _category_parse_context(site, row_index, field="id", value=href_text)
+        raise NoElementException(f"Category ID is malformed {parse_context}") from exc
     href_host = href_parts.hostname.lower() if href_parts.hostname is not None else None
     site_domain = getattr(site, "domain", None)
     site_host = site_domain.lower() if isinstance(site_domain, str) else None
-    if category_id_candidate is not None and (
+    if (
         href_parts.scheme not in ("", "http", "https")
         or (href_parts.scheme in ("http", "https") and href_parts.netloc == "")
         or (href_parts.netloc != "" and href_host != site_host)
@@ -62,7 +70,11 @@ def _parse_category_id(site: "Site", row_index: int, href: object) -> int:
 
     category_id_match = re.search(r"(?:^|/)c-([0-9]+)(?=[/?#]|$)", href_parts.path)
     if category_id_match is not None:
-        return int(category_id_match.group(1))
+        try:
+            return int(category_id_match.group(1))
+        except ValueError as exc:
+            parse_context = _category_parse_context(site, row_index, field="id", value=href_text)
+            raise NoElementException(f"Category ID is malformed {parse_context}") from exc
 
     if category_id_candidate is not None:
         parse_context = _category_parse_context(site, row_index, field="id", value=href_text)

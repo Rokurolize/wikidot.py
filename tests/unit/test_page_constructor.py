@@ -267,6 +267,12 @@ class TestPageInit:
         with pytest.raises(ValueError, match="rating_percent must be between 0.0 and 1.0, or None"):
             _page(mock_site_no_http, rating_percent=rating_percent)
 
+    def test_init_rejects_oversized_rating_percent_without_overflowing(self, mock_site_no_http: Any) -> None:
+        oversized_rating_percent = 10**5000
+
+        with pytest.raises(ValueError, match="rating_percent must be between 0.0 and 1.0, or None"):
+            _page(mock_site_no_http, rating_percent=oversized_rating_percent)
+
     @pytest.mark.parametrize(
         ("parent_fullname", "expected"),
         [

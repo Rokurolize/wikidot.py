@@ -334,24 +334,43 @@ class PrivateMessageCollection(list["PrivateMessage"]):
     def _parse_message_list_message_id(module_name: str, page: int, row_index: int, data_href: object) -> int:
         data_href_text = str(data_href)
         parse_context = PrivateMessageCollection._message_list_parse_context(module_name, page, row_index)
-        data_href_parts = urlsplit(data_href_text)
+        try:
+            data_href_parts = urlsplit(data_href_text)
+        except ValueError as exc:
+            raise exceptions.NoElementException(
+                f"Message ID is malformed in data-href: {data_href_text} {parse_context}"
+            ) from exc
         data_href_host = data_href_parts.hostname.lower() if data_href_parts.hostname is not None else None
         message_id_match = re.fullmatch(r"/?account/messages/view/([0-9]+)/?", data_href_parts.path)
         hash_message_id_match = re.fullmatch(r"/(?:sent|inbox)/([0-9]+)", data_href_parts.fragment)
-        if hash_message_id_match is not None:
-            return int(hash_message_id_match.group(1))
-        if re.search(r"\d+", data_href_text) is not None and (
+        hash_route_path = data_href_parts.path.rstrip("/")
+        hash_route_allowed = hash_message_id_match is not None and hash_route_path in ("", "/", "/account/messages")
+        href_has_digits = re.search(r"\d+", data_href_text) is not None
+        malformed_href = (
             data_href_parts.scheme not in ("", "http", "https")
             or (data_href_parts.scheme in ("http", "https") and data_href_parts.netloc == "")
             or (data_href_parts.netloc != "" and data_href_host != "www.wikidot.com")
-            or message_id_match is None
-        ):
+        )
+        if href_has_digits and (malformed_href or (message_id_match is None and not hash_route_allowed)):
             raise exceptions.NoElementException(
                 f"Message ID is malformed in data-href: {data_href_text} {parse_context}"
             )
 
+        if hash_message_id_match is not None:
+            try:
+                return int(hash_message_id_match.group(1))
+            except ValueError as exc:
+                raise exceptions.NoElementException(
+                    f"Message ID is malformed in data-href: {data_href_text} {parse_context}"
+                ) from exc
+
         if message_id_match is not None:
-            return int(message_id_match.group(1))
+            try:
+                return int(message_id_match.group(1))
+            except ValueError as exc:
+                raise exceptions.NoElementException(
+                    f"Message ID is malformed in data-href: {data_href_text} {parse_context}"
+                ) from exc
 
         raise exceptions.NoElementException(f"Message ID is not found in data-href: {data_href_text} {parse_context}")
 
@@ -385,7 +404,14 @@ class PrivateMessageCollection(list["PrivateMessage"]):
     @staticmethod
     def _parse_message_list_pager_page(module_name: str, page_text: str) -> int | None:
         if re.fullmatch(r"[0-9]+", page_text) is not None:
-            return int(page_text)
+            try:
+                return int(page_text)
+            except ValueError as exc:
+                raise exceptions.NoElementException(
+                    "Message list pager page is malformed "
+                    f"{PrivateMessageCollection._message_list_fetch_context(module_name, 1)} "
+                    f"(field=page, value={page_text})"
+                ) from exc
 
         if page_text.isdigit():
             raise exceptions.NoElementException(

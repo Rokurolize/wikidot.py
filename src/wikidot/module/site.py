@@ -18,7 +18,7 @@ else:  # pragma: no cover - Python <3.12 compatibility branch
 
 from ..common import exceptions
 from ..common.logger import logger
-from ..connector.ajax import AjaxModuleConnectorConfig, _validate_amc_request_bodies
+from ..connector.ajax import AjaxModuleConnectorConfig, _local_url, _validate_amc_request_bodies
 from ..util.http import sync_get_with_retry
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
@@ -100,7 +100,13 @@ def _parse_recent_change_revision_no(site: "Site", rev_elem: Tag, *, page_no: in
             f"(page={page_no}, change={change_index}, field=revision_no, value={rev_value})"
         )
     revision_text = next(group for group in rev_match.groups() if group is not None)
-    return int(revision_text)
+    try:
+        return int(revision_text)
+    except ValueError as exc:
+        raise exceptions.NoElementException(
+            f"Revision number is malformed for site: {site.unix_name} "
+            f"(page={page_no}, change={change_index}, field=revision_no, value={rev_value})"
+        ) from exc
 
 
 def _parse_recent_change_page_fullname(site: "Site", href: str, *, page_no: int, change_index: int) -> str:
@@ -369,6 +375,14 @@ def _require_site_amc_retry_response_count(
             f"(expected={expected_count}, actual={len(responses)}, batch_start={batch_start}, attempt={attempt})"
         )
     return tuple(responses)
+
+
+def _is_retryable_site_amc_exception(exc: Exception) -> bool:
+    if isinstance(exc, exceptions.ForbiddenException):
+        return False
+    if isinstance(exc, exceptions.WikidotStatusCodeException):
+        return exc.status_code == "try_again"
+    return True
 
 
 def _validate_publish_result_source_matches(value: object) -> None:
@@ -791,10 +805,12 @@ class SitePagesAccessor:
             batch_pages = pages[:batch_limit]
             if required_tag_set:
                 batch_pages = [page for page in batch_pages if required_tag_set.issubset(set(page.tags))]
+            if remaining is not None:
+                batch_pages = batch_pages[:remaining]
 
             yield from batch_pages
 
-            yielded_count = len(batch_pages) if required_tag_set else min(len(pages), batch_limit)
+            yielded_count = len(batch_pages)
             if remaining is not None:
                 remaining -= yielded_count
                 if remaining <= 0:
@@ -1428,8 +1444,9 @@ class Site:
         # サイト情報を取得
         # リダイレクトには従う、リトライ付き
         config = _validate_site_config_object(client.amc_client.config)
+        site_url = _local_url(config, "") or f"http://{unix_name}.wikidot.com"
         response = sync_get_with_retry(
-            f"http://{unix_name}.wikidot.com",
+            site_url,
             timeout=config.request_timeout,
             attempt_limit=config.attempt_limit,
             retry_interval=config.retry_interval,
@@ -1455,7 +1472,12 @@ class Site:
             raise exceptions.NoElementException(
                 f"Site ID is malformed for site: {unix_name}.wikidot.com (field=site_id, value={site_id_text})"
             )
-        site_id = int(site_id_text)
+        try:
+            site_id = int(site_id_text)
+        except ValueError as exc:
+            raise exceptions.NoElementException(
+                f"Site ID is malformed for site: {unix_name}.wikidot.com (field=site_id, value={site_id_text})"
+            ) from exc
 
         # title : titleタグ
         title_match = re.search(r"<title>(.*?)</title>", source)
@@ -1588,6 +1610,8 @@ class Site:
 
             for i, resp_or_exc in enumerate(responses):
                 if isinstance(resp_or_exc, Exception):
+                    if not _is_retryable_site_amc_exception(resp_or_exc):
+                        raise resp_or_exc
                     batch_results.append(None)
                     failed_indices.append(i)
                 else:
@@ -1614,6 +1638,8 @@ class Site:
                 still_failed_indices: list[int] = []
                 for j, retry_resp in enumerate(retry_responses):
                     if isinstance(retry_resp, Exception):
+                        if not _is_retryable_site_amc_exception(retry_resp):
+                            raise retry_resp
                         still_failed_indices.append(failed_indices[j])
                     else:
                         batch_results[failed_indices[j]] = retry_resp
@@ -1957,7 +1983,13 @@ class Site:
             for pager_link in reversed(pager.select("a")):
                 page_text = pager_link.get_text(strip=True)
                 if re.fullmatch(r"[0-9]+", page_text) is not None:
-                    return int(page_text)
+                    try:
+                        return int(page_text)
+                    except ValueError as exc:
+                        raise NoElementException(
+                            f"Recent changes pager page is malformed for site: {self.unix_name}, page: 1 "
+                            f"(field=page, value={page_text})"
+                        ) from exc
                 if page_text.isdigit():
                     raise NoElementException(
                         f"Recent changes pager page is malformed for site: {self.unix_name}, page: 1 "
@@ -2007,14 +2039,19 @@ class Site:
             if limit is not None and len(changes) >= limit:
                 return changes
 
+        if limit is None:
+            return changes
+
         last_page = get_last_page(html)
         if last_page <= 1:
             return changes
 
-        page_numbers = list(range(2, last_page + 1))
-        if limit is not None:
-            remaining = limit - len(changes)
-            page_numbers = page_numbers[: (remaining + per_page - 1) // per_page]
+        observed_per_page = max(1, len(page_changes))
+        remaining = limit - len(changes)
+        if remaining <= 0:
+            return changes
+        pages_needed = (remaining + observed_per_page - 1) // observed_per_page
+        page_numbers = list(range(2, min(last_page, pages_needed + 1) + 1))
 
         responses = self.amc_request_with_retry([request_body(page_no) for page_no in page_numbers])
         for page_no, response in zip(page_numbers, responses, strict=True):

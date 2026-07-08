@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional, cast
 from bs4 import BeautifulSoup
 
 from ..common.exceptions import NoElementException, NotFoundException
+from ..connector.ajax import AjaxModuleConnectorConfig, _local_url
 from ..util.requestutil import RequestUtil
 from ..util.stringutil import StringUtil
 
@@ -170,10 +171,18 @@ class UserCollection(list["AbstractUser"]):
             return UserCollection([])
 
         client = _validate_user_lookup_client(client)
+        config = client.amc_client.config
+
+        def profile_url(name: str) -> str:
+            path = f"user:info/{StringUtil.to_unix(name)}"
+            if isinstance(config, AjaxModuleConnectorConfig):
+                return _local_url(config, path) or f"https://www.wikidot.com/{path}"
+            return f"https://www.wikidot.com/{path}"
+
         responses = RequestUtil.request(
             client,
             "GET",
-            [f"https://www.wikidot.com/user:info/{StringUtil.to_unix(name)}" for name in names],
+            [profile_url(name) for name in names],
         )
 
         users: list[AbstractUser] = []
