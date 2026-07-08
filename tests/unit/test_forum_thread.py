@@ -280,6 +280,72 @@ class TestForumThreadCollectionInit:
         with pytest.raises(exceptions.NoElementException, match="Thread ID is not found"):
             forum_thread_module._parse_thread_list_thread_id(mock_site_no_http, None, 1, None, "/forum/start")
 
+    def test_parse_thread_list_thread_id_rejects_invalid_url_syntax(self, mock_site_no_http: Site) -> None:
+        with pytest.raises(exceptions.NoElementException, match="Thread ID is malformed"):
+            forum_thread_module._parse_thread_list_thread_id(
+                mock_site_no_http,
+                None,
+                1,
+                None,
+                "http://[::1/forum/t-3001",
+            )
+
+    def test_parse_thread_list_thread_id_rejects_too_large_integer_segment(self, mock_site_no_http: Site) -> None:
+        oversized_id = "9" * 5000
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            forum_thread_module._parse_thread_list_thread_id(
+                mock_site_no_http,
+                None,
+                1,
+                None,
+                f"/forum/t-{oversized_id}",
+            )
+
+        message = str(exc_info.value)
+        assert "Thread ID is malformed for site: test-site" in message
+        assert "(row=1, field=id" in message
+        assert oversized_id in message
+
+    def test_parse_thread_detail_post_count_rejects_too_large_integer(self, mock_site_no_http: Site) -> None:
+        oversized_count = "9" * 5000
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            forum_thread_module._parse_thread_detail_post_count(
+                mock_site_no_http,
+                3001,
+                None,
+                f"Number of posts: {oversized_count}",
+            )
+
+        message = str(exc_info.value)
+        assert "Post count is malformed for site: test-site" in message
+        assert "(thread=3001, field=posts" in message
+        assert oversized_count in message
+
+    def test_parse_thread_detail_thread_id_rejects_too_large_integer(self, mock_site_no_http: Site) -> None:
+        oversized_id = "9" * 5000
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            forum_thread_module._parse_thread_detail_thread_id(mock_site_no_http, 3001, None, oversized_id)
+
+        message = str(exc_info.value)
+        assert "Forum thread detail ID is malformed for site: test-site" in message
+        assert "(thread=3001, field=thread_id" in message
+        assert oversized_id in message
+
+    def test_parse_thread_list_pager_page_rejects_too_large_integer(
+        self, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        oversized_page = "9" * 5000
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            ForumThreadCollection._parse_thread_list_pager_page(mock_forum_category_no_http, oversized_page)
+
+        message = str(exc_info.value)
+        assert "Forum thread list pager page is malformed for site: test-site, category: 1001, page: 1" in message
+        assert oversized_page in message
+
     def test_description_text_from_block_skips_statistics_and_empty_children(self) -> None:
         html = BeautifulSoup(
             """

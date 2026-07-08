@@ -2048,8 +2048,6 @@ class Site:
 
         observed_per_page = max(1, len(page_changes))
         remaining = limit - len(changes)
-        if remaining <= 0:
-            return changes
         pages_needed = (remaining + observed_per_page - 1) // observed_per_page
         page_numbers = list(range(2, min(last_page, pages_needed + 1) + 1))
 

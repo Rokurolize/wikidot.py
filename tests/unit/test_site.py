@@ -10,6 +10,7 @@ import pytest
 from bs4 import BeautifulSoup, Tag
 from pytest_httpx import HTTPXMock
 
+import wikidot.module.site as site_module
 from wikidot.common.exceptions import (
     ForbiddenException,
     LoginRequiredException,
@@ -95,6 +96,20 @@ class TestSiteModuleHelpers:
     def test_amc_retry_response_count_rejects_non_sequence(self) -> None:
         with pytest.raises(UnexpectedException, match="actual=RuntimeError"):
             _require_site_amc_retry_response_count(RuntimeError("failed"), 1, 2, 3)
+
+    def test_recent_change_revision_number_rejects_too_large_integer(self, mock_site_no_http: Site) -> None:
+        oversized_revision_no = "9" * 5000
+        html = BeautifulSoup(f'<td class="revision-no">(rev. {oversized_revision_no})</td>', "lxml")
+        rev_elem = html.find("td", class_="revision-no")
+        assert isinstance(rev_elem, Tag)
+
+        with pytest.raises(NoElementException) as exc_info:
+            site_module._parse_recent_change_revision_no(mock_site_no_http, rev_elem, page_no=1, change_index=1)
+
+        message = str(exc_info.value)
+        assert "Revision number is malformed for site: test-site" in message
+        assert "(page=1, change=1, field=revision_no" in message
+        assert oversized_revision_no in message
 
 
 class TestSiteDataclass:
@@ -3592,6 +3607,47 @@ class TestSiteAmcRequest:
 
         mock_client.amc_client.request.assert_called_once()
 
+    def test_amc_request_with_retry_retries_try_again_status_errors(self) -> None:
+        """try_againステータスは一時エラーとして再試行する"""
+        mock_client = create_mock_client()
+        first_error = WikidotStatusCodeException("try again", "try_again")
+        retry_response = MagicMock()
+        mock_client.amc_client.request.side_effect = [(first_error,), (retry_response,)]
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        result = site.amc_request_with_retry([{"moduleName": "Transient"}], max_retries=1)
+
+        assert result == (retry_response,)
+        assert mock_client.amc_client.request.call_count == 2
+
+    def test_amc_request_with_retry_raises_permanent_error_returned_by_retry(self) -> None:
+        """再試行で恒久エラーになった場合はNoneにせず即時に返す"""
+        mock_client = create_mock_client()
+        mock_client.amc_client.request.side_effect = [
+            (RuntimeError("temporary"),),
+            (ForbiddenException("no permission"),),
+        ]
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(ForbiddenException, match="no permission"):
+            site.amc_request_with_retry([{"moduleName": "Protected"}], max_retries=1)
+
+        assert mock_client.amc_client.request.call_count == 2
+
     def test_amc_request_with_retry_returns_none_for_entries_still_failed_after_retries(self) -> None:
         mock_client = create_mock_client()
         first_response = MagicMock()
@@ -4859,7 +4915,7 @@ Real edit comment
 
         with patch("wikidot.module.site.user_parser") as mock_user_parser:
             mock_user_parser.return_value = self._parsed_user(site)
-            changes = site.get_recent_changes()
+            changes = site.get_recent_changes(limit=2)
 
         assert [change.page_fullname for change in changes] == ["page-1"]
 
@@ -5282,6 +5338,133 @@ Real edit comment
         assert len(changes) == 2
         mock_client.amc_client.request.assert_called_once()
 
+    def test_get_recent_changes_ignores_comment_pager_when_limit_requests_more(
+        self, site_changes: dict[str, Any]
+    ) -> None:
+        """limit指定時もコメント内pagerだけでは後続ページを取りに行かない"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = (
+            site_changes["body"]
+            .replace(
+                '<div class="pager"><span class="pager-no">ページ 1</span><span class="current">1</span></div>\n',
+                "",
+            )
+            .replace(
+                '<td class="comments">Test edit comment</td>',
+                '<td class="comments">Test edit comment<div class="pager"><a href="#">1</a><a href="#">2</a></div></td>',
+            )
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+            changes = site.get_recent_changes(limit=2000)
+
+        assert len(changes) == 2
+        mock_client.amc_client.request.assert_called_once()
+
+    def test_get_recent_changes_skips_comment_pager_before_structural_pager(self, site_changes: dict[str, Any]) -> None:
+        """コメント内pagerの後にある構造pagerを後続ページ判定に使う"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body_without_pager = site_changes["body"].replace(
+            '<div class="pager"><span class="pager-no">ページ 1</span><span class="current">1</span></div>\n',
+            "",
+        )
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            **site_changes,
+            "body": (
+                '<table><tr><td class="comments"><div class="pager"><a href="#">1</a><a href="#">999</a></div></td></tr></table>'
+                '<div class="pager"><a href="#">1</a><a href="#">2</a></div>'
+                f"{body_without_pager}"
+            ),
+        }
+        second_response = self._site_change_response(2, last_page=2)
+        mock_client.amc_client.request.side_effect = [(first_response,), (second_response,)]
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+            changes = site.get_recent_changes(limit=3)
+
+        assert [change.page_fullname for change in changes[:3]] == ["test:test-page", "scp-001", "page-2"]
+        assert mock_client.amc_client.request.call_count == 2
+
+    def test_get_recent_changes_limit_with_non_numeric_pager_stays_on_first_page(
+        self, site_changes: dict[str, Any]
+    ) -> None:
+        """limit指定時に数値リンクのないpagerなら後続ページを取りに行かない"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        body = site_changes["body"].replace(
+            '<div class="pager"><span class="pager-no">ページ 1</span><span class="current">1</span></div>',
+            '<div class="pager"><a href="#">next</a></div>',
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+            changes = site.get_recent_changes(limit=2000)
+
+        assert len(changes) == 2
+        mock_client.amc_client.request.assert_called_once()
+
+    def test_get_recent_changes_rejects_too_large_pager_link(self, site_changes: dict[str, Any]) -> None:
+        """int変換上限を超えるpager番号は構造エラーとして扱う"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        oversized_page = "9" * 5000
+        body = site_changes["body"].replace(
+            '<div class="pager"><span class="pager-no">ページ 1</span><span class="current">1</span></div>',
+            f'<div class="pager"><a href="#">1</a><a href="#">{oversized_page}</a></div>',
+        )
+        mock_response = MagicMock()
+        mock_response.json.return_value = {**site_changes, "body": body}
+        mock_client.amc_client.request.return_value = (mock_response,)
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+            with pytest.raises(NoElementException) as exc_info:
+                site.get_recent_changes(limit=2000)
+
+        message = str(exc_info.value)
+        assert "Recent changes pager page is malformed for site: test, page: 1" in message
+        assert oversized_page in message
+        mock_client.amc_client.request.assert_called_once()
+
     def test_get_recent_changes_batches_paginated_pages(self) -> None:
         """変更履歴の2ページ目以降は1回のAMCバッチで取得する"""
         mock_client = create_mock_client()
@@ -5307,6 +5490,34 @@ Real edit comment
             mock_user_parser.return_value = self._parsed_user(site)
 
             changes = site.get_recent_changes(limit=3)
+
+        assert [change.page_fullname for change in changes] == ["page-1", "page-2", "page-3"]
+        assert requested_pages == [[1], [2, 3]]
+
+    def test_get_recent_changes_returns_after_exhausting_paginated_pages(self) -> None:
+        """limitが残っていても最終ページまで読んだら取得済み変更を返す"""
+        mock_client = create_mock_client()
+        site = Site(
+            client=mock_client,
+            id=123456,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+        responses = {page: self._site_change_response(page, last_page=3) for page in range(1, 4)}
+        requested_pages: list[list[int]] = []
+
+        def request_side_effect(bodies: list[dict[str, Any]], *_args: Any) -> tuple[MagicMock, ...]:
+            pages = [int(body["page"]) for body in bodies]
+            requested_pages.append(pages)
+            return tuple(responses[page] for page in pages)
+
+        mock_client.amc_client.request.side_effect = request_side_effect
+
+        with patch("wikidot.module.site.user_parser") as mock_user_parser:
+            mock_user_parser.return_value = self._parsed_user(site)
+            changes = site.get_recent_changes(limit=10)
 
         assert [change.page_fullname for change in changes] == ["page-1", "page-2", "page-3"]
         assert requested_pages == [[1], [2, 3]]

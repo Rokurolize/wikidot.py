@@ -247,6 +247,20 @@ class TestUserFromName:
             "http://127.0.0.1:4173/user:info/test-user"
         ]
 
+    def test_from_name_uses_wikidot_url_when_client_config_is_not_ajax_config(
+        self, monkeypatch: pytest.MonkeyPatch, user_profile_html: str
+    ) -> None:
+        """Ajax設定でないテストダブルでは通常のWikidotプロフィールURLを使う"""
+        client = create_lookup_client()
+        client.amc_client.config = object()
+        request = MagicMock(return_value=[MagicMock(text=user_profile_html)])
+        monkeypatch.setattr("wikidot.module.user.RequestUtil.request", request)
+
+        result = User.from_name(client, "test-user")
+
+        assert result is not None
+        assert request.call_args.args[2] == ["https://www.wikidot.com/user:info/test-user"]
+
     def test_from_name_not_found_no_raise(self, httpx_mock: HTTPXMock, user_profile_not_found_html: str) -> None:
         """ユーザーが見つからない場合Noneを返す"""
         client = create_lookup_client()
