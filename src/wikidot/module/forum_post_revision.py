@@ -16,6 +16,7 @@ from bs4 import BeautifulSoup, Tag
 from ..common import exceptions
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ..util.parser.html import class_values
 
 if TYPE_CHECKING:
     from .forum_post import ForumPost
@@ -34,11 +35,8 @@ def _revision_list_parse_context(post: "ForumPost", row_index: int, **details: o
 
 
 def _odate_class_value(odate_elem: Tag) -> str:
-    class_attr = odate_elem.get("class", [])
-    if class_attr is None:
-        return ""
-    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
-    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+    values = class_values(odate_elem)
+    return next((value for value in values if "time_" in value), " ".join(values))
 
 
 def _user_onclick_value(user_elem: Tag) -> str:
@@ -258,13 +256,11 @@ def _validate_duplicate_post_ids_share_site(posts: list["ForumPost"], post_ids: 
         existing_post = posts_by_id.get(post_id)
         if existing_post is None:
             posts_by_id[post_id] = post
+            post_thread = _validate_forum_post_thread(post.thread)
+            sites_by_post_id[post_id] = _validate_forum_thread_site(post_thread.site)
             continue
 
-        existing_site = sites_by_post_id.get(post_id)
-        if existing_site is None:
-            existing_thread = _validate_forum_post_thread(existing_post.thread)
-            existing_site = _validate_forum_thread_site(existing_thread.site)
-            sites_by_post_id[post_id] = existing_site
+        existing_site = sites_by_post_id[post_id]
         post_thread = _validate_forum_post_thread(post.thread)
         site = _validate_forum_thread_site(post_thread.site)
         if site is not existing_site:

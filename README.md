@@ -1,6 +1,12 @@
 # wikidot.py
 
-[![Documentation Status](https://github.com/ukwhatn/wikidot.py/actions/workflows/docs.yml/badge.svg)](https://ukwhatn.github.io/wikidot.py/)
+[![Check Code Quality](https://github.com/Rokurolize/wikidot.py/actions/workflows/check_code_quality.yml/badge.svg?branch=main)](https://github.com/Rokurolize/wikidot.py/actions/workflows/check_code_quality.yml?query=branch%3Amain)
+[![Codecov](https://codecov.io/gh/Rokurolize/wikidot.py/branch/main/graph/badge.svg)](https://codecov.io/gh/Rokurolize/wikidot.py)
+[![CodeRabbit Reviews](https://img.shields.io/coderabbit/prs/github/Rokurolize/wikidot.py.svg?label=CodeRabbit%20Reviews)](https://coderabbit.ai)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg?repository=Rokurolize/wikidot.py)](https://deepwiki.com/Rokurolize/wikidot.py)
+
+This repository is Rokurolize's fork of [ukwhatn/wikidot.py](https://github.com/ukwhatn/wikidot.py).
+It is used for fork-local development, validation, and review support; upstream project links below describe the original `wikidot.py` package and documentation.
 
 A Python library for easily interacting with Wikidot sites.
 
@@ -38,9 +44,9 @@ print(f"Author: {page.created_by.name}")
 
 ## Documentation
 
-For detailed usage, API reference, and examples, please see the official documentation:
+For detailed usage, API reference, and examples, please see the upstream documentation:
 
-**[Official Documentation](https://ukwhatn.github.io/wikidot.py/)**
+**[Upstream Documentation](https://ukwhatn.github.io/wikidot.py/)**
 
 - [Installation](https://ukwhatn.github.io/wikidot.py/installation.html)
 - [Quickstart](https://ukwhatn.github.io/wikidot.py/quickstart.html)
@@ -64,5 +70,5 @@ make docs-serve
 
 ## Contribution
 
-- [Roadmap](https://ukwhatn.notion.site/wikidot-py-roadmap?pvs=4)
-- [Issue](https://github.com/ukwhatn/wikidot.py/issues)
+- [Upstream roadmap](https://ukwhatn.notion.site/wikidot-py-roadmap?pvs=4)
+- [Upstream issues](https://github.com/ukwhatn/wikidot.py/issues)

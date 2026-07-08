@@ -21,6 +21,7 @@ from ..common.exceptions import (
 )
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ..util.parser.html import class_values
 from .user import AbstractUser
 
 if TYPE_CHECKING:
@@ -38,12 +39,8 @@ def _user_onclick_value(user_elem: Tag) -> str:
 
 
 def _odate_class_value(odate_elem: Tag) -> str:
-    class_attr = odate_elem.get("class", [])
-    if class_attr is None:
-        return ""
-
-    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
-    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+    values = class_values(odate_elem)
+    return next((value for value in values if "time_" in value), " ".join(values))
 
 
 def _member_parse_context(
@@ -212,8 +209,6 @@ def _validate_site_member_action_user(user: object) -> AbstractUser:
     user = _validate_site_member_user(user)
     if not isinstance(user.id, int) or isinstance(user.id, bool):
         raise ValueError("member.user.id must be an integer")
-    if user.id < 0:
-        raise ValueError("member.user.id must be non-negative")
     if not isinstance(user.name, str):
         raise ValueError("member.user.name must be a string")
     return user
@@ -278,9 +273,6 @@ class SiteMember:
             row_container = tbody if isinstance(tbody, Tag) else table
 
             for row_index, row in enumerate(row_container.find_all("tr", recursive=False), start=1):
-                if not isinstance(row, Tag):
-                    continue
-
                 tds = [td for td in row.find_all("td", recursive=False) if isinstance(td, Tag)]
                 if not tds:
                     continue

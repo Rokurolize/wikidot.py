@@ -642,6 +642,27 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert httpx_mock.get_requests() == []
 
+    def test_empty_request_batch_skips_header_validation_and_http(self, httpx_mock: HTTPXMock) -> None:
+        client = AjaxModuleConnectorClient(site_name="www")
+        bad_cookie: Any = None
+        client.header.cookie = bad_cookie
+
+        responses = client.request([])
+
+        assert responses == ()
+        assert httpx_mock.get_requests() == []
+
+    def test_request_rejects_mutated_cookie_state_after_header_serialization(self, httpx_mock: HTTPXMock) -> None:
+        client = AjaxModuleConnectorClient(site_name="www")
+        client.header.get_header = lambda: {}
+        bad_cookie: Any = None
+        client.header.cookie = bad_cookie
+
+        with pytest.raises(ValueError, match="cookie must be a dictionary"):
+            client.request([{"moduleName": "TestModule"}])
+
+        assert httpx_mock.get_requests() == []
+
     @pytest.mark.parametrize(
         ("mutation", "expected"),
         [
@@ -763,6 +784,42 @@ class TestAjaxModuleConnectorClientRequest:
 
         assert len(httpx_mock.get_requests()) == 2
         assert responses[0].json()["status"] == "ok"
+
+    def test_no_permission_with_action_uses_action_and_event(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "no_permission"},
+        )
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        with pytest.raises(ForbiddenException) as exc_info:
+            client.request([{"action": "WikiPageAction", "event": "save"}])
+
+        assert "action: WikiPageAction/save" in str(exc_info.value)
+
+    def test_no_permission_with_action_without_event_uses_empty_event(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "no_permission"},
+        )
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        with pytest.raises(ForbiddenException) as exc_info:
+            client.request([{"action": "WikiPageAction"}])
+
+        assert "action: WikiPageAction/" in str(exc_info.value)
+
+    def test_no_permission_without_module_or_action_uses_unknown_target(self, httpx_mock: HTTPXMock) -> None:
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "no_permission"},
+        )
+        client = AjaxModuleConnectorClient(site_name="www")
+
+        with pytest.raises(ForbiddenException) as exc_info:
+            client.request([{}])
+
+        assert "unknown" in str(exc_info.value)
 
     @pytest.mark.httpx_mock(can_send_already_matched_responses=True)
     def test_max_retry_exceeded(self, httpx_mock: HTTPXMock) -> None:

@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from wikidot.common.logger import setup_console_handler
+from wikidot.common.logger import get_logger, setup_console_handler
 
 
 def _test_logger(name: str) -> logging.Logger:
@@ -13,6 +13,21 @@ def _test_logger(name: str) -> logging.Logger:
     logger.handlers.clear()
     logger.setLevel(logging.NOTSET)
     return logger
+
+
+def test_get_logger_preserves_existing_handlers() -> None:
+    logger = _test_logger("wikidot-test-existing-handler")
+    handler = logging.NullHandler()
+    logger.addHandler(handler)
+
+    try:
+        result = get_logger(logger.name)
+
+        assert result is logger
+        assert logger.handlers == [handler]
+    finally:
+        logger.removeHandler(handler)
+        handler.close()
 
 
 class TestSetupConsoleHandler:

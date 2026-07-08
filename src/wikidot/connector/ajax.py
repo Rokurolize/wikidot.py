@@ -10,7 +10,7 @@ import asyncio
 import json.decoder
 import math
 from dataclasses import dataclass
-from typing import Any, Literal, overload
+from typing import TYPE_CHECKING, Any, Literal, overload
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -474,23 +474,25 @@ class AjaxModuleConnectorClient:
 
         return True
 
-    @overload
-    def request(
-        self,
-        bodies: list[dict[str, Any]],
-        return_exceptions: Literal[False] = False,
-        site_name: str | None = None,
-        site_ssl_supported: bool | None = None,
-    ) -> tuple[httpx.Response, ...]: ...
+    if TYPE_CHECKING:
 
-    @overload
-    def request(
-        self,
-        bodies: list[dict[str, Any]],
-        return_exceptions: Literal[True],
-        site_name: str | None = None,
-        site_ssl_supported: bool | None = None,
-    ) -> tuple[httpx.Response | Exception, ...]: ...
+        @overload
+        def request(
+            self,
+            bodies: list[dict[str, Any]],
+            return_exceptions: Literal[False] = False,
+            site_name: str | None = None,
+            site_ssl_supported: bool | None = None,
+        ) -> tuple[httpx.Response, ...]: ...
+
+        @overload
+        def request(
+            self,
+            bodies: list[dict[str, Any]],
+            return_exceptions: Literal[True],
+            site_name: str | None = None,
+            site_ssl_supported: bool | None = None,
+        ) -> tuple[httpx.Response | Exception, ...]: ...
 
     def request(
         self,

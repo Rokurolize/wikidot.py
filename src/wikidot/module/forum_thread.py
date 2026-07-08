@@ -12,11 +12,13 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlsplit
 
-from bs4 import BeautifulSoup, NavigableString, Tag
+from bs4 import BeautifulSoup, Tag
+from bs4.element import NavigableString
 
 from ..common.exceptions import NoElementException, UnexpectedException, WikidotStatusCodeException
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ..util.parser.html import class_values
 from ._validation import validate_text_field
 
 if TYPE_CHECKING:
@@ -231,12 +233,8 @@ def _user_onclick_value(user_elem: Tag) -> str:
 
 
 def _odate_class_value(odate_elem: Tag) -> str:
-    class_attr = odate_elem.get("class", [])
-    if class_attr is None:
-        return ""
-
-    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
-    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+    values = class_values(odate_elem)
+    return next((value for value in values if "time_" in value), " ".join(values))
 
 
 def _parse_thread_list_count(
@@ -572,15 +570,11 @@ class ForumThreadCollection(list["ForumThread"]):
     @staticmethod
     def _is_inside_thread_description(element: Tag) -> bool:
         for ancestor in element.parents:
-            if not isinstance(ancestor, Tag):
-                continue
             ancestor_classes = ancestor.get("class")
             if not (isinstance(ancestor_classes, list) and "description" in ancestor_classes):
                 continue
 
-            parent = ancestor.parent
-            if not isinstance(parent, Tag):
-                continue
+            parent = cast(Tag, ancestor.parent)
             parent_classes = parent.get("class")
             if parent.name == "td" and isinstance(parent_classes, list) and "name" in parent_classes:
                 return True
@@ -596,10 +590,8 @@ class ForumThreadCollection(list["ForumThread"]):
 
             if isinstance(child, NavigableString):
                 text = child.strip()
-            elif isinstance(child, Tag):
-                text = child.get_text(" ", strip=True)
             else:
-                continue
+                text = child.get_text(" ", strip=True)
 
             if text:
                 chunks.append(text)
@@ -791,8 +783,6 @@ class ForumThreadCollection(list["ForumThread"]):
         if len(br_tags) < 3:
             raise NoElementException(f"Br tags are not enough {parse_context}")
         post_count_elem = br_tags[2].previous_sibling
-        if post_count_elem is None:
-            raise NoElementException(f"Posts count element is not found {parse_context}")
         post_count_text = str(post_count_elem)
         post_count = _parse_thread_detail_post_count(site, thread_id, category, post_count_text)
 

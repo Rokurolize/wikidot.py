@@ -1,5 +1,6 @@
 """userパーサーのユニットテスト"""
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
@@ -125,6 +126,20 @@ class TestUserParserRegularUser:
         with pytest.raises(ValueError, match="user href is not found"):
             user_parse(mock_client_no_http, elem)
 
+    @pytest.mark.parametrize("onclick", ["", "WIKIDOT.page.listeners.userInfo(); return false;"])
+    def test_parse_regular_user_without_onclick_id_raises(self, mock_client_no_http: MagicMock, onclick: str) -> None:
+        html = (
+            '<span class="printuser"><a href="http://www.wikidot.com/user:info/missing-id" '
+            f'onclick="{onclick}">missing-id</a></span>'
+        )
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        expected = "user onclick is malformed" if "userInfo(" in onclick else "user id is not found"
+        with pytest.raises(ValueError, match=expected):
+            user_parse(mock_client_no_http, elem)
+
     @pytest.mark.parametrize(
         "href",
         [
@@ -151,6 +166,22 @@ class TestUserParserRegularUser:
 
 class TestUserParserDeletedUser:
     """削除済みユーザーのパーステスト"""
+
+    def test_parse_deleted_user_string(self, mock_client_no_http: MagicMock) -> None:
+        result = user_parse(mock_client_no_http, "(user deleted)")
+
+        assert isinstance(result, DeletedUser)
+        assert result.id == 0
+
+    def test_parse_non_deleted_string_raises(self, mock_client_no_http: MagicMock) -> None:
+        with pytest.raises(ValueError, match=r"elem must be bs4\.Tag except DeletedUser"):
+            user_parse(mock_client_no_http, "not deleted")
+
+    def test_parse_non_tag_input_raises(self, mock_client_no_http: MagicMock) -> None:
+        elem: Any = object()
+
+        with pytest.raises(ValueError, match=r"elem must be bs4\.Tag except DeletedUser"):
+            user_parse(mock_client_no_http, elem)
 
     def test_parse_deleted_user_with_id(self, mock_client_no_http: MagicMock, printuser_deleted_html: str) -> None:
         """data-id付き削除済みユーザーをパースできる"""
@@ -313,6 +344,16 @@ class TestUserParserEdgeCases:
         assert elem is not None
 
         with pytest.raises(ValueError, match="link element"):
+            user_parse(mock_client_no_http, elem)
+
+    def test_parse_rejects_non_tag_link_result(self, mock_client_no_http: MagicMock, monkeypatch) -> None:
+        soup = BeautifulSoup('<span class="printuser">broken</span>', "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+        links: list[Any] = [object()]
+        monkeypatch.setattr(elem, "find_all", lambda *args, **kwargs: links)
+
+        with pytest.raises(ValueError, match="link element is not found"):
             user_parse(mock_client_no_http, elem)
 
     def test_parse_user_with_special_characters_in_name(self, mock_client_no_http: MagicMock) -> None:

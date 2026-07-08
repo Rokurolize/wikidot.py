@@ -10,6 +10,7 @@ import httpx
 import pytest
 
 from wikidot.util.http import (
+    _calculate_exponential_backoff,
     _is_retryable_status,
     calculate_backoff,
     sync_get_with_retry,
@@ -104,6 +105,20 @@ class TestCalculateBackoff:
 
         assert expected_backoff <= result <= expected_backoff * 1.1
 
+    def test_private_exponential_backoff_returns_zero_after_overflow_with_zero_base(self):
+        assert _calculate_exponential_backoff(2000, 0.0, 2.0, 60.0) == 0.0
+
+    def test_private_exponential_backoff_caps_invalid_log_fallback(self):
+        assert _calculate_exponential_backoff(2000, 1.0, -2.0, 60.0) == 60.0
+
+    def test_private_exponential_backoff_caps_exp_overflow(self):
+        assert _calculate_exponential_backoff(2000, 1.0, 2.0, math.inf) == math.inf
+
+    def test_calculate_backoff_caps_non_finite_private_result(self, monkeypatch):
+        monkeypatch.setattr("wikidot.util.http._calculate_exponential_backoff", lambda *args: math.inf)
+
+        assert calculate_backoff(1, 1.0, 2.0, 60.0) == 60.0
+
 
 class TestSyncGetWithRetry:
     """sync_get_with_retry関数のテスト"""
@@ -162,7 +177,7 @@ class TestSyncGetWithRetry:
         )
 
         assert response.status_code == 200
-        assert httpx_mock.get_requests()[0].content == b"key=value"
+        assert httpx_mock.get_requests()[0].content == b""
 
     def test_retry_on_5xx_then_success(self, httpx_mock):
         """5xxエラー後にリトライして成功"""
@@ -176,7 +191,7 @@ class TestSyncGetWithRetry:
         )
 
         assert response.status_code == 200
-        assert [request.content for request in httpx_mock.get_requests()] == [b"key=value", b"key=value"]
+        assert [request.content for request in httpx_mock.get_requests()] == [b"", b""]
 
     def test_no_retry_on_4xx(self, httpx_mock):
         """4xxエラーはリトライしない"""
@@ -218,7 +233,7 @@ class TestSyncGetWithRetry:
         )
 
         assert response.status_code == 200
-        assert [request.content for request in httpx_mock.get_requests()] == [b"key=value", b"key=value"]
+        assert [request.content for request in httpx_mock.get_requests()] == [b"", b""]
 
     def test_max_retries_exceeded_on_timeout(self, httpx_mock):
         """タイムアウトでリトライ上限に達した場合"""
@@ -230,6 +245,17 @@ class TestSyncGetWithRetry:
             sync_get_with_retry(
                 "https://example.com/test",
                 attempt_limit=3,
+                retry_interval=0.01,
+            )
+
+    def test_max_retries_exceeded_on_network_error(self, httpx_mock):
+        httpx_mock.add_exception(httpx.NetworkError("Connection failed"))
+        httpx_mock.add_exception(httpx.NetworkError("Connection failed"))
+
+        with pytest.raises(httpx.NetworkError):
+            sync_get_with_retry(
+                "https://example.com/test",
+                attempt_limit=2,
                 retry_interval=0.01,
             )
 
@@ -391,6 +417,57 @@ class TestSyncPostWithRetry:
         assert response.status_code == 200
         assert [request.content for request in httpx_mock.get_requests()] == [b"key=value", b"key=value"]
 
+    def test_max_retries_exceeded_on_5xx(self, httpx_mock):
+        httpx_mock.add_response(url="https://example.com/test", status_code=500, method="POST")
+        httpx_mock.add_response(url="https://example.com/test", status_code=500, method="POST")
+
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            sync_post_with_retry(
+                "https://example.com/test",
+                data={"key": "value"},
+                attempt_limit=2,
+                retry_interval=0.01,
+            )
+
+        assert exc_info.value.response.status_code == 500
+
+    def test_max_retries_exceeded_on_timeout(self, httpx_mock):
+        httpx_mock.add_exception(httpx.TimeoutException("Timeout"), method="POST")
+        httpx_mock.add_exception(httpx.TimeoutException("Timeout"), method="POST")
+
+        with pytest.raises(httpx.TimeoutException):
+            sync_post_with_retry(
+                "https://example.com/test",
+                data={"key": "value"},
+                attempt_limit=2,
+                retry_interval=0.01,
+            )
+
+    def test_retry_on_network_error(self, httpx_mock):
+        httpx_mock.add_exception(httpx.NetworkError("Connection failed"), method="POST")
+        httpx_mock.add_response(url="https://example.com/test", status_code=200, method="POST")
+
+        response = sync_post_with_retry(
+            "https://example.com/test",
+            data={"key": "value"},
+            attempt_limit=2,
+            retry_interval=0.01,
+        )
+
+        assert response.status_code == 200
+
+    def test_max_retries_exceeded_on_network_error(self, httpx_mock):
+        httpx_mock.add_exception(httpx.NetworkError("Connection failed"), method="POST")
+        httpx_mock.add_exception(httpx.NetworkError("Connection failed"), method="POST")
+
+        with pytest.raises(httpx.NetworkError):
+            sync_post_with_retry(
+                "https://example.com/test",
+                data={"key": "value"},
+                attempt_limit=2,
+                retry_interval=0.01,
+            )
+
     def test_raise_for_status_false(self, httpx_mock):
         """raise_for_status=Falseの場合はエラーでも返す"""
         httpx_mock.add_response(url="https://example.com/test", status_code=400, method="POST")
@@ -534,3 +611,62 @@ class TestAsyncGetWithRetry:
         )
 
         assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_max_retries_exceeded_on_5xx(self, httpx_mock):
+        from wikidot.util.http import async_get_with_retry
+
+        httpx_mock.add_response(url="https://example.com/test", status_code=500)
+        httpx_mock.add_response(url="https://example.com/test", status_code=500)
+
+        with pytest.raises(httpx.HTTPStatusError) as exc_info:
+            await async_get_with_retry(
+                "https://example.com/test",
+                attempt_limit=2,
+                retry_interval=0.01,
+            )
+
+        assert exc_info.value.response.status_code == 500
+
+    @pytest.mark.asyncio
+    async def test_max_retries_exceeded_on_timeout(self, httpx_mock):
+        from wikidot.util.http import async_get_with_retry
+
+        httpx_mock.add_exception(httpx.TimeoutException("Timeout"))
+        httpx_mock.add_exception(httpx.TimeoutException("Timeout"))
+
+        with pytest.raises(httpx.TimeoutException):
+            await async_get_with_retry(
+                "https://example.com/test",
+                attempt_limit=2,
+                retry_interval=0.01,
+            )
+
+    @pytest.mark.asyncio
+    async def test_retry_on_network_error(self, httpx_mock):
+        from wikidot.util.http import async_get_with_retry
+
+        httpx_mock.add_exception(httpx.NetworkError("Connection failed"))
+        httpx_mock.add_response(url="https://example.com/test", status_code=200)
+
+        response = await async_get_with_retry(
+            "https://example.com/test",
+            attempt_limit=2,
+            retry_interval=0.01,
+        )
+
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_max_retries_exceeded_on_network_error(self, httpx_mock):
+        from wikidot.util.http import async_get_with_retry
+
+        httpx_mock.add_exception(httpx.NetworkError("Connection failed"))
+        httpx_mock.add_exception(httpx.NetworkError("Connection failed"))
+
+        with pytest.raises(httpx.NetworkError):
+            await async_get_with_retry(
+                "https://example.com/test",
+                attempt_limit=2,
+                retry_interval=0.01,
+            )

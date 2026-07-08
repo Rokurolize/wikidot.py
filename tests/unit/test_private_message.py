@@ -10,7 +10,9 @@ from typing import Any, cast
 from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
+from bs4 import BeautifulSoup
 
+import wikidot.module.private_message as private_message_module
 from wikidot.common.exceptions import (
     ForbiddenException,
     LoginRequiredException,
@@ -123,6 +125,11 @@ class TestPrivateMessageCollection:
         messages = list(collection)
         assert len(messages) == 1
         assert messages[0] == sample_message
+
+    def test_init_defaults_to_empty_collection(self):
+        collection = PrivateMessageCollection()
+
+        assert list(collection) == []
 
     @pytest.mark.parametrize("messages", [True, False, "1", ("1",), 1])
     def test_init_rejects_non_list_messages(self, messages: object):
@@ -592,6 +599,18 @@ class TestPrivateMessageCollection:
         ):
             PrivateMessageCollection.from_ids(mock_client, [1, 2])
 
+    def test_from_ids_rejects_non_sequence_retry_response_count(self, mock_client):
+        mock_client.amc_client.request.return_value = RuntimeError("not a response tuple")
+
+        with pytest.raises(
+            UnexpectedException,
+            match=(
+                r"Private message retry response count mismatch "
+                r"\(expected=1, actual=RuntimeError, batch_start=0, attempt=0\)"
+            ),
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
     def test_from_ids_uses_retry_defaults_when_config_attrs_are_missing(self, mock_client, mock_user):
         """リトライ設定属性がないconfigでは既存のデフォルト値を使う"""
         mock_client.amc_client.config = object()
@@ -620,6 +639,58 @@ class TestPrivateMessageCollection:
 
         assert len(result) == 1
         assert mock_client.amc_client.request.call_count == 1
+
+    def test_user_onclick_value_falls_back_to_text_without_anchor(self) -> None:
+        elem = BeautifulSoup('<span class="printuser">Broken User</span>', "lxml").select_one("span")
+        assert elem is not None
+
+        assert private_message_module._user_onclick_value(elem) == "Broken User"
+
+    def test_user_onclick_value_falls_back_to_text_when_anchor_has_no_onclick(self) -> None:
+        elem = BeautifulSoup('<span class="printuser"><a href="#">Broken User</a></span>', "lxml").select_one("span")
+        assert elem is not None
+
+        assert private_message_module._user_onclick_value(elem) == "Broken User"
+
+    def test_from_ids_reraises_generic_detail_exception_response(self, mock_client):
+        mock_client.amc_client.config.retry_max_retries = 0
+        mock_client.amc_client.request.return_value = (ForbiddenException("no access"),)
+
+        with pytest.raises(ForbiddenException, match="no access"):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
+    def test_from_ids_reraises_non_no_message_status_exception_response(self, mock_client):
+        status_exception = WikidotStatusCodeException("bad request", "bad_request")
+
+        with (
+            patch.object(PrivateMessageCollection, "_amc_request_with_retry", return_value=(status_exception,)),
+            pytest.raises(WikidotStatusCodeException) as exc_info,
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
+        assert exc_info.value.status_code == "bad_request"
+
+    def test_from_ids_missing_message_element_includes_module_message_context(self, mock_client):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "<div class='not-message'></div>"}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(
+            NoElementException,
+            match="Message element is not found for module: dashboard/messages/DMViewMessageModule, message: 1",
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
+
+    def test_from_ids_missing_message_header_includes_module_message_context(self, mock_client):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "<div class='pmessage'><div class='body'>Test Body</div></div>"}
+        mock_client.amc_client.request.return_value = [mock_response]
+
+        with pytest.raises(
+            NoElementException,
+            match="Message header element is not found for module: dashboard/messages/DMViewMessageModule, message: 1",
+        ):
+            PrivateMessageCollection.from_ids(mock_client, [1])
 
     def test_from_ids_missing_sender_or_recipient_raises(self, mock_client):
         """送受信者要素が欠けたメッセージ詳細はNoElementException"""
@@ -1161,6 +1232,19 @@ class TestPrivateMessageCollection:
         mock_from_ids.assert_not_called()
         assert mock_client.amc_client.request.call_count == 2
 
+    def test_acquire_reraises_first_page_exception_response(self, mock_client):
+        """初回ページ取得が例外レスポンスを返した場合はその例外を送出する"""
+        mock_client.amc_client.config.retry_max_retries = 0
+        mock_client.amc_client.request.return_value = (ForbiddenException("first page forbidden"),)
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(ForbiddenException, match="first page forbidden"),
+        ):
+            PrivateMessageInbox.acquire(mock_client)
+
+        mock_from_ids.assert_not_called()
+
     def test_acquire_deduplicates_message_ids_preserving_order(self, mock_client):
         """ページをまたいで重複したメッセージIDは詳細取得前に順序保持で重複排除する"""
         first_response = MagicMock()
@@ -1212,6 +1296,29 @@ class TestPrivateMessageCollection:
                 UnexpectedException,
                 match="Cannot retrieve private messages for module: dashboard/messages/DMInboxModule, page: 2",
             ),
+        ):
+            PrivateMessageInbox.acquire(mock_client)
+
+        mock_from_ids.assert_not_called()
+
+    def test_acquire_reraises_paginated_exception_response(self, mock_client):
+        """追加ページ取得が例外レスポンスを返した場合はその例外を送出する"""
+        first_response = MagicMock()
+        first_response.json.return_value = {
+            "body": """
+            <div class="pager"><span class="target">1</span><span class="target">2</span></div>
+            <table><tr class="message" data-href="/account/messages/view/123"></tr></table>
+            """
+        }
+        mock_client.amc_client.config.retry_max_retries = 0
+        mock_client.amc_client.request.side_effect = [
+            (first_response,),
+            (ForbiddenException("page 2 forbidden"),),
+        ]
+
+        with (
+            patch.object(PrivateMessageCollection, "from_ids") as mock_from_ids,
+            pytest.raises(ForbiddenException, match="page 2 forbidden"),
         ):
             PrivateMessageInbox.acquire(mock_client)
 

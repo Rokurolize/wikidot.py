@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 from bs4 import BeautifulSoup
 
+import wikidot.module.forum_post_revision as forum_post_revision_module
 from wikidot.common import exceptions
 from wikidot.module.client import Client
 from wikidot.module.forum_post import ForumPost
@@ -115,6 +116,13 @@ class TestForumPostRevisionCollectionInit:
         collection = ForumPostRevisionCollection(post=None, revisions=[])
         assert collection.post is None
         assert len(collection) == 0
+
+    def test_init_defaults_to_empty_without_post(self) -> None:
+        """引数省略時も空の親なしリビジョンコレクションとして初期化する"""
+        collection = ForumPostRevisionCollection()
+
+        assert collection.post is None
+        assert list(collection) == []
 
     def test_init_with_post_and_revisions(self, mock_forum_post_no_http: ForumPost) -> None:
         """ポストとリビジョンリストで初期化できる"""
@@ -392,6 +400,14 @@ class TestForumPostRevisionCollectionFind:
         found = collection.find(9999)
         assert found is None
 
+    def test_find_skips_nonmatching_revision_before_match(self, mock_forum_post_no_http: ForumPost) -> None:
+        """先頭が不一致でも後続の一致リビジョンを返す"""
+        first_revision = _revision_for_post(mock_forum_post_no_http, revision_id=9000)
+        target_revision = _revision_for_post(mock_forum_post_no_http, revision_id=9001)
+        collection = ForumPostRevisionCollection(mock_forum_post_no_http, [first_revision, target_revision])
+
+        assert collection.find(9001) is target_revision
+
     def test_find_accepts_revision_with_zero_retained_id(self, mock_forum_post_no_http: ForumPost) -> None:
         """0の保持済みリビジョンIDは検索できる"""
         revision = _revision_for_post(mock_forum_post_no_http, revision_id=0)
@@ -448,6 +464,37 @@ class TestForumPostRevisionCollectionFind:
 
         with pytest.raises(ValueError, match="id must be non-negative"):
             collection.find(9001)
+
+    def test_parse_returns_empty_without_revision_table(self, mock_forum_post_no_http: ForumPost) -> None:
+        """リビジョン一覧テーブルがないHTMLは空リストとして扱う"""
+        html = BeautifulSoup("<div>No revisions</div>", "lxml")
+
+        assert ForumPostRevisionCollection._parse(mock_forum_post_no_http, html) == []
+
+    def test_parse_malformed_user_link_without_onclick_uses_text_context(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        html = BeautifulSoup(
+            """
+            <table class="table">
+              <tr>
+                <td><span class="printuser"><a href="#">Broken User</a></span></td>
+                <td><span class="odate time_1700000000">date</span></td>
+                <td><a onclick="showRevision(event, 9001)">rev</a></td>
+              </tr>
+            </table>
+            """,
+            "lxml",
+        )
+
+        with pytest.raises(exceptions.NoElementException, match="Forum post revision user is malformed"):
+            ForumPostRevisionCollection._parse(mock_forum_post_no_http, html)
+
+    def test_user_onclick_value_falls_back_to_text_without_anchor(self) -> None:
+        elem = BeautifulSoup('<span class="printuser">Broken User</span>', "lxml").select_one("span")
+        assert elem is not None
+
+        assert forum_post_revision_module._user_onclick_value(elem) == "Broken User"
 
 
 class TestForumPostRevisionCollectionFindByRevNo:
@@ -624,6 +671,66 @@ class TestForumPostRevisionCollectionParse:
         assert revisions[0].created_by.name == "test_user"
         assert revisions[0].created_by.unix_name == "test-user"
         assert revisions[0].created_at == datetime.fromtimestamp(1700000000)
+
+    def test_parse_skips_header_rows(self, mock_forum_post_no_http: ForumPost) -> None:
+        """head行はリビジョン行として扱わず読み飛ばす"""
+        html = BeautifulSoup(
+            """
+            <table class="table">
+                <tr class="head"><td>User</td><td>Date</td><td>Action</td></tr>
+            </table>
+            """,
+            "lxml",
+        )
+
+        assert ForumPostRevisionCollection._parse(mock_forum_post_no_http, html) == []
+
+    @pytest.mark.parametrize(
+        ("row_html", "message"),
+        [
+            ("<tr><td>only one</td></tr>", "Forum post revision row is malformed"),
+            (
+                """
+                <tr>
+                    <td></td>
+                    <td><span class="odate time_1700000000">17 Dec 2025, 12:00</span></td>
+                    <td><a href="javascript:;" onclick="showRevision(event, 9001)">View</a></td>
+                </tr>
+                """,
+                "Forum post revision user is not found",
+            ),
+            (
+                """
+                <tr>
+                    <td><span class="printuser"><a href="http://www.wikidot.com/user:info/test-user"
+                        onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test_user</a></span></td>
+                    <td></td>
+                    <td><a href="javascript:;" onclick="showRevision(event, 9001)">View</a></td>
+                </tr>
+                """,
+                "Forum post revision timestamp is not found",
+            ),
+            (
+                """
+                <tr>
+                    <td><span class="printuser"><a href="http://www.wikidot.com/user:info/test-user"
+                        onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test_user</a></span></td>
+                    <td><span class="odate time_1700000000">17 Dec 2025, 12:00</span></td>
+                    <td></td>
+                </tr>
+                """,
+                "Forum post revision link is not found",
+            ),
+        ],
+    )
+    def test_parse_rejects_malformed_revision_rows(
+        self, mock_forum_post_no_http: ForumPost, row_html: str, message: str
+    ) -> None:
+        """壊れたリビジョン行は欠落フィールド名付きで拒否する"""
+        html = BeautifulSoup(f"<table class='table'>{row_html}</table>", "lxml")
+
+        with pytest.raises(exceptions.NoElementException, match=message):
+            ForumPostRevisionCollection._parse(mock_forum_post_no_http, html)
 
 
 class TestForumPostRevisionCollectionAcquireAll:
@@ -1018,6 +1125,10 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         with pytest.raises(ValueError, match="posts must be a list"):
             ForumPostRevisionCollection.acquire_all_for_posts(bad_posts)
 
+    def test_acquire_all_for_posts_empty_input_returns_empty_mapping(self) -> None:
+        """空のpost一覧はAMCリクエストなしで空dictを返す"""
+        assert ForumPostRevisionCollection.acquire_all_for_posts([]) == {}
+
     @pytest.mark.parametrize("bad_post", [None, True, "5001"])
     def test_acquire_all_for_posts_rejects_non_post_entries_before_fetch(
         self, mock_forum_post_no_http: ForumPost, bad_post: object
@@ -1297,6 +1408,20 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
         assert mock_forum_post_no_http._revisions is None
         assert other_post._revisions is None
 
+    def test_acquire_all_for_posts_rejects_mutated_post_site_before_fetch(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """post.thread.siteがSiteでない場合は取得前に拒否する"""
+        bad_site: Any = MagicMock()
+        mock_forum_post_no_http.thread.site = bad_site
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http])
+
+        bad_site.amc_request.assert_not_called()
+        bad_site.amc_request_with_retry.assert_not_called()
+        assert mock_forum_post_no_http._revisions is None
+
     def test_acquire_all_for_posts_skips_cached_post_revisions(
         self, mock_forum_post_no_http: ForumPost, forum_post_revisions: dict[str, Any]
     ) -> None:
@@ -1384,6 +1509,24 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
                 }
             ]
         )
+
+    def test_acquire_all_for_posts_with_html_skips_already_cached_revision_html(
+        self, mock_forum_post_no_http: ForumPost
+    ) -> None:
+        """with_html=TrueでもHTML取得済みrevisionだけなら追加取得しない"""
+        cached_revision = _revision_for_post(mock_forum_post_no_http, revision_id=9001)
+        cached_revision.html = "<p>Cached revision HTML</p>"
+        cached_collection = ForumPostRevisionCollection(mock_forum_post_no_http, [cached_revision])
+        mock_forum_post_no_http._revisions = cached_collection
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock()
+
+        result = ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
+
+        assert result == {mock_forum_post_no_http.id: cached_collection}
+        assert cached_revision.html == "<p>Cached revision HTML</p>"
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry.assert_not_called()
 
     def test_acquire_all_for_posts_with_html_accepts_zero_retained_revision_id(
         self, mock_forum_post_no_http: ForumPost, forum_post_revision_content: dict[str, Any]
@@ -1687,6 +1830,27 @@ class TestForumPostRevisionCollectionAcquireAllForPosts:
                 "Forum post revision HTML response content is not found "
                 "for site: test-site, post: 5001, revision: 9001, field=content"
             ),
+        ):
+            ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
+
+        assert mock_forum_post_no_http._revisions is None
+        mock_forum_post_no_http.thread.site.amc_request.assert_not_called()
+        assert mock_forum_post_no_http.thread.site.amc_request_with_retry.call_count == 2
+
+    def test_acquire_all_for_posts_with_html_none_response_includes_context(
+        self,
+        mock_forum_post_no_http: ForumPost,
+        forum_post_revisions_single: dict[str, Any],
+    ) -> None:
+        """with_html=TrueのHTMLレスポンスNoneはsite/post/revision付きで失敗する"""
+        list_response = MagicMock()
+        list_response.json.return_value = forum_post_revisions_single
+        mock_forum_post_no_http.thread.site.amc_request = MagicMock()
+        mock_forum_post_no_http.thread.site.amc_request_with_retry = MagicMock(side_effect=[(list_response,), (None,)])
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Cannot retrieve forum post revision HTML for site: test-site, post: 5001, revision: 9001",
         ):
             ForumPostRevisionCollection.acquire_all_for_posts([mock_forum_post_no_http], with_html=True)
 

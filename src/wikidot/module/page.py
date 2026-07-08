@@ -11,14 +11,15 @@ from urllib.parse import quote
 import httpx
 from bs4 import BeautifulSoup, Tag
 
-if sys.version_info >= (3, 12):
+if sys.version_info >= (3, 12):  # pragma: no cover - Python >=3.12 compatibility branch
     from typing import TypedDict, Unpack
-else:
+else:  # pragma: no cover - Python <3.12 compatibility branch
     from typing_extensions import TypedDict, Unpack
 
 from ..common import exceptions
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
+from ..util.parser.html import class_values
 from ..util.requestutil import RequestUtil
 from .page_revision import PageRevision, PageRevisionCollection
 from .page_source import PageSource, extract_page_source_text
@@ -499,12 +500,8 @@ def _parse_revision_created_by(site: "Site", page: "Page", rev_id: int, user_ele
 
 
 def _odate_class_value(odate_elem: Tag) -> str:
-    class_attr = odate_elem.get("class", [])
-    if class_attr is None:
-        return ""
-
-    class_values = [class_attr] if isinstance(class_attr, str) else [str(value) for value in class_attr]
-    return next((value for value in class_values if "time_" in value), " ".join(class_values))
+    values = class_values(odate_elem)
+    return next((value for value in values if "time_" in value), " ".join(values))
 
 
 def _parse_revision_created_at(site: "Site", page: "Page", rev_id: int, odate_elem: Tag) -> datetime:
@@ -617,13 +614,7 @@ def _parse_who_rated_vote_value(site: "Site", page: "Page", value: object) -> in
             f"WhoRated vote value is malformed for site: {site.unix_name}, page: {page.fullname} "
             f"(id={page.id}, field=vote_value, value={value_text})"
         )
-    try:
-        return int(value_text)
-    except ValueError as exc:
-        raise exceptions.NoElementException(
-            f"WhoRated vote value is malformed for site: {site.unix_name}, page: {page.fullname} "
-            f"(id={page.id}, field=vote_value, value={value_text})"
-        ) from exc
+    return int(value_text)
 
 
 def _parse_who_rated_user(site: "Site", page: "Page", user_elem: Tag) -> Any:
@@ -788,13 +779,7 @@ def _parse_page_rating_points(site: "Site", page: "Page", event: str, data: dict
             f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
             f"(id={page.id}, event={event}, field=points, value={value_text})"
         )
-    try:
-        return int(value_text)
-    except (TypeError, ValueError) as exc:
-        raise exceptions.NoElementException(
-            f"Page rating response is malformed for site: {site.unix_name}, page: {page.fullname} "
-            f"(id={page.id}, event={event}, field=points, value={value_text})"
-        ) from exc
+    return int(value_text)
 
 
 def _page_rating_failure_message(
@@ -1159,9 +1144,7 @@ class PageCollection(list["Page"]):
     @staticmethod
     def _is_inside_listpages_result(element: Tag) -> bool:
         for ancestor in element.parents:
-            if not isinstance(ancestor, Tag):
-                continue
-            if ancestor.name == "div" and "page" in ancestor.get("class", []):
+            if ancestor.name == "div" and "page" in class_values(ancestor):
                 return True
         return False
 
@@ -1336,7 +1319,7 @@ class PageCollection(list["Page"]):
 
             # レーティング方式を判定
             is_5star_rating = any(
-                "rating" in set_element.get("class", [])
+                "rating" in class_values(set_element)
                 and set_element.find("span", class_="page-rate-list-pages-start", recursive=False) is not None
                 for set_element in set_elements
             )
@@ -2077,8 +2060,6 @@ class PageCollection(list["Page"]):
             html = BeautifulSoup(body, "lxml")
             vote_container: Tag | None = None
             for element in html.find_all("div"):
-                if not isinstance(element, Tag):
-                    continue
                 style = element.get("style")
                 if isinstance(style, str) and "column-count" in style:
                     vote_container = element
@@ -2087,15 +2068,7 @@ class PageCollection(list["Page"]):
             value_elems: list[Tag] = []
             if vote_container is not None:
                 for span in vote_container.find_all("span", recursive=False):
-                    if not isinstance(span, Tag):
-                        continue
-                    classes = span.get("class", [])
-                    if isinstance(classes, str):
-                        class_names = [classes]
-                    elif isinstance(classes, list):
-                        class_names = classes
-                    else:
-                        class_names = []
+                    class_names = class_values(span)
                     if "printuser" in class_names:
                         user_elems.append(span)
                         continue
@@ -2387,7 +2360,8 @@ class Page:
         """
         site = _validate_page_site(self.site)
         fullname = _validate_page_text_field("fullname", self.fullname)
-        return f"{site.url}/{quote(fullname, safe='/:')}"
+        encoded_fullname = quote(fullname, safe=":")
+        return f"{site.url}/{encoded_fullname}"
 
     @property
     def id(self) -> int:

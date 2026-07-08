@@ -1,12 +1,22 @@
 name: Check Code Quality
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - main
+  push:
+    branches:
+      - main
+      - 'codex/**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   format:
@@ -103,3 +113,15 @@ jobs:
         name: coverage-report
         path: htmlcov/
         retention-days: 7
+
+    - name: Upload coverage to Codecov
+      if: matrix.python-version == '3.10' && github.event_name == 'push'
+      # codecov/codecov-action v5.5.5
+      uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac
+      with:
+        use_oidc: true
+        slug: Rokurolize/wikidot.py
+        files: coverage.xml
+        flags: unit
+        disable_search: true
+        fail_ci_if_error: true

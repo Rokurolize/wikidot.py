@@ -8,6 +8,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import wikidot.module.forum_category as forum_category_module
 from wikidot.common import exceptions
 from wikidot.common.exceptions import UnexpectedException
 from wikidot.module.forum_category import ForumCategory, ForumCategoryCollection
@@ -81,6 +82,12 @@ class TestForumCategoryCollectionInit:
         assert collection.site is None
         assert len(collection) == 0
 
+    def test_init_infers_site_from_categories(self, mock_forum_category_no_http: ForumCategory) -> None:
+        """site省略時は先頭カテゴリのsiteを親として推測する"""
+        collection = ForumCategoryCollection(categories=[mock_forum_category_no_http])
+
+        assert collection.site is mock_forum_category_no_http.site
+
     def test_init_with_site_and_empty_categories(self, mock_site_no_http: Site) -> None:
         """サイトと空のカテゴリリストで初期化できる"""
         collection = ForumCategoryCollection(mock_site_no_http, [])
@@ -148,6 +155,23 @@ class TestForumCategoryCollectionInit:
         found = collection.find(9999)
         assert found is None
 
+    def test_find_returns_none_after_checking_nonmatching_category(
+        self, mock_site_no_http: Site, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        """一致しないカテゴリだけを持つcollection検索はNoneを返す"""
+        collection = ForumCategoryCollection(mock_site_no_http, [mock_forum_category_no_http])
+
+        assert collection.find(mock_forum_category_no_http.id + 1) is None
+
+    def test_find_empty_collection_without_site_returns_none(self) -> None:
+        """親siteなしの空カテゴリコレクション検索もNoneを返す"""
+        assert ForumCategoryCollection().find(1001) is None
+
+    def test_validate_forum_category_rejects_non_category(self) -> None:
+        """内部カテゴリ検証はForumCategory以外を拒否する"""
+        with pytest.raises(ValueError, match="category must be a ForumCategory"):
+            forum_category_module._validate_forum_category(object())
+
     @pytest.mark.parametrize("bad_id", [None, True, "1001", 1001.0])
     def test_find_rejects_non_integer_ids(
         self, mock_site_no_http: Site, mock_forum_category_no_http: ForumCategory, bad_id: object
@@ -208,6 +232,95 @@ class TestForumCategoryCollectionInit:
 
 class TestForumCategoryCollectionAcquireAll:
     """ForumCategoryCollection.acquire_allのテスト"""
+
+    @staticmethod
+    def _forum_start_response(body: str) -> MagicMock:
+        response = MagicMock()
+        response.json.return_value = {"status": "ok", "body": body}
+        return response
+
+    @staticmethod
+    def _category_row(
+        *,
+        name_class: str = ' class="name"',
+        title_html: str = '<div class="title"><a href="/forum/c-1001/test">General</a></div>',
+        description_html: str = '<div class="description">Desc</div>',
+        threads_class: str = ' class="threads"',
+        posts_class: str = ' class="posts"',
+    ) -> str:
+        return f"""
+        <div class="forum-group"><div><table>
+          <tr>
+            <td{name_class}>{title_html}{description_html}</td>
+            <td{threads_class}>1</td>
+            <td{posts_class}>2</td>
+          </tr>
+        </table></div></div>
+        """
+
+    def test_parse_category_id_rejects_missing_category_marker(self, mock_site_no_http: Site) -> None:
+        with pytest.raises(exceptions.NoElementException, match="Category ID is not found"):
+            forum_category_module._parse_category_id(mock_site_no_http, 1, "/forum/start")
+
+    def test_acquire_all_rejects_missing_name_class(self, mock_site_no_http: Site) -> None:
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(name_class="")),)
+        )
+
+        with pytest.raises(exceptions.NoElementException, match="Name element is not found"):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    def test_acquire_all_rejects_missing_thread_count_class(self, mock_site_no_http: Site) -> None:
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(threads_class="")),)
+        )
+
+        with pytest.raises(exceptions.NoElementException, match="Thread count element is not found"):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    def test_acquire_all_rejects_missing_post_count_class(self, mock_site_no_http: Site) -> None:
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(posts_class="")),)
+        )
+
+        with pytest.raises(exceptions.NoElementException, match="Post count element is not found"):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    def test_acquire_all_rejects_missing_title_container(self, mock_site_no_http: Site) -> None:
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(title_html="")),)
+        )
+
+        with pytest.raises(exceptions.NoElementException, match="Title element is not found"):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    def test_acquire_all_rejects_missing_name_link(self, mock_site_no_http: Site) -> None:
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(
+                self._forum_start_response(self._category_row(title_html='<div class="title">General</div>')),
+            )
+        )
+
+        with pytest.raises(exceptions.NoElementException, match="Name link element is not found"):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    def test_acquire_all_rejects_missing_name_href(self, mock_site_no_http: Site) -> None:
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(
+                self._forum_start_response(self._category_row(title_html='<div class="title"><a>General</a></div>')),
+            )
+        )
+
+        with pytest.raises(exceptions.NoElementException, match="Name link href is not found"):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
+
+    def test_acquire_all_rejects_missing_description(self, mock_site_no_http: Site) -> None:
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(self._forum_start_response(self._category_row(description_html="")),)
+        )
+
+        with pytest.raises(exceptions.NoElementException, match="Description element is not found"):
+            ForumCategoryCollection.acquire_all(mock_site_no_http)
 
     def test_site_forum_categories_retries_transient_fetch_failures(
         self, mock_site_no_http: Site, forum_start: dict[str, Any]
@@ -869,6 +982,26 @@ class TestForumCategoryBasic:
 
         assert category.threads is threads
 
+    def test_init_accepts_threads_cache_with_thread_without_retained_category(
+        self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """保持カテゴリを持たないthreadのキャッシュはsite一致で受け付ける"""
+        thread = _thread_in_category(mock_forum_thread_no_http, mock_forum_category_no_http)
+        thread.category = None
+        threads = ForumThreadCollection(mock_forum_category_no_http.site, [thread])
+
+        category = ForumCategory(
+            site=mock_forum_category_no_http.site,
+            id=mock_forum_category_no_http.id,
+            title=mock_forum_category_no_http.title,
+            description=mock_forum_category_no_http.description,
+            threads_count=mock_forum_category_no_http.threads_count,
+            posts_count=mock_forum_category_no_http.posts_count,
+            _threads=threads,
+        )
+
+        assert category.threads is threads
+
     def test_init_accepts_threads_cache_with_zero_retained_category_ids(
         self, mock_forum_category_no_http: ForumCategory, mock_forum_thread_no_http: ForumThread
     ) -> None:
@@ -1011,6 +1144,16 @@ class TestForumCategoryBasic:
         threads = ForumThreadCollection(mock_forum_category_no_http.site)
         mock_forum_category_no_http.threads = threads
         assert mock_forum_category_no_http._threads == threads
+
+    def test_threads_setter_accepts_empty_collection_without_retained_site(
+        self, mock_forum_category_no_http: ForumCategory
+    ) -> None:
+        """site未保持の空threads collectionはカテゴリキャッシュとして保持できる"""
+        threads = ForumThreadCollection()
+
+        mock_forum_category_no_http.threads = threads
+
+        assert mock_forum_category_no_http.threads is threads
 
     @pytest.mark.parametrize("threads", [None, True, "3001", {"id": 3001}, []])
     def test_threads_setter_rejects_invalid_collections(

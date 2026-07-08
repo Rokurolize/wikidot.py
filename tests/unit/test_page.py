@@ -10,6 +10,7 @@ import httpx
 import pytest
 from bs4 import BeautifulSoup
 
+import wikidot.module.page as page_module
 from wikidot.common import exceptions
 from wikidot.module.page import Page, PageCollection, SearchPagesQuery
 from wikidot.module.page_file import PageFile, PageFileCollection
@@ -76,6 +77,89 @@ def _other_page_like(
         commented_at=page.commented_at,
         _id=page_id,
     )
+
+
+class TestPageModuleHelpers:
+    """Page module helper validation tests."""
+
+    def test_user_onclick_value_falls_back_to_visible_text_without_link(self) -> None:
+        html = BeautifulSoup('<span class="printuser">Broken User</span>', "lxml")
+        user_elem = html.select_one("span.printuser")
+
+        assert user_elem is not None
+        assert page_module._user_onclick_value(user_elem) == "Broken User"
+
+    def test_user_onclick_value_falls_back_to_visible_text_without_onclick(self) -> None:
+        html = BeautifulSoup('<span class="printuser"><a>Broken User</a></span>', "lxml")
+        user_elem = html.select_one("span.printuser")
+
+        assert user_elem is not None
+        assert page_module._user_onclick_value(user_elem) == "Broken User"
+
+    def test_listpages_response_count_rejects_non_sequence_response(self, mock_site_no_http: Site) -> None:
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=r"ListPages response count mismatch for site: test-site, offset: 10 \(expected=1, actual=RuntimeError\)",
+        ):
+            page_module._require_listpages_response_count(mock_site_no_http, 10, RuntimeError("temporary failure"))
+
+    def test_page_write_response_count_rejects_non_sequence_response(self, mock_site_no_http: Site) -> None:
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                r"Page save response count mismatch for site: test-site, page: test-page "
+                r"\(ctx, expected=1, actual=RuntimeError\)"
+            ),
+        ):
+            page_module._require_page_write_response_count(
+                mock_site_no_http,
+                "test-page",
+                RuntimeError("temporary failure"),
+                "save",
+                "ctx",
+                1,
+            )
+
+    def test_page_action_response_count_rejects_non_sequence_response(self, mock_page_with_id: Page) -> None:
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                r"Page action response count mismatch for site: test-site, page: test-page "
+                r"\(id=12345, event=saveTags, expected=1, actual=RuntimeError\)"
+            ),
+        ):
+            page_module._require_page_action_response_count(
+                mock_page_with_id.site,
+                mock_page_with_id,
+                "saveTags",
+                RuntimeError("temporary failure"),
+            )
+
+    def test_page_metadata_response_count_rejects_non_sequence_response(self, mock_page_with_id: Page) -> None:
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match=(
+                r"Page metadata action response count mismatch for site: test-site, page: test-page "
+                r"\(id=12345, expected=1, actual=RuntimeError\)"
+            ),
+        ):
+            page_module._require_page_metadata_action_response_count(
+                mock_page_with_id.site,
+                mock_page_with_id,
+                RuntimeError("temporary failure"),
+                1,
+            )
+
+    def test_page_metadata_status_rejects_non_ok_status(self, mock_page_with_id: Page) -> None:
+        with pytest.raises(exceptions.WikidotStatusCodeException) as exc_info:
+            page_module._require_page_metadata_action_status(
+                mock_page_with_id.site,
+                mock_page_with_id,
+                "saveTags",
+                {"status": "not_ok"},
+            )
+
+        assert exc_info.value.status_code == "not_ok"
 
 
 # ============================================================
@@ -206,6 +290,70 @@ class TestPageCollectionInit:
         assert collection.get_page_revisions() is collection
         assert collection.get_page_votes() is collection
         assert collection.get_page_files() is collection
+
+    def test_batch_acquire_rejects_missing_site_after_late_page_append(self, mock_page_with_id: Page) -> None:
+        """siteなし空コレクションへ後からページを追加した場合は取得前に拒否する"""
+        collection = PageCollection()
+        collection.append(mock_page_with_id)
+
+        with pytest.raises(ValueError, match="site must be a Site"):
+            collection.get_page_sources()
+
+    def test_collection_batch_methods_skip_when_all_page_caches_are_loaded(self, mock_page_with_id: Page) -> None:
+        """全ページの対象キャッシュが取得済みならbatch取得はリクエストを送らない"""
+        cached_revision = _cached_page_revision(mock_page_with_id)
+        cached_revision._source = PageSource(mock_page_with_id, "revision source")
+        mock_page_with_id._source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id._revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [_cached_page_vote(mock_page_with_id)])
+        mock_page_with_id._files = PageFileCollection(
+            mock_page_with_id,
+            [
+                PageFile(
+                    page=mock_page_with_id,
+                    id=1,
+                    name="cached.txt",
+                    url="https://test-site.wikidot.com/local--files/test-page/cached.txt",
+                    mime_type="text/plain",
+                    size=10,
+                )
+            ],
+        )
+        collection = PageCollection(mock_page_with_id.site, [mock_page_with_id])
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        assert collection.get_page_sources() is collection
+        assert collection.get_page_revisions() is collection
+        assert collection.get_page_votes() is collection
+        assert collection.get_page_files() is collection
+        mock_page_with_id.site.amc_request.assert_not_called()
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    def test_split_fullname_returns_category_and_name(self) -> None:
+        assert PageCollection._split_fullname("component:scp-001") == ("component", "scp-001")
+
+    def test_current_user_or_placeholder_uses_logged_in_user(self, mock_site_no_http: Site) -> None:
+        user = User(client=mock_site_no_http.client, id=12345, name="test-user", unix_name="test-user")
+        mock_site_no_http.client.me = user
+
+        assert PageCollection._current_user_or_placeholder(mock_site_no_http) is user
+
+    def test_get_by_fullname_uses_direct_fullname_fallback_when_category_search_misses(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+    ) -> None:
+        """category/name検索で見つからない場合はfullname検索結果を返す"""
+        with patch.object(
+            PageCollection,
+            "search_pages",
+            side_effect=[PageCollection(mock_site_no_http, []), PageCollection(mock_site_no_http, [mock_page_with_id])],
+        ) as search_pages:
+            page = PageCollection.get_by_fullname(mock_site_no_http, "test-page")
+
+        assert page is mock_page_with_id
+        assert search_pages.call_count == 2
 
     @pytest.mark.parametrize("site", [True, "test-site", {"unix_name": "test-site"}, object()])
     def test_init_rejects_malformed_sites(self, site: object) -> None:
@@ -710,6 +858,25 @@ class TestPageCollectionParse:
         ):
             PageCollection._parse(mock_site_no_http, html_body)
 
+    def test_parse_missing_optional_odate_and_user_values_as_none(
+        self,
+        mock_site_no_http: Site,
+        page_listpages_single: dict[str, Any],
+    ) -> None:
+        """ListPagesの任意odate/user要素が欠ける場合はNoneとして扱う"""
+        html_body = BeautifulSoup(page_listpages_single["body"], "lxml")
+        created_at_value = html_body.select_one("span.set.created_at > span.value")
+        created_by_value = html_body.select_one("span.set.created_by_linked > span.value")
+        assert created_at_value is not None
+        assert created_by_value is not None
+        created_at_value.clear()
+        created_by_value.clear()
+
+        pages = PageCollection._parse(mock_site_no_http, html_body)
+
+        assert pages[0].created_at is None
+        assert pages[0].created_by is None
+
 
 class TestPageCollectionSearchPages:
     """PageCollection.search_pagesのテスト"""
@@ -759,6 +926,22 @@ class TestPageCollectionSearchPages:
         assert len(pages) == 1
         assert pages[0].fullname == "scp-001"
 
+    def test_search_pages_uses_default_query_when_query_is_none(
+        self,
+        mock_site_no_http: Site,
+        page_listpages_single: dict[str, Any],
+    ) -> None:
+        """query省略時はデフォルト検索条件でListPagesを呼び出す"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = page_listpages_single
+        mock_site_no_http.amc_request = MagicMock(return_value=[mock_response])
+
+        pages = PageCollection.search_pages(mock_site_no_http, None)
+
+        assert len(pages) == 1
+        request_body = mock_site_no_http.amc_request.call_args.args[0][0]
+        assert request_body["moduleName"] == "list/ListPagesModule"
+
     def test_search_pages_preserves_field_value_text_spacing(
         self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
     ) -> None:
@@ -794,6 +977,52 @@ class TestPageCollectionSearchPages:
 
         assert len(pages) == 1
         assert pages[0].fullname == "scp-001"
+        assert mock_site_no_http.amc_request.call_count == 2
+
+    def test_search_pages_retries_when_amc_request_raises(
+        self, mock_site_no_http: Site, page_listpages_single: dict[str, Any]
+    ) -> None:
+        """ListPagesのAMC呼び出し自体が例外を投げてもretryする"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = page_listpages_single
+        mock_site_no_http.amc_request = MagicMock(side_effect=[RuntimeError("temporary failure"), [mock_response]])
+
+        pages = PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        assert len(pages) == 1
+        assert mock_site_no_http.amc_request.call_count == 2
+
+    def test_search_pages_reraises_forbidden_exception_response(self, mock_site_no_http: Site) -> None:
+        """ForbiddenExceptionはprivate-site変換せずそのまま送出する"""
+        mock_site_no_http.amc_request = MagicMock(return_value=(exceptions.ForbiddenException("forbidden"),))
+
+        with pytest.raises(exceptions.ForbiddenException, match="forbidden"):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+    def test_search_pages_reraises_non_retry_wikidot_status_response(self, mock_site_no_http: Site) -> None:
+        """try_again/not_ok以外のWikidotStatusCodeExceptionはそのまま送出する"""
+        mock_site_no_http.amc_request = MagicMock(
+            return_value=(exceptions.WikidotStatusCodeException("bad status", "no_permission"),)
+        )
+
+        with pytest.raises(exceptions.WikidotStatusCodeException) as exc_info:
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        assert exc_info.value.status_code == "no_permission"
+
+    def test_search_pages_exhausts_try_again_status_responses(self, mock_site_no_http: Site) -> None:
+        """try_again statusはretry対象として扱い、尽きたらUnexpectedExceptionにする"""
+        mock_site_no_http.client.amc_client.config.retry_max_retries = 1
+        mock_site_no_http.amc_request = MagicMock(
+            return_value=(exceptions.WikidotStatusCodeException("try again", "try_again"),)
+        )
+
+        with pytest.raises(
+            exceptions.UnexpectedException,
+            match="Failed to get ListPages page for site: test-site, offset: 0",
+        ):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
         assert mock_site_no_http.amc_request.call_count == 2
 
     def test_search_pages_raises_when_first_page_retry_is_exhausted(self, mock_site_no_http: Site) -> None:
@@ -1696,6 +1925,48 @@ class TestPageCollectionAcquire:
         assert third_page._source is not None
         assert third_page._source.wiki_text == "third source"
 
+    def test_acquire_sources_preserves_first_source_error_when_later_responses_are_malformed(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        """複数source応答が壊れている場合は最初のエラー文脈を保持する"""
+        second_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        second_page.id = 222
+        third_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        third_page.id = 333
+        fourth_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        fourth_page.id = 444
+        fifth_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        fifth_page.id = 555
+        collection = PageCollection(
+            mock_site_no_http,
+            [mock_page_with_id, second_page, third_page, fourth_page, fifth_page],
+        )
+        first_malformed = MagicMock()
+        first_malformed.json.return_value = ["not", "a", "mapping"]
+        later_malformed = MagicMock()
+        later_malformed.json.return_value = ["still", "not", "a", "mapping"]
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(
+            return_value=(
+                first_malformed,
+                self._json_response({"status": "ok"}),
+                self._json_response({"body": ["not", "html"]}),
+                self._json_response({"body": "<div>No source here</div>"}),
+                later_malformed,
+            )
+        )
+
+        with pytest.raises(
+            exceptions.NoElementException,
+            match=(
+                r"Page source response payload is malformed for site: test-site, page: test-page "
+                r"\(id=12345, expected=dict, actual=list\)"
+            ),
+        ):
+            collection.get_page_sources()
+
+        assert all(page._source is None for page in collection)
+
     def test_acquire_sources_skips_already_acquired_pages(
         self, mock_site_no_http: Site, mock_page_with_id: Page, page_viewsource: dict[str, Any]
     ) -> None:
@@ -1996,14 +2267,37 @@ class TestPageCollectionAcquire:
         assert duplicate_page._revisions is not None
         assert duplicate_page._revisions is not mock_page_with_id._revisions
         assert len(duplicate_page._revisions) == 1
+
+    def test_acquire_revisions_reuses_cached_duplicate_page_revisions_without_revision_source(
+        self, mock_site_no_http: Site, mock_page_with_id: Page, page_revisionlist: dict[str, Any]
+    ) -> None:
+        """source未取得のcached revisionも重複ページへcloneできる"""
+        cached_revision = PageRevision(
+            page=mock_page_with_id,
+            id=1000001,
+            rev_no=1,
+            created_by=_page_user(mock_page_with_id, name="cached-user"),
+            created_at=datetime(2023, 1, 1, tzinfo=timezone.utc),
+            comment="Cached revision",
+        )
+        cached_revision._html = "<p>cached revision html</p>"
+        mock_page_with_id._revisions = PageRevisionCollection(mock_page_with_id, [cached_revision])
+        duplicate_page = self._other_page(mock_site_no_http, mock_page_with_id)
+        duplicate_page.id = mock_page_with_id.id
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id, duplicate_page])
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(self._json_response(page_revisionlist),))
+
+        result = collection.get_page_revisions()
+
+        assert result == collection
+        mock_site_no_http.amc_request_with_retry.assert_not_called()
+        assert duplicate_page._revisions is not None
+        assert duplicate_page._revisions[0]._source is None
         assert duplicate_page._revisions[0] is not cached_revision
         assert duplicate_page._revisions[0].page is duplicate_page
         assert duplicate_page._revisions[0].id == cached_revision.id
         assert duplicate_page._revisions[0].comment == "Cached revision"
-        assert duplicate_page._revisions[0]._source is not cached_revision._source
-        assert duplicate_page._revisions[0]._source is not None
-        assert duplicate_page._revisions[0]._source.page is duplicate_page
-        assert duplicate_page._revisions[0]._source.wiki_text == "cached revision source"
         assert duplicate_page._revisions[0]._html == "<p>cached revision html</p>"
 
     def test_acquire_revisions_missing_cells_includes_site_context(
@@ -2410,6 +2704,47 @@ class TestPageCollectionAcquire:
         mock_site_no_http.amc_request.assert_not_called()
         assert mock_page_with_id._votes is not None
         assert [vote.value for vote in mock_page_with_id._votes] == [1, 1, -1]
+
+    def test_acquire_votes_empty_without_vote_container(self, mock_site_no_http: Site, mock_page_with_id: Page) -> None:
+        """投票コンテナがないWhoRated応答は空の投票一覧として扱う"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        response = self._json_response({"body": "<div>No votes here</div>"})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection.get_page_votes()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._votes is not None
+        assert list(mock_page_with_id._votes) == []
+
+    def test_acquire_votes_ignores_non_vote_spans_inside_vote_container(
+        self, mock_site_no_http: Site, mock_page_with_id: Page
+    ) -> None:
+        """投票コンテナ内でもprintuserでもcolor値でもないspanは無視する"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        response = self._json_response(
+            {
+                "body": (
+                    '<div style="column-count: 2">'
+                    "<span>decorative</span>"
+                    '<span class="printuser"><a href="http://www.wikidot.com/user:info/test-user" '
+                    'onclick="WIKIDOT.page.listeners.userInfo(12345); return false;">test_user</a></span>'
+                    '<span style="font-weight:bold">ignored</span>'
+                    '<span style="color:#090">+</span>'
+                    "</div>"
+                )
+            }
+        )
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        collection.get_page_votes()
+
+        mock_site_no_http.amc_request.assert_not_called()
+        assert mock_page_with_id._votes is not None
+        assert len(mock_page_with_id._votes) == 1
+        assert mock_page_with_id._votes[0].value == 1
 
     def test_acquire_votes_mismatch_includes_site_context(
         self, mock_site_no_http: Site, mock_page_with_id: Page
@@ -2865,6 +3200,14 @@ class TestPageProperties:
         url = mock_page_no_http.get_url()
 
         assert url == "https://test-site.wikidot.com/victim%3Fignored%3D%23fragment"
+
+    def test_get_url_encodes_fullname_path_components(self, mock_page_no_http: Page) -> None:
+        """URL生成時にページ名由来のURL制御文字をエンコードする"""
+        mock_page_no_http.fullname = "category:missing/../victim?template=other#frag"
+
+        url = mock_page_no_http.get_url()
+
+        assert url == "https://test-site.wikidot.com/category:missing%2F..%2Fvictim%3Ftemplate%3Dother%23frag"
 
     def test_get_url_rejects_malformed_site(self, mock_page_no_http: Page) -> None:
         """URL生成前に保持しているサイトを検証する"""
@@ -3555,6 +3898,16 @@ class TestPageProperties:
 
         mock_page_with_id.site.amc_request.assert_not_called()
         assert mock_page_with_id._discussion_checked is False
+
+    def test_discussion_without_thread_id_marks_checked_and_returns_none(self, mock_page_with_id: Page) -> None:
+        """コメントスレッドIDがないページは確認済みNoneとしてキャッシュする"""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"body": "<div>No discussion</div>"}
+        mock_page_with_id.site.amc_request = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock(return_value=(mock_response,))
+
+        assert mock_page_with_id.discussion is None
+        assert mock_page_with_id._discussion_checked is True
 
     def test_discussion_rejects_non_ascii_digit_thread_id(
         self, monkeypatch: pytest.MonkeyPatch, mock_page_with_id: Page
@@ -5089,6 +5442,18 @@ class TestPageWriteMethods:
         ]
         assert mock_page_with_id._metas == {"keep": "same", "add": "new", "change": "new"}
 
+    def test_metas_setter_noops_when_metadata_is_unchanged(self, mock_page_with_id: Page) -> None:
+        """metaタグsetterは差分がなければログイン後もAMC更新を送らない"""
+        mock_page_with_id._metas = {"keep": "same"}
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        mock_page_with_id.metas = {"keep": "same"}
+
+        mock_page_with_id.site.client.login_check.assert_called_once()
+        mock_page_with_id.site.amc_request.assert_not_called()
+        assert mock_page_with_id._metas == {"keep": "same"}
+
     def test_metas_setter_missing_action_status_does_not_update_local_state(
         self,
         mock_page_with_id: Page,
@@ -5735,6 +6100,140 @@ class TestPageWriteMethods:
         )
         assert mock_page_with_id.parent_fullname is None
 
+    def test_set_metadata_noops_without_requested_changes(self, mock_page_with_id: Page) -> None:
+        """set_metadataは更新対象が指定されなければログイン後もAMC更新を送らない"""
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock()
+
+        assert mock_page_with_id.set_metadata() is mock_page_with_id
+
+        mock_page_with_id.site.client.login_check.assert_called_once()
+        mock_page_with_id.site.amc_request.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("initial_metas", "new_metas", "expected_event"),
+        [
+            ({"remove": "old"}, {}, "deleteMetaTag"),
+            ({}, {"add": "new"}, "saveMetaTag"),
+            ({"change": "old"}, {"change": "new"}, "saveMetaTag"),
+        ],
+    )
+    def test_meta_update_request_bodies_resolve_missing_page_id_per_operation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_page_with_id: Page,
+        initial_metas: dict[str, str],
+        new_metas: dict[str, str],
+        expected_event: str,
+    ) -> None:
+        """meta更新ボディ生成は保持IDがなければ必要な各操作でページIDを取得する"""
+
+        def get_page_ids(collection: PageCollection) -> PageCollection:
+            collection[0]._id = 777
+            return collection
+
+        monkeypatch.setattr(PageCollection, "get_page_ids", get_page_ids)
+        mock_page_with_id._id = None
+        mock_page_with_id._metas = initial_metas
+
+        request_bodies = mock_page_with_id._meta_update_request_bodies(new_metas, None)
+
+        assert request_bodies[0]["event"] == expected_event
+        assert request_bodies[0]["pageId"] == 777
+
+    @pytest.mark.parametrize(
+        ("kwargs", "expected_event", "expected_page_id"),
+        [
+            ({"tags": ["new-tag"]}, "saveTags", 777),
+            ({"parent_fullname": "new-parent"}, "setParentPage", "777"),
+        ],
+    )
+    def test_set_metadata_resolves_missing_page_id_for_single_metadata_operations(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_page_with_id: Page,
+        kwargs: dict[str, Any],
+        expected_event: str,
+        expected_page_id: int | str,
+    ) -> None:
+        """set_metadataは保持IDがないtags/parent更新でページIDを取得して送信する"""
+
+        def get_page_ids(collection: PageCollection) -> PageCollection:
+            collection[0]._id = 777
+            return collection
+
+        monkeypatch.setattr(PageCollection, "get_page_ids", get_page_ids)
+        ok_response = MagicMock()
+        ok_response.json.return_value = {"status": "ok"}
+        mock_page_with_id._id = None
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock(return_value=(ok_response,))
+
+        mock_page_with_id.set_metadata(**kwargs)
+
+        request_body = mock_page_with_id.site.amc_request.call_args.args[0][0]
+        assert request_body["event"] == expected_event
+        assert request_body["pageId"] == expected_page_id
+
+    @pytest.mark.parametrize(
+        ("operation", "event", "response_data", "request_id_field"),
+        [
+            ("destroy", "deletePage", {"status": "ok"}, "page_id"),
+            ("commit_tags", "saveTags", {"status": "ok"}, "pageId"),
+            ("set_parent", "setParentPage", {"status": "ok"}, "pageId"),
+            ("rename", "renamePage", {"status": "ok"}, "page_id"),
+            ("vote", "ratePage", {"status": "ok", "type": "P", "points": 11}, "pageId"),
+            ("cancel_vote", "cancelVote", {"status": "ok", "type": "P", "points": 9}, "pageId"),
+        ],
+    )
+    def test_single_action_write_methods_resolve_missing_page_id_before_request(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_page_with_id: Page,
+        operation: str,
+        event: str,
+        response_data: dict[str, Any],
+        request_id_field: str,
+    ) -> None:
+        """単一action系writeメソッドは保持IDがなければ取得してから送信する"""
+
+        def get_page_ids(collection: PageCollection) -> PageCollection:
+            collection[0]._id = 777
+            return collection
+
+        monkeypatch.setattr(PageCollection, "get_page_ids", get_page_ids)
+        mock_response = MagicMock()
+        mock_response.json.return_value = response_data
+        mock_page_with_id._id = None
+        mock_page_with_id.tags = ["tag-one", "tag-two"]
+        mock_page_with_id._source = PageSource(mock_page_with_id, "cached source")
+        mock_page_with_id._votes = PageVoteCollection(
+            mock_page_with_id,
+            [PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)],
+        )
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request = MagicMock(return_value=(mock_response,))
+
+        if operation == "destroy":
+            mock_page_with_id.destroy()
+        elif operation == "commit_tags":
+            mock_page_with_id.commit_tags()
+        elif operation == "set_parent":
+            mock_page_with_id.set_parent("new-parent")
+        elif operation == "rename":
+            mock_page_with_id.rename("component:new-name")
+        elif operation == "vote":
+            assert mock_page_with_id.vote(1) == 11
+        elif operation == "cancel_vote":
+            assert mock_page_with_id.cancel_vote() == 9
+        else:
+            raise AssertionError(f"unknown operation: {operation}")
+
+        request_body = mock_page_with_id.site.amc_request.call_args.args[0][0]
+        assert request_body["event"] == event
+        expected_page_id: int | str = "777" if operation == "set_parent" else 777
+        assert request_body[request_id_field] == expected_page_id
+
 
 class TestPageCreateOrEdit:
     """Page.create_or_editのテスト"""
@@ -5853,6 +6352,37 @@ class TestPageCreateOrEdit:
 
         assert page.fullname == "new-page"
         assert page.title == "New Page Title"
+        assert page.source.wiki_text == "Page content"
+
+    def test_create_new_page_stale_search_preserves_blank_title_when_no_page_id(
+        self,
+        mock_site_no_http: Site,
+        page_pageedit_success: dict[str, Any],
+        page_savepage_success: dict[str, Any],
+        page_listpages_empty: dict[str, Any],
+    ) -> None:
+        """検索が古い新規作成でtitle/page_idが空でもsourceを設定したPageを返す"""
+        mock_site_no_http.client.is_logged_in = True
+        mock_site_no_http.client.login_check = MagicMock()
+        mock_lock_response = MagicMock()
+        mock_lock_response.json.return_value = page_pageedit_success
+        mock_save_response = MagicMock()
+        mock_save_response.json.return_value = page_savepage_success
+        mock_search_response = MagicMock()
+        mock_search_response.json.return_value = page_listpages_empty
+        mock_site_no_http.amc_request = MagicMock(
+            side_effect=[
+                [mock_lock_response],
+                [mock_save_response],
+                [mock_search_response],
+                [mock_search_response],
+            ]
+        )
+
+        page = Page.create_or_edit(mock_site_no_http, "new-page", source="Page content")
+
+        assert page.fullname == "new-page"
+        assert page.title == ""
         assert page.source.wiki_text == "Page content"
 
     def test_edit_existing_page_stale_search_preserves_page_id(
@@ -6716,6 +7246,70 @@ class TestPageEdit:
         assert mock_page_with_id._source is not None
         assert mock_page_with_id._source.wiki_text == "Updated source"
         assert mock_page_with_id._source.page is mock_page_with_id
+
+    def test_edit_passes_explicit_comment_without_fetching_source(
+        self,
+        mock_page_with_id: Page,
+    ) -> None:
+        """editはsource/commentが明示された場合に保持sourceを取得せず委譲する"""
+        edited_page = _other_page_like(mock_page_with_id, page_id=mock_page_with_id.id)
+        edited_page.title = "Updated Title"
+        edited_page.revisions_count = mock_page_with_id.revisions_count
+        mock_page_with_id.site.client.login_check = MagicMock()
+        mock_page_with_id.site.amc_request_with_retry = MagicMock()
+
+        with patch.object(Page, "create_or_edit", return_value=edited_page) as create_or_edit:
+            page = mock_page_with_id.edit(
+                title="Updated Title",
+                source="Updated source",
+                comment="explicit comment",
+            )
+
+        assert page is edited_page
+        create_or_edit.assert_called_once_with(
+            mock_page_with_id.site,
+            "test-page",
+            12345,
+            "Updated Title",
+            "Updated source",
+            "explicit comment",
+            False,
+        )
+        mock_page_with_id.site.amc_request_with_retry.assert_not_called()
+
+    def test_edit_resolves_missing_page_id_before_delegation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_page_with_id: Page,
+    ) -> None:
+        """editは保持IDがなければ取得してからcreate_or_editへ渡す"""
+
+        def get_page_ids(collection: PageCollection) -> PageCollection:
+            collection[0]._id = 777
+            return collection
+
+        monkeypatch.setattr(PageCollection, "get_page_ids", get_page_ids)
+        edited_page = _other_page_like(mock_page_with_id, page_id=777)
+        edited_page.title = "Updated Title"
+        edited_page.revisions_count = mock_page_with_id.revisions_count
+        mock_page_with_id._id = None
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with patch.object(Page, "create_or_edit", return_value=edited_page) as create_or_edit:
+            page = mock_page_with_id.edit(title="Updated Title", source="Updated source")
+
+        assert page is edited_page
+        create_or_edit.assert_called_once_with(
+            mock_page_with_id.site,
+            "test-page",
+            777,
+            "Updated Title",
+            "Updated source",
+            "",
+            False,
+        )
+        assert mock_page_with_id._source is not None
+        assert mock_page_with_id._source.wiki_text == "Updated source"
 
     def test_edit_invalidates_local_revision_cache(self, mock_page_with_id: Page) -> None:
         """編集成功後は古いrevision一覧キャッシュを使い回さない"""

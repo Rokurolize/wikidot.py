@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 from bs4 import BeautifulSoup
 
 from ..common.exceptions import NoElementException, UnexpectedException, WikidotStatusCodeException
+from ..util.parser.html import class_values
 from ._validation import validate_text_field
 from .forum_thread import ForumThread, ForumThreadCollection
 
@@ -364,13 +365,13 @@ class ForumCategoryCollection(list["ForumCategory"]):
                     raise NoElementException(f"Category row is malformed {parse_context}")
 
                 name_elem = cells[0]
-                if "name" not in name_elem.get("class", []):
+                if "name" not in class_values(name_elem):
                     raise NoElementException(f"Name element is not found {parse_context}")
                 thread_count_elem = cells[1]
-                if "threads" not in thread_count_elem.get("class", []):
+                if "threads" not in class_values(thread_count_elem):
                     raise NoElementException(f"Thread count element is not found {parse_context}")
                 post_count_elem = cells[2]
-                if "posts" not in post_count_elem.get("class", []):
+                if "posts" not in class_values(post_count_elem):
                     raise NoElementException(f"Post count element is not found {parse_context}")
 
                 title_container = name_elem.find("div", class_="title", recursive=False)

@@ -6,6 +6,7 @@ from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
+from bs4 import BeautifulSoup
 
 from wikidot.common import exceptions
 from wikidot.module.client import Client
@@ -110,6 +111,13 @@ class TestPageFileCollection:
 
         assert collection.page is None
         assert len(collection) == 0
+
+    def test_init_defaults_to_empty_without_page(self) -> None:
+        """files省略時も空の親なしファイルコレクションとして初期化する"""
+        collection = PageFileCollection()
+
+        assert collection.page is None
+        assert list(collection) == []
 
     def test_init_infers_page_from_files(self):
         """ファイルリストからページを推測"""
@@ -256,6 +264,15 @@ class TestPageFileCollection:
         with pytest.raises(ValueError, match="id must be non-negative"):
             collection.find(1001)
 
+    def test_find_rejects_retained_file_from_different_page(self) -> None:
+        page = _page()
+        file = _page_file(page, file_id=1001)
+        collection = PageFileCollection(page=page, files=[file])
+        file.page = _page_on_same_site(page)
+
+        with pytest.raises(ValueError, match="files must belong to the collection page"):
+            collection.find(1001)
+
     def test_find_by_name_existing(self):
         """名前で存在するファイルを検索"""
         page = _page()
@@ -322,6 +339,90 @@ class TestPageFileCollection:
         with pytest.raises(ValueError, match="name must not be empty"):
             collection.find_by_name("document.pdf")
 
+    def test_find_by_name_rejects_retained_file_from_different_page(self) -> None:
+        page = _page()
+        file = _page_file(page, file_id=1, name="document.pdf")
+        collection = PageFileCollection(page=page, files=[file])
+        file.page = _page_on_same_site(page)
+
+        with pytest.raises(ValueError, match="files must belong to the collection page"):
+            collection.find_by_name("document.pdf")
+
+
+class TestPageFileCollectionParseFields:
+    """PageFileCollection._parse_file_fields_from_htmlのテスト"""
+
+    def test_parse_fields_returns_empty_without_page_files_table(self) -> None:
+        html = BeautifulSoup("<div>No files</div>", "lxml")
+
+        assert PageFileCollection._parse_file_fields_from_html("https://test.wikidot.com", html) == []
+
+    def test_parse_fields_returns_empty_without_tbody(self) -> None:
+        html = BeautifulSoup("<table class='page-files'><tr><td>No tbody</td></tr></table>", "lxml")
+
+        assert PageFileCollection._parse_file_fields_from_html("https://test.wikidot.com", html) == []
+
+    def test_parse_fields_skips_rows_without_file_row_id(self) -> None:
+        html = BeautifulSoup(
+            """
+            <table class="page-files"><tbody>
+                <tr><td>missing id</td></tr>
+                <tr id="not-file-row-1"><td>wrong prefix</td></tr>
+            </tbody></table>
+            """,
+            "lxml",
+        )
+
+        assert PageFileCollection._parse_file_fields_from_html("https://test.wikidot.com", html) == []
+
+    def test_parse_fields_rejects_malformed_file_row_cells(self) -> None:
+        html = BeautifulSoup(
+            """
+            <table class="page-files"><tbody>
+                <tr id="file-row-123"><td><a href="/local.txt">local.txt</a></td></tr>
+            </tbody></table>
+            """,
+            "lxml",
+        )
+
+        with pytest.raises(exceptions.NoElementException, match=r"Page file row is malformed \(id=123"):
+            PageFileCollection._parse_file_fields_from_html("https://test.wikidot.com", html)
+
+    def test_parse_fields_rejects_missing_file_link(self) -> None:
+        html = BeautifulSoup(
+            """
+            <table class="page-files"><tbody>
+                <tr id="file-row-123">
+                    <td>local.txt</td>
+                    <td><span title="text/plain"></span></td>
+                    <td>1 kB</td>
+                </tr>
+            </tbody></table>
+            """,
+            "lxml",
+        )
+
+        with pytest.raises(exceptions.NoElementException, match=r"Page file link is not found \(id=123"):
+            PageFileCollection._parse_file_fields_from_html("https://test.wikidot.com", html)
+
+    @pytest.mark.parametrize("href", ["ftp://example.com/local.txt", "https:///local.txt", "/"])
+    def test_parse_fields_rejects_malformed_file_link_href(self, href: str) -> None:
+        html = BeautifulSoup(
+            f"""
+            <table class="page-files"><tbody>
+                <tr id="file-row-123">
+                    <td><a href="{href}">local.txt</a></td>
+                    <td><span title="text/plain"></span></td>
+                    <td>1 kB</td>
+                </tr>
+            </tbody></table>
+            """,
+            "lxml",
+        )
+
+        with pytest.raises(exceptions.NoElementException, match="Page file link href is malformed"):
+            PageFileCollection._parse_file_fields_from_html("https://test.wikidot.com", html)
+
 
 class TestPageFileCollectionParseSize:
     """PageFileCollection._parse_sizeのテスト"""
@@ -359,6 +460,12 @@ class TestPageFileCollectionParseSize:
     def test_parse_unknown_returns_zero(self):
         """不明な単位は0を返す"""
         result = PageFileCollection._parse_size("unknown")
+        assert result == 0
+
+    def test_parse_unknown_unit_returns_zero(self) -> None:
+        """数値形式でも未知単位なら0を返す"""
+        result = PageFileCollection._parse_size("1 XB")
+
         assert result == 0
 
     def test_parse_with_whitespace(self):

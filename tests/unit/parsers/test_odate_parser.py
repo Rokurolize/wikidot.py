@@ -7,7 +7,17 @@ from typing import Any
 import pytest
 from bs4 import BeautifulSoup
 
+from wikidot.util.parser.html import class_values
 from wikidot.util.parser.odate import odate_parse
+
+
+def test_class_values_accepts_string_class_attribute() -> None:
+    soup = BeautifulSoup("<span>user</span>", "lxml")
+    elem = soup.select_one("span")
+    assert elem is not None
+    elem["class"] = "printuser"
+
+    assert class_values(elem) == ["printuser"]
 
 
 class TestOdateParse:
@@ -83,6 +93,14 @@ class TestOdateParse:
         assert elem is not None
 
         with pytest.raises(ValueError, match="odate unix time is malformed: time_latest"):
+            odate_parse(elem)
+
+    def test_parse_odate_rejects_embedded_time_class_prefix(self) -> None:
+        soup = BeautifulSoup('<span class="odate prefix_time_1702814400">Dec 17 2023</span>', "lxml")
+        elem = soup.select_one("span.odate")
+        assert elem is not None
+
+        with pytest.raises(ValueError, match="odate unix time is malformed: prefix_time_1702814400"):
             odate_parse(elem)
 
     @pytest.mark.parametrize("time_class", ["time_time_1702814400", "time_1702814400_time_"])
