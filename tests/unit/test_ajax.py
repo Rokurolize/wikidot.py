@@ -232,3 +232,29 @@ class TestNormalizeLocalBaseUrl:
     def test_rejects_query_or_fragment(self, value):
         with pytest.raises(ValueError, match="local_base_url must not contain query or fragment"):
             _normalize_local_base_url(value)
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "http://attacker.example/collect",
+            "https://www.wikidot.com",
+            "http://192.168.1.10:4173",
+            "http://10.0.0.1:4173",
+        ],
+    )
+    def test_rejects_non_loopback_hosts(self, value):
+        with pytest.raises(ValueError, match="local_base_url must target localhost or a loopback IP address"):
+            _normalize_local_base_url(value)
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("http://localhost:4173/", "http://localhost:4173"),
+            ("http://dev.localhost:4173/path/", "http://dev.localhost:4173/path"),
+            ("http://127.0.0.1:4173/", "http://127.0.0.1:4173"),
+            ("http://127.42.0.1:4173/", "http://127.42.0.1:4173"),
+            ("http://[::1]:4173/", "http://[::1]:4173"),
+        ],
+    )
+    def test_accepts_loopback_local_hosts(self, value, expected):
+        assert _normalize_local_base_url(value) == expected
