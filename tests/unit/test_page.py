@@ -2883,6 +2883,31 @@ class TestPageCollectionAcquire:
         assert mock_page_with_id._votes is not None
         assert [vote.value for vote in mock_page_with_id._votes] == [5, 1, -1]
 
+    def test_acquire_votes_wraps_oversized_integer_vote_value(
+        self,
+        mock_site_no_http: Site,
+        mock_page_with_id: Page,
+        page_whorated: dict[str, Any],
+    ) -> None:
+        """WhoRatedの過大なvote値はraw ValueErrorではなくNoElementExceptionに変換する"""
+        collection = PageCollection(mock_site_no_http, [mock_page_with_id])
+        oversized_vote = "1" * 5000
+        body = page_whorated["body"].replace(
+            "+              </span>",
+            f"{oversized_vote}              </span>",
+            1,
+        )
+        response = self._json_response({**page_whorated, "body": body})
+        mock_site_no_http.amc_request = MagicMock()
+        mock_site_no_http.amc_request_with_retry = MagicMock(return_value=(response,))
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            collection.get_page_votes()
+
+        assert "WhoRated vote value is malformed for site: test-site, page: test-page" in str(exc_info.value)
+        assert f"id={mock_page_with_id.id}, field=vote_value" in str(exc_info.value)
+        assert mock_page_with_id._votes is None
+
     def test_acquire_votes_rejects_non_ascii_digit_vote_value(
         self,
         mock_site_no_http: Site,
@@ -4931,6 +4956,25 @@ class TestPageWriteMethods:
 
         assert new_rating == 11
         assert mock_page_with_id.rating == 11
+
+    def test_vote_wraps_oversized_integer_points_before_state_update(self, mock_page_with_id: Page) -> None:
+        """投票応答の過大なpoints値はraw ValueErrorではなくNoElementExceptionに変換する"""
+        cached_vote = PageVote(mock_page_with_id, _page_user(mock_page_with_id), 1)
+        mock_page_with_id._votes = PageVoteCollection(mock_page_with_id, [cached_vote])
+        oversized_points = "1" * 5000
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"status": "ok", "type": "P", "points": oversized_points}
+        mock_page_with_id.site.amc_request = MagicMock(return_value=[mock_response])
+        mock_page_with_id.site.client.is_logged_in = True
+        mock_page_with_id.site.client.login_check = MagicMock()
+
+        with pytest.raises(exceptions.NoElementException) as exc_info:
+            mock_page_with_id.vote(1)
+
+        assert "Page rating response is malformed for site: test-site, page: test-page" in str(exc_info.value)
+        assert "id=12345, event=ratePage, field=points" in str(exc_info.value)
+        assert mock_page_with_id.rating == 10
+        assert mock_page_with_id._votes is not None
 
     def test_vote_rejects_non_ascii_digit_points_before_state_update(self, mock_page_with_id: Page) -> None:
         """投票応答のpoints値はUnicode数字を通常整数へ正規化しない"""
