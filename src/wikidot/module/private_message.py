@@ -6,6 +6,7 @@ It enables operations such as sending messages, retrieving inbox/sent box, and v
 """
 
 import re
+import sys
 from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
@@ -13,7 +14,11 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup, Tag
-from typing_extensions import Self
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 from ..common import exceptions
 from ..common.decorators import login_required
