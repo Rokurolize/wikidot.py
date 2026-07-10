@@ -7,6 +7,7 @@ error handling, and retry functionality.
 """
 
 import asyncio
+import ipaddress
 import json.decoder
 import math
 from dataclasses import dataclass
@@ -190,7 +191,7 @@ class AjaxModuleConnectorConfig:
     retry_max_retries : int, default 3
         Default maximum retry attempts for amc_request_with_retry
     local_base_url : str | None, default None
-        Explicit opt-in local target base URL. Defaults to real Wikidot routing.
+        Explicit opt-in loopback/local target base URL. Defaults to real Wikidot routing.
     """
 
     request_timeout: int = 20
@@ -283,8 +284,24 @@ def _normalize_local_base_url(value: object) -> str | None:
         raise ValueError("local_base_url must not contain credentials")
     if parsed.query or parsed.fragment:
         raise ValueError("local_base_url must not contain query or fragment")
+    if not _is_loopback_local_hostname(parsed.hostname):
+        raise ValueError("local_base_url must target localhost or a loopback IP address")
 
     return urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
+
+
+def _is_loopback_local_hostname(hostname: str | None) -> bool:
+    if hostname is None:
+        return False
+
+    hostname = hostname.lower().rstrip(".")
+    if hostname == "localhost" or hostname.endswith(".localhost"):
+        return True
+
+    try:
+        return ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return False
 
 
 def _local_url(config: AjaxModuleConnectorConfig, path: str) -> str | None:
