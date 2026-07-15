@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from typing import Any, cast
 from unittest.mock import MagicMock, patch
@@ -1576,11 +1577,15 @@ class TestPageCollectionAcquire:
 
     @staticmethod
     def _patch_batched_page_id_request(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
-        first_id_response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 111;")
-        second_id_response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 222;")
+        first_id_response = httpx.Response(200, text=TestPageCollectionAcquire._page_id_metadata("test-page", 111))
+        second_id_response = httpx.Response(200, text=TestPageCollectionAcquire._page_id_metadata("other-page", 222))
         request = MagicMock(return_value=[first_id_response, second_id_response])
         monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
         return request
+
+    @staticmethod
+    def _page_id_metadata(fullname: str, page_id: int | str) -> str:
+        return f"WIKIREQUEST.info.pageUnixName = {json.dumps(fullname)};\nWIKIREQUEST.info.pageId = {page_id};"
 
     @staticmethod
     def _assert_batched_page_id_request(request: MagicMock) -> None:
@@ -1605,7 +1610,7 @@ class TestPageCollectionAcquire:
         duplicate_page.name = mock_page_no_http.name
         duplicate_page.category = mock_page_no_http.category
         collection = PageCollection(mock_site_no_http, [mock_page_no_http, duplicate_page])
-        response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 333;")
+        response = httpx.Response(200, text=self._page_id_metadata("test-page", 333))
         request = MagicMock(return_value=[response])
         monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
 
@@ -1702,7 +1707,7 @@ class TestPageCollectionAcquire:
     ) -> None:
         """page_idの値が壊れている場合は欠落ではなく値つきの構造エラーにする"""
         collection = PageCollection(mock_site_no_http, [mock_page_no_http])
-        response = httpx.Response(200, text=f"WIKIREQUEST.info.pageId = {page_id_text};")
+        response = httpx.Response(200, text=self._page_id_metadata("test-page", page_id_text))
         request = MagicMock(return_value=[response])
         monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
 
@@ -1723,7 +1728,7 @@ class TestPageCollectionAcquire:
         """int変換上限を超えるpage_idも構造エラーとして扱う"""
         oversized_page_id = "9" * 5000
         collection = PageCollection(mock_site_no_http, [mock_page_no_http])
-        response = httpx.Response(200, text=f"WIKIREQUEST.info.pageId = {oversized_page_id};")
+        response = httpx.Response(200, text=self._page_id_metadata("test-page", oversized_page_id))
         request = MagicMock(return_value=[response])
         monkeypatch.setattr("wikidot.module.page.RequestUtil.request", request)
 
@@ -1735,6 +1740,59 @@ class TestPageCollectionAcquire:
         assert "(field=page_id" in message
         assert oversized_page_id in message
         request.assert_called_once()
+
+    def test_acquire_page_ids_missing_identity_fails_closed(
+        self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
+    ) -> None:
+        """pageIdだけの応答は要求ページのものと証明できないため採用しない"""
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        response = httpx.Response(200, text="WIKIREQUEST.info.pageId = 333;")
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", MagicMock(return_value=[response]))
+
+        with pytest.raises(
+            exceptions.NotFoundException,
+            match="Cannot verify page identity for site: test-site, page: test-page",
+        ):
+            collection.get_page_ids()
+
+        assert mock_page_no_http._id is None
+
+    def test_acquire_page_ids_rejects_mismatched_page_identity(
+        self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
+    ) -> None:
+        """内部転送先のpageIdを要求ページへ誤関連付けしない"""
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http])
+        response = httpx.Response(200, text=self._page_id_metadata("system:join", 1468644231))
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", MagicMock(return_value=[response]))
+
+        with pytest.raises(
+            exceptions.NotFoundException,
+            match=(
+                r"Resolved page identity does not match request for site: test-site, page: test-page "
+                r"\(resolved=system:join\)"
+            ),
+        ):
+            collection.get_page_ids()
+
+        assert mock_page_no_http._id is None
+
+    def test_acquire_page_ids_batch_mismatch_leaves_all_new_ids_unset(
+        self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page
+    ) -> None:
+        """後続応答のidentity不一致で失敗しても先行ページへ部分的にIDを設定しない"""
+        other_page = self._other_page(mock_site_no_http, mock_page_no_http)
+        collection = PageCollection(mock_site_no_http, [mock_page_no_http, other_page])
+        responses = [
+            httpx.Response(200, text=self._page_id_metadata("test-page", 111)),
+            httpx.Response(200, text=self._page_id_metadata("system:join", 1468644231)),
+        ]
+        monkeypatch.setattr("wikidot.module.page.RequestUtil.request", MagicMock(return_value=responses))
+
+        with pytest.raises(exceptions.NotFoundException, match=r"page: other-page \(resolved=system:join\)"):
+            collection.get_page_ids()
+
+        assert mock_page_no_http._id is None
+        assert other_page._id is None
 
     def test_acquire_page_ids_missing_id_raises_not_found_with_page_context(
         self, monkeypatch: pytest.MonkeyPatch, mock_site_no_http: Site, mock_page_no_http: Page

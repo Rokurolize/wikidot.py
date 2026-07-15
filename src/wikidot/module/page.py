@@ -1,4 +1,5 @@
 import html as html_lib
+import json
 import math
 import re
 import sys
@@ -1653,35 +1654,73 @@ class PageCollection(list["Page"]):
         request_urls = list(target_pages_by_url)
         responses = RequestUtil.request(site.client, "GET", request_urls)
 
-        # "WIKIREQUEST.info.pageId = xxx;"の値をidに設定
+        resolved_ids_by_url: dict[str, int] = {}
+
+        # pageIdは、それと同じWIKIREQUESTが要求したページを表すと確認できた場合にだけ採用する。
         for index, response in enumerate(responses):
             target_pages_for_url = target_pages_by_url[request_urls[index]]
+            requested_fullname = target_pages_for_url[0].fullname
             if not isinstance(response, httpx.Response):
                 raise exceptions.UnexpectedException(
                     f"Unexpected response type for site: {site.unix_name}, "
-                    f"page: {target_pages_for_url[0].fullname}, type: {type(response)}"
+                    f"page: {requested_fullname}, type: {type(response)}"
                 )
             source = response.text
 
             id_match = re.search(r"WIKIREQUEST\.info\.pageId\s*=\s*([^;]*);", source)
             if id_match is None:
                 raise exceptions.NotFoundException(
-                    f"Cannot find page id for site: {site.unix_name}, page: {target_pages_for_url[0].fullname}"
+                    f"Cannot find page id for site: {site.unix_name}, page: {requested_fullname}"
                 )
             page_id_text = id_match.group(1).strip()
             if re.fullmatch(r"[0-9]+", page_id_text) is None:
                 raise exceptions.NoElementException(
-                    f"Page ID is malformed for site: {site.unix_name}, page: {target_pages_for_url[0].fullname} "
+                    f"Page ID is malformed for site: {site.unix_name}, page: {requested_fullname} "
                     f"(field=page_id, value={page_id_text})"
                 )
             try:
                 page_id = int(page_id_text)
             except ValueError as exc:
                 raise exceptions.NoElementException(
-                    f"Page ID is malformed for site: {site.unix_name}, page: {target_pages_for_url[0].fullname} "
+                    f"Page ID is malformed for site: {site.unix_name}, page: {requested_fullname} "
                     f"(field=page_id, value={page_id_text})"
                 ) from exc
-            for page in target_pages_for_url:
+
+            identity_match = re.search(
+                r'WIKIREQUEST\.info\.pageUnixName\s*=\s*("(?:\\.|[^"\\])*")\s*;',
+                source,
+            )
+            if identity_match is None:
+                if re.search(r"WIKIREQUEST\.info\.pageUnixName\s*=", source):
+                    raise exceptions.NoElementException(
+                        f"Page identity is malformed for site: {site.unix_name}, page: {requested_fullname} "
+                        "(field=pageUnixName)"
+                    )
+                raise exceptions.NotFoundException(
+                    f"Cannot verify page identity for site: {site.unix_name}, page: {requested_fullname}"
+                )
+            try:
+                resolved_fullname = json.loads(identity_match.group(1))
+            except (json.JSONDecodeError, TypeError) as exc:
+                raise exceptions.NoElementException(
+                    f"Page identity is malformed for site: {site.unix_name}, page: {requested_fullname} "
+                    "(field=pageUnixName)"
+                ) from exc
+            if not isinstance(resolved_fullname, str):  # pragma: no cover - the regex only accepts JSON strings
+                raise exceptions.NoElementException(
+                    f"Page identity is malformed for site: {site.unix_name}, page: {requested_fullname} "
+                    "(field=pageUnixName)"
+                )
+            if resolved_fullname != requested_fullname:
+                raise exceptions.NotFoundException(
+                    f"Resolved page identity does not match request for site: {site.unix_name}, "
+                    f"page: {requested_fullname} (resolved={resolved_fullname})"
+                )
+            resolved_ids_by_url[request_urls[index]] = page_id
+
+        # Validate every response before mutating any page so a batched mismatch cannot leave partial IDs behind.
+        for request_url, page_id in resolved_ids_by_url.items():
+            for page in target_pages_by_url[request_url]:
                 page.id = page_id
 
         return pages
