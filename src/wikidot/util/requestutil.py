@@ -5,7 +5,13 @@ from urllib.parse import urlparse
 
 import httpx
 
-from ..connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader, _normalize_local_base_url
+from ..common.exceptions import WikidotTransportSecurityException
+from ..connector.ajax import (
+    AjaxModuleConnectorConfig,
+    AjaxRequestHeader,
+    _normalize_local_base_url,
+    _validate_optional_insecure_transport_site,
+)
 from .async_helper import run_coroutine
 from .http import (
     _is_retryable_status,
@@ -39,7 +45,9 @@ def _validate_request_header_object(header: object) -> AjaxRequestHeader:
     return header
 
 
-def _validate_request_config(config: AjaxModuleConnectorConfig) -> tuple[float, int, float, float, float, int]:
+def _validate_request_config(
+    config: AjaxModuleConnectorConfig,
+) -> tuple[float, int, float, float, float, int, str | None]:
     return (
         _validate_positive_number_option("request_timeout", getattr(config, "request_timeout", None)),
         _validate_positive_int_option("attempt_limit", getattr(config, "attempt_limit", None)),
@@ -47,6 +55,7 @@ def _validate_request_config(config: AjaxModuleConnectorConfig) -> tuple[float, 
         _validate_non_negative_number_option("backoff_factor", getattr(config, "backoff_factor", None)),
         _validate_non_negative_number_option("max_backoff", getattr(config, "max_backoff", None)),
         _validate_positive_int_option("semaphore_limit", getattr(config, "semaphore_limit", None)),
+        _validate_optional_insecure_transport_site(getattr(config, "allow_insecure_session_transport_for", None)),
     )
 
 
@@ -61,6 +70,18 @@ def _is_configured_local_url(config: AjaxModuleConnectorConfig, url: str) -> boo
         return False
     base_path = parsed_base.path.rstrip("/")
     return base_path == "" or parsed_url.path == base_path or parsed_url.path.startswith(f"{base_path}/")
+
+
+def _is_authorized_insecure_wikidot_url(url: str, allowed_site: str | None) -> bool:
+    if allowed_site is None:
+        return False
+    parsed = urlparse(url)
+    try:
+        port = parsed.port
+    except ValueError:
+        return False
+    hostname = str(parsed.hostname).lower().rstrip(".")
+    return parsed.scheme.lower() == "http" and port in {None, 80} and hostname == f"{allowed_site}.wikidot.com"
 
 
 def _validate_request_method(method: object) -> str:
@@ -132,6 +153,7 @@ class RequestUtil:
             backoff_factor,
             max_backoff,
             semaphore_limit,
+            allow_insecure_session_transport_for,
         ) = _validate_request_config(_validate_request_config_object(config))
         semaphore = asyncio.Semaphore(semaphore_limit)
 
@@ -147,6 +169,8 @@ class RequestUtil:
             hostname = str(parsed.hostname).lower().rstrip(".")
             if parsed.scheme.lower() == "https" and (hostname == "wikidot.com" or hostname.endswith(".wikidot.com")):
                 return request_headers
+            if _is_authorized_insecure_wikidot_url(url, allow_insecure_session_transport_for):
+                return request_headers
             if _is_configured_local_url(config, url):
                 return request_headers
 
@@ -157,7 +181,12 @@ class RequestUtil:
                 attempt = 0
                 while True:
                     try:
-                        response = await http_client.get(url, headers=_get_headers_for_url(url))
+                        headers = _get_headers_for_url(url)
+                        response = await http_client.get(url, headers=headers)
+                        if headers is not None and 300 <= response.status_code < 400:
+                            raise WikidotTransportSecurityException(
+                                f"Redirect refused for credential-bearing direct request: {url}"
+                            )
                         response.raise_for_status()
                         return response
                     except httpx.HTTPStatusError as e:
@@ -191,7 +220,12 @@ class RequestUtil:
                 attempt = 0
                 while True:
                     try:
-                        response = await http_client.post(url, headers=_get_headers_for_url(url))
+                        headers = _get_headers_for_url(url)
+                        response = await http_client.post(url, headers=headers)
+                        if headers is not None and 300 <= response.status_code < 400:
+                            raise WikidotTransportSecurityException(
+                                f"Redirect refused for credential-bearing direct request: {url}"
+                            )
                         response.raise_for_status()
                         return response
                     except httpx.HTTPStatusError as e:
@@ -221,7 +255,16 @@ class RequestUtil:
                         attempt += 1
 
         async def _execute() -> list[httpx.Response | BaseException]:
-            async with httpx.AsyncClient(timeout=request_timeout) as http_client:
+            trust_env = not any(
+                _is_configured_local_url(config, url)
+                or _is_authorized_insecure_wikidot_url(url, allow_insecure_session_transport_for)
+                for url in urls
+            )
+            async with httpx.AsyncClient(
+                timeout=request_timeout,
+                follow_redirects=False,
+                trust_env=trust_env,
+            ) as http_client:
                 if method == "GET":
                     return await asyncio.gather(
                         *[_get(http_client, url) for url in urls],
