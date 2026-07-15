@@ -1441,6 +1441,7 @@ class Site:
             When an error occurs during site information parsing
         """
         StringUtil.validate_site_unix_name(unix_name)
+        requested_unix_name = unix_name
         client = _validate_site_lookup_client(client)
 
         # サイト情報を取得
@@ -1501,6 +1502,11 @@ class Site:
 
         # SSL対応チェック
         ssl_supported = str(response.url).startswith("https")
+        if not ssl_supported and unix_name != requested_unix_name:
+            raise exceptions.WikidotTransportSecurityException(
+                "Refusing to trust site metadata from unauthenticated HTTP discovery when "
+                "the returned site UNIX name differs from the requested site."
+            )
 
         return Site(
             client=client,
