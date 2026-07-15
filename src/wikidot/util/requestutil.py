@@ -1,5 +1,6 @@
 import asyncio
 import math
+from contextlib import AsyncExitStack
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
@@ -164,6 +165,11 @@ class RequestUtil:
 
         request_headers = _get_headers()
 
+        def _uses_direct_connection(url: str) -> bool:
+            return _is_configured_local_url(config, url) or _is_authorized_insecure_wikidot_url(
+                url, allow_insecure_session_transport_for
+            )
+
         def _get_headers_for_url(url: str) -> dict[str, str] | None:
             parsed = urlparse(url)
             hostname = str(parsed.hostname).lower().rstrip(".")
@@ -255,23 +261,41 @@ class RequestUtil:
                         attempt += 1
 
         async def _execute() -> list[httpx.Response | BaseException]:
-            trust_env = not any(
-                _is_configured_local_url(config, url)
-                or _is_authorized_insecure_wikidot_url(url, allow_insecure_session_transport_for)
-                for url in urls
-            )
-            async with httpx.AsyncClient(
-                timeout=request_timeout,
-                follow_redirects=False,
-                trust_env=trust_env,
-            ) as http_client:
+            async with AsyncExitStack() as stack:
+                normal_http_client: httpx.AsyncClient | None = None
+                direct_http_client: httpx.AsyncClient | None = None
+
+                if any(not _uses_direct_connection(url) for url in urls):
+                    normal_http_client = await stack.enter_async_context(
+                        httpx.AsyncClient(
+                            timeout=request_timeout,
+                            follow_redirects=False,
+                            trust_env=True,
+                        )
+                    )
+                if any(_uses_direct_connection(url) for url in urls):
+                    direct_http_client = await stack.enter_async_context(
+                        httpx.AsyncClient(
+                            timeout=request_timeout,
+                            follow_redirects=False,
+                            trust_env=False,
+                        )
+                    )
+
+                def _client_for_url(url: str) -> httpx.AsyncClient:
+                    if _uses_direct_connection(url):
+                        assert direct_http_client is not None
+                        return direct_http_client
+                    assert normal_http_client is not None
+                    return normal_http_client
+
                 if method == "GET":
                     return await asyncio.gather(
-                        *[_get(http_client, url) for url in urls],
+                        *[_get(_client_for_url(url), url) for url in urls],
                         return_exceptions=return_exceptions,
                     )
                 return await asyncio.gather(
-                    *[_post(http_client, url) for url in urls],
+                    *[_post(_client_for_url(url), url) for url in urls],
                     return_exceptions=return_exceptions,
                 )
 

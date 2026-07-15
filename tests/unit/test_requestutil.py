@@ -151,6 +151,42 @@ class TestRequestUtilClientReuse:
         assert created_clients[0].follow_redirects is False
         assert created_clients[0].trust_env is False
 
+    def test_mixed_direct_and_normal_requests_keep_normal_proxy_policy(self, monkeypatch):
+        """直接接続対象を含むバッチでも無関係URLは環境proxy設定を維持する"""
+        requests = []
+
+        class FakeAsyncClient:
+            def __init__(self, *, timeout, follow_redirects, trust_env):
+                self.follow_redirects = follow_redirects
+                self.trust_env = trust_env
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+            async def get(self, url, *, headers=None):
+                requests.append((url, self.trust_env, headers))
+                return httpx.Response(200, request=httpx.Request("GET", url))
+
+        monkeypatch.setattr("wikidot.util.requestutil.httpx.AsyncClient", FakeAsyncClient)
+        mock_client = _mock_client(
+            config=AjaxModuleConnectorConfig(local_base_url="http://127.0.0.1:4173"),
+            headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
+        )
+
+        RequestUtil.request(
+            mock_client,
+            "GET",
+            ["http://127.0.0.1:4173/test", "https://example.com/test"],
+        )
+
+        assert requests == [
+            ("http://127.0.0.1:4173/test", False, {"Cookie": "WIKIDOT_SESSION_ID=abc;"}),
+            ("https://example.com/test", True, None),
+        ]
+
 
 class TestRequestUtilConfigValidation:
     """RequestUtil.requestの設定値検証テスト"""
