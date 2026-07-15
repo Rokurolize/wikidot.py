@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 
+from wikidot.common.exceptions import WikidotTransportSecurityException
 from wikidot.connector.ajax import AjaxModuleConnectorConfig, AjaxRequestHeader
 from wikidot.module.client import Client
 from wikidot.util.requestutil import RequestUtil
@@ -81,8 +82,10 @@ class TestRequestUtilClientReuse:
         created_clients = []
 
         class FakeAsyncClient:
-            def __init__(self, *, timeout):
+            def __init__(self, *, timeout, follow_redirects, trust_env):
                 self.timeout = timeout
+                self.follow_redirects = follow_redirects
+                self.trust_env = trust_env
                 created_clients.append(self)
 
             async def __aenter__(self):
@@ -114,6 +117,39 @@ class TestRequestUtilClientReuse:
 
         assert len(results) == 2
         assert len(created_clients) == 1
+        assert created_clients[0].follow_redirects is False
+        assert created_clients[0].trust_env is True
+
+    def test_authorized_http_request_disables_environment_proxy(self, monkeypatch):
+        """平文セッション例外は環境proxyを経由せずredirectも無効化する"""
+        created_clients = []
+
+        class FakeAsyncClient:
+            def __init__(self, *, timeout, follow_redirects, trust_env):
+                self.follow_redirects = follow_redirects
+                self.trust_env = trust_env
+                created_clients.append(self)
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, exc_type, exc, tb):
+                return None
+
+            async def get(self, url, *, headers=None):
+                return httpx.Response(200, request=httpx.Request("GET", url))
+
+        monkeypatch.setattr("wikidot.util.requestutil.httpx.AsyncClient", FakeAsyncClient)
+        mock_client = _mock_client(
+            config=AjaxModuleConnectorConfig(allow_insecure_session_transport_for="legacy-site"),
+            headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
+        )
+
+        RequestUtil.request(mock_client, "GET", ["http://legacy-site.wikidot.com/test"])
+
+        assert len(created_clients) == 1
+        assert created_clients[0].follow_redirects is False
+        assert created_clients[0].trust_env is False
 
 
 class TestRequestUtilConfigValidation:
@@ -238,6 +274,21 @@ class TestRequestUtilConfigValidation:
         assert len(results) == 1
         assert _assert_response(results[0]).status_code == 200
 
+    @pytest.mark.parametrize("method", ["GET", "POST"])
+    @pytest.mark.parametrize("value", [True, 1, "UPPERCASE", "bad/site", ""])
+    def test_revalidates_mutated_insecure_transport_site_before_request(
+        self, httpx_mock, method: str, value: object
+    ) -> None:
+        """生成後に壊されたHTTP許可サイト設定もリクエスト境界で拒否する"""
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        config.allow_insecure_session_transport_for = value  # type: ignore[assignment]
+        mock_client = _mock_client(config=config)
+
+        with pytest.raises(ValueError, match="allow_insecure_session_transport_for must be"):
+            RequestUtil.request(mock_client, method, ["http://test.wikidot.com/test"])
+
+        assert httpx_mock.get_requests() == []
+
 
 class TestRequestUtilGet:
     """RequestUtil.request GETメソッドのテスト"""
@@ -313,6 +364,57 @@ class TestRequestUtilGet:
         RequestUtil.request(mock_client, "GET", ["http://127.0.0.1:4174/test"])
 
         assert "Cookie" not in httpx_mock.get_requests()[0].headers
+
+    def test_get_sends_client_headers_to_exact_authorized_http_site(self, httpx_mock):
+        """明示許可したHTTP専用サイトの直接GETだけにセッションCookieを送る"""
+        url = "http://legacy-site.wikidot.com/test"
+        httpx_mock.add_response(url=url, status_code=200)
+        mock_client = _mock_client(
+            config=AjaxModuleConnectorConfig(allow_insecure_session_transport_for="legacy-site"),
+            headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
+        )
+
+        RequestUtil.request(mock_client, "GET", [url])
+
+        assert httpx_mock.get_requests()[0].headers["Cookie"] == "WIKIDOT_SESSION_ID=abc;"
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://other-site.wikidot.com/test",
+            "http://legacy-site.wikidot.com.evil.test/test",
+            "http://legacy-site.wikidot.com:8080/test",
+        ],
+    )
+    def test_get_does_not_send_headers_outside_exact_authorized_http_origin(self, httpx_mock, url: str):
+        """HTTP例外は別サイト、見せかけホスト、非標準portへ拡張しない"""
+        httpx_mock.add_response(url=url, status_code=200)
+        mock_client = _mock_client(
+            config=AjaxModuleConnectorConfig(allow_insecure_session_transport_for="legacy-site"),
+            headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
+        )
+
+        RequestUtil.request(mock_client, "GET", [url])
+
+        assert "Cookie" not in httpx_mock.get_requests()[0].headers
+
+    def test_get_rejects_redirect_from_credential_bearing_http_request_without_retry(self, httpx_mock):
+        """平文Cookie付きGETのredirectは追従も成功扱いも再試行もしない"""
+        url = "http://legacy-site.wikidot.com/test"
+        httpx_mock.add_response(url=url, status_code=302, headers={"Location": "http://other.test/"})
+        mock_client = _mock_client(
+            config=AjaxModuleConnectorConfig(
+                attempt_limit=3,
+                retry_interval=0,
+                allow_insecure_session_transport_for="legacy-site",
+            ),
+            headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
+        )
+
+        with pytest.raises(WikidotTransportSecurityException, match="Redirect refused"):
+            RequestUtil.request(mock_client, "GET", [url])
+
+        assert len(httpx_mock.get_requests()) == 1
 
     @pytest.mark.parametrize(
         "url",
@@ -418,7 +520,7 @@ class TestRequestUtilGet:
             pass
 
         class FakeAsyncClient:
-            def __init__(self, *, timeout):
+            def __init__(self, *, timeout, follow_redirects, trust_env):
                 pass
 
             async def __aenter__(self):
@@ -486,6 +588,19 @@ class TestRequestUtilPost:
         RequestUtil.request(mock_client, "POST", ["https://example.com/test"])
 
         assert "Cookie" not in httpx_mock.get_requests()[0].headers
+
+    def test_post_sends_client_headers_to_exact_authorized_http_site(self, httpx_mock):
+        """明示許可したHTTP専用サイトの直接POSTだけにセッションCookieを送る"""
+        url = "http://legacy-site.wikidot.com/test"
+        httpx_mock.add_response(url=url, status_code=200, method="POST")
+        mock_client = _mock_client(
+            config=AjaxModuleConnectorConfig(allow_insecure_session_transport_for="legacy-site"),
+            headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
+        )
+
+        RequestUtil.request(mock_client, "POST", [url])
+
+        assert httpx_mock.get_requests()[0].headers["Cookie"] == "WIKIDOT_SESSION_ID=abc;"
 
     @pytest.mark.parametrize(
         "url",
@@ -575,7 +690,7 @@ class TestRequestUtilPost:
             pass
 
         class FakeAsyncClient:
-            def __init__(self, *, timeout):
+            def __init__(self, *, timeout, follow_redirects, trust_env):
                 pass
 
             async def __aenter__(self):
