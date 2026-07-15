@@ -2863,6 +2863,53 @@ class TestSiteFromUnixName:
         assert site.id == 999
         assert site.ssl_supported is False
 
+    def test_from_unix_name_rejects_http_discovery_unix_name_mismatch(self, httpx_mock: HTTPXMock) -> None:
+        """HTTP discovery metadata cannot redirect the authenticated target site name."""
+        client = create_mock_client()
+        html = """
+        <html>
+        <head><title>Spoofed Site</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = 999;
+            WIKIREQUEST.info.siteUnixName = "legacy-site";
+            WIKIREQUEST.info.domain = "legacy-site.wikidot.com";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(url="http://victim-site.wikidot.com", text=html)
+
+        with pytest.raises(WikidotTransportSecurityException, match="unauthenticated HTTP discovery"):
+            Site.from_unix_name(client, "victim-site")
+
+    def test_from_unix_name_allows_https_discovery_unix_name_mismatch(self, httpx_mock: HTTPXMock) -> None:
+        """HTTPS discovery may still return Wikidot's canonical site UNIX name."""
+        client = create_mock_client()
+        html = """
+        <html>
+        <head><title>Canonical Site</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = 123456;
+            WIKIREQUEST.info.siteUnixName = "canonical-site";
+            WIKIREQUEST.info.domain = "canonical-site.wikidot.com";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="http://alias-site.wikidot.com",
+            status_code=301,
+            headers={"Location": "https://canonical-site.wikidot.com"},
+        )
+        httpx_mock.add_response(url="https://canonical-site.wikidot.com", text=html)
+
+        site = Site.from_unix_name(client, "alias-site")
+
+        assert site.unix_name == "canonical-site"
+        assert site.ssl_supported is True
+
     def test_from_unix_name_uses_explicit_local_base_url(self, httpx_mock: HTTPXMock) -> None:
         """明示されたローカルベースURLからサイトメタデータを取得する"""
         client = create_mock_client()
