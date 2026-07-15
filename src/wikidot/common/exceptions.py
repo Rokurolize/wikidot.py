@@ -101,6 +101,13 @@ class AjaxModuleConnectorException(WikidotException):
         super().__init__(message)
 
 
+class WikidotTransportSecurityException(AjaxModuleConnectorException):
+    """Exception raised when an AMC request would violate transport policy."""
+
+    def __init__(self, message: str) -> None:
+        super().__init__(message)
+
+
 class AMCHttpStatusCodeException(AjaxModuleConnectorException):
     """
     Exception raised when the AMC HTTP status code is not 200

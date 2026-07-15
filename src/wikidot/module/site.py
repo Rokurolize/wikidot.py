@@ -378,6 +378,8 @@ def _require_site_amc_retry_response_count(
 
 
 def _is_retryable_site_amc_exception(exc: Exception) -> bool:
+    if isinstance(exc, exceptions.WikidotTransportSecurityException):
+        return False
     if isinstance(exc, exceptions.ForbiddenException):
         return False
     if isinstance(exc, exceptions.WikidotStatusCodeException):

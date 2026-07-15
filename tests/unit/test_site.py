@@ -19,6 +19,7 @@ from wikidot.common.exceptions import (
     TargetErrorException,
     UnexpectedException,
     WikidotStatusCodeException,
+    WikidotTransportSecurityException,
 )
 from wikidot.connector.ajax import AjaxModuleConnectorConfig
 from wikidot.module.client import Client
@@ -3603,6 +3604,25 @@ class TestSiteAmcRequest:
         )
 
         with pytest.raises(ForbiddenException, match="no permission"):
+            site.amc_request_with_retry([{"moduleName": "Protected"}], max_retries=3)
+
+        mock_client.amc_client.request.assert_called_once()
+
+    def test_amc_request_with_retry_raises_transport_security_errors_without_retry(self) -> None:
+        """transport policy違反はNoneに丸めず再試行もしない"""
+        mock_client = create_mock_client()
+        transport_error = WikidotTransportSecurityException("redirect refused")
+        mock_client.amc_client.request.return_value = (transport_error,)
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        with pytest.raises(WikidotTransportSecurityException, match="redirect refused"):
             site.amc_request_with_retry([{"moduleName": "Protected"}], max_retries=3)
 
         mock_client.amc_client.request.assert_called_once()
