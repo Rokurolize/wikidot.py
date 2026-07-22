@@ -1458,15 +1458,23 @@ class Site:
             raise_for_status=False,
         )
 
-        # サイトが存在しない場合
-        if response.status_code == httpx.codes.NOT_FOUND:
-            raise exceptions.NotFoundException(f"Site is not found: {unix_name}.wikidot.com")
-
-        # サイトが存在する場合
         source = response.text
 
         # id : WIKIREQUEST.info.siteId = xxxx;
         id_match = re.search(r"WIKIREQUEST\.info\.siteId\s*=\s*([^;]*);", source)
+        unix_name_match = re.search(r'WIKIREQUEST\.info\.siteUnixName = "(.*?)";', source)
+
+        # Private sites return their join page with a 404 status to anonymous requests.
+        # Treat that response as an existing site only when its embedded identity exactly
+        # matches the requested Wikidot site.
+        if response.status_code == httpx.codes.NOT_FOUND and (
+            id_match is None
+            or re.fullmatch(r"[0-9]+", id_match.group(1).strip()) is None
+            or unix_name_match is None
+            or unix_name_match.group(1) != unix_name
+        ):
+            raise exceptions.NotFoundException(f"Site is not found: {unix_name}.wikidot.com")
+
         if id_match is None:
             raise exceptions.UnexpectedException(f"Cannot find site id: {unix_name}.wikidot.com")
         site_id_text = id_match.group(1).strip()
@@ -1488,7 +1496,6 @@ class Site:
         title = title_match.group(1)
 
         # unix_name : WIKIREQUEST.info.siteUnixName = "xxxx";
-        unix_name_match = re.search(r'WIKIREQUEST\.info\.siteUnixName = "(.*?)";', source)
         if unix_name_match is None:
             raise exceptions.UnexpectedException(f"Cannot find site unix_name: {unix_name}.wikidot.com")
         unix_name = unix_name_match.group(1)

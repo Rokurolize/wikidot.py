@@ -2863,6 +2863,60 @@ class TestSiteFromUnixName:
         assert site.id == 999
         assert site.ssl_supported is False
 
+    def test_from_unix_name_private_non_ssl_site(self, httpx_mock: HTTPXMock) -> None:
+        """Privateサイトのjoinページが404でも埋め込みサイト識別情報から取得できる"""
+        client = create_mock_client()
+        html = """
+        <html>
+        <head><title>Private Site</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = 5301522;
+            WIKIREQUEST.info.siteUnixName = "private-site";
+            WIKIREQUEST.info.domain = "private-site.wikidot.com";
+            WIKIREQUEST.info.requestPageName = "system:join";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="http://private-site.wikidot.com",
+            status_code=404,
+            text=html,
+        )
+
+        site = Site.from_unix_name(client, "private-site")
+
+        assert site.id == 5301522
+        assert site.title == "Private Site"
+        assert site.unix_name == "private-site"
+        assert site.domain == "private-site.wikidot.com"
+        assert site.ssl_supported is False
+
+    def test_from_unix_name_404_with_different_site_identity_is_not_found(self, httpx_mock: HTTPXMock) -> None:
+        """別サイトの識別情報を含む404はNotFoundException"""
+        client = create_mock_client()
+        html = """
+        <html>
+        <head><title>Different Site</title></head>
+        <body>
+        <script>
+            WIKIREQUEST.info.siteId = 123456;
+            WIKIREQUEST.info.siteUnixName = "different-site";
+            WIKIREQUEST.info.domain = "different-site.wikidot.com";
+        </script>
+        </body>
+        </html>
+        """
+        httpx_mock.add_response(
+            url="http://requested-site.wikidot.com",
+            status_code=404,
+            text=html,
+        )
+
+        with pytest.raises(NotFoundException):
+            Site.from_unix_name(client, "requested-site")
+
     def test_from_unix_name_uses_explicit_local_base_url(self, httpx_mock: HTTPXMock) -> None:
         """明示されたローカルベースURLからサイトメタデータを取得する"""
         client = create_mock_client()
