@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, cast
 from unittest.mock import MagicMock
 
@@ -535,7 +535,7 @@ class TestForumPostCollectionParse:
 
         assert posts[0].created_by.name == "test_user"
         assert posts[0].created_by.id == 12345
-        assert posts[0].created_at == datetime.fromtimestamp(1700000000)
+        assert posts[0].created_at == datetime.fromtimestamp(1700000000, timezone.utc).replace(tzinfo=None)
 
     def test_parse_scopes_post_edit_metadata_to_direct_children(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
@@ -562,7 +562,7 @@ class TestForumPostCollectionParse:
         assert posts[0].edited_by is not None
         assert posts[0].edited_by.name == "edit_user"
         assert posts[0].edited_by.id == 54322
-        assert posts[0].edited_at == datetime.fromtimestamp(1700000500)
+        assert posts[0].edited_at == datetime.fromtimestamp(1700000500, timezone.utc).replace(tzinfo=None)
 
 
 class TestForumPostCollectionAcquireAll:
