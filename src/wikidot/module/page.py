@@ -1452,6 +1452,12 @@ class PageCollection(list["Page"]):
             if isinstance(response_or_exception, exceptions.ForbiddenException):
                 raise response_or_exception
 
+            # Transport policy rejects the request before it is sent, so retrying cannot change
+            # the outcome. Surface it directly instead of burying it in a generic retry failure;
+            # the caller needs the actionable message to fix its configuration.
+            if isinstance(response_or_exception, exceptions.WikidotTransportSecurityException):
+                raise response_or_exception
+
             if isinstance(response_or_exception, exceptions.WikidotStatusCodeException):
                 if response_or_exception.status_code == "not_ok":
                     raise exceptions.ForbiddenException("Failed to get pages, target site may be private") from (
@@ -1463,7 +1469,8 @@ class PageCollection(list["Page"]):
             last_exception = response_or_exception
 
         raise exceptions.UnexpectedException(
-            f"Failed to get ListPages page for site: {site.unix_name}, offset: {offset}"
+            f"Failed to get ListPages page for site: {site.unix_name}, offset: {offset} "
+            f"(last error: {type(last_exception).__name__}: {last_exception})"
         ) from last_exception
 
     @staticmethod
