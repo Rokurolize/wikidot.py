@@ -1064,6 +1064,26 @@ class TestPageCollectionSearchPages:
 
         assert mock_site_no_http.amc_request.call_count == 2
 
+    def test_search_pages_reraises_transport_security_without_retry(self, mock_site_no_http: Site) -> None:
+        """transport policy違反はretryしても変わらないので、そのまま送出する"""
+        mock_site_no_http.client.amc_client.config.retry_max_retries = 3
+        mock_site_no_http.amc_request = MagicMock(
+            return_value=(exceptions.WikidotTransportSecurityException("Refusing to send WIKIDOT_SESSION_ID"),)
+        )
+
+        with pytest.raises(exceptions.WikidotTransportSecurityException, match="Refusing to send WIKIDOT_SESSION_ID"):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
+        assert mock_site_no_http.amc_request.call_count == 1
+
+    def test_search_pages_reports_last_error_when_retry_is_exhausted(self, mock_site_no_http: Site) -> None:
+        """retryを使い切ったときは、握り潰さず最後の原因をメッセージに残す"""
+        mock_site_no_http.client.amc_client.config.retry_max_retries = 1
+        mock_site_no_http.amc_request = MagicMock(return_value=(RuntimeError("temporary failure"),))
+
+        with pytest.raises(exceptions.UnexpectedException, match="last error: RuntimeError: temporary failure"):
+            PageCollection.search_pages(mock_site_no_http, SearchPagesQuery())
+
     def test_search_pages_raises_when_first_page_retry_is_exhausted(self, mock_site_no_http: Site) -> None:
         """初回ListPagesページのretryを使い切った場合はsite/offset付きで失敗する"""
         mock_site_no_http.client.amc_client.config.retry_max_retries = 1
