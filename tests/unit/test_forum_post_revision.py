@@ -670,7 +670,7 @@ class TestForumPostRevisionCollectionParse:
         assert revisions[0].id == 9001
         assert revisions[0].created_by.name == "test_user"
         assert revisions[0].created_by.unix_name == "test-user"
-        assert revisions[0].created_at == datetime.fromtimestamp(1700000000)
+        assert revisions[0].created_at == datetime.fromtimestamp(1700000000, timezone.utc).replace(tzinfo=None)
 
     def test_parse_skips_header_rows(self, mock_forum_post_no_http: ForumPost) -> None:
         """head行はリビジョン行として扱わず読み飛ばす"""

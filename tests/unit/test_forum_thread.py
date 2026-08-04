@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import timezone
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import MagicMock, call
 from urllib.parse import urlparse
@@ -473,7 +474,7 @@ class TestForumThreadCollectionParseListInCategory:
         collection = ForumThreadCollection._parse_list_in_category(mock_site_no_http, html)
 
         assert collection[0].created_by.name == "test_user"
-        assert int(collection[0].created_at.timestamp()) == 1700000000
+        assert int(collection[0].created_at.replace(tzinfo=timezone.utc).timestamp()) == 1700000000
 
     def test_parse_list_skips_short_rows(
         self, mock_site_no_http: Site, forum_threads_in_category: dict[str, Any]
@@ -1530,7 +1531,7 @@ class TestForumThreadCollectionAcquireFromIds:
 
         assert len(collection) == 1
         assert collection[0].created_by.name == "test_user"
-        assert int(collection[0].created_at.timestamp()) == 1700000000
+        assert int(collection[0].created_at.replace(tzinfo=timezone.utc).timestamp()) == 1700000000
         assert collection[0].post_count == 5
         mock_site_no_http.amc_request.assert_not_called()
 

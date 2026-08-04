@@ -2294,7 +2294,7 @@ class TestPageCollectionAcquire:
         assert first_revision.id == 1000003
         assert first_revision.rev_no == 3
         assert first_revision.created_by.name == "test-user"
-        assert first_revision.created_at == datetime.fromtimestamp(1700002000)
+        assert first_revision.created_at == datetime.fromtimestamp(1700002000, timezone.utc).replace(tzinfo=None)
         assert first_revision.comment == "Renamed page"
 
     def test_acquire_revisions_preserves_comment_text_spacing(
