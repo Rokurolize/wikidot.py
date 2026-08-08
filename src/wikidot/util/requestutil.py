@@ -10,7 +10,6 @@ from ..connector.ajax import (
     AjaxModuleConnectorConfig,
     AjaxRequestHeader,
     _normalize_local_base_url,
-    _validate_optional_insecure_transport_site,
 )
 from .async_helper import run_coroutine
 from .http import (
@@ -47,7 +46,7 @@ def _validate_request_header_object(header: object) -> AjaxRequestHeader:
 
 def _validate_request_config(
     config: AjaxModuleConnectorConfig,
-) -> tuple[float, int, float, float, float, int, str | None]:
+) -> tuple[float, int, float, float, float, int]:
     return (
         _validate_positive_number_option("request_timeout", getattr(config, "request_timeout", None)),
         _validate_positive_int_option("attempt_limit", getattr(config, "attempt_limit", None)),
@@ -55,7 +54,6 @@ def _validate_request_config(
         _validate_non_negative_number_option("backoff_factor", getattr(config, "backoff_factor", None)),
         _validate_non_negative_number_option("max_backoff", getattr(config, "max_backoff", None)),
         _validate_positive_int_option("semaphore_limit", getattr(config, "semaphore_limit", None)),
-        _validate_optional_insecure_transport_site(getattr(config, "allow_insecure_session_transport_for", None)),
     )
 
 
@@ -72,16 +70,21 @@ def _is_configured_local_url(config: AjaxModuleConnectorConfig, url: str) -> boo
     return base_path == "" or parsed_url.path == base_path or parsed_url.path.startswith(f"{base_path}/")
 
 
-def _is_authorized_insecure_wikidot_url(url: str, allowed_site: str | None) -> bool:
-    if allowed_site is None:
-        return False
+def _is_wikidot_url(url: str) -> bool:
     parsed = urlparse(url)
     try:
         port = parsed.port
     except ValueError:
         return False
     hostname = str(parsed.hostname).lower().rstrip(".")
-    return parsed.scheme.lower() == "http" and port in {None, 80} and hostname == f"{allowed_site}.wikidot.com"
+    scheme = parsed.scheme.lower()
+    if scheme == "http" and port not in {None, 80}:
+        return False
+    if scheme == "https" and port not in {None, 443}:
+        return False
+    return scheme in {"http", "https"} and (
+        hostname == "wikidot.com" or hostname.endswith(".wikidot.com")
+    )
 
 
 def _validate_request_method(method: object) -> str:
@@ -153,7 +156,6 @@ class RequestUtil:
             backoff_factor,
             max_backoff,
             semaphore_limit,
-            allow_insecure_session_transport_for,
         ) = _validate_request_config(_validate_request_config_object(config))
         semaphore = asyncio.Semaphore(semaphore_limit)
 
@@ -165,11 +167,7 @@ class RequestUtil:
         request_headers = _get_headers()
 
         def _get_headers_for_url(url: str) -> dict[str, str] | None:
-            parsed = urlparse(url)
-            hostname = str(parsed.hostname).lower().rstrip(".")
-            if parsed.scheme.lower() == "https" and (hostname == "wikidot.com" or hostname.endswith(".wikidot.com")):
-                return request_headers
-            if _is_authorized_insecure_wikidot_url(url, allow_insecure_session_transport_for):
+            if _is_wikidot_url(url):
                 return request_headers
             if _is_configured_local_url(config, url):
                 return request_headers
@@ -257,7 +255,7 @@ class RequestUtil:
         async def _execute() -> list[httpx.Response | BaseException]:
             trust_env = not any(
                 _is_configured_local_url(config, url)
-                or _is_authorized_insecure_wikidot_url(url, allow_insecure_session_transport_for)
+                or (urlparse(url).scheme.lower() == "http" and _is_wikidot_url(url))
                 for url in urls
             )
             async with httpx.AsyncClient(

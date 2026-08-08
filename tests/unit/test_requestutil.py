@@ -120,8 +120,8 @@ class TestRequestUtilClientReuse:
         assert created_clients[0].follow_redirects is False
         assert created_clients[0].trust_env is True
 
-    def test_authorized_http_request_disables_environment_proxy(self, monkeypatch):
-        """平文セッション例外は環境proxyを経由せずredirectも無効化する"""
+    def test_wikidot_http_request_disables_environment_proxy(self, monkeypatch):
+        """Wikidotへの平文セッション送信は環境proxyを経由せずredirectも無効化する"""
         created_clients = []
 
         class FakeAsyncClient:
@@ -141,7 +141,6 @@ class TestRequestUtilClientReuse:
 
         monkeypatch.setattr("wikidot.util.requestutil.httpx.AsyncClient", FakeAsyncClient)
         mock_client = _mock_client(
-            config=AjaxModuleConnectorConfig(allow_insecure_session_transport_for="legacy-site"),
             headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
         )
 
@@ -274,22 +273,6 @@ class TestRequestUtilConfigValidation:
         assert len(results) == 1
         assert _assert_response(results[0]).status_code == 200
 
-    @pytest.mark.parametrize("method", ["GET", "POST"])
-    @pytest.mark.parametrize("value", [True, 1, "UPPERCASE", "bad/site", ""])
-    def test_revalidates_mutated_insecure_transport_site_before_request(
-        self, httpx_mock, method: str, value: object
-    ) -> None:
-        """生成後に壊されたHTTP許可サイト設定もリクエスト境界で拒否する"""
-        config = AjaxModuleConnectorConfig(retry_interval=0)
-        config.allow_insecure_session_transport_for = value  # type: ignore[assignment]
-        mock_client = _mock_client(config=config)
-
-        with pytest.raises(ValueError, match="allow_insecure_session_transport_for must be"):
-            RequestUtil.request(mock_client, method, ["http://test.wikidot.com/test"])
-
-        assert httpx_mock.get_requests() == []
-
-
 class TestRequestUtilGet:
     """RequestUtil.request GETメソッドのテスト"""
 
@@ -365,12 +348,11 @@ class TestRequestUtilGet:
 
         assert "Cookie" not in httpx_mock.get_requests()[0].headers
 
-    def test_get_sends_client_headers_to_exact_authorized_http_site(self, httpx_mock):
-        """明示許可したHTTP専用サイトの直接GETだけにセッションCookieを送る"""
+    def test_get_sends_client_headers_to_http_wikidot_site(self, httpx_mock):
+        """HTTP専用Wikidotサイトの直接GETにセッションCookieを送る"""
         url = "http://legacy-site.wikidot.com/test"
         httpx_mock.add_response(url=url, status_code=200)
         mock_client = _mock_client(
-            config=AjaxModuleConnectorConfig(allow_insecure_session_transport_for="legacy-site"),
             headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
         )
 
@@ -381,16 +363,14 @@ class TestRequestUtilGet:
     @pytest.mark.parametrize(
         "url",
         [
-            "http://other-site.wikidot.com/test",
             "http://legacy-site.wikidot.com.evil.test/test",
             "http://legacy-site.wikidot.com:8080/test",
         ],
     )
-    def test_get_does_not_send_headers_outside_exact_authorized_http_origin(self, httpx_mock, url: str):
-        """HTTP例外は別サイト、見せかけホスト、非標準portへ拡張しない"""
+    def test_get_does_not_send_headers_outside_wikidot_http_origin(self, httpx_mock, url: str):
+        """平文セッション送信は見せかけホストや非標準portへ拡張しない"""
         httpx_mock.add_response(url=url, status_code=200)
         mock_client = _mock_client(
-            config=AjaxModuleConnectorConfig(allow_insecure_session_transport_for="legacy-site"),
             headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
         )
 
@@ -406,7 +386,6 @@ class TestRequestUtilGet:
             config=AjaxModuleConnectorConfig(
                 attempt_limit=3,
                 retry_interval=0,
-                allow_insecure_session_transport_for="legacy-site",
             ),
             headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
         )
@@ -422,11 +401,10 @@ class TestRequestUtilGet:
             "https://test.wikidot.com.evil.test/test",
             "https://evilwikidot.com/test",
             "https://wikidot.com.evil.test/test",
-            "http://test.wikidot.com/test",
         ],
     )
-    def test_get_does_not_send_client_headers_to_lookalike_or_plaintext_hosts(self, httpx_mock, url: str):
-        """Wikidot風の別ホストや平文URLにはCookieを送らない"""
+    def test_get_does_not_send_client_headers_to_lookalike_hosts(self, httpx_mock, url: str):
+        """Wikidot風の別ホストにはCookieを送らない"""
         httpx_mock.add_response(url=url, status_code=200)
         mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
 
@@ -589,12 +567,11 @@ class TestRequestUtilPost:
 
         assert "Cookie" not in httpx_mock.get_requests()[0].headers
 
-    def test_post_sends_client_headers_to_exact_authorized_http_site(self, httpx_mock):
-        """明示許可したHTTP専用サイトの直接POSTだけにセッションCookieを送る"""
+    def test_post_sends_client_headers_to_http_wikidot_site(self, httpx_mock):
+        """HTTP専用Wikidotサイトの直接POSTにセッションCookieを送る"""
         url = "http://legacy-site.wikidot.com/test"
         httpx_mock.add_response(url=url, status_code=200, method="POST")
         mock_client = _mock_client(
-            config=AjaxModuleConnectorConfig(allow_insecure_session_transport_for="legacy-site"),
             headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"},
         )
 
@@ -608,11 +585,10 @@ class TestRequestUtilPost:
             "https://test.wikidot.com.evil.test/test",
             "https://evilwikidot.com/test",
             "https://wikidot.com.evil.test/test",
-            "http://test.wikidot.com/test",
         ],
     )
-    def test_post_does_not_send_client_headers_to_lookalike_or_plaintext_hosts(self, httpx_mock, url: str):
-        """Wikidot風の別ホストや平文URLにはCookieを送らない"""
+    def test_post_does_not_send_client_headers_to_lookalike_hosts(self, httpx_mock, url: str):
+        """Wikidot風の別ホストにはCookieを送らない"""
         httpx_mock.add_response(url=url, status_code=200, method="POST")
         mock_client = _mock_client(headers={"Cookie": "WIKIDOT_SESSION_ID=abc;"})
 

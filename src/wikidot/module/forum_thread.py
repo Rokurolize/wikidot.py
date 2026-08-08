@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from .user import AbstractUser
 
 
-MAX_FORUM_THREAD_PAGER_PAGES = 1000
+FORUM_THREAD_PAGE_BATCH_SIZE = 50
 
 
 def _site_name(site: "Site") -> str:
@@ -550,12 +550,6 @@ class ForumThreadCollection(list["ForumThread"]):
                     f"for site: {category.site.unix_name}, category: {category.id}, page: 1 "
                     f"(field=page, value={page_text})"
                 ) from exc
-            if page > MAX_FORUM_THREAD_PAGER_PAGES:
-                raise NoElementException(
-                    "Forum thread list pager page is too large "
-                    f"for site: {category.site.unix_name}, category: {category.id}, page: 1 "
-                    f"(field=page, value={page_text})"
-                )
             return page
 
         if page_text.isdigit():
@@ -880,26 +874,38 @@ class ForumThreadCollection(list["ForumThread"]):
         if last_page == 1:
             return cache_threads()
 
-        page_numbers = list(range(2, last_page + 1))
-        responses = category.site.amc_request_with_retry(
-            [
-                {
-                    "p": page,
-                    "c": category_id,
-                    "moduleName": "forum/ForumViewCategoryModule",
-                }
-                for page in page_numbers
-            ]
-        )
+        for first_page in range(2, last_page + 1, FORUM_THREAD_PAGE_BATCH_SIZE):
+            page_numbers = range(
+                first_page,
+                min(first_page + FORUM_THREAD_PAGE_BATCH_SIZE, last_page + 1),
+            )
+            responses = category.site.amc_request_with_retry(
+                [
+                    {
+                        "p": page,
+                        "c": category_id,
+                        "moduleName": "forum/ForumViewCategoryModule",
+                    }
+                    for page in page_numbers
+                ]
+            )
 
-        for page, response in zip(page_numbers, responses, strict=True):
-            if response is None:
-                raise UnexpectedException(
-                    f"Cannot retrieve forum threads for site: {category.site.unix_name}, category: {category_id}, page: {page}"
+            for page, response in zip(page_numbers, responses, strict=True):
+                if response is None:
+                    raise UnexpectedException(
+                        f"Cannot retrieve forum threads for site: {category.site.unix_name}, "
+                        f"category: {category_id}, page: {page}"
+                    )
+                body = ForumThreadCollection._thread_list_response_body(response, category, page)
+                html = BeautifulSoup(body, "lxml")
+                threads.extend(
+                    ForumThreadCollection._parse_list_in_category(
+                        category.site,
+                        html,
+                        category,
+                        page=page,
+                    )
                 )
-            body = ForumThreadCollection._thread_list_response_body(response, category, page)
-            html = BeautifulSoup(body, "lxml")
-            threads.extend(ForumThreadCollection._parse_list_in_category(category.site, html, category, page=page))
 
         return cache_threads()
 

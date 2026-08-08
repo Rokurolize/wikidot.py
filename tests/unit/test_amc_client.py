@@ -239,7 +239,6 @@ class TestAjaxModuleConnectorConfig:
         assert config.semaphore_limit == 10
         assert config.retry_batch_size == 50
         assert config.retry_max_retries == 3
-        assert config.allow_insecure_session_transport_for is None
 
     def test_custom_values(self) -> None:
         """カスタム値が正しく設定される"""
@@ -252,7 +251,6 @@ class TestAjaxModuleConnectorConfig:
             semaphore_limit=20,
             retry_batch_size=25,
             retry_max_retries=7,
-            allow_insecure_session_transport_for="legacy-site",
         )
 
         assert config.request_timeout == 30
@@ -263,7 +261,6 @@ class TestAjaxModuleConnectorConfig:
         assert config.semaphore_limit == 20
         assert config.retry_batch_size == 25
         assert config.retry_max_retries == 7
-        assert config.allow_insecure_session_transport_for == "legacy-site"
 
     def test_custom_local_base_url_is_normalized(self) -> None:
         """明示されたローカルベースURLは末尾スラッシュなしで保持される"""
@@ -298,13 +295,6 @@ class TestAjaxModuleConnectorConfig:
         """retry_max_retriesは構築時に非負の整数として検証する"""
         with pytest.raises(ValueError, match="retry_max_retries must be a non-negative integer"):
             AjaxModuleConnectorConfig(retry_max_retries=retry_max_retries)
-
-    @pytest.mark.parametrize("value", [False, True, 0, 1, "", "UPPERCASE", "other.wikidot.com", object()])
-    def test_rejects_invalid_allow_insecure_session_transport_site(self, value: Any) -> None:
-        """平文セッション許可は有効な単一サイトUNIX名だけを受け付ける"""
-        with pytest.raises(ValueError, match="allow_insecure_session_transport_for must be"):
-            AjaxModuleConnectorConfig(allow_insecure_session_transport_for=value)
-
 
 class TestAjaxModuleConnectorClientInit:
     """AjaxModuleConnectorClient初期化のテスト"""
@@ -541,21 +531,25 @@ class TestAjaxModuleConnectorClientRequest:
         assert len(responses) == 1
         assert str(httpx_mock.get_requests()[0].url) == request_url
 
-    def test_authenticated_request_rejects_http_without_explicit_opt_in(
+    def test_authenticated_request_uses_http_for_http_only_site_by_default(
         self,
         httpx_mock: HTTPXMock,
     ) -> None:
-        """セッションCookieを平文送信する要求は通信前に拒否する"""
+        """HTTP-onlyサイトではセッションCookie付きAMC取得を優先する"""
+        request_url = "http://www.wikidot.com/ajax-module-connector.php"
+        httpx_mock.add_response(url=request_url, json={"status": "ok", "body": ""})
         client = AjaxModuleConnectorClient(site_name="www")
         client.header.set_cookie("WIKIDOT_SESSION_ID", "secret-session")
 
-        with pytest.raises(WikidotTransportSecurityException, match="allow_insecure_session_transport_for"):
-            client.request(
-                [{"moduleName": "TestModule"}],
-                site_ssl_supported=False,
-            )
+        responses = client.request(
+            [{"moduleName": "TestModule"}],
+            site_ssl_supported=False,
+        )
 
-        assert httpx_mock.get_requests() == []
+        assert len(responses) == 1
+        request = httpx_mock.get_requests()[0]
+        assert str(request.url) == request_url
+        assert "WIKIDOT_SESSION_ID=secret-session" in request.headers["Cookie"]
 
     def test_authenticated_request_uses_https_without_insecure_opt_in(self, httpx_mock: HTTPXMock) -> None:
         """SSL対応サイトの認証要求は既定のままHTTPSを使う"""
@@ -569,12 +563,11 @@ class TestAjaxModuleConnectorClientRequest:
         assert len(responses) == 1
         assert str(httpx_mock.get_requests()[0].url) == request_url
 
-    def test_authenticated_request_allows_http_with_explicit_opt_in(self, httpx_mock: HTTPXMock) -> None:
-        """明示的に許可した場合だけHTTP-only Wikidotへセッションを送る"""
+    def test_authenticated_http_request_disables_environment_proxy(self, httpx_mock: HTTPXMock) -> None:
+        """HTTP-only Wikidotへの認証要求は環境proxyを経由しない"""
         request_url = "http://test-site.wikidot.com/ajax-module-connector.php"
         httpx_mock.add_response(url=request_url, json={"status": "ok", "body": ""})
-        config = AjaxModuleConnectorConfig(allow_insecure_session_transport_for="test-site")
-        client = AjaxModuleConnectorClient(site_name="www", config=config)
+        client = AjaxModuleConnectorClient(site_name="www")
         client.header.set_cookie("WIKIDOT_SESSION_ID", "secret-session")
 
         real_async_client = httpx.AsyncClient
@@ -590,34 +583,6 @@ class TestAjaxModuleConnectorClientRequest:
         assert str(request.url) == request_url
         assert "WIKIDOT_SESSION_ID=secret-session" in request.headers["Cookie"]
         assert async_client.call_args.kwargs == {"follow_redirects": False, "trust_env": False}
-
-    def test_authenticated_http_authorization_is_exact_site_match(self, httpx_mock: HTTPXMock) -> None:
-        """サイトAへの平文許可はサイトBへのセッション送信を許可しない"""
-        config = AjaxModuleConnectorConfig(allow_insecure_session_transport_for="allowed-site")
-        client = AjaxModuleConnectorClient(site_name="www", config=config)
-        client.header.set_cookie("WIKIDOT_SESSION_ID", "secret-session")
-
-        with pytest.raises(WikidotTransportSecurityException, match="Refusing to send"):
-            client.request(
-                [{"moduleName": "TestModule"}],
-                site_name="other-site",
-                site_ssl_supported=False,
-                return_exceptions=True,
-            )
-
-        assert httpx_mock.get_requests() == []
-
-    def test_request_rejects_mutated_insecure_session_option_before_request(self, httpx_mock: HTTPXMock) -> None:
-        """構築後に壊された平文セッション設定も通信前に拒否する"""
-        config = AjaxModuleConnectorConfig()
-        mutable_config: Any = config
-        mutable_config.allow_insecure_session_transport_for = "UPPERCASE"
-        client = AjaxModuleConnectorClient(site_name="www", config=config)
-
-        with pytest.raises(ValueError, match="allow_insecure_session_transport_for must be"):
-            client.request([{"moduleName": "TestModule"}])
-
-        assert httpx_mock.get_requests() == []
 
     def test_request_uses_explicit_local_base_url(self, httpx_mock: HTTPXMock) -> None:
         """明示されたローカルベースURLはwikidot.comホスト生成を置き換える"""

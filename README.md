@@ -44,17 +44,14 @@ print(f"Author: {page.created_by.name}")
 
 ## HTTP-only authenticated sites
 
-Some legacy Wikidot sites redirect HTTPS back to HTTP. The client rejects sending `WIKIDOT_SESSION_ID` to such sites by default because anyone able to observe the plaintext connection could steal the session. If an authorized workflow explicitly accepts that risk, opt in for the exact site UNIX name:
+Some legacy Wikidot sites redirect HTTPS back to HTTP. Authenticated reads send `WIKIDOT_SESSION_ID` to the resolved Wikidot site over HTTP when the site reports that HTTPS is unavailable, because private forums and pages may otherwise be inaccessible.
 
 ```python
 import wikidot
-from wikidot.connector.ajax import AjaxModuleConnectorConfig
-
-config = AjaxModuleConnectorConfig(allow_insecure_session_transport_for="legacy-site")
-client = wikidot.Client(username="username", password="password", amc_config=config)
+client = wikidot.Client(username="username", password="password")
 ```
 
-The authorization is exact: it does not apply to another Wikidot site, does not permit arbitrary AMC hosts, and is ignored for normal HTTPS-capable sites. Credentialed HTTP requests also bypass environment-configured proxies and reject redirects. `local_base_url` remains restricted to loopback targets.
+Credentialed requests remain restricted to Wikidot hosts, bypass environment-configured proxies over HTTP, and reject redirects. `local_base_url` remains restricted to loopback targets.
 
 ## Documentation
 

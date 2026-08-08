@@ -1267,6 +1267,35 @@ class TestForumThreadCollectionAcquireAll:
         assert len(collection) == 4
         assert all(thread.category == mock_forum_category_no_http for thread in collection)
 
+    def test_acquire_all_requests_thread_pages_in_bounded_batches(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        mock_forum_category_no_http: ForumCategory,
+        forum_threads_in_category: dict[str, Any],
+    ) -> None:
+        """巨大categoryでも追加ページを有限batchごとに取得する"""
+        monkeypatch.setattr("wikidot.module.forum_thread.FORUM_THREAD_PAGE_BATCH_SIZE", 1)
+        body_with_pager = (
+            forum_threads_in_category["body"]
+            + '<div class="pager"><a>1</a><a>2</a><a>3</a><a>next</a></div>'
+        )
+        first_response = MagicMock()
+        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
+        second_response = MagicMock()
+        second_response.json.return_value = forum_threads_in_category
+        third_response = MagicMock()
+        third_response.json.return_value = forum_threads_in_category
+        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(
+            side_effect=[(first_response,), (second_response,), (third_response,)]
+        )
+
+        collection = ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
+
+        assert len(collection) == 6
+        calls = mock_forum_category_no_http.site.amc_request_with_retry.call_args_list
+        assert [body["p"] for body in calls[1].args[0]] == [2]
+        assert [body["p"] for body in calls[2].args[0]] == [3]
+
     def test_acquire_all_ignores_non_numeric_pager_links(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
@@ -1307,24 +1336,17 @@ class TestForumThreadCollectionAcquireAll:
         mock_forum_category_no_http.site.amc_request.assert_not_called()
         mock_forum_category_no_http.site.amc_request_with_retry.assert_called_once()
 
-    def test_acquire_all_rejects_excessive_pager_link(
+    def test_parse_thread_list_pager_accepts_large_real_category_page(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
     ) -> None:
-        """過大なpagerページ番号では追加ページの大量要求を作らない"""
-        first_response = MagicMock()
-        body_with_pager = forum_threads_in_category["body"] + '<div class="pager"><a>1</a><a>1001</a></div>'
-        first_response.json.return_value = {"status": "ok", "body": body_with_pager}
-        mock_forum_category_no_http.site.amc_request = MagicMock()
-        mock_forum_category_no_http.site.amc_request_with_retry = MagicMock(return_value=(first_response,))
-
-        with pytest.raises(
-            exceptions.NoElementException,
-            match=r"Forum thread list pager page is too large for site: test-site, category: 1001, page: 1",
-        ):
-            ForumThreadCollection.acquire_all_in_category(mock_forum_category_no_http)
-
-        mock_forum_category_no_http.site.amc_request.assert_not_called()
-        mock_forum_category_no_http.site.amc_request_with_retry.assert_called_once()
+        """実サイトで観測した1000超の最終ページを正当なpagerとして扱う"""
+        assert (
+            ForumThreadCollection._parse_thread_list_pager_page(
+                mock_forum_category_no_http,
+                "2666",
+            )
+            == 2666
+        )
 
     def test_acquire_all_raises_when_paginated_retry_is_exhausted(
         self, mock_forum_category_no_http: ForumCategory, forum_threads_in_category: dict[str, Any]
