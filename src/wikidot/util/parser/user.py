@@ -85,10 +85,6 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
     if not isinstance(href_attr, str) or href_attr == "":
         raise ValueError("user href is not found")
     href = href_attr
-    user_unix_match = re.fullmatch(r"(?:https?://www\.wikidot\.com)?/user:info/([^/?#]+)(?:[?#].*)?", href)
-    if user_unix_match is None:
-        raise ValueError(f"user href is malformed: {href}")
-    user_unix = user_unix_match.group(1)
     onclick = str(_user.get("onclick", ""))
     user_id_match = re.fullmatch(
         r"\s*(?:WIKIDOT\.page\.listeners\.)?userInfo\(([0-9]+)\)(?:\s*;\s*return false;?)?\s*",
@@ -107,6 +103,14 @@ def user_parse(client: "Client", elem: bs4.Tag | str) -> user.AbstractUser:
             raise ValueError(f"user onclick is malformed: {onclick}")
         raise ValueError("user id is not found")
     user_id = int(user_id_match.group(1))
+
+    if user_name == "" and re.fullmatch(r"(?:https?://www\.wikidot\.com)?/user:info/?", href) is not None:
+        return user.DeletedUser(client=client, id=user_id)
+
+    user_unix_match = re.fullmatch(r"(?:https?://www\.wikidot\.com)?/user:info/([^/?#]+)(?:[?#].*)?", href)
+    if user_unix_match is None:
+        raise ValueError(f"user href is malformed: {href}")
+    user_unix = user_unix_match.group(1)
 
     return user.User(
         client=client,

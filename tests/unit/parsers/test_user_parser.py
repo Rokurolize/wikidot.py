@@ -168,6 +168,38 @@ class TestUserParserRegularUser:
 class TestUserParserDeletedUser:
     """削除済みユーザーのパーステスト"""
 
+    def test_parse_deleted_user_from_empty_user_info_link(self, mock_client_no_http: MagicMock) -> None:
+        """削除済みアカウントの空リンク表現からIDを保持する"""
+        html = """
+        <span class="printuser avatarhover">
+            <a href="http://www.wikidot.com/user:info/"
+               onclick="WIKIDOT.page.listeners.userInfo(4210595); return false;"></a>
+        </span>
+        """
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        result = user_parse(mock_client_no_http, elem)
+
+        assert isinstance(result, DeletedUser)
+        assert result.id == 4210595
+
+    def test_empty_user_info_link_with_malformed_id_raises(self, mock_client_no_http: MagicMock) -> None:
+        """空リンクでも数値IDが確認できなければ削除済み扱いしない"""
+        html = """
+        <span class="printuser avatarhover">
+            <a href="http://www.wikidot.com/user:info/"
+               onclick="WIKIDOT.page.listeners.userInfo(latest); return false;"></a>
+        </span>
+        """
+        soup = BeautifulSoup(html, "lxml")
+        elem = soup.select_one("span.printuser")
+        assert elem is not None
+
+        with pytest.raises(ValueError, match="user id is malformed: latest"):
+            user_parse(mock_client_no_http, elem)
+
     def test_parse_deleted_user_string(self, mock_client_no_http: MagicMock) -> None:
         result = user_parse(mock_client_no_http, "(user deleted)")
 
