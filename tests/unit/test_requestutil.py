@@ -273,6 +273,7 @@ class TestRequestUtilConfigValidation:
         assert len(results) == 1
         assert _assert_response(results[0]).status_code == 200
 
+
 class TestRequestUtilGet:
     """RequestUtil.request GETメソッドのテスト"""
 

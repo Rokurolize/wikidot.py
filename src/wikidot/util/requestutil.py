@@ -82,9 +82,7 @@ def _is_wikidot_url(url: str) -> bool:
         return False
     if scheme == "https" and port not in {None, 443}:
         return False
-    return scheme in {"http", "https"} and (
-        hostname == "wikidot.com" or hostname.endswith(".wikidot.com")
-    )
+    return scheme in {"http", "https"} and (hostname == "wikidot.com" or hostname.endswith(".wikidot.com"))
 
 
 def _validate_request_method(method: object) -> str:
