@@ -193,6 +193,8 @@ class AjaxModuleConnectorConfig:
         Default maximum retry attempts for amc_request_with_retry
     local_base_url : str | None, default None
         Explicit opt-in loopback/local target base URL. Defaults to real Wikidot routing.
+    allow_insecure_session_transport_for : str | None, default None
+        Exact Wikidot site UNIX name authorized to receive a session cookie over HTTP.
     """
 
     request_timeout: int = 20
@@ -204,6 +206,7 @@ class AjaxModuleConnectorConfig:
     retry_batch_size: int = 50
     retry_max_retries: int = 3
     local_base_url: str | None = None
+    allow_insecure_session_transport_for: str | None = None
 
     def __post_init__(self) -> None:
         _validate_positive_number_option("request_timeout", self.request_timeout)
@@ -215,6 +218,9 @@ class AjaxModuleConnectorConfig:
         _validate_positive_int_option("retry_batch_size", self.retry_batch_size)
         _validate_non_negative_int_option("retry_max_retries", self.retry_max_retries)
         self.local_base_url = _normalize_local_base_url(self.local_base_url)
+        self.allow_insecure_session_transport_for = _validate_optional_insecure_transport_site(
+            self.allow_insecure_session_transport_for
+        )
 
 
 def _validate_amc_config(config: object) -> AjaxModuleConnectorConfig:
@@ -269,6 +275,18 @@ def _validate_non_negative_number_option(field_name: str, value: object) -> floa
     return numeric_value
 
 
+def _validate_optional_insecure_transport_site(value: object) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("allow_insecure_session_transport_for must be a Wikidot site UNIX name or None")
+    try:
+        StringUtil.validate_site_unix_name(value)
+    except ValueError as exc:
+        raise ValueError("allow_insecure_session_transport_for must be a valid Wikidot site UNIX name or None") from exc
+    return value
+
+
 def _normalize_local_base_url(value: object) -> str | None:
     if value is None:
         return None
@@ -314,7 +332,7 @@ def _local_url(config: AjaxModuleConnectorConfig, path: str) -> str | None:
 
 def _validate_amc_request_config(
     config: AjaxModuleConnectorConfig,
-) -> tuple[float, int, float, float, float, int]:
+) -> tuple[float, int, float, float, float, int, str | None]:
     return (
         _validate_positive_number_option("request_timeout", config.request_timeout),
         _validate_positive_int_option("attempt_limit", config.attempt_limit),
@@ -322,6 +340,7 @@ def _validate_amc_request_config(
         _validate_non_negative_number_option("backoff_factor", config.backoff_factor),
         _validate_non_negative_number_option("max_backoff", config.max_backoff),
         _validate_positive_int_option("semaphore_limit", config.semaphore_limit),
+        _validate_optional_insecure_transport_site(config.allow_insecure_session_transport_for),
     )
 
 
@@ -598,6 +617,7 @@ class AjaxModuleConnectorClient:
             backoff_factor,
             max_backoff,
             semaphore_limit,
+            allow_insecure_session_transport_for,
         ) = _validate_amc_request_config(_require_amc_config(self.config))
         semaphore_instance = asyncio.Semaphore(semaphore_limit)
 
@@ -617,6 +637,12 @@ class AjaxModuleConnectorClient:
         request_url = _local_url(self.config, "ajax-module-connector.php")
         trust_env = True
         if request_url is None:
+            if has_session_cookie and not site_ssl_supported and allow_insecure_session_transport_for != site_name:
+                raise WikidotTransportSecurityException(
+                    "Refusing to send WIKIDOT_SESSION_ID over HTTP. "
+                    "Set AjaxModuleConnectorConfig(allow_insecure_session_transport_for='<site-unix-name>') "
+                    "only for the exact HTTP-only Wikidot site whose plaintext risk is explicitly accepted."
+                )
             scheme = "https" if site_ssl_supported else "http"
             request_url = f"{scheme}://{site_name}.wikidot.com/ajax-module-connector.php"
             if has_session_cookie and scheme == "http":
