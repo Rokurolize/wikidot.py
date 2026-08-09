@@ -3484,6 +3484,14 @@ class TestSiteAmcRequest:
         with pytest.raises(ValueError, match="batch_size must be positive"):
             mock_site_no_http.amc_request_with_retry([], batch_size=0)
 
+    @pytest.mark.parametrize("return_exceptions", [None, 0, 1, "true"])
+    def test_amc_request_with_retry_rejects_non_boolean_return_exceptions(
+        self, mock_site_no_http: Site, return_exceptions: Any
+    ) -> None:
+        """例外返却modeはboolだけを受け付ける"""
+        with pytest.raises(ValueError, match="return_exceptions must be a boolean"):
+            mock_site_no_http.amc_request_with_retry([], return_exceptions=return_exceptions)
+
     @pytest.mark.parametrize("config", [None, object(), {}, "config", True])
     def test_amc_request_with_retry_rejects_invalid_config_object_before_request(
         self,
@@ -3662,6 +3670,29 @@ class TestSiteAmcRequest:
 
         mock_client.amc_client.request.assert_called_once()
 
+    def test_amc_request_with_retry_can_return_permanent_errors_in_request_order(self) -> None:
+        """呼出側が要求した場合は恒久的なAMC例外を同じ要求位置へ返す"""
+        mock_client = create_mock_client()
+        permission_error = ForbiddenException("no permission")
+        live_response = MagicMock()
+        mock_client.amc_client.request.return_value = (permission_error, live_response)
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        result = site.amc_request_with_retry(
+            [{"moduleName": "Protected"}, {"moduleName": "Public"}],
+            return_exceptions=True,
+        )
+
+        assert result == (permission_error, live_response)
+        mock_client.amc_client.request.assert_called_once()
+
     def test_amc_request_with_retry_raises_transport_security_errors_without_retry(self) -> None:
         """transport policy違反はNoneに丸めず再試行もしない"""
         mock_client = create_mock_client()
@@ -3720,6 +3751,32 @@ class TestSiteAmcRequest:
         with pytest.raises(ForbiddenException, match="no permission"):
             site.amc_request_with_retry([{"moduleName": "Protected"}], max_retries=1)
 
+        assert mock_client.amc_client.request.call_count == 2
+
+    def test_amc_request_with_retry_can_return_permanent_error_from_retry(self) -> None:
+        """再試行中に恒久エラーへ変わっても要求位置を保って返す"""
+        mock_client = create_mock_client()
+        permission_error = ForbiddenException("no permission")
+        mock_client.amc_client.request.side_effect = [
+            (RuntimeError("temporary"),),
+            (permission_error,),
+        ]
+        site = Site(
+            client=mock_client,
+            id=1,
+            title="Test",
+            unix_name="test",
+            domain="test.wikidot.com",
+            ssl_supported=True,
+        )
+
+        result = site.amc_request_with_retry(
+            [{"moduleName": "Protected"}],
+            max_retries=1,
+            return_exceptions=True,
+        )
+
+        assert result == (permission_error,)
         assert mock_client.amc_client.request.call_count == 2
 
     def test_amc_request_with_retry_returns_none_for_entries_still_failed_after_retries(self) -> None:

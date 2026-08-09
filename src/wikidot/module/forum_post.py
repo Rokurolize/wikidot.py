@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 from bs4 import BeautifulSoup, Tag
 
 from ..common.exceptions import NoElementException, UnexpectedException, WikidotStatusCodeException
+from ..common.logger import logger
 from ..util.parser import odate as odate_parser
 from ..util.parser import user as user_parser
 from ..util.parser.html import class_values
@@ -28,6 +29,10 @@ if TYPE_CHECKING:
 
 
 MAX_FORUM_POST_PAGER_PAGES = 1000
+
+
+def _is_deleted_forum_thread_error(error: Exception) -> bool:
+    return isinstance(error, WikidotStatusCodeException) and error.status_code == "no_thread"
 
 
 def _site_name(site: object) -> str:
@@ -816,13 +821,23 @@ class ForumPostCollection(list["ForumPost"]):
                     "t": str(thread_id),
                 }
                 for thread_id in target_thread_ids
-            ]
+            ],
+            return_exceptions=True,
         )
 
         # Step 2: Parse first pages and determine pagination
         additional_requests: list[tuple[ForumThread, int, int]] = []
 
         for thread, thread_id, response in zip(target_threads, target_thread_ids, first_page_responses, strict=True):
+            if isinstance(response, Exception):
+                if not _is_deleted_forum_thread_error(response):
+                    raise response
+                logger.warning(
+                    "Forum thread disappeared during post retrieval: site=%s thread=%d page=1 status=no_thread",
+                    thread.site.unix_name,
+                    thread_id,
+                )
+                continue
             if response is None:
                 raise UnexpectedException(
                     f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread_id}, page: 1"
@@ -856,10 +871,32 @@ class ForumPostCollection(list["ForumPost"]):
                         "t": str(thread_id),
                     }
                     for _, thread_id, page in additional_requests
-                ]
+                ],
+                return_exceptions=True,
             )
 
+            deleted_thread_ids: set[int] = set()
             for (thread, thread_id, page), response in zip(additional_requests, additional_responses, strict=True):
+                if not isinstance(response, Exception):
+                    continue
+                if not _is_deleted_forum_thread_error(response):
+                    raise response
+                logger.warning(
+                    "Forum thread disappeared during post retrieval: site=%s thread=%d page=%d status=no_thread",
+                    thread.site.unix_name,
+                    thread_id,
+                    page,
+                )
+                deleted_thread_ids.add(thread_id)
+
+            for thread_id in deleted_thread_ids:
+                result.pop(thread_id, None)
+
+            for (thread, thread_id, page), response in zip(additional_requests, additional_responses, strict=True):
+                if thread_id in deleted_thread_ids:
+                    continue
+                if isinstance(response, Exception):
+                    raise response
                 if response is None:
                     raise UnexpectedException(
                         f"Cannot retrieve forum posts for site: {thread.site.unix_name}, thread: {thread_id}, page: {page}"
@@ -870,7 +907,9 @@ class ForumPostCollection(list["ForumPost"]):
                 result[thread_id].extend(posts)
 
         for thread, thread_id in zip(target_threads, target_thread_ids, strict=True):
-            thread._posts = result[thread_id]
+            posts = result.get(thread_id)
+            if posts is not None:
+                thread._posts = posts
 
         return result
 

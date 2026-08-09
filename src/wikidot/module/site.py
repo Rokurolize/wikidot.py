@@ -1560,13 +1560,36 @@ class Site:
         else:
             return client.amc_client.request(bodies, False, unix_name, ssl_supported)
 
+    if TYPE_CHECKING:
+
+        @overload
+        def amc_request_with_retry(
+            self,
+            bodies: list[dict[str, Any]],
+            *,
+            batch_size: int | None = None,
+            max_retries: int | None = None,
+            return_exceptions: Literal[False] = False,
+        ) -> tuple[httpx.Response | None, ...]: ...
+
+        @overload
+        def amc_request_with_retry(
+            self,
+            bodies: list[dict[str, Any]],
+            *,
+            batch_size: int | None = None,
+            max_retries: int | None = None,
+            return_exceptions: Literal[True],
+        ) -> tuple[httpx.Response | Exception | None, ...]: ...
+
     def amc_request_with_retry(
         self,
         bodies: list[dict[str, Any]],
         *,
         batch_size: int | None = None,
         max_retries: int | None = None,
-    ) -> tuple[httpx.Response | None, ...]:
+        return_exceptions: bool = False,
+    ) -> tuple[httpx.Response | Exception | None, ...]:
         """Execute amc_request with batch splitting and partial failure tolerance.
 
         Requests are split into batches and failed requests are retried
@@ -1582,12 +1605,16 @@ class Site:
         max_retries : int | None, optional
             Maximum number of retry attempts for failed requests.
             Defaults to config.retry_max_retries if not specified.
+        return_exceptions : bool, default False
+            Whether to return permanent exceptions in their request positions.
 
         Returns
         -------
-        tuple[httpx.Response | None, ...]
-            Responses for each body. None for permanently failed requests.
+        tuple[httpx.Response | Exception | None, ...]
+            Responses for each body. Retry-exhausted requests are None.
+            Permanent exceptions are returned only when return_exceptions is True.
         """
+        return_exceptions = _validate_page_bool_field("return_exceptions", return_exceptions)
         if batch_size is not None:
             batch_size = _validate_amc_retry_batch_size(batch_size)
         if max_retries is not None:
@@ -1603,7 +1630,7 @@ class Site:
             max_retries if max_retries is not None else _validate_amc_retry_max_retries(config.retry_max_retries)
         )
 
-        all_results: list[httpx.Response | None] = []
+        all_results: list[httpx.Response | Exception | None] = []
 
         for batch_start in range(0, len(bodies), batch_size):
             batch = bodies[batch_start : batch_start + batch_size]
@@ -1614,13 +1641,16 @@ class Site:
                 batch_start=batch_start,
                 attempt=0,
             )
-            batch_results: list[httpx.Response | None] = []
+            batch_results: list[httpx.Response | Exception | None] = []
             failed_indices: list[int] = []
 
             for i, resp_or_exc in enumerate(responses):
                 if isinstance(resp_or_exc, Exception):
                     if not _is_retryable_site_amc_exception(resp_or_exc):
-                        raise resp_or_exc
+                        if not return_exceptions:
+                            raise resp_or_exc
+                        batch_results.append(resp_or_exc)
+                        continue
                     batch_results.append(None)
                     failed_indices.append(i)
                 else:
@@ -1646,12 +1676,16 @@ class Site:
 
                 still_failed_indices: list[int] = []
                 for j, retry_resp in enumerate(retry_responses):
+                    original_index = failed_indices[j]
                     if isinstance(retry_resp, Exception):
                         if not _is_retryable_site_amc_exception(retry_resp):
-                            raise retry_resp
-                        still_failed_indices.append(failed_indices[j])
+                            if not return_exceptions:
+                                raise retry_resp
+                            batch_results[original_index] = retry_resp
+                            continue
+                        still_failed_indices.append(original_index)
                     else:
-                        batch_results[failed_indices[j]] = retry_resp
+                        batch_results[original_index] = retry_resp
                 failed_indices = still_failed_indices
 
             all_results.extend(batch_results)

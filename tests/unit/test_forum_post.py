@@ -713,7 +713,8 @@ class TestForumPostCollectionAcquireAll:
                     "pageNo": "1",
                     "t": "0",
                 }
-            ]
+            ],
+            return_exceptions=True,
         )
 
     @pytest.mark.parametrize("retained_id", [None, True, False, "3001", 3001.0, []])
@@ -805,7 +806,8 @@ class TestForumPostCollectionAcquireAll:
                     "pageNo": "1",
                     "t": "0",
                 }
-            ]
+            ],
+            return_exceptions=True,
         )
 
     @pytest.mark.parametrize("retained_id", [None, True, False, "3001", 3001.0, []])
@@ -1318,7 +1320,8 @@ class TestForumPostCollectionAcquireAll:
                     "pageNo": "1",
                     "t": str(mock_forum_thread_no_http.id),
                 }
-            ]
+            ],
+            return_exceptions=True,
         )
 
     def test_acquire_all_in_threads_skips_cached_thread_posts(
@@ -1343,7 +1346,8 @@ class TestForumPostCollectionAcquireAll:
         mock_response = MagicMock()
         mock_response.json.return_value = forum_posts_in_thread
 
-        def request_with_retry(requests):
+        def request_with_retry(requests, *, return_exceptions):
+            assert return_exceptions is True
             return tuple(mock_response for _ in requests)
 
         mock_forum_thread_no_http.site.amc_request = MagicMock()
@@ -1362,7 +1366,8 @@ class TestForumPostCollectionAcquireAll:
                     "pageNo": "1",
                     "t": str(uncached_thread.id),
                 }
-            ]
+            ],
+            return_exceptions=True,
         )
 
     def test_acquire_all_in_threads_all_cached_skips_fetch(
@@ -1504,6 +1509,37 @@ class TestForumPostCollectionAcquireAll:
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
 
+    def test_acquire_all_in_threads_omits_thread_deleted_before_first_page(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """走査開始後に消えたthreadだけを除外し、同じbatchの正常threadを残す"""
+        live_thread = _thread_with_id(mock_forum_thread_no_http, 3002)
+        deleted_error = exceptions.WikidotStatusCodeException("thread not found", "no_thread")
+        live_response = MagicMock()
+        live_response.json.return_value = forum_posts_in_thread
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(
+            return_value=(deleted_error, live_response)
+        )
+
+        result = ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, live_thread])
+
+        assert 3001 not in result
+        assert len(result[3002]) == 2
+        assert mock_forum_thread_no_http._posts is None
+        assert live_thread._posts is result[3002]
+
+    def test_acquire_all_in_threads_does_not_ignore_other_permanent_errors(
+        self, mock_forum_thread_no_http: ForumThread
+    ) -> None:
+        """no_thread以外の恒久エラーは同期失敗として呼出側へ返す"""
+        permission_error = exceptions.WikidotStatusCodeException("permission denied", "no_permission")
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(permission_error,))
+
+        with pytest.raises(exceptions.WikidotStatusCodeException) as raised:
+            ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
+
+        assert raised.value is permission_error
+
     def test_acquire_all_raises_when_paginated_retry_is_exhausted(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
     ) -> None:
@@ -1525,6 +1561,39 @@ class TestForumPostCollectionAcquireAll:
             ForumPostCollection.acquire_all_in_thread(mock_forum_thread_no_http)
 
         mock_forum_thread_no_http.site.amc_request.assert_not_called()
+
+    def test_acquire_all_in_threads_discards_earlier_pages_when_thread_is_deleted(
+        self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
+    ) -> None:
+        """追加page取得中に消えたthreadは取得済みpageも含めて除外する"""
+        live_thread = _thread_with_id(mock_forum_thread_no_http, 3002)
+        first_page_body = (
+            forum_posts_in_thread["body"]
+            + '<div class="pager"><span class="target">1</span><span class="target">2</span></div>'
+        )
+        deleted_first_response = MagicMock()
+        deleted_first_response.json.return_value = {**forum_posts_in_thread, "body": first_page_body}
+        live_first_response = MagicMock()
+        live_first_response.json.return_value = {**forum_posts_in_thread, "body": first_page_body}
+        deleted_error = exceptions.WikidotStatusCodeException("thread not found", "no_thread")
+        live_second_response = MagicMock()
+        live_second_response.json.return_value = {
+            **forum_posts_in_thread,
+            "body": forum_posts_in_thread["body"].replace("5001", "5003").replace("5002", "5004"),
+        }
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(
+            side_effect=[
+                (deleted_first_response, live_first_response),
+                (deleted_error, live_second_response),
+            ]
+        )
+
+        result = ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, live_thread])
+
+        assert 3001 not in result
+        assert len(result[3002]) == 4
+        assert mock_forum_thread_no_http._posts is None
+        assert live_thread._posts is result[3002]
 
     def test_acquire_all_missing_paginated_response_body_includes_thread_and_page_context(
         self, mock_forum_thread_no_http: ForumThread, forum_posts_in_thread: dict[str, Any]
