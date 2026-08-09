@@ -1276,8 +1276,7 @@ class TestForumThreadCollectionAcquireAll:
         """巨大categoryでも追加ページを有限batchごとに取得する"""
         monkeypatch.setattr("wikidot.module.forum_thread.FORUM_THREAD_PAGE_BATCH_SIZE", 1)
         body_with_pager = (
-            forum_threads_in_category["body"]
-            + '<div class="pager"><a>1</a><a>2</a><a>3</a><a>next</a></div>'
+            forum_threads_in_category["body"] + '<div class="pager"><a>1</a><a>2</a><a>3</a><a>next</a></div>'
         )
         first_response = MagicMock()
         first_response.json.return_value = {"status": "ok", "body": body_with_pager}
