@@ -803,11 +803,13 @@ class AjaxModuleConnectorClient:
 
                 # Treat as error if status is not ok
                 status = _response_body["status"]
-                if status == "try_again":
+                if status == "try_again" or (
+                    status == "not_ok" and not _is_side_effecting_amc_body(request_body)
+                ):
                     retry_count += 1
                     if retry_count >= attempt_limit:
-                        wd_logger.error(f'AMC is respond status: "try_again" -> {_mask_sensitive_data(request_body)}')
-                        raise WikidotStatusCodeException('AMC is respond status: "try_again"', "try_again")
+                        wd_logger.error(f'AMC is respond status: "{status}" -> {_mask_sensitive_data(request_body)}')
+                        raise WikidotStatusCodeException(f'AMC is respond status: "{status}"', status)
 
                     # Retry with exponential backoff interval
                     backoff = _calculate_backoff(
@@ -817,7 +819,7 @@ class AjaxModuleConnectorClient:
                         max_backoff,
                     )
                     wd_logger.info(
-                        f'AMC is respond status: "try_again" (retry: {retry_count}, backoff: {backoff:.2f}s)'
+                        f'AMC is respond status: "{status}" (retry: {retry_count}, backoff: {backoff:.2f}s)'
                     )
                     await asyncio.sleep(backoff)
                     continue

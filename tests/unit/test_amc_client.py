@@ -950,6 +950,40 @@ class TestAjaxModuleConnectorClientRequest:
         assert len(httpx_mock.get_requests()) == 2
         assert responses[0].json()["status"] == "ok"
 
+    def test_retry_on_not_ok_for_read_module(self, httpx_mock: HTTPXMock) -> None:
+        """読み取りmoduleの一時的なnot_okはリトライする"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "not_ok"},
+        )
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "ok", "body": ""},
+        )
+
+        config = AjaxModuleConnectorConfig(retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+        responses = client.request([{"moduleName": "forum/ForumViewThreadPostsModule"}])
+
+        assert len(httpx_mock.get_requests()) == 2
+        assert responses[0].json()["status"] == "ok"
+
+    def test_not_ok_for_action_is_not_retried(self, httpx_mock: HTTPXMock) -> None:
+        """副作用のあるactionのnot_okはリトライしない"""
+        httpx_mock.add_response(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            json={"status": "not_ok"},
+        )
+
+        config = AjaxModuleConnectorConfig(attempt_limit=3, retry_interval=0)
+        client = AjaxModuleConnectorClient(site_name="www", config=config)
+
+        with pytest.raises(WikidotStatusCodeException) as exc_info:
+            client.request([{"action": "WikiPageAction", "event": "save"}])
+
+        assert exc_info.value.status_code == "not_ok"
+        assert len(httpx_mock.get_requests()) == 1
+
     def test_no_permission_with_action_uses_action_and_event(self, httpx_mock: HTTPXMock) -> None:
         httpx_mock.add_response(
             url="https://www.wikidot.com/ajax-module-connector.php",
