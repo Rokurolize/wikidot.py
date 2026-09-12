@@ -138,3 +138,24 @@ jobs:
         disable_search: true
         fail_ci_if_error: true
         report_type: test_results
+
+  quality-gate:
+    if: ${{ always() }}
+    needs:
+      - format
+      - lint
+      - typecheck
+      - test
+    runs-on: ubuntu-latest
+    steps:
+    - name: Require every quality job
+      env:
+        FORMAT_RESULT: ${{ needs.format.result }}
+        LINT_RESULT: ${{ needs.lint.result }}
+        TYPECHECK_RESULT: ${{ needs.typecheck.result }}
+        TEST_RESULT: ${{ needs.test.result }}
+      run: |
+        test "$FORMAT_RESULT" = success
+        test "$LINT_RESULT" = success
+        test "$TYPECHECK_RESULT" = success
+        test "$TEST_RESULT" = success

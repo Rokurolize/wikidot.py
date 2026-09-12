@@ -903,13 +903,13 @@ class ForumPostCollection(list["ForumPost"]):
                     )
                 body = ForumPostCollection._post_list_response_body(response, thread, page)
                 html = BeautifulSoup(body, "lxml")
-                posts = ForumPostCollection._parse(thread, html, page=page)
-                result[thread_id].extend(posts)
+                parsed_posts = ForumPostCollection._parse(thread, html, page=page)
+                result[thread_id].extend(parsed_posts)
 
         for thread, thread_id in zip(target_threads, target_thread_ids, strict=True):
-            posts = result.get(thread_id)
-            if posts is not None:
-                thread._posts = posts
+            thread_posts = result.get(thread_id)
+            if thread_posts is not None:
+                thread._posts = thread_posts
 
         return result
 

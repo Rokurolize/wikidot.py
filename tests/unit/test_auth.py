@@ -239,12 +239,43 @@ class TestHTTPAuthentication:
     def test_logout(self):
         """ログアウト成功"""
         mock_client = self._mock_client()
+        mock_client.amc_client.header.cookie["wikidot_token7"] = "test-token"
 
-        HTTPAuthentication.logout(mock_client)
+        with patch("wikidot.module.auth.sync_post_with_retry") as mock_post:
+            HTTPAuthentication.logout(mock_client)
 
-        mock_client.amc_client.request.assert_called_once_with(
-            [{"action": "Login2Action", "event": "logout", "moduleName": "Empty"}]
+        mock_post.assert_called_once_with(
+            url="https://www.wikidot.com/ajax-module-connector.php",
+            data={
+                "wikidot_token7": "test-token",
+                "action": "Login2Action",
+                "event": "logout",
+                "moduleName": "Empty",
+            },
+            headers={},
+            timeout=mock_client.amc_client.config.request_timeout,
+            attempt_limit=1,
+            retry_interval=0,
+            max_backoff=0,
+            backoff_factor=0,
+            raise_for_status=False,
         )
+        mock_client.amc_client.request.assert_not_called()
+        mock_client.amc_client.header.delete_cookie.assert_called_once_with("WIKIDOT_SESSION_ID")
+
+    def test_logout_uses_explicit_local_base_url(self):
+        """明示されたローカルベースURLのAMCへログアウトを送信する"""
+        mock_client = self._mock_client()
+        mock_client.amc_client.config = AjaxModuleConnectorConfig(
+            local_base_url="http://127.0.0.1:4173",
+            retry_interval=0,
+        )
+
+        with patch("wikidot.module.auth.sync_post_with_retry") as mock_post:
+            HTTPAuthentication.logout(mock_client)
+
+        assert mock_post.call_args.kwargs["url"] == "http://127.0.0.1:4173/ajax-module-connector.php"
+        mock_client.amc_client.request.assert_not_called()
         mock_client.amc_client.header.delete_cookie.assert_called_once_with("WIKIDOT_SESSION_ID")
 
     @pytest.mark.parametrize("client", [None, True, "test-client", {"username": "test-user"}, object()])
@@ -269,10 +300,11 @@ class TestHTTPAuthentication:
     def test_logout_suppresses_errors(self):
         """ログアウト時のエラーが抑制される"""
         mock_client = self._mock_client()
-        mock_client.amc_client.request.side_effect = Exception("Network error")
 
-        # エラーが発生しても例外が送出されない
-        HTTPAuthentication.logout(mock_client)
+        with patch("wikidot.module.auth.sync_post_with_retry", side_effect=Exception("Network error")):
+            # エラーが発生しても例外が送出されない
+            HTTPAuthentication.logout(mock_client)
 
         # Cookieの削除は常に実行される
+        mock_client.amc_client.request.assert_not_called()
         mock_client.amc_client.header.delete_cookie.assert_called_once_with("WIKIDOT_SESSION_ID")
