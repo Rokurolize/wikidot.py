@@ -1517,9 +1517,7 @@ class TestForumPostCollectionAcquireAll:
         deleted_error = exceptions.WikidotStatusCodeException("thread not found", "no_thread")
         live_response = MagicMock()
         live_response.json.return_value = forum_posts_in_thread
-        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(
-            return_value=(deleted_error, live_response)
-        )
+        mock_forum_thread_no_http.site.amc_request_with_retry = MagicMock(return_value=(deleted_error, live_response))
 
         result = ForumPostCollection.acquire_all_in_threads([mock_forum_thread_no_http, live_thread])
 

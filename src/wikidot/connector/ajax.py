@@ -803,9 +803,7 @@ class AjaxModuleConnectorClient:
 
                 # Treat as error if status is not ok
                 status = _response_body["status"]
-                if status == "try_again" or (
-                    status == "not_ok" and not _is_side_effecting_amc_body(request_body)
-                ):
+                if status == "try_again" or (status == "not_ok" and not _is_side_effecting_amc_body(request_body)):
                     retry_count += 1
                     if retry_count >= attempt_limit:
                         wd_logger.error(f'AMC is respond status: "{status}" -> {_mask_sensitive_data(request_body)}')
@@ -818,9 +816,7 @@ class AjaxModuleConnectorClient:
                         backoff_factor,
                         max_backoff,
                     )
-                    wd_logger.info(
-                        f'AMC is respond status: "{status}" (retry: {retry_count}, backoff: {backoff:.2f}s)'
-                    )
+                    wd_logger.info(f'AMC is respond status: "{status}" (retry: {retry_count}, backoff: {backoff:.2f}s)')
                     await asyncio.sleep(backoff)
                     continue
 

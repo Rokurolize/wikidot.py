@@ -135,8 +135,29 @@ class HTTPAuthentication:
         Errors during the logout process are ignored, and cookie deletion is always performed.
         """
         client = _validate_auth_client(client)
+        config = _validate_login_config_object(client.amc_client.config)
         header = _validate_auth_header_object(client.amc_client.header)
+        logout_url = (
+            _local_url(config, "ajax-module-connector.php") or "https://www.wikidot.com/ajax-module-connector.php"
+        )
+        request_headers = header.get_header()
+        wikidot_token = header.cookie.get("wikidot_token7", 123456)
         with contextlib.suppress(Exception):
-            client.amc_client.request([{"action": "Login2Action", "event": "logout", "moduleName": "Empty"}])
+            sync_post_with_retry(
+                url=logout_url,
+                data={
+                    "wikidot_token7": wikidot_token,
+                    "action": "Login2Action",
+                    "event": "logout",
+                    "moduleName": "Empty",
+                },
+                headers=request_headers,
+                timeout=config.request_timeout,
+                attempt_limit=1,
+                retry_interval=0,
+                max_backoff=0,
+                backoff_factor=0,
+                raise_for_status=False,
+            )
 
         header.delete_cookie("WIKIDOT_SESSION_ID")
